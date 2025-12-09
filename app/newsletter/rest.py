@@ -24,8 +24,13 @@ def create_unconfirmed_subscription():
     # Check if a subscriber with the given email already exists
     try:
         existing_subscriber = NewsletterSubscriber.from_email(email)
+
+        # Update language preference in case it has changed
+        existing_subscriber.language = language
+        existing_subscriber.save()
+
         current_app.logger.warning("A Subscriber by this email already exists, re-sending confirmation email.")
-        send_confirmation_email(existing_subscriber.id, existing_subscriber.email, existing_subscriber.language)
+        send_confirmation_email(existing_subscriber.id, existing_subscriber.email, language)
         return jsonify(
             result="success", message="A subscriber with this email already exists", subscriber=existing_subscriber.to_dict
         ), 200
@@ -130,6 +135,9 @@ def send_latest_newsletter(subscriber_id):
         if e.response.status_code == 404:
             raise InvalidRequest("Subscriber not found", status_code=404)
         raise InvalidRequest(f"Failed to fetch subscriber: {e.response.text}", status_code=e.response.status_code)
+
+    if subscriber.status != NewsletterSubscriber.Statuses.SUBSCRIBED.value:
+        raise InvalidRequest(message=f"Cannot send to subscribers with status: {subscriber.status}", status_code=400)
 
     current_app.logger.info(f"Sending latest newsletter to new subscriber: {subscriber.id}")
     _send_latest_newsletter(subscriber.id, subscriber.email, subscriber.language)
