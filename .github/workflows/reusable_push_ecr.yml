@@ -1,0 +1,79 @@
+name: Reusable push to ECRs
+
+on:
+  workflow_call:
+    inputs:
+      image-name:
+        required: true
+        type: string
+      image-tag-sha:
+        required: true
+        type: string
+      aws-region:
+        required: true
+        type: string
+      branch-name:
+        required: true
+        type: string
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  push-to-ecrs:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        env:
+          - name: dev
+            account_id: ${{ secrets.DEV_AWS_ACCOUNT_ID }}
+            role_arn: arn:aws:iam::${{ secrets.DEV_AWS_ACCOUNT_ID }}:role/notification-api-build-push-${{ inputs.branch-name }}-branch
+          - name: staging
+            account_id: ${{ secrets.STAGING_AWS_ACCOUNT_ID }}
+            role_arn: arn:aws:iam::${{ secrets.STAGING_AWS_ACCOUNT_ID }}:role/notification-api-build-push-${{ inputs.branch-name }}-branch
+          # - name: prod
+          #   account_id: ${{ secrets.PROD_AWS_ACCOUNT_ID }}
+          #   role_arn: arn:aws:iam::${{ secrets.PROD_AWS_ACCOUNT_ID }}:role/notification-api-build-push-${{ inputs.branch-name }}-branch
+
+    steps:
+      - name: Set short SHA
+        id: sha
+        run: echo "short=${{ inputs.image-tag-sha }}" | cut -c1-7 >> "$GITHUB_OUTPUT"
+
+      - name: Configure AWS credentials via OIDC
+        uses: aws-actions/configure-aws-credentials@ececac1a45f3b08a01d2dd070d28d111c5fe6722 # v4.1.0
+        with:
+          role-to-assume: ${{ matrix.env.role_arn }}
+          role-session-name: NotifyApiBuildPush-${{ matrix.env.name }}-${{ inputs.branch-name }}-branch
+          aws-region: ${{ inputs.aws-region }}
+
+      - name: Login to ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@5a88a04c91d5c6f97aae0d9be790e64d9b1d47b7 # v1.7.1
+
+      - name: Tag image for target registry
+        run: |
+          SHORT_SHA="${{ inputs.image-tag-sha }}"
+          SHORT_SHA="${SHORT_SHA:0:7}"
+          SRC_IMAGE="${{ inputs.image-name }}:${SHORT_SHA}"
+          SRC_LATEST="${{ inputs.image-name }}:latest"
+          BRANCH_TAG="${{ inputs.image-name }}:latest-${{ inputs.branch-name }}-branch"
+          REGISTRY="${{ matrix.env.account_id }}.dkr.ecr.${{ inputs.aws-region }}.amazonaws.com/notify"
+
+          docker tag "$SRC_IMAGE" "$REGISTRY/${{ inputs.image-name }}:${SHORT_SHA}"
+          docker tag "$SRC_LATEST" "$REGISTRY/${{ inputs.image-name }}:latest"
+          docker tag "$SRC_IMAGE" "$REGISTRY/$BRANCH_TAG"
+
+      - name: Push image to ${{ matrix.env.name }} ECR
+        run: |
+          SHORT_SHA="${{ inputs.image-tag-sha }}"
+          SHORT_SHA="${SHORT_SHA:0:7}"
+          REGISTRY="${{ matrix.env.account_id }}.dkr.ecr.${{ inputs.aws-region }}.amazonaws.com/notify"
+          docker push "$REGISTRY/${{ inputs.image-name }}:${SHORT_SHA}"
+          docker push "$REGISTRY/${{ inputs.image-name }}:latest"
+          docker push "$REGISTRY/${{ inputs.image-name }}:latest-${{ inputs.branch-name }}-branch"
+
+      - name: Logout of Amazon ECR
+        run: docker logout ${{ steps.login-ecr.outputs.registry }}
