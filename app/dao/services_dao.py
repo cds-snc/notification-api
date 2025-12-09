@@ -651,9 +651,13 @@ def dao_fetch_active_users_for_service(service_id):
 
 def dao_fetch_service_creator(service_id: uuid.UUID) -> User:
     service_history = Service.get_history_model()
+
+    # Find the earliest version for this service
+    earliest_version = db.session.query(func.min(service_history.version)).filter(service_history.id == service_id).scalar()
+
     query = (
         User.query.join(service_history, User.id == service_history.created_by_id)
-        .filter(service_history.id == service_id, service_history.version == 1)
+        .filter(service_history.id == service_id, service_history.version == earliest_version)
         .one()
     )
     return query
