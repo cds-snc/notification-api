@@ -103,6 +103,7 @@ class TestNewsletterSubscriber:
     def test_from_email_success(self, mocker):
         """Test from_email returns subscriber when found."""
         mock_subscriber = Mock()
+        mocker.patch.object(NewsletterSubscriber, "table_exists", return_value=True)
         mock_all = mocker.patch.object(NewsletterSubscriber, "all", return_value=[mock_subscriber])
 
         result = NewsletterSubscriber.from_email("test@example.com")
@@ -114,6 +115,7 @@ class TestNewsletterSubscriber:
         """Test from_email raises HTTPError when not found."""
         from requests import HTTPError
 
+        mocker.patch.object(NewsletterSubscriber, "table_exists", return_value=True)
         mocker.patch.object(NewsletterSubscriber, "all", return_value=[])
 
         with pytest.raises(HTTPError) as exc_info:
@@ -123,6 +125,7 @@ class TestNewsletterSubscriber:
 
     def test_from_email_exception_handling(self, mocker, notify_api):
         """Test from_email lets exceptions propagate."""
+        mocker.patch.object(NewsletterSubscriber, "table_exists", return_value=True)
         mocker.patch.object(NewsletterSubscriber, "all", side_effect=Exception("Database error"))
 
         with pytest.raises(Exception, match="Database error"):
