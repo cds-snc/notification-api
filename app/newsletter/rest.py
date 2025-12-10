@@ -1,5 +1,8 @@
+from uuid import UUID
+
 from flask import Blueprint, current_app, jsonify, request
 from requests import HTTPError
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.clients.airtable.models import LatestNewsletterTemplate, NewsletterSubscriber
 from app.config import QueueNames
@@ -133,7 +136,7 @@ def send_latest_newsletter(subscriber_id):
         subscriber = NewsletterSubscriber.from_id(record_id=subscriber_id)
     except HTTPError as e:
         if e.response.status_code == 404:
-            raise InvalidRequest("Subscriber not found", status_code=404)
+            raise InvalidRequest(f"Subscriber not found: {e.response}", status_code=404)
         raise InvalidRequest(f"Failed to fetch subscriber: {e.response.text}", status_code=e.response.status_code)
 
     if subscriber.status != NewsletterSubscriber.Statuses.SUBSCRIBED.value:
@@ -167,7 +170,7 @@ def get_subscriber():
 
 
 def _send_latest_newsletter(subscriber_id, recipient_email, language):
-    # Get the current newsletter template IDs from Airtable
+    # Get the current newsletter template IDs from Airtable (up to 3 most recent)
     try:
         latest_newsletter_templates = LatestNewsletterTemplate.get_latest_newsletter_templates()
     except HTTPError as e:
@@ -177,12 +180,54 @@ def _send_latest_newsletter(subscriber_id, recipient_email, language):
             f"Failed to fetch latest newsletter templates: {e.response.text}", status_code=e.response.status_code
         )
 
-    # Fetch the template from the DB depending on the subscriber's language
-    template = (
-        dao_get_template_by_id(latest_newsletter_templates.template_id_en)
-        if language == NewsletterSubscriber.Languages.EN.value
-        else dao_get_template_by_id(latest_newsletter_templates.template_id_fr)
-    )
+    template = None
+    template_id = None
+    first_template_id = None
+
+    # Iterate through the 3 latest newsletter templates from Airtable and use the most recent
+    # template that currently exists in the DB
+    for index, newsletter_template in enumerate(latest_newsletter_templates):
+        # Get the appropriate template ID based on language
+        template_id = (
+            newsletter_template.template_id_en
+            if language == NewsletterSubscriber.Languages.EN.value
+            else newsletter_template.template_id_fr
+        )
+
+        # Validate that template_id is a valid UUID before attempting to use it
+        try:
+            UUID(template_id)
+        except (ValueError, TypeError, AttributeError):
+            current_app.logger.warning(
+                f"Template ID {template_id} is not a valid UUID, continuing search for a valid newsletter template_id."
+            )
+            if index == 0:
+                first_template_id = template_id
+            continue
+
+        try:
+            template = dao_get_template_by_id(template_id)
+            # Keep track of and log when we cannot use the latest template_id found in Airtable
+            if first_template_id and index > 0:
+                current_app.logger.warning(
+                    f"Most recent template from Airtable: {first_template_id} not found in database. "
+                    f"Using fallback template: {template_id} for subscriber: {subscriber_id}"
+                )
+            break  # Successfully found a template
+        except SQLAlchemyError:
+            current_app.logger.warning(f"Template {template_id} not found in database, trying next template.")
+            if index == 0:
+                first_template_id = template_id
+            continue  # Try the next template pair
+
+    # If we didn't find any valid template, raise an error
+    if template is None:
+        current_app.logger.error("No valid newsletter templates found in database.")
+        raise InvalidRequest(
+            f"Latest newsletter was not sent to {subscriber_id}. No valid newsletter templates found in database.",
+            status_code=500,
+        )
+
     service = Service.query.get(current_app.config["NOTIFY_SERVICE_ID"])
 
     # Save and send the notification
