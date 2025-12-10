@@ -201,7 +201,7 @@ def _send_latest_newsletter(subscriber_id, recipient_email, language):
                     f"Using fallback template: {template_id} for subscriber: {subscriber_id}"
                 )
             break  # Successfully found a template
-        except SQLAlchemyError as e:
+        except SQLAlchemyError:
             current_app.logger.warning(f"Template {template_id} not found in database, trying next template.")
             if index == 0:
                 first_template_id = template_id
