@@ -195,16 +195,14 @@ def _send_latest_newsletter(subscriber_id, recipient_email, language):
         try:
             template = dao_get_template_by_id(template_id)
             # Keep track of and log when we cannot use the latest template_id found in Airtable
-            if index > 0:
+            if first_template_id and index > 0:
                 current_app.logger.warning(
                     f"Most recent template from Airtable: {first_template_id} not found in database. "
                     f"Using fallback template: {template_id} for subscriber: {subscriber_id}"
                 )
             break  # Successfully found a template
         except SQLAlchemyError as e:
-            current_app.logger.warning(
-                f"Template {template_id} not found in database, trying next: {e}"
-            )
+            current_app.logger.warning(f"Template {template_id} not found in database, trying next: {e}")
             if index == 0:
                 first_template_id = template_id
             continue  # Try the next template pair
