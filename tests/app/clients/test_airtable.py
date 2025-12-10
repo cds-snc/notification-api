@@ -279,7 +279,7 @@ class TestLatestNewsletterTemplate:
         mock_create_table.assert_called_once()
 
     def test_get_latest_newsletter_templates_success(self, mocker):
-        """Test get_latest_newsletter_templates returns latest templates."""
+        """Test get_latest_newsletter_templates returns latest template."""
         mock_template = Mock()
         mock_template.template_id_en = "template-en-123"
         mock_template.template_id_fr = "template-fr-456"
@@ -289,8 +289,8 @@ class TestLatestNewsletterTemplate:
 
         result = LatestNewsletterTemplate.get_latest_newsletter_templates()
 
-        assert result == [mock_template]
-        mock_all.assert_called_once_with(sort=["-Created at"], max_records=3)
+        assert result == mock_template
+        mock_all.assert_called_once_with(sort=["-Created at"], max_records=1)
 
     def test_get_latest_newsletter_templates_creates_table_if_not_exists(self, mocker):
         """Test get_latest_newsletter_templates creates table if it doesn't exist."""
@@ -302,7 +302,7 @@ class TestLatestNewsletterTemplate:
         result = LatestNewsletterTemplate.get_latest_newsletter_templates()
 
         mock_create_table.assert_called_once()
-        assert result == [mock_template]
+        assert result == mock_template
 
     def test_get_latest_newsletter_templates_not_found(self, mocker):
         """Test get_latest_newsletter_templates raises HTTPError when no templates found."""
