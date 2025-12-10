@@ -375,44 +375,7 @@ class TestSendLatestNewsletter:
         assert "Latest newsletter was not sent" in response["message"]
         assert "No valid newsletter templates found in database" in response["message"]
 
-    @pytest.mark.parametrize(
-        "template_1_en, template_1_fr, template_2_en, template_2_fr, template_3_en, template_3_fr, expected_dao_calls",
-        [
-            # All valid UUIDs - first template fails, second succeeds
-            (
-                "a290f1ee-6c54-4b01-90e6-d701748f0851",
-                "a520c123-4d32-4c01-80f5-e801648f0962",
-                "b290f1ee-6c54-4b01-90e6-d701748f0851",
-                "b520c123-4d32-4c01-80f5-e801648f0962",
-                "c290f1ee-6c54-4b01-90e6-d701748f0851",
-                "c520c123-4d32-4c01-80f5-e801648f0962",
-                2,  # First template queried but fails, second succeeds
-            ),
-            # First two invalid UUIDs, third valid - only third is queried
-            (
-                "not-a-valid-uuid",
-                "also-not-valid",
-                "still-invalid",
-                "nope",
-                "d290f1ee-6c54-4b01-90e6-d701748f0851",
-                "d520c123-4d32-4c01-80f5-e801648f0962",
-                1,  # Only the third template is queried
-            ),
-        ],
-    )
-    def test_send_latest_newsletter_uses_fallback_template(
-        self,
-        admin_request,
-        mocker,
-        mock_subscriber,
-        template_1_en,
-        template_1_fr,
-        template_2_en,
-        template_2_fr,
-        template_3_en,
-        template_3_fr,
-        expected_dao_calls,
-    ):
+    def test_send_latest_newsletter_uses_fallback_template(self, admin_request, mocker, mock_subscriber):
         from sqlalchemy.exc import SQLAlchemyError
 
         mock_subscriber.status = NewsletterSubscriber.Statuses.SUBSCRIBED.value
@@ -420,16 +383,16 @@ class TestSendLatestNewsletter:
 
         # Mock LatestNewsletterTemplate to return a list of 3 template pairs
         mock_newsletter_template_1 = Mock()
-        mock_newsletter_template_1.template_id_en = template_1_en
-        mock_newsletter_template_1.template_id_fr = template_1_fr
+        mock_newsletter_template_1.template_id_en = "template-en-newest"
+        mock_newsletter_template_1.template_id_fr = "template-fr-newest"
 
         mock_newsletter_template_2 = Mock()
-        mock_newsletter_template_2.template_id_en = template_2_en
-        mock_newsletter_template_2.template_id_fr = template_2_fr
+        mock_newsletter_template_2.template_id_en = "template-en-fallback"
+        mock_newsletter_template_2.template_id_fr = "template-fr-fallback"
 
         mock_newsletter_template_3 = Mock()
-        mock_newsletter_template_3.template_id_en = template_3_en
-        mock_newsletter_template_3.template_id_fr = template_3_fr
+        mock_newsletter_template_3.template_id_en = "template-en-oldest"
+        mock_newsletter_template_3.template_id_fr = "template-fr-oldest"
 
         mocker.patch(
             "app.newsletter.rest.LatestNewsletterTemplate.get_latest_newsletter_templates",
@@ -438,20 +401,15 @@ class TestSendLatestNewsletter:
 
         # Mock template object
         mock_template = Mock()
-        mock_template.id = template_3_en if expected_dao_calls == 1 else template_2_en
+        mock_template.id = "template-en-fallback"
         mock_template.version = 1
 
-        # Setup dao mock based on test scenario
+        # First call raises error (newest not found), second call succeeds (fallback found)
         mock_dao = mocker.patch("app.newsletter.rest.dao_get_template_by_id")
-        if expected_dao_calls == 2:
-            # First valid UUID fails, second succeeds
-            mock_dao.side_effect = [
-                SQLAlchemyError("Template not found"),
-                mock_template,
-            ]
-        else:
-            # Only third template is queried (first two are invalid UUIDs)
-            mock_dao.return_value = mock_template
+        mock_dao.side_effect = [
+            SQLAlchemyError("Template not found"),  # First template fails
+            mock_template,  # Second template succeeds
+        ]
 
         # Mock Service query
         mock_service = Mock()
@@ -465,8 +423,8 @@ class TestSendLatestNewsletter:
         response = admin_request.get("newsletter.send_latest_newsletter", subscriber_id="rec123456", _expected_status=200)
 
         assert response["result"] == "success"
-        # Verify that dao_get_template_by_id was called the expected number of times
-        assert mock_dao.call_count == expected_dao_calls
+        # Verify that dao_get_template_by_id was called twice (first failed, second succeeded)
+        assert mock_dao.call_count == 2
 
 
 class TestGetSubscriber:
