@@ -202,7 +202,7 @@ def _send_latest_newsletter(subscriber_id, recipient_email, language):
                 )
             break  # Successfully found a template
         except SQLAlchemyError as e:
-            current_app.logger.warning(f"Template {template_id} not found in database, trying next: {e}")
+            current_app.logger.warning(f"Template {template_id} not found in database, trying next template.")
             if index == 0:
                 first_template_id = template_id
             continue  # Try the next template pair
