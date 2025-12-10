@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from flask import Blueprint, current_app, jsonify, request
 from requests import HTTPError
 from sqlalchemy.exc import SQLAlchemyError
@@ -191,6 +193,17 @@ def _send_latest_newsletter(subscriber_id, recipient_email, language):
             if language == NewsletterSubscriber.Languages.EN.value
             else newsletter_template.template_id_fr
         )
+
+        # Validate that template_id is a valid UUID before attempting to use it
+        try:
+            UUID(template_id)
+        except (ValueError, TypeError, AttributeError):
+            current_app.logger.warning(
+                f"Template ID {template_id} is not a valid UUID, continuing search for a valid newsletter template_id."
+            )
+            if index == 0:
+                first_template_id = template_id
+            continue
 
         try:
             template = dao_get_template_by_id(template_id)
