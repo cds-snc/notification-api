@@ -27,6 +27,7 @@ from app import (
     sms_priority_publish,
     statsd_client,
 )
+from app.annual_limit_utils import get_annual_limit_notifications_v2
 from app.aws.s3 import upload_job_to_s3
 from app.celery.letters_pdf_tasks import create_letters_pdf
 from app.celery.research_mode_tasks import create_fake_letter_response_file
@@ -232,7 +233,10 @@ def post_bulk():
         raise BadRequestError(message=f"Error converting to CSV: {str(e)}", status_code=400)
 
     check_for_csv_errors(recipient_csv, max_rows, remaining_daily_messages, remaining_annual_messages)
-    notification_count_requested = len(list(recipient_csv.get_rows()))
+    notification_count_requested = len(recipient_csv.rows)
+
+    # Pre-seed annual limit data in Redis to avoid slow database queries during limit checks
+    get_annual_limit_notifications_v2(authenticated_service.id)
 
     if template.template_type == EMAIL_TYPE and api_user.key_type != KEY_TYPE_TEST:
         check_email_annual_limit(authenticated_service, notification_count_requested)
@@ -250,7 +254,7 @@ def post_bulk():
             form["validated_sender_id"] = default_sender_id
 
         # calculate the number of simulated recipients
-        requested_recipients = [i["phone_number"].data for i in list(recipient_csv.get_rows())]
+        requested_recipients = [i["phone_number"].data for i in recipient_csv.rows]
         has_simulated, has_real_recipients = csv_has_simulated_and_non_simulated_recipients(
             requested_recipients, template.template_type
         )
