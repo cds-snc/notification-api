@@ -27,12 +27,7 @@ def upgrade():
         sa.PrimaryKeyConstraint('month', 'service_id', 'notification_type', name='monthly_notification_stats_pkey')
     )
     
-    # Create index on month for efficient querying
-    op.create_index(
-        'ix_monthly_notification_stats_month',
-        'monthly_notification_stats_summary',
-        ['month']
-    )
+    # (Removed redundant index on month; primary key already provides this index)
 
     # Create index on notification_type for efficient querying
     op.create_index(
