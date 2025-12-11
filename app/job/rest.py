@@ -7,6 +7,7 @@ from flask import Blueprint, current_app, jsonify, request
 from notifications_utils.recipients import RecipientCSV
 from notifications_utils.template import Template
 
+from app.annual_limit_utils import get_annual_limit_notifications_v2
 from app.aws.s3 import get_job_from_s3, get_job_metadata_from_s3
 from app.celery.tasks import process_job
 from app.config import QueueNames
@@ -186,6 +187,12 @@ def create_job(service_id):
     t1 = time.time()
     current_app.logger.info("[create_job] RecipientCSV parsing took {:.3f}s".format(t1 - t0))
 
+    # Pre-seed annual limit data in Redis to avoid slow database queries during limit checks
+    t0 = time.time()
+    get_annual_limit_notifications_v2(service_id)
+    t1 = time.time()
+    current_app.logger.info("[create_job] pre-seeding annual limit data took {:.3f}s".format(t1 - t0))
+
     if template.template_type == SMS_TYPE:
         # set sender_id if missing
         default_senders = [x for x in service.service_sms_senders if x.is_default]
@@ -194,7 +201,7 @@ def create_job(service_id):
 
         # calculate the number of simulated recipients
         t0 = time.time()
-        requested_recipients = [i["phone_number"].data for i in list(recipient_csv.get_rows())]
+        requested_recipients = [i["phone_number"].data for i in recipient_csv.rows]
         t1 = time.time()
         current_app.logger.info("[create_job] built requested_recipients list in {:.3f}s".format(t1 - t0))
 
