@@ -45,13 +45,12 @@ jobs:
           docker build \
             --build-arg GIT_SHA=${GITHUB_SHA::7} \
             -t ${{ steps.img.outputs.image }}:${GITHUB_SHA::7} \
-            -t ${{ steps.img.outputs.image }}:latest \
             -f ${{ steps.img.outputs.dockerfile }} \
             .
 
       - name: Save image as tarball
         run: |
-          docker save ${{ steps.img.outputs.image }}:${GITHUB_SHA::7} ${{ steps.img.outputs.image }}:latest \
+          docker save ${{ steps.img.outputs.image }}:${GITHUB_SHA::7} \
             -o /tmp/${{ steps.img.outputs.image }}.tar
 
       - name: Upload image artifact
