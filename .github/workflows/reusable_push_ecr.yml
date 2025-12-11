@@ -68,5 +68,9 @@ jobs:
             docker push "$REGISTRY/${{ inputs.image-name }}:${SHORT_SHA}"
           fi
 
+          # Always tag and push 'latest'
+          docker tag "$SRC_IMAGE" "$REGISTRY/${{ inputs.image-name }}:latest"
+          docker push "$REGISTRY/${{ inputs.image-name }}:latest"
+
       - name: Logout of Amazon ECR
         run: docker logout ${{ steps.login-ecr.outputs.registry }}
