@@ -715,13 +715,13 @@ paths:
                     - ["alice@example.com", "Alice"]
                     - ["bob@example.com", "Bob"]
               basic_bulk_email_csv:
-                summary: Basic bulk email notification using a CSV file
+                summary: Basic bulk email notification using csv
                 value:
                   template_id: "12345678-1234-1234-1234-123456789012"
                   name: "January Appointment Reminders"
                   csv: "email address,name\nalice@example.com,Alice\nbob@example.com,Bob"
               basic_bulk_sms_rows:
-                summary: Basic bulk email notification using rows
+                summary: Basic bulk sms notification using rows
                 value:
                   template_id: "12345678-1234-1234-1234-123456789012"
                   name: "January Appointment Reminders"
