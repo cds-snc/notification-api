@@ -2547,7 +2547,7 @@ class MonthlyNotificationStatsSummary(BaseModel):
     month = db.Column(db.Text, primary_key=True, nullable=False)
     service_id = db.Column(UUID(as_uuid=True), primary_key=True, nullable=False)
     notification_type = db.Column(db.Text, primary_key=True, nullable=False)
-    count = db.Column(db.Integer, nullable=False)
+    notification_count = db.Column(db.Integer, nullable=False)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
 
 

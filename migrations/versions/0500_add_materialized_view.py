@@ -22,13 +22,11 @@ def upgrade():
         sa.Column('month', sa.Text(), nullable=False),
         sa.Column('service_id', postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column('notification_type', sa.Text(), nullable=False),
-        sa.Column('count', sa.Integer(), nullable=False),
+        sa.Column('notification_count', sa.Integer(), nullable=False),
         sa.Column('updated_at', sa.DateTime(), nullable=False, server_default=sa.text('now()')),
         sa.PrimaryKeyConstraint('month', 'service_id', 'notification_type', name='monthly_notification_stats_pkey')
     )
     
-    # (Removed redundant index on month; primary key already provides this index)
-
     # Create index on notification_type for efficient querying
     op.create_index(
         'ix_monthly_notification_stats_notification_type',
