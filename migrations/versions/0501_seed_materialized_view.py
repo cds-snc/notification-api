@@ -17,7 +17,7 @@ def upgrade():
     # This will take approximately 7-10 seconds to complete
     # Aggregates from November 2019 (GC Notify start date) to present
     op.execute("""
-        INSERT INTO monthly_notification_stats (month, service_id, notification_type, count, updated_at)
+        INSERT INTO monthly_notification_stats_summary (month, service_id, notification_type, notification_count, updated_at)
         SELECT 
             date_trunc('month', bst_date)::text as month,
             service_id,
@@ -35,4 +35,4 @@ def upgrade():
 
 def downgrade():
     # Remove all seeded data from the table
-    op.execute("DELETE FROM monthly_notification_stats")
+    op.execute("DELETE FROM monthly_notification_stats_summary")
