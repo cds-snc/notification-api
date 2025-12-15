@@ -202,7 +202,6 @@ def create_monthly_notification_status_summary():
     except Exception as e:
         db.session.rollback()
         current_app.logger.error("create-monthly-notification-stats-summary FAILED: {}".format(e))
-        raise
 
 
 @notify_celery.task(name="insert-quarter-data-for-annual-limits")
