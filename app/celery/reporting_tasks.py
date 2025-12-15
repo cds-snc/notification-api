@@ -23,7 +23,7 @@ from app.dao.fact_notification_status_dao import (
     update_fact_notification_status,
 )
 from app.dao.users_dao import get_services_for_all_users
-from app.models import FactNotificationStatus, MonthlyNotificationStats, Service
+from app.models import FactNotificationStatus, MonthlyNotificationStatsSummary, Service
 from app.user.rest import send_annual_usage_data
 
 
@@ -157,34 +157,32 @@ def create_monthly_notification_status_summary():
     try:
         # Single efficient query with upsert logic
         # This aggregates data for last 2 months and upserts in one statement
-        table = MonthlyNotificationStats.__table__
+        table = MonthlyNotificationStatsSummary.__table__
 
-        stmt = (
-            insert(table)
-            .from_select(
-                ["month", "service_id", "notification_type", "count", "updated_at"],
-                db.session.query(
-                    func.date_trunc("month", FactNotificationStatus.bst_date).cast(db.Text).label("month"),
-                    FactNotificationStatus.service_id,
-                    FactNotificationStatus.notification_type,
-                    func.sum(FactNotificationStatus.notification_count).label("notification_count"),
-                    func.now().label("updated_at"),
-                )
-                .filter(
-                    FactNotificationStatus.key_type != "test",
-                    FactNotificationStatus.notification_status.in_(["delivered", "sent"]),
-                    FactNotificationStatus.bst_date >= previous_month_start,
-                )
-                .group_by(
-                    func.date_trunc("month", FactNotificationStatus.bst_date),
-                    FactNotificationStatus.service_id,
-                    FactNotificationStatus.notification_type,
-                ),
+        stmt = insert(table).from_select(
+            ["month", "service_id", "notification_type", "count", "updated_at"],
+            db.session.query(
+                func.date_trunc("month", FactNotificationStatus.bst_date).cast(db.Text).label("month"),
+                FactNotificationStatus.service_id,
+                FactNotificationStatus.notification_type,
+                func.sum(FactNotificationStatus.notification_count).label("notification_count"),
+                func.now().label("updated_at"),
             )
-            .on_conflict_do_update(
-                index_elements=["month", "service_id", "notification_type"],
-                set_={"count": insert(table).excluded.count, "updated_at": insert(table).excluded.updated_at},
+            .filter(
+                FactNotificationStatus.key_type != "test",
+                FactNotificationStatus.notification_status.in_(["delivered", "sent"]),
+                FactNotificationStatus.bst_date >= previous_month_start,
             )
+            .group_by(
+                func.date_trunc("month", FactNotificationStatus.bst_date),
+                FactNotificationStatus.service_id,
+                FactNotificationStatus.notification_type,
+            ),
+        )
+
+        stmt = stmt.on_conflict_do_update(
+            index_elements=["month", "service_id", "notification_type"],
+            set_={"count": stmt.excluded.count, "updated_at": stmt.excluded.updated_at},
         )
 
         result = db.session.execute(stmt)
