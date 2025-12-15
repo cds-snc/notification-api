@@ -29,7 +29,6 @@ def upgrade():
           AND notification_status IN ('delivered', 'sent')
           AND bst_date >= '2019-11-01'
         GROUP BY date_trunc('month', bst_date), service_id, notification_type
-        ORDER BY date_trunc('month', bst_date) DESC, service_id, notification_type
     """)
 
 
