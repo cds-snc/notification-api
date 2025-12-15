@@ -259,12 +259,12 @@ class LatestNewsletterTemplate(AirtableTableMixin, Model):
         if not cls.table_exists():
             cls.create_table()
 
-        results = cls.all(sort=["-Created at"], max_records=1)
+        results = cls.all(sort=["-Created at"], max_records=3)
         if not results:
             response = Response()
             response.status_code = 404
             raise HTTPError(response=response)
-        return results[0]
+        return results
 
     @classmethod
     def get_table_schema(cls) -> Dict[str, Any]:
