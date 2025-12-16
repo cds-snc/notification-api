@@ -145,6 +145,35 @@ def create_monthly_notification_status_summary():
     Refresh the monthly_notification_stats table for the current and previous month.
     Uses PostgreSQL upsert (INSERT ... ON CONFLICT) for efficient updates.
     Only processes last 2 months since historical data rarely changes.
+
+    ***IMPORTANT***
+    This function assumes it is run after the nightly notification status.
+    IT DOESN'T HAVE ALL THE DATA FROM ft_notification_status
+    We do NOT store all notifications, only non-test key notifications and notifications
+    that have been delivered and sent.
+
+    function we are optimizing for:
+    def fetch_delivered_notification_stats_by_month(filter_heartbeats=None):
+    query = (
+        db.session.query(
+            func.date_trunc("month", FactNotificationStatus.bst_date).cast(db.Text).label("month"),
+            FactNotificationStatus.notification_type,
+            func.sum(FactNotificationStatus.notification_count).label("count"),
+        )
+        .filter(
+            FactNotificationStatus.key_type != KEY_TYPE_TEST,
+            FactNotificationStatus.notification_status.in_([NOTIFICATION_DELIVERED, NOTIFICATION_SENT]),
+            FactNotificationStatus.bst_date >= "2019-11-01",  # GC Notify start date
+        )
+        .group_by(
+            func.date_trunc("month", FactNotificationStatus.bst_date),
+            FactNotificationStatus.notification_type,
+        )
+        .order_by(
+            func.date_trunc("month", FactNotificationStatus.bst_date).desc(),
+            FactNotificationStatus.notification_type,
+        )
+    )
     """
     current_app.logger.info("create-monthly-notification-stats-summary STARTED")
     start_time = datetime.now(timezone.utc)
@@ -160,7 +189,7 @@ def create_monthly_notification_status_summary():
         table = MonthlyNotificationStatsSummary.__table__
 
         stmt = insert(table).from_select(
-            ["month", "service_id", "notification_type", "count", "updated_at"],
+            ["month", "service_id", "notification_type", "notification_count", "updated_at"],
             db.session.query(
                 func.date_trunc("month", FactNotificationStatus.bst_date).cast(db.Text).label("month"),
                 FactNotificationStatus.service_id,
@@ -182,7 +211,7 @@ def create_monthly_notification_status_summary():
 
         stmt = stmt.on_conflict_do_update(
             index_elements=["month", "service_id", "notification_type"],
-            set_={"count": stmt.excluded.count, "updated_at": stmt.excluded.updated_at},
+            set_={"notification_count": stmt.excluded.notification_count, "updated_at": stmt.excluded.updated_at},
         )
 
         result = db.session.execute(stmt)

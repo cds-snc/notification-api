@@ -49,6 +49,7 @@ from app.models import (
     Job,
     LetterBranding,
     LetterRate,
+    MonthlyNotificationStatsSummary,
     Notification,
     NotificationHistory,
     Organisation,
@@ -801,6 +802,35 @@ def create_ft_notification_status(
         notification_status=notification_status,
         notification_count=count,
         billable_units=billable_units,
+    )
+    db.session.add(data)
+    db.session.commit()
+    return data
+
+
+def create_monthly_notification_stats_summary(
+    month,
+    service=None,
+    notification_type="sms",
+    count=1,
+):
+    """
+    Create a summary record in monthly_notification_stats_summary table.
+    Month should be a string like "2019-12-01" or a date object.
+    """
+    if not service:
+        service = create_service()
+
+    if isinstance(month, date):
+        month_str = month.strftime("%Y-%m-01")
+    else:
+        month_str = month
+
+    data = MonthlyNotificationStatsSummary(
+        month=month_str,
+        service_id=service.id,
+        notification_type=notification_type,
+        notification_count=count,
     )
     db.session.add(data)
     db.session.commit()

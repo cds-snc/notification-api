@@ -25,6 +25,7 @@ from app.models import (
     SMS_TYPE,
     ApiKey,
     FactNotificationStatus,
+    MonthlyNotificationStatsSummary,
     Notification,
     NotificationHistory,
     Service,
@@ -174,7 +175,12 @@ def fetch_notification_status_for_service_by_month(start_date, end_date, service
 
 
 def fetch_delivered_notification_stats_by_month(filter_heartbeats=None):
-    query = (
+    """
+    Fetch delivered/sent notification stats by month from the summary table.
+    This is much faster than querying the 28M+ row ft_notification_status table.
+
+    This originally used to call ft_notification_status
+        query = (
         db.session.query(
             func.date_trunc("month", FactNotificationStatus.bst_date).cast(db.Text).label("month"),
             FactNotificationStatus.notification_type,
@@ -183,7 +189,7 @@ def fetch_delivered_notification_stats_by_month(filter_heartbeats=None):
         .filter(
             FactNotificationStatus.key_type != KEY_TYPE_TEST,
             FactNotificationStatus.notification_status.in_([NOTIFICATION_DELIVERED, NOTIFICATION_SENT]),
-            FactNotificationStatus.bst_date >= "2019-11-01",  # GC Notify start date
+            FactNotificationStatus.bst_date >= "2019-11-01",  # ~6 years of data
         )
         .group_by(
             func.date_trunc("month", FactNotificationStatus.bst_date),
@@ -196,14 +202,38 @@ def fetch_delivered_notification_stats_by_month(filter_heartbeats=None):
     )
     if filter_heartbeats:
         query = query.filter(
-            FactNotificationStatus.service_id.notin_(
+            FactNotificationStatus.service_id.notin_([...])  # Excludes 2 services
+        )
+    return query.all()
+
+    But now we store the results of this query in MonthlyNotificationStatsSummary. We only store
+    delivered, and sent notifications in this table, and we aggregate it as well. We also exclude any
+    TEST keys.
+
+    See the celery task in reporting_tasks.py called create_monthly_notification_status_summary
+    """
+    query = db.session.query(
+        MonthlyNotificationStatsSummary.month,
+        MonthlyNotificationStatsSummary.notification_type,
+        MonthlyNotificationStatsSummary.notification_count.label("count"),
+    ).filter(
+        MonthlyNotificationStatsSummary.month >= "2019-11-01",  # GC Notify start date
+    )
+
+    if filter_heartbeats:
+        query = query.filter(
+            MonthlyNotificationStatsSummary.service_id.notin_(
                 [
                     current_app.config["NOTIFY_SERVICE_ID"],
                     current_app.config["HEARTBEAT_SERVICE_ID"],
                 ]
             ),
         )
-    return query.all()
+
+    return query.order_by(
+        MonthlyNotificationStatsSummary.month.desc(),
+        MonthlyNotificationStatsSummary.notification_type,
+    ).all()
 
 
 def fetch_notification_stats_for_trial_services():
