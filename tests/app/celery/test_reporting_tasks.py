@@ -20,6 +20,7 @@ from tests.conftest import set_config
 
 from app import annual_limit_client
 from app.celery.reporting_tasks import (
+    create_monthly_notification_status_summary,
     create_nightly_billing,
     create_nightly_billing_for_day,
     create_nightly_notification_status,
@@ -35,6 +36,7 @@ from app.models import (
     AnnualLimitsData,
     FactBilling,
     FactNotificationStatus,
+    MonthlyNotificationStatsSummary,
     Notification,
 )
 
@@ -665,3 +667,176 @@ class TestSendQuarterEmail:
             markdown_list_en,
             markdown_list_fr,
         )
+
+
+class TestCreateMonthlyNotificationStatsSummary:
+    @freeze_time("2019-03-15T12:00:00")
+    def test_create_monthly_notification_stats_summary_creates_summary_data(self, notify_db_session):
+        """Test that the task creates summary data for current and previous month"""
+        service_1 = create_service(service_name="service_1")
+        service_2 = create_service(service_name="service_2")
+
+        # Current month (March 2019)
+        create_ft_notification_status(date(2019, 3, 1), "sms", service_1, notification_status="delivered", count=5)
+        create_ft_notification_status(date(2019, 3, 10), "email", service_1, notification_status="sent", count=3)
+        create_ft_notification_status(date(2019, 3, 5), "sms", service_2, notification_status="delivered", count=10)
+        create_ft_notification_status(date(2019, 3, 5), "email", service_2, notification_status="delivered", count=10)
+        create_ft_notification_status(date(2019, 3, 6), "email", service_2, notification_status="delivered", count=20)
+
+        # Previous month (February 2019)
+        create_ft_notification_status(date(2019, 2, 15), "sms", service_1, notification_status="delivered", count=20)
+        create_ft_notification_status(date(2019, 2, 20), "email", service_2, notification_status="sent", count=15)
+
+        # Older data (should not be included)
+        create_ft_notification_status(date(2019, 1, 10), "sms", service_1, notification_status="delivered", count=100)
+
+        assert MonthlyNotificationStatsSummary.query.count() == 0
+
+        create_monthly_notification_status_summary()
+
+        results = MonthlyNotificationStatsSummary.query.order_by(
+            MonthlyNotificationStatsSummary.month,
+            MonthlyNotificationStatsSummary.service_id,
+            MonthlyNotificationStatsSummary.notification_type,
+        ).all()
+
+        assert len(results) == 6
+
+        # Check March 2019 data
+        march_service1_sms = [
+            r
+            for r in results
+            if r.month.startswith("2019-03-01") and r.service_id == service_1.id and r.notification_type == "sms"
+        ][0]
+        assert march_service1_sms.notification_count == 5
+
+        march_service1_email = [
+            r
+            for r in results
+            if r.month.startswith("2019-03-01") and r.service_id == service_1.id and r.notification_type == "email"
+        ][0]
+        assert march_service1_email.notification_count == 3
+
+        march_service2_sms = [
+            r
+            for r in results
+            if r.month.startswith("2019-03-01") and r.service_id == service_2.id and r.notification_type == "sms"
+        ][0]
+        assert march_service2_sms.notification_count == 10
+
+        march_service2_email = [
+            r
+            for r in results
+            if r.month.startswith("2019-03-01") and r.service_id == service_2.id and r.notification_type == "email"
+        ][0]
+        assert march_service2_email.notification_count == 30
+
+        # Check February 2019 data
+        feb_service1_sms = [
+            r
+            for r in results
+            if r.month.startswith("2019-02-01") and r.service_id == service_1.id and r.notification_type == "sms"
+        ][0]
+        assert feb_service1_sms.notification_count == 20
+
+        feb_service2_email = [
+            r
+            for r in results
+            if r.month.startswith("2019-02-01") and r.service_id == service_2.id and r.notification_type == "email"
+        ][0]
+        assert feb_service2_email.notification_count == 15
+
+        # Verify January data was not included
+        jan_data = [r for r in results if r.month.startswith("2019-01-01")]
+        assert len(jan_data) == 0
+
+    @freeze_time("2019-03-15T12:00:00")
+    def test_create_monthly_notification_stats_summary_excludes_test_keys(self, notify_db_session):
+        """Test that test key notifications are excluded from summary"""
+        service = create_service(service_name="test_service")
+
+        # Real notifications
+        create_ft_notification_status(
+            date(2019, 3, 1), "sms", service, key_type="normal", notification_status="delivered", count=10
+        )
+
+        # Test key notifications (should be excluded)
+        create_ft_notification_status(
+            date(2019, 3, 2), "sms", service, key_type="test", notification_status="delivered", count=100
+        )
+
+        create_monthly_notification_status_summary()
+
+        results = MonthlyNotificationStatsSummary.query.all()
+        assert len(results) == 1
+        assert results[0].notification_count == 10
+
+    @freeze_time("2019-03-15T12:00:00")
+    def test_create_monthly_notification_stats_summary_only_includes_delivered_and_sent(self, notify_db_session):
+        """Test that only delivered and sent notifications are included"""
+        service = create_service(service_name="test_service")
+
+        # Delivered notifications
+        create_ft_notification_status(date(2019, 3, 1), "sms", service, notification_status="delivered", count=5)
+
+        # Sent notifications
+        create_ft_notification_status(date(2019, 3, 2), "email", service, notification_status="sent", count=3)
+
+        # Other statuses (should be excluded)
+        create_ft_notification_status(date(2019, 3, 3), "sms", service, notification_status="failed", count=10)
+        create_ft_notification_status(date(2019, 3, 4), "sms", service, notification_status="created", count=20)
+        create_ft_notification_status(date(2019, 3, 5), "sms", service, notification_status="temporary-failure", count=15)
+
+        create_monthly_notification_status_summary()
+
+        results = MonthlyNotificationStatsSummary.query.all()
+        assert len(results) == 2
+
+        sms_result = [r for r in results if r.notification_type == "sms"][0]
+        assert sms_result.notification_count == 5
+
+        email_result = [r for r in results if r.notification_type == "email"][0]
+        assert email_result.notification_count == 3
+
+    @freeze_time("2019-03-15T12:00:00")
+    def test_create_monthly_notification_stats_summary_aggregates_multiple_days(self, notify_db_session):
+        """Test that multiple days in the same month are aggregated correctly"""
+        service = create_service(service_name="test_service")
+
+        # Multiple days in March
+        create_ft_notification_status(date(2019, 3, 1), "sms", service, notification_status="delivered", count=5)
+        create_ft_notification_status(date(2019, 3, 10), "sms", service, notification_status="delivered", count=10)
+        create_ft_notification_status(date(2019, 3, 15), "sms", service, notification_status="sent", count=8)
+        create_ft_notification_status(date(2019, 3, 20), "sms", service, notification_status="delivered", count=12)
+
+        create_monthly_notification_status_summary()
+
+        results = MonthlyNotificationStatsSummary.query.all()
+        assert len(results) == 1
+        assert results[0].notification_count == 35  # 5 + 10 + 8 + 12
+
+    @freeze_time("2019-03-15T12:00:00")
+    def test_create_monthly_notification_stats_summary_updates_existing_data(self, notify_db_session):
+        """Test that the task updates existing summary data (upsert behavior)"""
+        service = create_service(service_name="test_service")
+
+        # Initial data
+        create_ft_notification_status(date(2019, 3, 1), "sms", service, notification_status="delivered", count=10)
+
+        create_monthly_notification_status_summary()
+
+        results = MonthlyNotificationStatsSummary.query.all()
+        assert len(results) == 1
+        assert results[0].notification_count == 10
+        initial_updated_at = results[0].updated_at
+
+        # Add more data for the same month
+        create_ft_notification_status(date(2019, 3, 10), "sms", service, notification_status="delivered", count=5)
+
+        # Run the task again
+        create_monthly_notification_status_summary()
+
+        results = MonthlyNotificationStatsSummary.query.all()
+        assert len(results) == 1
+        assert results[0].notification_count == 15  # Updated from 10 to 15
+        assert results[0].updated_at > initial_updated_at  # Timestamp should be updated
