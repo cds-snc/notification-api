@@ -4,8 +4,10 @@ from itertools import islice
 from flask import current_app
 from notifications_utils.statsd_decorators import statsd
 from notifications_utils.timezones import convert_utc_to_local_timezone
+from sqlalchemy import func
+from sqlalchemy.dialects.postgresql import insert
 
-from app import annual_limit_client, notify_celery
+from app import annual_limit_client, db, notify_celery
 from app.config import QueueNames
 from app.cronitor import cronitor
 from app.dao.annual_limits_data_dao import (
@@ -21,7 +23,7 @@ from app.dao.fact_notification_status_dao import (
     update_fact_notification_status,
 )
 from app.dao.users_dao import get_services_for_all_users
-from app.models import Service
+from app.models import FactNotificationStatus, MonthlyNotificationStatsSummary, Service
 from app.user.rest import send_annual_usage_data
 
 
@@ -134,6 +136,99 @@ def create_nightly_notification_status_for_day(process_day):
                     process_day, chunk, e
                 )
             )
+
+
+@notify_celery.task(name="create-monthly-notification-stats-summary")
+@statsd(namespace="tasks")
+def create_monthly_notification_status_summary():
+    """
+    Refresh the monthly_notification_stats table for the current and previous month.
+    Uses PostgreSQL upsert (INSERT ... ON CONFLICT) for efficient updates.
+    Only processes last 2 months since historical data rarely changes.
+
+    ***IMPORTANT***
+    This function assumes it is run after the nightly notification status.
+    IT DOESN'T HAVE ALL THE DATA FROM ft_notification_status
+    We do NOT store all notifications, only non-test key notifications and notifications
+    that have been delivered and sent.
+
+    function we are optimizing for:
+    def fetch_delivered_notification_stats_by_month(filter_heartbeats=None):
+    query = (
+        db.session.query(
+            func.date_trunc("month", FactNotificationStatus.bst_date).cast(db.Text).label("month"),
+            FactNotificationStatus.notification_type,
+            func.sum(FactNotificationStatus.notification_count).label("count"),
+        )
+        .filter(
+            FactNotificationStatus.key_type != KEY_TYPE_TEST,
+            FactNotificationStatus.notification_status.in_([NOTIFICATION_DELIVERED, NOTIFICATION_SENT]),
+            FactNotificationStatus.bst_date >= "2019-11-01",  # GC Notify start date
+        )
+        .group_by(
+            func.date_trunc("month", FactNotificationStatus.bst_date),
+            FactNotificationStatus.notification_type,
+        )
+        .order_by(
+            func.date_trunc("month", FactNotificationStatus.bst_date).desc(),
+            FactNotificationStatus.notification_type,
+        )
+    )
+    """
+    current_app.logger.info("create-monthly-notification-stats-summary STARTED")
+    start_time = datetime.now(timezone.utc)
+
+    # Calculate the first day of current month and previous month
+    today = convert_utc_to_local_timezone(datetime.utcnow()).date()
+    current_month_start = today.replace(day=1)
+    previous_month_start = (current_month_start - timedelta(days=1)).replace(day=1)
+
+    try:
+        # Single efficient query with upsert logic
+        # This aggregates data for last 2 months and upserts in one statement
+        table = MonthlyNotificationStatsSummary.__table__
+
+        stmt = insert(table).from_select(
+            ["month", "service_id", "notification_type", "notification_count", "updated_at"],
+            db.session.query(
+                func.date_trunc("month", FactNotificationStatus.bst_date).cast(db.Text).label("month"),
+                FactNotificationStatus.service_id,
+                FactNotificationStatus.notification_type,
+                func.sum(FactNotificationStatus.notification_count).label("notification_count"),
+                func.now().label("updated_at"),
+            )
+            .filter(
+                FactNotificationStatus.key_type != "test",
+                FactNotificationStatus.notification_status.in_(["delivered", "sent"]),
+                FactNotificationStatus.bst_date >= previous_month_start,
+            )
+            .group_by(
+                func.date_trunc("month", FactNotificationStatus.bst_date),
+                FactNotificationStatus.service_id,
+                FactNotificationStatus.notification_type,
+            ),
+        )
+
+        stmt = stmt.on_conflict_do_update(
+            index_elements=["month", "service_id", "notification_type"],
+            set_={"notification_count": stmt.excluded.notification_count, "updated_at": stmt.excluded.updated_at},
+        )
+
+        result = db.session.execute(stmt)
+        db.session.commit()
+
+        end_time = datetime.now(timezone.utc)
+        duration = (end_time - start_time).total_seconds()
+
+        current_app.logger.info(
+            "create-monthly-notification-stats-summary COMPLETED: {} rows affected in {:.2f} seconds for months: {}, {}".format(
+                result.rowcount, duration, previous_month_start.strftime("%Y-%m"), current_month_start.strftime("%Y-%m")
+            )
+        )
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error("create-monthly-notification-stats-summary FAILED: {}".format(e))
 
 
 @notify_celery.task(name="insert-quarter-data-for-annual-limits")

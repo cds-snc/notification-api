@@ -512,6 +512,12 @@ class Config(object):
             "schedule": crontab(hour=9, minute=0),  # 4:00 EST in UTC
             "options": {"queue": QueueNames.PERIODIC},
         },
+        # Make the monthly-notification-stats-status table everyday
+        "create-monthly-notification-status-summary": {
+            "task": "create-monthly-notification-status-summary",
+            "schedule": crontab(hour=6, minute=30),  # 01:30 EST in UTC, after 'create-nightly-notification-status'
+            "options": {"queue": QueueNames.REPORTING},
+        },
         # quarterly queue
         "insert-quarter-data-for-annual-limits-q1": {
             "task": "insert-quarter-data-for-annual-limits",
