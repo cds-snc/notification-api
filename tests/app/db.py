@@ -816,10 +816,22 @@ def create_monthly_notification_stats_summary(
 ):
     """
     Create a monthly notification stats summary record.
-    Month should be a date object representing the first day of the month (e.g., date(2019, 12, 1))
+    Month can be either:
+    - A date object (e.g., date(2019, 12, 1)) - will be converted to "YYYY-MM-01 00:00:00+00"
+    - A string (e.g., "2019-12-01") - will be converted to "YYYY-MM-01 00:00:00+00"
     """
-    # Convert date to string format "YYYY-MM-01 00:00:00+00"
-    month_str = month.strftime("%Y-%m-01 00:00:00+00")
+    # Handle both date objects and strings
+    if isinstance(month, str):
+        # If it's already a string, ensure it has the right format
+        if " " not in month:
+            # String like "2019-12-01" -> "2019-12-01 00:00:00+00"
+            month_str = f"{month} 00:00:00+00"
+        else:
+            # Already has timestamp, use as-is
+            month_str = month
+    else:
+        # Convert date object to string format "YYYY-MM-01 00:00:00+00"
+        month_str = month.strftime("%Y-%m-01 00:00:00+00")
 
     data = MonthlyNotificationStatsSummary(
         month=month_str,
