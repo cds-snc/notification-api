@@ -56,6 +56,7 @@ from tests.app.db import (
     create_ft_notification_status,
     create_inbound_number,
     create_letter_branding,
+    create_monthly_notification_stats_summary,
     create_notification,
     create_organisation,
     create_reply_to_email,
@@ -233,12 +234,10 @@ def test_get_live_services_data(sample_user, admin_request):
 
 
 def test_get_delivered_notification_stats_by_month_data(admin_request, sample_service):
-    email_template = create_template(service=sample_service, template_type="email", template_name="b")
-
-    create_ft_notification_status(
-        utc_date=date(2019, 12, 10),
+    create_monthly_notification_stats_summary(
+        month=date(2019, 12, 1),
         service=sample_service,
-        template=email_template,
+        notification_type="email",
         count=3,
     )
 
@@ -253,15 +252,13 @@ def test_get_delivered_notification_stats_by_month_data(admin_request, sample_se
 
 
 def test_get_delivered_notification_stats_by_month_data_without_heartbeat(notify_api, admin_request, sample_service):
-    email_template = create_template(service=sample_service, template_type="email", template_name="b")
-
-    create_ft_notification_status(
-        utc_date=date(2019, 12, 10),
+    create_monthly_notification_stats_summary(
+        month=date(2019, 12, 1),
         service=sample_service,
-        template=email_template,
+        notification_type="email",
         count=3,
     )
-    with set_config(notify_api, "NOTIFY_SERVICE_ID", email_template.service_id):
+    with set_config(notify_api, "NOTIFY_SERVICE_ID", sample_service.id):
         response = admin_request.get("service.get_delivered_notification_stats_by_month_data", filter_heartbeats=True)["data"]
         assert len(response) == 0
 

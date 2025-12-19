@@ -48,6 +48,7 @@ from tests.app.db import (
     create_api_key,
     create_ft_notification_status,
     create_job,
+    create_monthly_notification_stats_summary,
     create_notification,
     create_notification_history,
     create_service,
@@ -813,138 +814,120 @@ def test_fetch_monthly_template_usage_for_service(sample_service):
     assert results[3].count == 6
 
 
-@freeze_time("2020-11-02 14:00")
-def test_fetch_delivered_notification_stats_by_month(sample_service):
-    sms_template = create_template(service=sample_service, template_type="sms", template_name="a")
-    email_template = create_template(service=sample_service, template_type="email", template_name="b")
+class TestFetchDeliveredNotificationStatsbyMonth:
+    @freeze_time("2020-11-02 14:00")
+    def test_fetch_delivered_notification_stats_by_month(self, sample_service):
+        # Not counted: before GC Notify started (2019-10)
+        create_monthly_notification_stats_summary(
+            month="2019-10-01",
+            service=sample_service,
+            notification_type="email",
+            count=3,
+        )
 
-    # Not counted: before GC Notify started
-    create_ft_notification_status(
-        utc_date=date(2019, 10, 10),
-        service=sample_service,
-        template=email_template,
-        count=3,
-    )
+        # December 2019 - email
+        create_monthly_notification_stats_summary(
+            month="2019-12-01",
+            service=sample_service,
+            notification_type="email",
+            count=3,
+        )
 
-    create_ft_notification_status(
-        utc_date=date(2019, 12, 10),
-        service=sample_service,
-        template=email_template,
-        count=3,
-    )
+        # December 2019 - sms
+        create_monthly_notification_stats_summary(
+            month="2019-12-01",
+            service=sample_service,
+            notification_type="sms",
+            count=6,
+        )
 
-    create_ft_notification_status(
-        utc_date=date(2019, 12, 5),
-        service=sample_service,
-        template=sms_template,
-        notification_status=NOTIFICATION_DELIVERED,
-        count=6,
-    )
+        # January 2020 - sms
+        create_monthly_notification_stats_summary(
+            month="2020-01-01",
+            service=sample_service,
+            notification_type="sms",
+            count=4,
+        )
 
-    create_ft_notification_status(
-        utc_date=date(2020, 1, 1),
-        service=sample_service,
-        template=sms_template,
-        notification_status=NOTIFICATION_SENT,
-        count=4,
-    )
+        # March 2020 - email
+        create_monthly_notification_stats_summary(
+            month="2020-03-01",
+            service=sample_service,
+            notification_type="email",
+            count=5,
+        )
 
-    # Not counted: failed notifications
-    create_ft_notification_status(
-        utc_date=date(2020, 1, 1),
-        service=sample_service,
-        template=sms_template,
-        notification_status=NOTIFICATION_FAILED,
-        count=10,
-    )
+        results = fetch_delivered_notification_stats_by_month()
 
-    create_ft_notification_status(
-        utc_date=date(2020, 3, 1),
-        service=sample_service,
-        template=email_template,
-        count=5,
-    )
+        assert len(results) == 4
 
-    results = fetch_delivered_notification_stats_by_month()
+        assert results[0].keys() == ["month", "notification_type", "count"]
+        assert results[0].month.startswith("2020-03-01")
+        assert results[0].notification_type == "email"
+        assert results[0].count == 5
 
-    assert len(results) == 4
+        assert results[1].month.startswith("2020-01-01")
+        assert results[1].notification_type == "sms"
+        assert results[1].count == 4
 
-    assert results[0].keys() == ["month", "notification_type", "count"]
-    assert results[0].month.startswith("2020-03-01")
-    assert results[0].notification_type == "email"
-    assert results[0].count == 5
+        assert results[2].month.startswith("2019-12-01")
+        assert results[2].notification_type == "email"
+        assert results[2].count == 3
 
-    assert results[1].month.startswith("2020-01-01")
-    assert results[1].notification_type == "sms"
-    assert results[1].count == 4
+        assert results[3].month.startswith("2019-12-01")
+        assert results[3].notification_type == "sms"
+        assert results[3].count == 6
 
-    assert results[2].month.startswith("2019-12-01")
-    assert results[2].notification_type == "email"
-    assert results[2].count == 3
+    @freeze_time("2020-11-02 14:00")
+    def test_fetch_delivered_notification_stats_by_month_filter_heartbeats(self, notify_api, sample_service):
+        # Not counted: before GC Notify started (2019-10)
+        create_monthly_notification_stats_summary(
+            month="2019-10-01",
+            service=sample_service,
+            notification_type="email",
+            count=3,
+        )
 
-    assert results[3].month.startswith("2019-12-01")
-    assert results[3].notification_type == "sms"
-    assert results[3].count == 6
+        # December 2019 - email
+        create_monthly_notification_stats_summary(
+            month="2019-12-01",
+            service=sample_service,
+            notification_type="email",
+            count=3,
+        )
 
+        # December 2019 - sms
+        create_monthly_notification_stats_summary(
+            month="2019-12-01",
+            service=sample_service,
+            notification_type="sms",
+            count=6,
+        )
 
-@freeze_time("2020-11-02 14:00")
-def test_fetch_delivered_notification_stats_by_month_filter_heartbeats(notify_api, sample_service):
-    sms_template = create_template(service=sample_service, template_type="sms", template_name="a")
-    email_template = create_template(service=sample_service, template_type="email", template_name="b")
+        # January 2020 - sms
+        create_monthly_notification_stats_summary(
+            month="2020-01-01",
+            service=sample_service,
+            notification_type="sms",
+            count=4,
+        )
 
-    # Not counted: before GC Notify started
-    create_ft_notification_status(
-        utc_date=date(2019, 10, 10),
-        service=sample_service,
-        template=email_template,
-        count=3,
-    )
+        # March 2020 - email
+        create_monthly_notification_stats_summary(
+            month="2020-03-01",
+            service=sample_service,
+            notification_type="email",
+            count=5,
+        )
 
-    create_ft_notification_status(
-        utc_date=date(2019, 12, 10),
-        service=sample_service,
-        template=email_template,
-        count=3,
-    )
+        # When filtering heartbeats and sample_service is configured as NOTIFY_SERVICE_ID,
+        # all its records should be filtered out
+        with set_config(notify_api, "NOTIFY_SERVICE_ID", sample_service.id):
+            results = fetch_delivered_notification_stats_by_month(filter_heartbeats=True)
+            assert len(results) == 0
 
-    create_ft_notification_status(
-        utc_date=date(2019, 12, 5),
-        service=sample_service,
-        template=sms_template,
-        notification_status=NOTIFICATION_DELIVERED,
-        count=6,
-    )
-
-    create_ft_notification_status(
-        utc_date=date(2020, 1, 1),
-        service=sample_service,
-        template=sms_template,
-        notification_status=NOTIFICATION_SENT,
-        count=4,
-    )
-
-    # Not counted: failed notifications
-    create_ft_notification_status(
-        utc_date=date(2020, 1, 1),
-        service=sample_service,
-        template=sms_template,
-        notification_status=NOTIFICATION_FAILED,
-        count=10,
-    )
-
-    create_ft_notification_status(
-        utc_date=date(2020, 3, 1),
-        service=sample_service,
-        template=email_template,
-        count=5,
-    )
-    with set_config(notify_api, "NOTIFY_SERVICE_ID", email_template.service_id):
-        results = fetch_delivered_notification_stats_by_month(filter_heartbeats=True)
-        assert len(results) == 0
-
-
-def test_fetch_delivered_notification_stats_by_month_empty():
-    assert fetch_delivered_notification_stats_by_month() == []
+    def test_fetch_delivered_notification_stats_by_month_empty(self):
+        assert fetch_delivered_notification_stats_by_month() == []
 
 
 def test_fetch_notification_stats_for_trial_services(sample_service):
