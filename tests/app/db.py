@@ -810,21 +810,16 @@ def create_ft_notification_status(
 
 def create_monthly_notification_stats_summary(
     month,
-    service=None,
+    service,
     notification_type="sms",
     count=1,
 ):
     """
-    Create a summary record in monthly_notification_stats_summary table.
-    Month should be a string like "2019-12-01" or a date object.
+    Create a monthly notification stats summary record.
+    Month should be a date object representing the first day of the month (e.g., date(2019, 12, 1))
     """
-    if not service:
-        service = create_service()
-
-    if isinstance(month, date):
-        month_str = month.strftime("%Y-%m-01")
-    else:
-        month_str = month
+    # Convert date to string format "YYYY-MM-01 00:00:00+00"
+    month_str = month.strftime("%Y-%m-01 00:00:00+00")
 
     data = MonthlyNotificationStatsSummary(
         month=month_str,
