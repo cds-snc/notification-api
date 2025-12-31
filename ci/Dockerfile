@@ -7,7 +7,23 @@ ENV POETRY_VERSION="1.7.1"
 ENV POETRY_VIRTUALENVS_CREATE="false"
 ENV PATH="${APP_VENV}/bin:${POETRY_HOME}/bin:$PATH"
 
-RUN apk add --no-cache bash build-base git gcc musl-dev postgresql-dev g++ make libffi-dev libmagic libcurl curl-dev rust cargo && rm -rf /var/cache/apk/*
+RUN apk add --no-cache bash \
+    build-base \
+    procps \
+    coreutils \
+    git \
+    gcc \
+    musl-dev \
+    postgresql-dev \
+    g++ \
+    make \
+    libffi-dev \
+    libmagic \
+    libcurl \
+    curl-dev \
+    rust \
+    cargo && \
+    rm -rf /var/cache/apk/*
 
 RUN set -ex && mkdir /app
 WORKDIR /app
