@@ -11,7 +11,6 @@ RUN apt-get update && \
     postgresql-client \
     2>&1 && \
     apt-get -y install \
-    coreutils \
     curl \
     dbus-x11 \
     dnsutils \
