@@ -9,8 +9,8 @@ ENV PATH="${APP_VENV}/bin:${POETRY_HOME}/bin:$PATH"
 
 RUN apk add --no-cache bash \
     build-base \
-    procps \
     coreutils \
+    procps \
     git \
     gcc \
     musl-dev \
