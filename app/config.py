@@ -382,6 +382,7 @@ class Config(object):
         "polling_interval": 1,  # 1 second
         "visibility_timeout": 310,
         "queue_name_prefix": NOTIFICATION_QUEUE_PREFIX,
+        "is_secure": True,  # Use HTTPS for SQS
     }
     CELERY_ENABLE_UTC = True
     CELERY_TIMEZONE = os.getenv("TIMEZONE", "UTC")
