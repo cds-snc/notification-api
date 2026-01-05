@@ -60,7 +60,6 @@ from app.dao.service_sms_sender_dao import dao_get_service_sms_senders_by_id
 from app.dao.services_dao import dao_fetch_service_by_id
 from app.dao.templates_dao import dao_get_template_by_id
 from app.email_limit_utils import fetch_todays_email_count
-from app.encryption import SignedNotification
 from app.exceptions import DVLAException
 from app.models import (
     BULK,
@@ -87,7 +86,7 @@ from app.notifications.process_notifications import (
 )
 from app.report.utils import generate_csv_from_notifications, send_requested_report_ready
 from app.sms_fragment_utils import fetch_todays_requested_sms_count
-from app.types import VerifiedNotification
+from app.types import SignedNotification, VerifiedNotification
 from app.utils import get_csv_max_rows, get_delivery_queue_for_template, get_fiscal_year
 from app.v2.errors import (
     LiveServiceTooManyRequestsError,
@@ -296,23 +295,25 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
             else:
                 reply_to_text = service.get_default_sms_sender()  # type: ignore
 
-        notification: VerifiedNotification = {
-            **_notification,  # type: ignore
-            "notification_id": notification_id,
-            "reply_to_text": reply_to_text,
-            "service": service,
-            "key_type": _notification.get("key_type", KEY_TYPE_NORMAL),
-            "template_id": template.id,
-            "template_version": template.version,
-            "recipient": _notification.get("to"),
-            "personalisation": _notification.get("personalisation"),
-            "notification_type": SMS_TYPE,  # type: ignore
-            "simulated": _notification.get("simulated", None),
-            "api_key_id": _notification.get("api_key", None),
-            "created_at": datetime.utcnow(),
-            "job_id": _notification.get("job", None),
-            "job_row_number": _notification.get("row_number", None),
-        }
+        notification = VerifiedNotification.from_dict(
+            {
+                **_notification,  # type: ignore
+                "notification_id": notification_id,
+                "reply_to_text": reply_to_text,
+                "service": service,
+                "key_type": _notification.get("key_type", KEY_TYPE_NORMAL),
+                "template_id": template.id,
+                "template_version": template.version,
+                "recipient": _notification.get("to"),
+                "personalisation": _notification.get("personalisation"),
+                "notification_type": SMS_TYPE,  # type: ignore
+                "simulated": _notification.get("simulated", None),
+                "api_key_id": _notification.get("api_key", None),
+                "created_at": datetime.utcnow(),
+                "job_id": _notification.get("job", None),
+                "job_row_number": _notification.get("row_number", None),
+            }
+        )
 
         verified_notifications.append(notification)
         notification_id_queue[notification_id] = notification.get("queue")  # type: ignore
@@ -411,26 +412,29 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
             else:
                 reply_to_text = service.get_default_reply_to_email_address()
 
-        notification: VerifiedNotification = {
-            **_notification,  # type: ignore
-            "notification_id": notification_id,
-            "reply_to_text": reply_to_text,
-            "service": service,
-            "key_type": _notification.get("key_type", KEY_TYPE_NORMAL),
-            "template_id": template.id,
-            "template_version": template.version,
-            "recipient": _notification.get("to"),
-            "personalisation": _notification.get("personalisation"),
-            "notification_type": EMAIL_TYPE,  # type: ignore
-            "simulated": _notification.get("simulated", None),
-            "api_key_id": _notification.get("api_key", None),
-            "created_at": datetime.utcnow(),
-            "job_id": _notification.get("job", None),
-            "job_row_number": _notification.get("row_number", None),
-        }
+        verified_notification = VerifiedNotification.from_dict(
+            {
+                **_notification,  # type: ignore
+                "notification_id": notification_id,
+                "reply_to_text": reply_to_text,
+                "service": service,
+                "key_type": _notification.get("key_type", KEY_TYPE_NORMAL),
+                "template_id": template.id,
+                "template_version": template.version,
+                "recipient": _notification.get("to"),
+                "personalisation": _notification.get("personalisation"),
+                "notification_type": EMAIL_TYPE,  # type: ignore
+                "simulated": _notification.get("simulated", None),
+                "api_key_id": _notification.get("api_key", None),
+                "created_at": datetime.utcnow(),
+                "job_id": _notification.get("job", None),
+                "job_row_number": _notification.get("row_number", None),
+                "queue": _notification.get("queue", None),
+            }
+        )
 
-        verified_notifications.append(notification)
-        notification_id_queue[notification_id] = notification.get("queue")  # type: ignore
+        verified_notifications.append(verified_notification)
+        notification_id_queue[notification_id] = verified_notification.queue  # type: ignore
         process_type = template.process_type
 
     try:
@@ -755,6 +759,7 @@ def send_notify_no_reply(self, data):
     template = dao_get_template_by_id(current_app.config["NO_REPLY_TEMPLATE_ID"])
 
     try:
+        # TODO: replace dict creation with VerifiedNotification.from_dict
         data_to_send = [
             dict(
                 template_id=template.id,

@@ -48,6 +48,7 @@ RUN apt-get update && \
     libxss1 \
     libasound2 \
     libxtst6 \
+    redis-tools \
     xauth \
     xvfb \
     && apt-get autoremove -y \
@@ -66,5 +67,5 @@ COPY .devcontainer/scripts/notify-dev-entrypoint.sh /usr/local/bin/
 
 ENV SHELL /bin/zsh
 
-EXPOSE 8000
 EXPOSE 6011
+EXPOSE 8000
