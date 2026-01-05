@@ -48,8 +48,6 @@ function ensure_celery_is_running {
 
 
 function on_exit {
-  apk add --no-cache procps
-  apk add --no-cache coreutils
   echo "multi worker app exiting" >> /proc/1/fd/1
   wait_time=0
 
