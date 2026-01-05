@@ -1,5 +1,6 @@
 import csv
 import functools
+import time
 import uuid
 from datetime import datetime
 from io import StringIO
@@ -207,6 +208,7 @@ def post_bulk():
         else:
             file_data = form["csv"]
 
+        csv_start = time.time()
         if current_app.config["FF_ANNUAL_LIMIT"]:
             recipient_csv = RecipientCSV(
                 file_data,
@@ -229,6 +231,8 @@ def post_bulk():
                 remaining_messages=remaining_daily_messages,
                 template=Template(template.__dict__),
             )
+        csv_creation_time = time.time() - csv_start
+        current_app.logger.info(f"[post_bulk] RecipientCSV object creation took {csv_creation_time:.3f} seconds")
     except csv.Error as e:
         raise BadRequestError(message=f"Error converting to CSV: {str(e)}", status_code=400)
 
@@ -254,10 +258,17 @@ def post_bulk():
             form["validated_sender_id"] = default_sender_id
 
         # calculate the number of simulated recipients
+        rows_start = time.time()
         requested_recipients = [i["phone_number"].data for i in recipient_csv.rows]
+        rows_time = time.time() - rows_start
+        current_app.logger.info(f"[post_bulk] Extracting {len(requested_recipients)} recipients took {rows_time:.3f} seconds")
+
+        check_start = time.time()
         has_simulated, has_real_recipients = csv_has_simulated_and_non_simulated_recipients(
             requested_recipients, template.template_type
         )
+        check_time = time.time() - check_start
+        current_app.logger.info(f"[post_bulk] Simulated check took {check_time:.3f} seconds")
 
         # if its a live or a team key, and they have specified testing and NON-testing recipients, raise an error
         if api_user.key_type != KEY_TYPE_TEST and (has_simulated and has_real_recipients):

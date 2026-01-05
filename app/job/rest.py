@@ -169,14 +169,20 @@ def create_job(service_id):
         raise InvalidRequest(template_errors, status_code=400)
 
     # timing: fetch job file from S3 and parse CSV
+    s3_start = time.time()
     job = get_job_from_s3(service_id, data["id"])
+    s3_time = time.time() - s3_start
+    current_app.logger.info(f"[create_job] Fetching job from S3 took {s3_time:.3f} seconds")
 
+    csv_start = time.time()
     recipient_csv = RecipientCSV(
         job,
         template_type=template.template_type,
         placeholders=template._as_utils_template().placeholders,
         template=Template(template.__dict__),
     )
+    csv_creation_time = time.time() - csv_start
+    current_app.logger.info(f"[create_job] RecipientCSV object creation took {csv_creation_time:.3f} seconds")
 
     # Pre-seed annual limit data in Redis to avoid slow database queries during limit checks
     get_annual_limit_notifications_v2(service_id)
@@ -188,11 +194,28 @@ def create_job(service_id):
         data["sender_id"] = data.get("sender_id", default_sender_id)
 
         # calculate the number of simulated recipients
-        requested_recipients = [i["phone_number"].data for i in recipient_csv.rows]
+        rows_start = time.time()
+        # Force evaluation of rows to trigger get_rows()
+        row_list = recipient_csv.rows  # This calls list(get_rows())
+        rows_time = time.time() - rows_start
+        current_app.logger.info(
+            f"[create_job] Creating {len(row_list)} Row objects (with validation) took {rows_time:.3f} seconds"
+        )
 
+        # Now extract recipients (this should be fast since rows are cached)
+        extract_start = time.time()
+        requested_recipients = [i["phone_number"].data for i in row_list]
+        extract_time = time.time() - extract_start
+        current_app.logger.info(
+            f"[create_job] Extracting {len(requested_recipients)} phone numbers from cached rows took {extract_time:.3f} seconds"
+        )
+
+        check_start = time.time()
         has_simulated, has_real_recipients = csv_has_simulated_and_non_simulated_recipients(
             requested_recipients, template.template_type
         )
+        check_time = time.time() - check_start
+        current_app.logger.info(f"[create_job] Simulated check took {check_time:.3f} seconds")
 
         if has_simulated and has_real_recipients:
             raise InvalidRequest(message="Bulk sending to testing and non-testing numbers is not supported", status_code=400)
