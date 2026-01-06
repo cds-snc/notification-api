@@ -513,8 +513,8 @@ class Config(object):
             "options": {"queue": QueueNames.PERIODIC},
         },
         # Make the monthly-notification-stats-status table everyday
-        "create-monthly-notification-status-summary": {
-            "task": "create-monthly-notification-status-summary",
+        "create-monthly-notification-stats-summary": {
+            "task": "create-monthly-notification-stats-summary",
             "schedule": crontab(hour=6, minute=30),  # 01:30 EST in UTC, after 'create-nightly-notification-status'
             "options": {"queue": QueueNames.REPORTING},
         },
