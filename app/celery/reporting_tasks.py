@@ -140,7 +140,7 @@ def create_nightly_notification_status_for_day(process_day):
 
 @notify_celery.task(name="create-monthly-notification-stats-summary")
 @statsd(namespace="tasks")
-def create_monthly_notification_status_summary():
+def create_monthly_notification_stats_summary():
     """
     Refresh the monthly_notification_stats table for the current and previous month.
     Uses PostgreSQL upsert (INSERT ... ON CONFLICT) for efficient updates.
