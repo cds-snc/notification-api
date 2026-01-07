@@ -20,7 +20,7 @@ from tests.conftest import set_config
 
 from app import annual_limit_client
 from app.celery.reporting_tasks import (
-    create_monthly_notification_status_summary,
+    create_monthly_notification_stats_summary,
     create_nightly_billing,
     create_nightly_billing_for_day,
     create_nightly_notification_status,
@@ -692,7 +692,7 @@ class TestCreateMonthlyNotificationStatsSummary:
 
         assert MonthlyNotificationStatsSummary.query.count() == 0
 
-        create_monthly_notification_status_summary()
+        create_monthly_notification_stats_summary()
 
         results = MonthlyNotificationStatsSummary.query.order_by(
             MonthlyNotificationStatsSummary.month,
@@ -765,7 +765,7 @@ class TestCreateMonthlyNotificationStatsSummary:
             date(2019, 3, 2), "sms", service, key_type="test", notification_status="delivered", count=100
         )
 
-        create_monthly_notification_status_summary()
+        create_monthly_notification_stats_summary()
 
         results = MonthlyNotificationStatsSummary.query.all()
         assert len(results) == 1
@@ -787,7 +787,7 @@ class TestCreateMonthlyNotificationStatsSummary:
         create_ft_notification_status(date(2019, 3, 4), "sms", service, notification_status="created", count=20)
         create_ft_notification_status(date(2019, 3, 5), "sms", service, notification_status="temporary-failure", count=15)
 
-        create_monthly_notification_status_summary()
+        create_monthly_notification_stats_summary()
 
         results = MonthlyNotificationStatsSummary.query.all()
         assert len(results) == 2
@@ -809,7 +809,7 @@ class TestCreateMonthlyNotificationStatsSummary:
         create_ft_notification_status(date(2019, 3, 15), "sms", service, notification_status="sent", count=8)
         create_ft_notification_status(date(2019, 3, 20), "sms", service, notification_status="delivered", count=12)
 
-        create_monthly_notification_status_summary()
+        create_monthly_notification_stats_summary()
 
         results = MonthlyNotificationStatsSummary.query.all()
         assert len(results) == 1
@@ -823,7 +823,7 @@ class TestCreateMonthlyNotificationStatsSummary:
         # Initial data
         create_ft_notification_status(date(2019, 3, 1), "sms", service, notification_status="delivered", count=10)
 
-        create_monthly_notification_status_summary()
+        create_monthly_notification_stats_summary()
 
         results = MonthlyNotificationStatsSummary.query.all()
         assert len(results) == 1
@@ -834,7 +834,7 @@ class TestCreateMonthlyNotificationStatsSummary:
         create_ft_notification_status(date(2019, 3, 10), "sms", service, notification_status="delivered", count=5)
 
         # Run the task again
-        create_monthly_notification_status_summary()
+        create_monthly_notification_stats_summary()
 
         results = MonthlyNotificationStatsSummary.query.all()
         assert len(results) == 1
