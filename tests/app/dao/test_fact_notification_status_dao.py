@@ -857,26 +857,48 @@ class TestFetchDeliveredNotificationStatsbyMonth:
             count=5,
         )
 
+        # April 2020 - email
+        create_monthly_notification_stats_summary(
+            month="2020-04-01",
+            service=sample_service,
+            notification_type="email",
+            count=5,
+        )
+
+        # April 2020 - email
+        sample_service_2 = create_service(service_name="yolo")
+        create_monthly_notification_stats_summary(
+            month="2020-04-01",
+            service=sample_service_2,
+            notification_type="email",
+            count=5,
+        )
+
         results = fetch_delivered_notification_stats_by_month()
 
-        assert len(results) == 4
+        assert len(results) == 5
 
         assert results[0].keys() == ["month", "notification_type", "count"]
-        assert results[0].month.startswith("2020-03-01")
+
+        assert results[0].month.startswith("2020-04-01")
         assert results[0].notification_type == "email"
-        assert results[0].count == 5
+        assert results[0].count == 10
 
-        assert results[1].month.startswith("2020-01-01")
-        assert results[1].notification_type == "sms"
-        assert results[1].count == 4
+        assert results[1].month.startswith("2020-03-01")
+        assert results[1].notification_type == "email"
+        assert results[1].count == 5
 
-        assert results[2].month.startswith("2019-12-01")
-        assert results[2].notification_type == "email"
-        assert results[2].count == 3
+        assert results[2].month.startswith("2020-01-01")
+        assert results[2].notification_type == "sms"
+        assert results[2].count == 4
 
         assert results[3].month.startswith("2019-12-01")
-        assert results[3].notification_type == "sms"
-        assert results[3].count == 6
+        assert results[3].notification_type == "email"
+        assert results[3].count == 3
+
+        assert results[4].month.startswith("2019-12-01")
+        assert results[4].notification_type == "sms"
+        assert results[4].count == 6
 
     @freeze_time("2020-11-02 14:00")
     def test_fetch_delivered_notification_stats_by_month_filter_heartbeats(self, notify_api, sample_service):
