@@ -72,6 +72,7 @@ def dao_update_template_reply_to(template_id, reply_to):
             "archived": template.archived,
             "process_type": template.process_type,
             "service_letter_contact_id": template.service_letter_contact_id,
+            "template_category_id": template.template_category_id,
         }
     )
     db.session.add(history)
@@ -103,6 +104,7 @@ def dao_update_template_process_type(template_id, process_type):
             "archived": template.archived,
             "process_type": template.process_type,
             "service_letter_contact_id": template.service_letter_contact_id,
+            "template_category_id": template.template_category_id,
         }
     )
     db.session.add(history)
@@ -137,6 +139,7 @@ def dao_update_template_category(template_id, category_id):
             "archived": template.archived,
             "process_type": template.process_type,
             "service_letter_contact_id": template.service_letter_contact_id,
+            "template_category_id": template.template_category_id,
         }
     )
     db.session.add(history)
