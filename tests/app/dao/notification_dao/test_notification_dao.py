@@ -1929,3 +1929,87 @@ def test_get_notifications_for_service(sample_template):
     # ensure as we increase limit_days by 1, we get 1 more notification in the total each time
     for i in range(1, 11):
         assert len(get_notifications_for_service(sample_template.service_id, limit_days=i).items) == i
+
+
+class TestDaoCheckServiceHasSentToEmail:
+    def test_returns_true_when_service_has_sent_to_email(self, sample_email_template):
+        """Test that the function returns True when service has sent to an email"""
+        from app.dao.notifications_dao import dao_check_service_has_sent_to_email
+
+        email_address = "test@example.com"
+        notification = create_notification(sample_email_template, to_field=email_address, normalised_to=email_address.lower())
+        save_notification(notification)
+
+        assert dao_check_service_has_sent_to_email(sample_email_template.service_id, email_address) is True
+
+    def test_returns_true_case_insensitive(self, sample_email_template):
+        """Test that the function is case-insensitive"""
+        from app.dao.notifications_dao import dao_check_service_has_sent_to_email
+
+        email_address = "Test@Example.COM"
+        normalised = email_address.lower()
+        notification = create_notification(sample_email_template, to_field=email_address, normalised_to=normalised)
+        save_notification(notification)
+
+        # Check with different case
+        assert dao_check_service_has_sent_to_email(sample_email_template.service_id, "test@example.com") is True
+        assert dao_check_service_has_sent_to_email(sample_email_template.service_id, "TEST@EXAMPLE.COM") is True
+
+    def test_returns_false_when_service_has_not_sent_to_email(self, sample_email_template):
+        """Test that the function returns False when service hasn't sent to an email"""
+        from app.dao.notifications_dao import dao_check_service_has_sent_to_email
+
+        assert dao_check_service_has_sent_to_email(sample_email_template.service_id, "never-sent@example.com") is False
+
+    def test_returns_false_for_different_service(self, sample_email_template):
+        """Test that the function returns False when checking a different service"""
+        from app.dao.notifications_dao import dao_check_service_has_sent_to_email
+
+        email_address = "test@example.com"
+        notification = create_notification(sample_email_template, to_field=email_address, normalised_to=email_address.lower())
+        save_notification(notification)
+
+        # Create another service
+        other_service = create_service(service_name="other service")
+
+        # Other service should not have sent to this email
+        assert dao_check_service_has_sent_to_email(other_service.id, email_address) is False
+
+    def test_ignores_test_key_notifications(self, sample_email_template):
+        """Test that notifications sent with test keys are ignored"""
+        from app.dao.notifications_dao import dao_check_service_has_sent_to_email
+
+        email_address = "test@example.com"
+        notification = create_notification(
+            sample_email_template,
+            to_field=email_address,
+            normalised_to=email_address.lower(),
+            key_type=KEY_TYPE_TEST,
+        )
+        save_notification(notification)
+
+        # Should return False because test key notifications are ignored
+        assert dao_check_service_has_sent_to_email(sample_email_template.service_id, email_address) is False
+
+    def test_returns_true_with_multiple_notifications_to_same_email(self, sample_email_template):
+        """Test that the function returns True when multiple notifications sent to same email"""
+        from app.dao.notifications_dao import dao_check_service_has_sent_to_email
+
+        email_address = "test@example.com"
+        for _ in range(3):
+            notification = create_notification(sample_email_template, to_field=email_address, normalised_to=email_address.lower())
+            save_notification(notification)
+
+        assert dao_check_service_has_sent_to_email(sample_email_template.service_id, email_address) is True
+
+    def test_returns_false_for_sms_notifications(self, sample_template):
+        """Test that SMS notifications don't affect email checking"""
+        from app.dao.notifications_dao import dao_check_service_has_sent_to_email
+
+        # Create SMS notification
+        phone_number = "+16135551234"
+        notification = create_notification(sample_template, to_field=phone_number, normalised_to=phone_number)
+        save_notification(notification)
+
+        # Should return False when checking for email that looks like phone
+        assert dao_check_service_has_sent_to_email(sample_template.service_id, "test@example.com") is False
