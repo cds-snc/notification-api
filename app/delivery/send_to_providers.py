@@ -113,6 +113,12 @@ def send_sms_to_provider(notification):
         else:
             try:
                 template_category_id = template_dict.get("template_category_id")
+                # For old template versions that don't have template_category_id in history,
+                # fall back to the current template's category
+                if template_category_id is None:
+                    current_template = dao_get_template_by_id(notification.template_id)
+                    template_category_id = current_template.template_category_id
+
                 if template_category_id is not None:
                     sending_vehicle = SmsSendingVehicles(
                         dao_get_template_category_by_id(template_category_id).sms_sending_vehicle

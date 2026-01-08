@@ -471,6 +471,91 @@ def test_send_sms_should_use_template_version_from_notification_not_latest(sampl
     assert not persisted_notification.personalisation
 
 
+def test_send_sms_falls_back_to_current_template_category_for_old_template_versions(sample_template, mocker, notify_db_session):
+    """
+    Test that when an old template version (from templates_history) doesn't have template_category_id in __dict__,
+    the code falls back to the current template's template_category_id to determine sending_vehicle.
+    This handles templates created before migration 0454 (June 2024) when template_category_id
+    was added to templates_history.
+    """
+    from app.clients.sms import SmsSendingVehicles
+    from app.dao.template_categories_dao import dao_create_template_category
+    from app.dao.templates_dao import dao_get_template_by_id, dao_update_template
+    from app.models import TemplateCategory
+
+    # Create a template category with short_code
+    category = TemplateCategory(
+        name_en="Authentication",
+        name_fr="Authentification",
+        sms_process_type="priority",
+        email_process_type="priority",
+        hidden=False,
+        sms_sending_vehicle="short_code",
+        created_by_id=sample_template.created_by_id,
+    )
+    dao_create_template_category(category)
+
+    # Update the sample template to use this category
+    sample_template.template_category_id = category.id
+    dao_update_template(sample_template)
+
+    # Create a notification
+    notification = save_notification(
+        create_notification(
+            template=sample_template,
+            to_field="+16502532222",
+            status="created",
+            reply_to_text=sample_template.service.get_default_sms_sender(),
+        )
+    )
+
+    # Mock dao_get_template_by_id to simulate an old template history without template_category_id in __dict__
+    # First call returns template history without category_id (simulating old data)
+    # Second call returns current template with category_id (fallback)
+    class MockTemplateHistory:
+        def __init__(self):
+            self.id = sample_template.id
+            self.version = sample_template.version
+            self.content = sample_template.content
+            self.template_type = sample_template.template_type
+            self.process_type = sample_template.process_type
+            # Simulate old template history: __dict__ doesn't have template_category_id
+            # This is what happens with templates created before migration 0454
+            self.__dict__ = {
+                "id": self.id,
+                "content": self.content,
+                "template_type": self.template_type,
+                "process_type": self.process_type,
+                # Note: template_category_id is intentionally missing
+            }
+
+    mock_history = MockTemplateHistory()
+    current_template = dao_get_template_by_id(sample_template.id)
+
+    mock_get_template = mocker.patch(
+        "app.delivery.send_to_providers.dao_get_template_by_id",
+        side_effect=[mock_history, current_template],
+    )
+
+    # Mock the SMS provider
+    mocker.patch("app.aws_pinpoint_client.send_sms", return_value="message_id")
+
+    # Execute
+    send_to_providers.send_sms_to_provider(notification)
+
+    # Verify the fallback happened: dao_get_template_by_id should be called twice
+    assert mock_get_template.call_count == 2
+    # First call with version number (gets old history)
+    mock_get_template.assert_any_call(sample_template.id, notification.template_version)
+    # Second call without version (gets current template for fallback)
+    mock_get_template.assert_any_call(sample_template.id)
+
+    # Verify the SMS was sent with the correct sending_vehicle (short_code)
+    app.aws_pinpoint_client.send_sms.assert_called_once()
+    call_kwargs = app.aws_pinpoint_client.send_sms.call_args[1]
+    assert call_kwargs["sending_vehicle"] == SmsSendingVehicles.SHORT_CODE
+
+
 @pytest.mark.parametrize("research_mode, key_type", [(True, KEY_TYPE_NORMAL), (False, KEY_TYPE_TEST)])
 def test_should_call_send_sms_response_task_if_research_mode(
     notify_db, sample_service, sample_notification, mocker, research_mode, key_type
