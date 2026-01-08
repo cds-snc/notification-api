@@ -212,12 +212,19 @@ def fetch_delivered_notification_stats_by_month(filter_heartbeats=None):
 
     See the celery task in reporting_tasks.py called create_monthly_notification_status_summary
     """
-    query = db.session.query(
-        MonthlyNotificationStatsSummary.month,
-        MonthlyNotificationStatsSummary.notification_type,
-        MonthlyNotificationStatsSummary.notification_count.label("count"),
-    ).filter(
-        MonthlyNotificationStatsSummary.month >= "2019-11-01",  # GC Notify start date
+    query = (
+        db.session.query(
+            MonthlyNotificationStatsSummary.month,
+            MonthlyNotificationStatsSummary.notification_type,
+            func.sum(MonthlyNotificationStatsSummary.notification_count).label("count"),
+        )
+        .filter(
+            MonthlyNotificationStatsSummary.month >= "2019-11-01",  # GC Notify start date
+        )
+        .group_by(
+            MonthlyNotificationStatsSummary.month,
+            MonthlyNotificationStatsSummary.notification_type,
+        )
     )
 
     if filter_heartbeats:
