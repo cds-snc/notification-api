@@ -38,6 +38,7 @@ from app.dao.fact_notification_status_dao import (
     fetch_stats_for_all_services_by_date_range,
 )
 from app.dao.inbound_numbers_dao import dao_allocate_number_for_service
+from app.dao.notifications_dao import dao_check_service_has_sent_to_email
 from app.dao.organisation_dao import dao_get_organisation_by_service_id
 from app.dao.service_data_retention_dao import (
     fetch_service_data_retention,
@@ -112,6 +113,7 @@ from app.schemas import (
     notification_with_template_schema,
     notifications_filter_schema,
     service_schema,
+    suppression_removal_schema,
 )
 from app.service import statistics
 from app.service.send_notification import send_one_off_notification
@@ -1168,6 +1170,78 @@ def get_monthly_notification_data_by_service():
     result = fact_notification_status_dao.fetch_monthly_notification_statuses_per_service(start_date, end_date)
 
     return jsonify(result)
+
+
+@service_blueprint.route("/<uuid:service_id>/remove-from-suppression-list", methods=["POST"])
+def remove_email_from_suppression_list(service_id):
+    """
+    Remove an email address from the SES account suppression list.
+    
+    This endpoint:
+    1. Validates the email address
+    2. Checks that the service has sent to this email address before
+    3. Removes the email from the AWS SES suppression list
+    4. Creates a Freshdesk ticket to track the removal
+    
+    Returns 200 if successful, 400 if validation fails, 404 if service not found or 
+    email was never sent to by this service, 500 if removal fails.
+    """
+    from app import aws_ses_client
+    from app.clients.freshdesk import Freshdesk
+    from app.user.contact_request import ContactRequest
+
+    # Validate the service exists
+    service = dao_fetch_service_by_id(service_id)
+    
+    # Validate and extract email address from request
+    data = validate(request.get_json(), suppression_removal_schema)
+    email_address = data["email_address"]
+    
+    # Check if the service has sent to this email address
+    has_sent = dao_check_service_has_sent_to_email(service_id, email_address)
+    if not has_sent:
+        raise InvalidRequest(
+            f"Service {service.name} has not sent any notifications to {email_address}",
+            status_code=404,
+        )
+    
+    # Remove from suppression list
+    try:
+        aws_ses_client.remove_email_from_suppression_list(email_address)
+        current_app.logger.info(
+            f"Service {service_id} ({service.name}) removed {email_address} from suppression list"
+        )
+    except Exception as e:
+        current_app.logger.error(
+            f"Failed to remove {email_address} from suppression list for service {service_id}: {e}"
+        )
+        raise InvalidRequest(
+            "Failed to remove email from suppression list. Please try again or contact support.",
+            status_code=500,
+        )
+    
+    # Create Freshdesk ticket to track the removal
+    try:
+        contact = ContactRequest()
+        contact.support_type = "suppression-list-removal"
+        contact.friendly_support_type = "Suppression List Removal"
+        contact.email_address = current_app.config.get("CONTACT_FORM_EMAIL_ADDRESS", "notification@cds-snc.ca")
+        contact.name = service.name
+        contact.service_id = str(service_id)
+        contact.service_name = service.name
+        contact.message = (
+            f"Service '{service.name}' (ID: {service_id}) removed email address "
+            f"'{email_address}' from the suppression list."
+        )
+        
+        freshdesk = Freshdesk(contact)
+        freshdesk.send_ticket()
+        current_app.logger.info(f"Created Freshdesk ticket for suppression removal: {email_address}")
+    except Exception as e:
+        # Don't fail the request if Freshdesk fails, just log it
+        current_app.logger.error(f"Failed to create Freshdesk ticket for suppression removal: {e}")
+    
+    return jsonify({"message": f"Successfully removed {email_address} from suppression list"}), 200
 
 
 def check_unique_name_request_args(request):
