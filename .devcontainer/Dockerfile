@@ -1,10 +1,13 @@
 FROM mcr.microsoft.com/vscode/devcontainers/python:3.12-bookworm
 
+# Install dev container features for latest Node.js, docker CLI, kubectl, helm, etc.
+# Node.js is provided by devcontainer features configured in devcontainer.json.
+
 ARG KUBENS_VERSION="0.9.4"
 ENV POETRY_VERSION="1.7.1"
 ENV POETRY_VENV_PATH="/home/vscode/.venv/workspace"
 
-# Install packages
+# Install packages. REMOVE nodejs and npm from apt-get since latest Node is provided by devcontainer features.
 RUN apt-get update && \
     apt-get -y install --no-install-recommends \
     apt-utils \
@@ -29,8 +32,6 @@ RUN apt-get update && \
     man-db \
     manpages \
     net-tools \
-    nodejs \
-    npm \
     openssh-client \
     procps \
     pyprof2calltree \
@@ -57,14 +58,18 @@ RUN apt-get update && \
 # Upgrade pip
 RUN pip install --upgrade pip
 
-# Install kubens
+# Install kubens/kubectx
 RUN git clone -b v${KUBENS_VERSION} --single-branch https://github.com/ahmetb/kubectx /opt/kubectx \
     && ln -s /opt/kubectx/kubectx /usr/local/bin/kubectx \
     && ln -s /opt/kubectx/kubens /usr/local/bin/kubens
 
+# Entrypoint script
 COPY .devcontainer/scripts/notify-dev-entrypoint.sh /usr/local/bin/
 
 ENV SHELL /bin/zsh
 
 EXPOSE 8000
 EXPOSE 6011
+
+# Confirm devcontainer Node.js feature installs correct version:
+RUN echo "[Node] Version is: $(node --version)"

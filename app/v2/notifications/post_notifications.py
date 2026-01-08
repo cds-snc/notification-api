@@ -236,7 +236,11 @@ def post_bulk():
     except csv.Error as e:
         raise BadRequestError(message=f"Error converting to CSV: {str(e)}", status_code=400)
 
+    check_errors_start = time.time()
     check_for_csv_errors(recipient_csv, max_rows, remaining_daily_messages, remaining_annual_messages)
+    check_errors_time = time.time() - check_errors_start
+    current_app.logger.info(f"[post_bulk] check_for_csv_errors took {check_errors_time:.3f} seconds")
+
     notification_count_requested = len(recipient_csv.rows)
 
     # Pre-seed annual limit data in Redis to avoid slow database queries during limit checks
@@ -281,7 +285,10 @@ def post_bulk():
             check_sms_daily_limit(authenticated_service, len(recipient_csv))
             increment_sms_daily_count_send_warnings_if_needed(authenticated_service, len(recipient_csv))
 
+    create_job_start = time.time()
     job = create_bulk_job(authenticated_service, api_user, template, form, recipient_csv)
+    create_job_time = time.time() - create_job_start
+    current_app.logger.info(f"[post_bulk] create_bulk_job took {create_job_time:.3f} seconds")
 
     return jsonify(data=job_schema.dump(job)), 201
 

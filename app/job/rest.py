@@ -1,6 +1,8 @@
+import csv
 import time
 import uuid
 from datetime import datetime
+from io import StringIO
 
 import dateutil
 from flask import Blueprint, current_app, jsonify, request
@@ -59,6 +61,57 @@ job_blueprint = Blueprint("job", __name__, url_prefix="/service/<uuid:service_id
 
 
 register_errors(job_blueprint)
+
+
+def get_recipients_from_csv_fast(recipient_csv):
+    """
+    Fast extraction of recipient phone numbers/emails from CSV without full Row validation.
+    This is much faster than creating full Row objects when you only need the recipient values.
+
+    Args:
+        recipient_csv: RecipientCSV instance
+
+    Returns:
+        list: List of recipient values (phone numbers or email addresses)
+    """
+    # Get the raw CSV data
+    csv_reader = csv.reader(
+        StringIO(recipient_csv.file_data.strip()),
+        quoting=csv.QUOTE_MINIMAL,
+        skipinitialspace=True,
+    )
+
+    rows = list(csv_reader)
+    if not rows:
+        return []
+
+    # Get header row
+    headers = rows[0]
+
+    # Find the recipient column index
+    recipient_column_index = None
+    recipient_headers = recipient_csv.recipient_column_headers
+
+    for idx, header in enumerate(headers):
+        # Check if this header matches any recipient column (case-insensitive, whitespace-normalized)
+        normalized_header = header.strip().lower()
+        if any(rh.lower() == normalized_header for rh in recipient_headers):
+            recipient_column_index = idx
+            break
+
+    if recipient_column_index is None:
+        current_app.logger.warning(f"Could not find recipient column in CSV headers: {headers}")
+        return []
+
+    # Extract recipients from data rows (skip header)
+    recipients = []
+    for row in rows[1 : recipient_csv.max_rows + 1]:  # Respect max_rows limit
+        if recipient_column_index < len(row):
+            recipient = row[recipient_column_index].strip()
+            if recipient:  # Skip empty values
+                recipients.append(recipient)
+
+    return recipients
 
 
 @job_blueprint.route("/<job_id>", methods=["GET"])
@@ -193,21 +246,13 @@ def create_job(service_id):
         default_sender_id = default_senders[0].id if default_senders else None
         data["sender_id"] = data.get("sender_id", default_sender_id)
 
-        # calculate the number of simulated recipients
-        rows_start = time.time()
-        # Force evaluation of rows to trigger get_rows()
-        row_list = recipient_csv.rows  # This calls list(get_rows())
-        rows_time = time.time() - rows_start
-        current_app.logger.info(
-            f"[create_job] Creating {len(row_list)} Row objects (with validation) took {rows_time:.3f} seconds"
-        )
-
-        # Now extract recipients (this should be fast since rows are cached)
+        # Fast extraction of phone numbers without full Row validation
+        # This is much faster than creating full Row objects with validation
         extract_start = time.time()
-        requested_recipients = [i["phone_number"].data for i in row_list]
+        requested_recipients = get_recipients_from_csv_fast(recipient_csv)
         extract_time = time.time() - extract_start
         current_app.logger.info(
-            f"[create_job] Extracting {len(requested_recipients)} phone numbers from cached rows took {extract_time:.3f} seconds"
+            f"[create_job] Fast extraction of {len(requested_recipients)} phone numbers took {extract_time:.3f} seconds"
         )
 
         check_start = time.time()

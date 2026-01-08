@@ -2617,7 +2617,7 @@ werkzeug = "3.0.6"
 type = "git"
 url = "https://github.com/cds-snc/notifier-utils.git"
 reference = "task/process-csv"
-resolved_reference = "2c9b329dc68e361f5d7feec89c1e7abdb2a1170b"
+resolved_reference = "71cb7d0c65953c9c3a16a0c74bafb4098e59fa7c"
 
 [[package]]
 name = "ordered-set"
