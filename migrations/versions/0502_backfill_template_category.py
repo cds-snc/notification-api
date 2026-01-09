@@ -6,7 +6,7 @@ are missing this value in their history rows. This migration copies the
 template_category_id from the templates table to only the most recent version
 of each template in templates_history where it is NULL.
 
-Processes in batches of 10,000 rows to avoid locking issues on large tables.
+Processes in batches of 1,000 rows to avoid locking issues on large tables.
 
 Revision ID: 0502_backfill_template_category
 Revises: 0501_seed_materialized_view
@@ -19,7 +19,7 @@ from sqlalchemy import text
 revision = "0502_backfill_template_category"
 down_revision = "0501_seed_materialized_view"
 
-BATCH_SIZE = 10000
+BATCH_SIZE = 1000
 
 
 def upgrade():
