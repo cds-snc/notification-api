@@ -46,9 +46,6 @@ def upgrade():
 
 
 def downgrade():
-    # Downgrade would set the backfilled values back to NULL
-    # However, this is a data backfill migration, and rolling back would lose
-    # the information about which records were backfilled vs. organically set
-    # If needed, could set template_category_id to NULL for all history records
-    # where it matches the current template's category_id, but this is not recommended
+    # This is a data backfill - we don't revert it on downgrade
+    # as the NULL values were unintentional gaps, not meaningful data
     pass
