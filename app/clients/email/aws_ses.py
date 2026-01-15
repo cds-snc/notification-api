@@ -121,12 +121,10 @@ class AwsSesClient(EmailClient):
             self.statsd_client.incr("clients.ses.success")
             return response["MessageId"]
 
-
     def remove_email_from_suppression_list(self, email_address):
         """
         Remove an email address from the account-level suppression list.
         Uses SES v2 API to delete from the account suppression list.
-        
         Returns True if successful, raises exception if failed.
         """
         try:
