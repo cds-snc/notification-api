@@ -919,3 +919,22 @@ provider_details_history_schema = ProviderDetailsHistorySchema()
 day_schema = DaySchema()
 unarchived_template_schema = UnarchivedTemplateSchema()
 report_schema = ReportSchema()
+
+
+class SuppressionRemovalSchema(Schema):
+    """Schema for removing an email from the suppression list"""
+
+    class Meta:
+        unknown = EXCLUDE
+
+    email_address = fields.Str(required=True)
+
+    @validates("email_address")
+    def validate_email_address(self, value):
+        try:
+            validate_email_address(value)
+        except InvalidEmailError as e:
+            raise ValidationError(str(e))
+
+
+suppression_removal_schema = SuppressionRemovalSchema()
