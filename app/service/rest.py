@@ -131,6 +131,9 @@ from app.service.utils import (
 from app.user.users_schema import post_set_permissions_schema
 from app.utils import pagination_links
 
+from app.smtp.aws import (smtp_add, smtp_get_user_key, smtp_remove)
+from nanoid import generate
+
 service_blueprint = Blueprint("service", __name__)
 
 register_errors(service_blueprint)
@@ -1168,6 +1171,53 @@ def get_monthly_notification_data_by_service():
     result = fact_notification_status_dao.fetch_monthly_notification_statuses_per_service(start_date, end_date)
 
     return jsonify(result)
+
+
+@service_blueprint.route('/<uuid:service_id>/smtp', methods=['GET'])
+def get_smtp_relay(service_id):
+    service = dao_fetch_service_by_id(service_id)
+    if service.smtp_user is not None:
+        credentials = {
+            "domain": service.smtp_user.split("-")[0],
+            "name": current_app.config["AWS_SES_SMTP"],
+            "port": "465",
+            "tls": "Yes",
+            "username": smtp_get_user_key(service.smtp_user),
+        }
+        return jsonify(credentials), 200
+    else:
+        return jsonify({}), 200
+
+
+@service_blueprint.route('/<uuid:service_id>/smtp', methods=['POST'])
+def create_smtp_relay(service_id):
+    service = dao_fetch_service_by_id(service_id)
+
+    if service.smtp_user is None:
+        user_id = generate(size=6)
+        credentials = smtp_add(user_id)
+        service.smtp_user = credentials["iam"]
+        dao_update_service(service)
+        return jsonify(credentials), 201
+    else:
+        raise InvalidRequest(
+            message="SMTP user already exists",
+            status_code=500)
+
+
+@service_blueprint.route('/<uuid:service_id>/smtp', methods=['DELETE'])
+def delete_smtp_relay(service_id):
+    service = dao_fetch_service_by_id(service_id)
+
+    if service.smtp_user is not None:
+        smtp_remove(service.smtp_user)
+        service.smtp_user = None
+        dao_update_service(service)
+        return jsonify(True), 201
+    else:
+        raise InvalidRequest(
+            message="SMTP user does not exist",
+            status_code=500)
 
 
 def check_unique_name_request_args(request):
