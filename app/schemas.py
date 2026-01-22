@@ -1,3 +1,4 @@
+import base64
 from datetime import date, datetime, timedelta
 from uuid import UUID
 
@@ -339,6 +340,44 @@ class ServiceSchema(BaseSchema, UUIDsAsStringsMixin):
                     permissions.append(permission)
                 in_data["permissions"] = permissions
         return in_data
+
+    @validates_schema
+    def validate_email_from_address_length(self, data, **kwargs):
+        """
+        Validates that the service name + email_from won't exceed the email address limit
+        when combined and MIME encoded for the From address.
+
+        The From address format is: "=?utf-8?B?<base64_encoded_name>?=" <email_from@sending_domain>
+
+        This must not exceed 320 characters total (RFC 5321 email address length limit).
+        """
+        name = data.get("name")
+        email_from = data.get("email_from")
+        sending_domain = data.get("sending_domain")
+
+        if not name or not email_from:
+            # If these fields are not present, other validators will catch it
+            return
+
+        # Use the default sending domain if not provided
+        if not sending_domain or sending_domain.strip() == "":
+            sending_domain = current_app.config.get("NOTIFY_EMAIL_DOMAIN", "notification.canada.ca")
+
+        # Calculate the from address as it would be formatted
+        # Format: "=?utf-8?B?<base64_name>?=" <email_from@sending_domain>
+        name_b64 = base64.b64encode(name.encode()).decode("utf-8")
+        mime_encoded_name = f"=?utf-8?B?{name_b64}?="
+        from_address = f'"{mime_encoded_name}" <{email_from}@{sending_domain}>'
+
+        # RFC 5321 specifies the maximum length of an email address is 320 characters
+        max_email_length = 320
+
+        if len(from_address) > max_email_length:
+            raise ValidationError(
+                f"Service name is too long. When combined with the email address, it will exceed the maximum length of {max_email_length} characters. "
+                f"Please use a shorter service name (current From address length: {len(from_address)} characters).",
+                field_name="name",
+            )
 
 
 class DetailedServiceSchema(BaseSchema):
