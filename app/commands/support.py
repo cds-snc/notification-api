@@ -178,7 +178,7 @@ def archive_user(user_email: str | None = None, user_id: str | None = None, dry_
         print("Error: Must specify either --user-email or --user-id")
         return
 
-    identifier = user_email if user_email else UUID(user_id)
+    identifier: str | UUID = user_email if user_email else UUID(user_id)
     user = _fetch_user(identifier)
 
     # Check if already archived
