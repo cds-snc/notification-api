@@ -1,5 +1,4 @@
 import functools
-from typing import Union
 from uuid import UUID
 
 import click
@@ -232,11 +231,11 @@ def archive_user(user_email: str | None = None, user_id: str | None = None, dry_
 def _fetch_user(identifier: str | UUID) -> User:
     """Fetch and display user information by email or ID.
     Args:
-        user_email: The email address of the user to fetch. Defaults to None.
-        user_id: The ID of the user to fetch. Defaults to None.
+        identifier: Union[str, UUID]: The user's email address (str) or user ID (UUID).
     Returns:
-        None. Prints user information if found, or an error message if not found
-        or if an exception occurs.
+        User: The fetched user object.
+    Side Effects:
+        - Prints user details to stdout.
     Raises:
         ValueError: If neither user_email nor user_id is provided
         NoResultFound: If the user cannot be found (caught and printed as error)
