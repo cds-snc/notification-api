@@ -179,7 +179,11 @@ def archive_user(user_email: str | None = None, user_id: str | None = None, dry_
         return
 
     identifier: str | UUID = user_email if user_email else UUID(user_id)
-    user = _fetch_user(identifier)
+    try:
+        user = _fetch_user(identifier)
+    except NoResultFound:
+        print(f"Error: Could not find user {identifier}")
+        return
 
     # Check if already archived
     if user.email_address.startswith("_archived_"):
