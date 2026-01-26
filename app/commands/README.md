@@ -9,7 +9,7 @@ Commands are run by specifying the group and command. You must also have the env
 FLASK_APP=application flask support list-routes
 ```
 
-We currently have 4 groups of commands available: `support`, `bulk-db`, `test-data`, and `deprecated`. To see what commands are available for a group run a command such as
+We currently have 5 groups of commands available: `support`, `bulk-db`, `test-data`, `archive-user`, and `deprecated`. To see what commands are available for a group run a command such as
 ```
 FLASK_APP=application flask support
 ```
