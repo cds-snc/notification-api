@@ -78,7 +78,7 @@ def test_get_user(admin_request, sample_service, sample_organisation):
     assert fetched["permissions"].keys() == {str(sample_service.id)}
     assert fetched["services"] == [str(sample_service.id)]
     assert fetched["organisations"] == [str(sample_organisation.id)]
-    assert fetched["default_editor_is_rte"] is None
+    assert fetched["default_editor_is_rte"] is False
     assert sorted(fetched["permissions"][str(sample_service.id)]) == sorted(expected_permissions)
 
 

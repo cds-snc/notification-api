@@ -12,7 +12,7 @@ revision = "0503_add_user_rte_default"
 down_revision = "0502_backfill_template_cat"
 
 def upgrade():
-    op.add_column("users", sa.Column("default_editor_is_rte", sa.Boolean(), nullable=True))
+    op.add_column("users", sa.Column("default_editor_is_rte", sa.Boolean(), nullable=False, server_default=sa.false()))
 
 def downgrade():
     op.drop_column("users", "default_editor_is_rte")

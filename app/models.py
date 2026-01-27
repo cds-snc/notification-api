@@ -138,7 +138,7 @@ class User(BaseModel):
         nullable=False,
         default=datetime.datetime.utcnow,
     )
-    default_editor_is_rte = db.Column(db.Boolean, nullable=True)
+    default_editor_is_rte = db.Column(db.Boolean, nullable=False, default=False)
     updated_at = db.Column(
         db.DateTime,
         index=False,
