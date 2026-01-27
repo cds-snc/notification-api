@@ -138,6 +138,7 @@ class User(BaseModel):
         nullable=False,
         default=datetime.datetime.utcnow,
     )
+    default_editor_is_rte = db.Column(db.Boolean, nullable=True)
     updated_at = db.Column(
         db.DateTime,
         index=False,
@@ -227,6 +228,7 @@ class User(BaseModel):
             "additional_information": self.additional_information,
             "password_expired": self.password_expired,
             "verified_phonenumber": self.verified_phonenumber,
+            "default_editor_is_rte": self.default_editor_is_rte,
         }
 
     def serialize_for_users_list(self) -> dict:
