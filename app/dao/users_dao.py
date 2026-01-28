@@ -110,7 +110,7 @@ def get_user_by_id(user_id=None) -> User:
     return User.query.filter_by().all()
 
 
-def get_user_by_email(email):
+def get_user_by_email(email) -> User:
     return User.query.filter(func.lower(User.email_address) == func.lower(email)).one()
 
 
