@@ -8,6 +8,8 @@ from flask import current_app, url_for
 from notifications_utils.clients.redis.annual_limit import (
     EMAIL_DELIVERED_TODAY,
     EMAIL_FAILED_TODAY,
+    SMS_BILLABLE_UNITS_DELIVERED_TODAY,
+    SMS_BILLABLE_UNITS_FAILED_TODAY,
     SMS_DELIVERED_TODAY,
     SMS_FAILED_TODAY,
 )
@@ -267,6 +269,24 @@ def prepare_notification_counts_for_seeding(notification_counts: list) -> dict:
         if status in DELIVERED_STATUSES or status in FAILURE_STATUSES:
             key = f"{notification_type}_{'delivered' if status in DELIVERED_STATUSES else 'failed'}_today"
             result[key] = count
+    return result
+
+
+def prepare_billable_units_counts_for_seeding(billable_units_data: list) -> dict:
+    """Utility method that transforms billable units data for seeding Redis.
+    Used to seed billable unit counts in Redis for annual limits when FF_USE_BILLABLE_UNITS is enabled.
+
+    Args:
+        billable_units_data (list): A list of tuples containing (date, notification_type, status, billable_units)
+
+    Returns:
+        dict: Mapping of billable units by SMS delivery status
+    """
+    result = {SMS_BILLABLE_UNITS_FAILED_TODAY: 0, SMS_BILLABLE_UNITS_DELIVERED_TODAY: 0}
+    for _, notification_type, status, billable_units in billable_units_data:
+        if notification_type == "sms" and (status in DELIVERED_STATUSES or status in FAILURE_STATUSES):
+            key = SMS_BILLABLE_UNITS_DELIVERED_TODAY if status in DELIVERED_STATUSES else SMS_BILLABLE_UNITS_FAILED_TODAY
+            result[key] += billable_units
     return result
 
 

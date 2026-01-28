@@ -309,6 +309,28 @@ def fetch_notification_status_for_service_for_day(bst_day, service_id):
     )
 
 
+def fetch_billable_units_for_service_for_day(bst_day, service_id):
+    """Fetch SMS billable units for a service for a specific day."""
+    bst_day = bst_day.replace(hour=0, minute=0, second=0)
+    return (
+        db.session.query(
+            literal(bst_day.replace(day=1), type_=DateTime).label("month"),
+            Notification.notification_type,
+            Notification.status.label("notification_status"),
+            func.coalesce(func.sum(Notification.billable_units), 0).label("billable_units"),
+        )
+        .filter(
+            Notification.created_at >= bst_day,
+            Notification.created_at < bst_day + timedelta(days=1),
+            Notification.service_id == service_id,
+            Notification.key_type != KEY_TYPE_TEST,
+            Notification.notification_type == SMS_TYPE,
+        )
+        .group_by(Notification.notification_type, Notification.status)
+        .all()
+    )
+
+
 def _stats_for_days_facts(service_id, start_time, by_template=False, notification_type=None):
     """
     We want to take the data from the fact_notification_status table for bst_data>=start_date
@@ -1012,6 +1034,27 @@ def fetch_notification_status_totals_for_service_by_fiscal_year(service_id, fisc
 
     query = (
         db.session.query(func.sum(FactNotificationStatus.notification_count).label("notification_count"))
+        .filter(*filters)
+        .scalar()
+    )
+    return query or 0
+
+
+def fetch_billable_units_totals_for_service_by_fiscal_year(service_id, fiscal_year, notification_type=None):
+    """Fetch total billable units for a service for a fiscal year."""
+    start_date, end_date = get_fiscal_dates(year=fiscal_year)
+
+    filters = [
+        FactNotificationStatus.service_id == (service_id),
+        FactNotificationStatus.bst_date >= start_date,
+        FactNotificationStatus.bst_date <= end_date,
+    ]
+
+    if notification_type:
+        filters.append(FactNotificationStatus.notification_type == notification_type)
+
+    query = (
+        db.session.query(func.coalesce(func.sum(FactNotificationStatus.billable_units), 0).label("billable_units"))
         .filter(*filters)
         .scalar()
     )
