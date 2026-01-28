@@ -10,6 +10,7 @@ from notifications_utils.recipients import (
     get_international_phone_info,
     validate_and_format_phone_number,
 )
+from notifications_utils.template import SMSMessageTemplate
 from notifications_utils.timezones import convert_local_timezone_to_utc
 
 from app import redis_store
@@ -126,8 +127,6 @@ def persist_notification(
 
         # TODO FF_USE_BILLABLE_UNITS removal - Calculate billable units early when feature flag is enabled
         if current_app.config.get("FF_USE_BILLABLE_UNITS") and billable_units is None:
-            from notifications_utils.template import SMSMessageTemplate
-
             template_obj = SMSMessageTemplate(
                 {"content": template.content, "template_type": template.template_type},
                 personalisation,

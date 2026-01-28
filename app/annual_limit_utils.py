@@ -59,6 +59,9 @@ def seed_data_in_redis(service_id: UUID) -> dict:
         )
         data[TOTAL_SMS_BILLABLE_UNITS_FISCAL_YEAR_TO_YESTERDAY] = annual_billable_units_sms
         data.update(billable_units_data)
+        current_app.logger.info(
+            f"[seed-debug] Service {service_id} - Seeded billable units data: annual={annual_billable_units_sms}, today={billable_units_data}"
+        )
 
     # The below function will also set the SEEDED_AT key for notifications_v2 in redis
     annual_limit_client.seed_annual_limit_notifications(service_id, data)

@@ -88,13 +88,6 @@ def send_one_off_notification(service_id, post_data):
 
     validate_created_by(service, post_data["created_by"])
 
-    if template.template_type == SMS_TYPE:
-        is_test_notification = simulated_recipient(post_data["to"], template.template_type)
-        if not is_test_notification:
-            increment_sms_daily_count_send_warnings_if_needed(service, 1)
-    elif template.template_type == EMAIL_TYPE:
-        increment_email_daily_count_send_warnings_if_needed(service, 1)  # 1 email
-
     sender_id = post_data.get("sender_id", None)
     reply_to = get_reply_to_text(
         notification_type=template.template_type,
@@ -116,6 +109,16 @@ def send_one_off_notification(service_id, post_data):
         reply_to_text=reply_to,
         reference=create_one_off_reference(template.template_type),
     )
+
+    # Increment daily counts after notification is created so we can use actual billable_units
+    if template.template_type == SMS_TYPE:
+        is_test_notification = simulated_recipient(post_data["to"], template.template_type)
+        if not is_test_notification:
+            # TODO FF_USE_BILLABLE_UNITS removal - Use billable_units when feature flag is enabled
+            increment_by = notification.billable_units if current_app.config.get("FF_USE_BILLABLE_UNITS") else 1
+            increment_sms_daily_count_send_warnings_if_needed(service, increment_by)
+    elif template.template_type == EMAIL_TYPE:
+        increment_email_daily_count_send_warnings_if_needed(service, 1)  # 1 email
 
     if template.template_type == LETTER_TYPE and service.research_mode:
         _update_notification_status(

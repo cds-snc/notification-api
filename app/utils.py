@@ -341,10 +341,12 @@ def get_fiscal_dates(current_date=None, year=None):
         else:
             fiscal_year_start = datetime(current_date.year - 1, fiscal_year_start_month, fiscal_year_start_day)
             fiscal_year_end = datetime(current_date.year, fiscal_year_start_month - 1, 31)  # March 31 of the current year
-
-    if year:
+    elif year:
         fiscal_year_start = datetime(year, fiscal_year_start_month, fiscal_year_start_day)
         fiscal_year_end = datetime(year + 1, fiscal_year_start_month - 1, 31)
+    else:
+        # This should never happen due to the logic above, but ensures variables are always initialized
+        raise ValueError("Unable to determine fiscal year dates.")
 
     return fiscal_year_start, fiscal_year_end
 

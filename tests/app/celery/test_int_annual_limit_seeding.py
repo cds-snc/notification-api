@@ -71,6 +71,41 @@ def test_int_annual_limit_seeding_and_incrementation_flows_in_celery(sample_temp
             save_notification(create_notification(template_sms, status="failed", created_at=datetime(2019, 4, 2, 6, 0)))
             save_notification(create_notification(template_email, status="failed", created_at=datetime(2019, 4, 2, 6, 0)))
 
+<<<<<<< HEAD
+=======
+                save_notification(create_notification(template_sms, status="delivered", created_at=datetime(2019, 4, 2, 6, 0)))
+                save_notification(create_notification(template_email, status="delivered", created_at=datetime(2019, 4, 2, 6, 0)))
+                save_notification(create_notification(template_sms, status="failed", created_at=datetime(2019, 4, 2, 6, 0)))
+                save_notification(create_notification(template_email, status="failed", created_at=datetime(2019, 4, 2, 6, 0)))
+
+                save_notification(
+                    create_notification(
+                        template=template_sms,
+                        reference=f"{service.name}-ref",
+                        status="sent",
+                        sent_by="sns",
+                        sent_at=datetime.utcnow(),
+                    )
+                )
+                # Invoke the process_sns_receipts task to re-seed the annual limit counts for the day in redis
+                process_sns_results(sns_success_callback(reference=f"{service.name}-ref"))
+
+                expected_counts = {
+                    "sms_failed_today": 1,
+                    "sms_delivered_today": 2,
+                    "email_failed_today": 1,
+                    "email_delivered_today": 1,
+                    "total_email_fiscal_year_to_yesterday": 2,
+                    "total_sms_fiscal_year_to_yesterday": 2,
+                }
+                # Verify the counts are as expected and that seeded_at was set in redis
+                assert annual_limit_client.get_all_notification_counts(service.id) == expected_counts
+                assert annual_limit_client.was_seeded_today(service.id)
+
+        # Day 2, some time passes - testing notification count increments when seeding has occurred
+        with freeze_time("2019-04-02T14:00"), set_config(notify_api, "REDIS_ENABLED", True):
+            service = services[0]
+>>>>>>> 3e991a04 (fix tests)
             save_notification(
                 create_notification(
                     template=template_sms,

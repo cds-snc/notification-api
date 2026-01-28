@@ -317,7 +317,7 @@ def fetch_billable_units_for_service_for_day(bst_day, service_id):
             literal(bst_day.replace(day=1), type_=DateTime).label("month"),
             Notification.notification_type,
             Notification.status.label("notification_status"),
-            func.coalesce(func.sum(Notification.billable_units), 0).label("billable_units"),
+            func.coalesce(func.sum(Notification.billable_units), 0).label("count"),
         )
         .filter(
             Notification.created_at >= bst_day,
@@ -331,12 +331,36 @@ def fetch_billable_units_for_service_for_day(bst_day, service_id):
     )
 
 
+def fetch_notification_status_for_emails_service_for_day(bst_day, service_id):
+    # Fetch data from bst_day 00:00:00 to bst_day 23:59:59
+    # bst_dat is currently in UTC and the return is in UTC
+    bst_day = bst_day.replace(hour=0, minute=0, second=0)
+    return (
+        db.session.query(
+            # return current month as a datetime so the data has the same shape as the ft_notification_status query
+            literal(bst_day.replace(day=1), type_=DateTime).label("month"),
+            Notification.notification_type,
+            Notification.status.label("notification_status"),
+            func.count().label("count"),
+        )
+        .filter(
+            Notification.created_at >= bst_day,
+            Notification.created_at < bst_day + timedelta(days=1),
+            Notification.service_id == service_id,
+            Notification.key_type != KEY_TYPE_TEST,
+            Notification.notification_type == EMAIL_TYPE,
+        )
+        .group_by(Notification.notification_type, Notification.status)
+        .all()
+    )
+
+
 def _stats_for_days_facts(service_id, start_time, by_template=False, notification_type=None):
     """
     We want to take the data from the fact_notification_status table for bst_data>=start_date
 
     Returns:
-        Aggregate data in a certain format for total notifications
+        Aggregate data in a certain format for total notifications FOR SMS billable
     """
     stats_from_facts = db.session.query(
         FactNotificationStatus.notification_type.label("notification_type"),
@@ -353,6 +377,60 @@ def _stats_for_days_facts(service_id, start_time, by_template=False, notificatio
         stats_from_facts = stats_from_facts.filter(FactNotificationStatus.notification_type == notification_type)
 
     return stats_from_facts
+
+
+def _stats_for_days_facts_with_billable_units(service_id, start_time, by_template=False):
+    """
+    We want to take the data from the fact_notification_status table for bst_data>=start_date
+
+    Returns:
+        Aggregate data in a certain format for total billable units
+    """
+    stats_from_facts = (
+        db.session.query(
+            FactNotificationStatus.notification_type.label("notification_type"),
+            FactNotificationStatus.notification_status.label("status"),
+            *([FactNotificationStatus.template_id.label("template_id")] if by_template else []),
+            *([func.sum(FactNotificationStatus.billable_units).label("billable_units")]),
+        )
+        .filter(
+            FactNotificationStatus.service_id == service_id,
+            FactNotificationStatus.bst_date >= start_time,
+            FactNotificationStatus.key_type != KEY_TYPE_TEST,
+            FactNotificationStatus.notification_type == SMS_TYPE,
+        )
+        .group_by(
+            FactNotificationStatus.notification_type,
+            FactNotificationStatus.notification_status,
+            *([FactNotificationStatus.template_id] if by_template else []),
+        )
+    )
+
+    return stats_from_facts
+
+
+def _stats_for_today_with_billable_units(service_id, start_time, by_template=False):
+    stats_for_today = (
+        db.session.query(
+            Notification.notification_type.cast(db.Text),
+            Notification.status,
+            *([Notification.template_id] if by_template else []),
+            *([func.sum(Notification.billable_units).label("billable_units")]),
+        )
+        .filter(
+            Notification.created_at >= start_time,
+            Notification.service_id == service_id,
+            Notification.key_type != KEY_TYPE_TEST,
+            Notification.notification_type == SMS_TYPE,
+        )
+        .group_by(
+            Notification.notification_type,
+            *([Notification.template_id] if by_template else []),
+            Notification.status,
+        )
+    )
+
+    return stats_for_today
 
 
 def _timing_notification_table(service_id):
@@ -437,6 +515,47 @@ def fetch_notification_status_for_service_for_today_and_7_previous_days(
         all_stats_table.c.notification_type,
         all_stats_table.c.status,
         func.cast(func.sum(all_stats_table.c.count), Integer).label("count"),
+    )
+
+    if by_template:
+        query = query.filter(all_stats_table.c.template_id == Template.id)
+
+    return query.group_by(
+        *(
+            [
+                Template.name,
+                Template.is_precompiled_letter,
+                all_stats_table.c.template_id,
+            ]
+            if by_template
+            else []
+        ),
+        all_stats_table.c.notification_type,
+        all_stats_table.c.status,
+    ).all()
+
+
+def fetch_notification_billable_units_for_service_for_today_and_7_previous_days(service_id, by_template=False, limit_days=7):
+    facts_notification_start_time = get_query_date_based_on_retention_period(limit_days)
+    stats_from_facts = _stats_for_days_facts_with_billable_units(service_id, facts_notification_start_time, by_template)
+    start_time_notify_table = _timing_notification_table(service_id)
+    stats_for_today = _stats_for_today_with_billable_units(service_id, start_time_notify_table, by_template)
+
+    all_stats_table = stats_from_facts.union_all(stats_for_today).subquery()
+
+    query = db.session.query(
+        *(
+            [
+                Template.name.label("template_name"),
+                Template.is_precompiled_letter,
+                all_stats_table.c.template_id,
+            ]
+            if by_template
+            else []
+        ),
+        all_stats_table.c.notification_type,
+        all_stats_table.c.status,
+        func.cast(func.sum(all_stats_table.c.billable_units), Integer).label("billable_units"),
     )
 
     if by_template:
