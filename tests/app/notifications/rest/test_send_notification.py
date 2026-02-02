@@ -418,7 +418,6 @@ def test_should_block_api_call_if_over_annual_limit_and_allow_if_under_limit(
 ):
     with (
         notify_api.test_request_context(),
-        set_config(notify_api, "FF_ANNUAL_LIMIT", True),
         set_config(notify_api, "REDIS_ENABLED", True),
     ):
         with notify_api.test_client() as client:

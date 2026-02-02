@@ -16,7 +16,6 @@ from tests.app.db import (
     create_user,
     save_notification,
 )
-from tests.conftest import set_config
 
 from app import annual_limit_client
 from app.celery.reporting_tasks import (
@@ -610,8 +609,7 @@ def test_create_nightly_notification_status_for_day_clears_failed_delivered_noti
         annual_limit_client.seed_annual_limit_notifications(service.id, mapping)
         service_ids.append(service.id)
 
-    with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
-        create_nightly_notification_status_for_day("2019-04-01")
+    create_nightly_notification_status_for_day("2019-04-01")
 
     for service_id in service_ids:
         assert all(value == 0 for value in annual_limit_client.get_all_notification_counts(service_id).values())

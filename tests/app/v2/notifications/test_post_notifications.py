@@ -513,7 +513,7 @@ class TestPostNotificationsErrors:
 
         auth_header = create_authorization_header(service_id=template.service_id)
 
-        with set_config(notify_api, "FF_ANNUAL_LIMIT", True), set_config(notify_api, "REDIS_ENABLED", True):
+        with set_config(notify_api, "REDIS_ENABLED", True):
             # Success
             create_sample_notification(
                 notify_db,
@@ -522,7 +522,7 @@ class TestPostNotificationsErrors:
                 service=sample_service,
                 created_at=datetime.utcnow(),
             )
-            with set_config(notify_api, "FF_ANNUAL_LIMIT", True), set_config(notify_api, "REDIS_ENABLED", True):
+            with set_config(notify_api, "REDIS_ENABLED", True):
                 response = client.post(
                     path="/v2/notifications/{}".format(notification_type),
                     data=json.dumps(data),
@@ -2370,8 +2370,7 @@ class TestBulkSend:
             "csv": rows_to_csv([["email address"], ["foo@example.com"], ["bar@example.com"]]),
         }
 
-        # TODO: FF_ANNUAL_LIMIT removal
-        with set_config(notify_api, "FF_ANNUAL_LIMIT", True), set_config(notify_api, "REDIS_ENABLED", True):
+        with set_config(notify_api, "REDIS_ENABLED", True):
             response = client.post(
                 "/v2/notifications/bulk",
                 data=json.dumps(data),
@@ -2401,8 +2400,7 @@ class TestBulkSend:
             "csv": rows_to_csv([["phone number"], ["6135551234"], ["6135551234"]]),
         }
 
-        # TODO: FF_ANNUAL_LIMIT removal
-        with set_config(notify_api, "FF_ANNUAL_LIMIT", True), set_config(notify_api, "REDIS_ENABLED", True):
+        with set_config(notify_api, "REDIS_ENABLED", True):
             response = client.post(
                 "/v2/notifications/bulk",
                 data=json.dumps(data),
@@ -2739,7 +2737,7 @@ def test_API_one_off_sends_blocks_sends_when_over_annual_limit_allows_if_under_l
     mocker.patch("app.notifications.validators.send_notification_to_service_users")
 
     def __send_notification():
-        with set_config_values(notify_api, {"REDIS_ENABLED": True, "FF_ANNUAL_LIMIT": True}):
+        with set_config_values(notify_api, {"REDIS_ENABLED": True}):
             token = create_jwt_token(
                 current_app.config["ADMIN_CLIENT_SECRET"], client_id=current_app.config["ADMIN_CLIENT_USER_NAME"]
             )
@@ -2795,7 +2793,7 @@ def test_post_bulk_validates_annual_limit(
 
     auth_header = create_authorization_header(service_id=template.service.id)
 
-    with set_config(notify_api, "FF_ANNUAL_LIMIT", True), set_config(notify_api, "REDIS_ENABLED", True):
+    with set_config(notify_api, "REDIS_ENABLED", True):
         response = client.post(
             path="/v2/notifications/bulk",
             data=json.dumps(data),

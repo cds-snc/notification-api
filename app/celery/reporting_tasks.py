@@ -126,9 +126,7 @@ def create_nightly_notification_status_for_day(process_day):
                     len(transit_data), process_day, chunk
                 )
             )
-            # TODO: FF_ANNUAL_LIMIT removal
-            if current_app.config["FF_ANNUAL_LIMIT"]:
-                annual_limit_client.reset_all_notification_counts(chunk)
+            annual_limit_client.reset_all_notification_counts(chunk)
 
         except Exception as e:
             current_app.logger.error(

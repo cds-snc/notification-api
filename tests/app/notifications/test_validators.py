@@ -787,19 +787,18 @@ class TestAnnualLimitValidators:
                 utc_date="2024-04-01", service=service, template=sms_template, notification_type=SMS_TYPE
             )
 
-        with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
-            if will_raise:
-                with pytest.raises(exception_type) as e:
-                    check_email_annual_limit(service, notifications_requested)
-                assert e.value.status_code == 429
-                assert e.value.message == f"Exceeded annual email sending limit of {service.email_annual_limit} messages"
-                assert log_msg in mock_logger.call_args[0][0]
-            else:
-                assert check_email_annual_limit(service, notifications_requested) is None
-                if (not has_sent_reached_limit_email and is_reached) or (not has_sent_near_limit_email and is_near):
-                    mock_redis_set.assert_called_with(service.id)
-                    if log_msg:
-                        assert log_msg in mock_logger.call_args[0][0]
+        if will_raise:
+            with pytest.raises(exception_type) as e:
+                check_email_annual_limit(service, notifications_requested)
+            assert e.value.status_code == 429
+            assert e.value.message == f"Exceeded annual email sending limit of {service.email_annual_limit} messages"
+            assert log_msg in mock_logger.call_args[0][0]
+        else:
+            assert check_email_annual_limit(service, notifications_requested) is None
+            if (not has_sent_reached_limit_email and is_reached) or (not has_sent_near_limit_email and is_near):
+                mock_redis_set.assert_called_with(service.id)
+                if log_msg:
+                    assert log_msg in mock_logger.call_args[0][0]
 
     @freeze_time("2024-11-26")
     @pytest.mark.parametrize(
@@ -880,19 +879,18 @@ class TestAnnualLimitValidators:
                 utc_date="2024-04-01", service=service, template=email_template, notification_type=EMAIL_TYPE
             )
 
-        with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
-            if will_raise:
-                with pytest.raises(exception_type) as e:
-                    check_sms_annual_limit(service, notifications_requested)
-                assert e.value.status_code == 429
-                assert e.value.message == f"Exceeded annual SMS sending limit of {service.sms_annual_limit} messages"
-                assert log_msg in mock_logger.call_args[0][0]
-            else:
-                assert check_sms_annual_limit(service, notifications_requested) is None
-                if (not has_sent_reached_limit_email and is_reached) or (not has_sent_near_limit_email and is_near):
-                    mock_redis_set.assert_called_with(service.id)
-                    if log_msg:
-                        assert log_msg in mock_logger.call_args[0][0]
+        if will_raise:
+            with pytest.raises(exception_type) as e:
+                check_sms_annual_limit(service, notifications_requested)
+            assert e.value.status_code == 429
+            assert e.value.message == f"Exceeded annual SMS sending limit of {service.sms_annual_limit} messages"
+            assert log_msg in mock_logger.call_args[0][0]
+        else:
+            assert check_sms_annual_limit(service, notifications_requested) is None
+            if (not has_sent_reached_limit_email and is_reached) or (not has_sent_near_limit_email and is_near):
+                mock_redis_set.assert_called_with(service.id)
+                if log_msg:
+                    assert log_msg in mock_logger.call_args[0][0]
 
     def test_check_sms_annual_limit_only_sends_warning_email_once(
         self,
@@ -908,9 +906,8 @@ class TestAnnualLimitValidators:
 
         service = create_sample_service(notify_db, notify_db_session, sms_annual_limit=49)
 
-        with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
-            check_sms_annual_limit(service, 2)
-            mock_send_email.assert_not_called()
+        check_sms_annual_limit(service, 2)
+        mock_send_email.assert_not_called()
 
     def test_check_sms_annual_limit_only_sends_reached_limit_email_once(
         self,
@@ -927,6 +924,5 @@ class TestAnnualLimitValidators:
 
         service = create_sample_service(notify_db, notify_db_session, sms_annual_limit=49)
 
-        with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
-            check_sms_annual_limit(service, 4)
-            mock_send_email.assert_not_called()
+        check_sms_annual_limit(service, 4)
+        mock_send_email.assert_not_called()

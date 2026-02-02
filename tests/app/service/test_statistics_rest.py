@@ -20,7 +20,6 @@ from tests.app.db import (
     create_template,
     save_notification,
 )
-from tests.conftest import set_config
 
 
 @freeze_time("2017-11-11 06:00")
@@ -238,27 +237,26 @@ def test_get_monthly_notification_stats_combines_todays_data_and_historic_stats(
     # this doesn't get returned in the stats because it is old - it should be in ft_notification_status by now
     save_notification(create_notification(sample_template, created_at=datetime(2016, 6, 4), status="sending"))
 
-    with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
-        response = admin_request.get(
-            "service.get_monthly_notification_stats",
-            service_id=sample_template.service_id,
-            year=2016,
-        )
+    response = admin_request.get(
+        "service.get_monthly_notification_stats",
+        service_id=sample_template.service_id,
+        year=2016,
+    )
 
-        assert len(response["data"]) == 3  # apr, may, jun
-        assert response["data"]["2016-05"] == {
-            "sms": {"delivered": 1},
-            "email": {},
-            "letter": {},
-        }
-        assert response["data"]["2016-06"] == {
-            "sms": {
-                # combines the stats from the historic ft_notification_status and the current notifications
-                "created": 2,
-            },
-            "email": {},
-            "letter": {},
-        }
+    assert len(response["data"]) == 3  # apr, may, jun
+    assert response["data"]["2016-05"] == {
+        "sms": {"delivered": 1},
+        "email": {},
+        "letter": {},
+    }
+    assert response["data"]["2016-06"] == {
+        "sms": {
+            # combines the stats from the historic ft_notification_status and the current notifications
+            "created": 2,
+        },
+        "email": {},
+        "letter": {},
+    }
 
 
 # This test assumes the local timezone is EST
@@ -304,11 +302,10 @@ def test_get_monthly_notification_stats_only_gets_for_one_service(admin_request,
     create_ft_notification_status(datetime(2016, 6, 1), template=templates[0], notification_status="created")
     create_ft_notification_status(datetime(2016, 6, 1), template=templates[1], notification_status="delivered")
 
-    with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
-        response = admin_request.get("service.get_monthly_notification_stats", service_id=services[0].id, year=2016)
+    response = admin_request.get("service.get_monthly_notification_stats", service_id=services[0].id, year=2016)
 
-        assert response["data"]["2016-06"] == {
-            "sms": {"created": 1},
-            "email": {},
-            "letter": {},
-        }
+    assert response["data"]["2016-06"] == {
+        "sms": {"created": 1},
+        "email": {},
+        "letter": {},
+    }

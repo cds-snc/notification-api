@@ -153,9 +153,7 @@ def fetch_notification_status_for_service_by_month(start_date, end_date, service
         FactNotificationStatus.key_type != KEY_TYPE_TEST,
     ]
 
-    # TODO FF_ANNUAL_LIMIT removal
-    if current_app.config["FF_ANNUAL_LIMIT"]:
-        filters.append(FactNotificationStatus.bst_date != datetime.utcnow().date().strftime("%Y-%m-%d"))
+    filters.append(FactNotificationStatus.bst_date != datetime.utcnow().date().strftime("%Y-%m-%d"))
 
     return (
         db.session.query(

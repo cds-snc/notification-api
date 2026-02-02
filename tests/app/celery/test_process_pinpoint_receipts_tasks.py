@@ -324,11 +324,9 @@ class TestAnnualLimits:
                 sent_by="pinpoint",
             )
         )
-        # TODO FF_ANNUAL_LIMIT removal
-        with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
-            process_pinpoint_results(pinpoint_failed_callback(reference="ref", provider_response=provider_response))
-            annual_limit_client.increment_sms_failed.assert_called_once_with(notification.service_id)
-            annual_limit_client.increment_sms_delivered.assert_not_called()
+        process_pinpoint_results(pinpoint_failed_callback(reference="ref", provider_response=provider_response))
+        annual_limit_client.increment_sms_failed.assert_called_once_with(notification.service_id)
+        annual_limit_client.increment_sms_delivered.assert_not_called()
 
     @pytest.mark.parametrize(
         "callback",
@@ -357,11 +355,9 @@ class TestAnnualLimits:
                 sent_by="pinpoint",
             )
         )
-        # TODO FF_ANNUAL_LIMIT removal
-        with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
-            process_pinpoint_results(callback(reference="ref"))
-            annual_limit_client.increment_sms_delivered.assert_called_once_with(notification.service_id)
-            annual_limit_client.increment_sms_failed.assert_not_called()
+        process_pinpoint_results(callback(reference="ref"))
+        annual_limit_client.increment_sms_delivered.assert_called_once_with(notification.service_id)
+        annual_limit_client.increment_sms_failed.assert_not_called()
 
     @pytest.mark.parametrize(
         "callback, provider_response, data",
