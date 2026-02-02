@@ -15,9 +15,9 @@ if enable_newrelic:
 
     newrelic.agent.initialize(environment=environment)  # noqa: E402
 
-workers = 4
-worker_class = "gevent"
-worker_connections = 256
+workers = int(os.getenv("GUNICORN_WORKERS", "4"))
+worker_class = os.getenv("GUNICORN_WORKER_CLASS", "gevent")
+worker_connections = int(os.getenv("GUNICORN_WORKER_CONNECTIONS", "256"))
 bind = "0.0.0.0:{}".format(os.getenv("PORT"))
 accesslog = "-"
 # Guincorn sets the server type on our app. We don't want to show it in the header in the response.
