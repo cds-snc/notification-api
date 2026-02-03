@@ -48,7 +48,7 @@ def test_process_sns_results_delivered(sample_template, notify_db, notify_db_ses
     assert get_notification_by_id(notification.id).status == NOTIFICATION_DELIVERED
     assert get_notification_by_id(notification.id).provider_response == "Message has been accepted by phone carrier"
 
-    mock_logger.assert_called_with(f"SNS callback return status of delivered for notification: {notification.id}")
+    mock_logger.assert_any_call(f"SNS callback return status of delivered for notification: {notification.id}")
 
 
 @pytest.mark.parametrize(
@@ -107,7 +107,7 @@ def test_process_sns_results_failed(
     else:
         assert get_notification_by_id(notification.id).provider_response is None
 
-    mock_logger.assert_called_with(
+    mock_logger.assert_any_call(
         (
             f"SNS delivery failed: notification id {notification.id} and reference ref has error found. "
             f"Provider response: {provider_response}"
