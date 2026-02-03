@@ -155,6 +155,13 @@ def test_create_unscheduled_email_job_increments_daily_count(client, mocker, sam
         "id": fake_uuid,
         "created_by": str(sample_email_job.created_by.id),
     }
+    mocker.patch(
+        "app.notifications.validators.get_annual_limit_notifications_v2",
+        return_value={
+            "total_email_fiscal_year_to_yesterday": 0,
+            "total_sms_fiscal_year_to_yesterday": 0,
+        },
+    )
     path = "/service/{}/job".format(sample_email_job.service_id)
     auth_header = create_authorization_header()
     headers = [("Content-Type", "application/json"), auth_header]
@@ -187,6 +194,14 @@ def test_create_future_not_same_day_scheduled_email_job_does_not_increment_daily
         return_value="email address\r\nsome@email.com",
     )
     mocker.patch("app.dao.services_dao.dao_fetch_service_by_id", return_value=sample_email_job.service)
+    mocker.patch(
+        "app.notifications.validators.get_annual_limit_notifications_v2",
+        return_value={
+            "total_email_fiscal_year_to_yesterday": 0,
+            "total_sms_fiscal_year_to_yesterday": 0,
+        },
+    )
+
     data = {"id": fake_uuid, "created_by": str(sample_email_job.created_by.id), "scheduled_for": scheduled_date}
     path = "/service/{}/job".format(sample_email_job.service_id)
     auth_header = create_authorization_header()
@@ -213,6 +228,13 @@ def test_create_unscheduled_job(client, sample_template, mocker, fake_uuid):
     mocker.patch(
         "app.job.rest.get_job_from_s3",
         return_value="phone number\r\n6502532222",
+    )
+    mocker.patch(
+        "app.notifications.validators.get_annual_limit_notifications_v2",
+        return_value={
+            "total_email_fiscal_year_to_yesterday": 0,
+            "total_sms_fiscal_year_to_yesterday": 0,
+        },
     )
     data = {
         "id": fake_uuid,
@@ -255,6 +277,13 @@ def test_create_unscheduled_job_with_sender_id_in_metadata(client, sample_templa
         "app.job.rest.get_job_from_s3",
         return_value="phone number\r\n6502532222",
     )
+    mocker.patch(
+        "app.notifications.validators.get_annual_limit_notifications_v2",
+        return_value={
+            "total_email_fiscal_year_to_yesterday": 0,
+            "total_sms_fiscal_year_to_yesterday": 0,
+        },
+    )
     data = {
         "id": fake_uuid,
         "created_by": str(sample_template.created_by.id),
@@ -290,6 +319,13 @@ def test_create_job_sets_sender_id_from_database(client, mocker, fake_uuid, samp
     mocker.patch(
         "app.job.rest.get_job_from_s3",
         return_value="phone number\r\n6502532222",
+    )
+    mocker.patch(
+        "app.notifications.validators.get_annual_limit_notifications_v2",
+        return_value={
+            "total_email_fiscal_year_to_yesterday": 0,
+            "total_sms_fiscal_year_to_yesterday": 0,
+        },
     )
     data = {
         "id": fake_uuid,

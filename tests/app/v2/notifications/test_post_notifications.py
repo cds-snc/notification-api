@@ -63,9 +63,39 @@ def rows_to_csv(rows):
     return output.getvalue()
 
 
+@pytest.fixture
+def mock_annual_limits(mocker):
+    """Mock annual limit functions to return zero counts."""
+    mocker.patch(
+        "app.notifications.validators.get_annual_limit_notifications_v2",
+        return_value={
+            "total_email_fiscal_year_to_yesterday": 0,
+            "total_sms_fiscal_year_to_yesterday": 0,
+        },
+    )
+    mocker.patch(
+        "app.v2.notifications.post_notifications.get_annual_limit_notifications_v2",
+        return_value={
+            "total_email_fiscal_year_to_yesterday": 0,
+            "total_sms_fiscal_year_to_yesterday": 0,
+        },
+    )
+    mocker.patch(
+        "app.job.rest.get_annual_limit_notifications_v2",
+        return_value={
+            "total_email_fiscal_year_to_yesterday": 0,
+            "total_sms_fiscal_year_to_yesterday": 0,
+        },
+    )
+    mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=0)
+    mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
+
+
 class TestSingleEndpointSucceeds:
     @pytest.mark.parametrize("reference", [None, "reference_from_client"])
-    def test_post_sms_notification_returns_201(self, notify_api, client, sample_template_with_placeholders, mocker, reference):
+    def test_post_sms_notification_returns_201(
+        self, notify_api, client, sample_template_with_placeholders, mocker, reference, mock_annual_limits
+    ):
         mock_publish = mocker.patch("app.sms_normal_publish.publish")
         data = {
             "phone_number": "+16502532222",
@@ -107,7 +137,7 @@ class TestSingleEndpointSucceeds:
         assert not resp_json["scheduled_for"]
 
     def test_post_sms_notification_uses_sms_sender_id_reply_to(
-        self, notify_api, client, sample_template_with_placeholders, mocker
+        self, notify_api, client, sample_template_with_placeholders, mocker, mock_annual_limits
     ):
         sms_sender = create_service_sms_sender(service=sample_template_with_placeholders.service, sms_sender="6502532222")
         mock_publish = mocker.patch("app.sms_normal_publish.publish")
@@ -133,7 +163,9 @@ class TestSingleEndpointSucceeds:
         assert mock_publish_args_unsigned["to"] == data["phone_number"]
         assert mock_publish_args_unsigned["id"] == resp_json["id"]
 
-    def test_post_sms_notification_uses_inbound_number_as_sender(self, notify_api, client, notify_db_session, mocker):
+    def test_post_sms_notification_uses_inbound_number_as_sender(
+        self, notify_api, client, notify_db_session, mocker, mock_annual_limits
+    ):
         service = create_service_with_inbound_number(inbound_number="1")
         template = create_template(service=service, content="Hello (( Name))\nYour thing is due soon")
         mock_publish = mocker.patch("app.sms_normal_publish.publish")
@@ -159,7 +191,7 @@ class TestSingleEndpointSucceeds:
         assert resp_json["content"]["from_number"] == "1"
 
     def test_post_sms_notification_returns_201_with_sms_sender_id(
-        self, notify_api, client, sample_template_with_placeholders, mocker
+        self, notify_api, client, sample_template_with_placeholders, mocker, mock_annual_limits
     ):
         sms_sender = create_service_sms_sender(service=sample_template_with_placeholders.service, sms_sender="123456")
         mock_publish = mocker.patch("app.sms_normal_publish.publish")
@@ -192,6 +224,7 @@ class TestSingleEndpointSucceeds:
         sample_template,
         client,
         mocker,
+        mock_annual_limits,
     ):
         mocker.patch("app.sms_normal_publish.publish")
 
@@ -207,7 +240,9 @@ class TestSingleEndpointSucceeds:
         assert response.status_code == 201
         assert response.headers["Content-type"] == "application/json"
 
-    def test_post_sms_should_publish_supplied_sms_number(self, notify_api, client, sample_template_with_placeholders, mocker):
+    def test_post_sms_should_publish_supplied_sms_number(
+        self, notify_api, client, sample_template_with_placeholders, mocker, mock_annual_limits
+    ):
         mock_publish = mocker.patch("app.sms_normal_publish.publish")
 
         data = {
@@ -232,7 +267,9 @@ class TestSingleEndpointSucceeds:
         assert mock_publish_args_unsigned["id"] == resp_json["id"]
 
     @pytest.mark.parametrize("reference", [None, "reference_from_client"])
-    def test_post_email_notification_returns_201(notify_api, client, sample_email_template_with_placeholders, mocker, reference):
+    def test_post_email_notification_returns_201(
+        self, notify_api, client, sample_email_template_with_placeholders, mocker, reference, mock_annual_limits
+    ):
         mock_publish = mocker.patch("app.email_normal_publish.publish")
         data = {
             "email_address": sample_email_template_with_placeholders.service.users[0].email_address,
@@ -275,7 +312,9 @@ class TestSingleEndpointSucceeds:
         )
         assert not resp_json["scheduled_for"]
 
-    def test_post_email_notification_with_valid_reply_to_id_returns_201(self, notify_api, client, sample_email_template, mocker):
+    def test_post_email_notification_with_valid_reply_to_id_returns_201(
+        self, notify_api, client, sample_email_template, mocker, mock_annual_limits
+    ):
         reply_to_email = create_reply_to_email(sample_email_template.service, "test@test.com")
         mock_publish = mocker.patch("app.email_normal_publish.publish")
         data = {
@@ -523,6 +562,16 @@ class TestPostNotificationsErrors:
                 created_at=datetime.utcnow(),
             )
             with set_config(notify_api, "REDIS_ENABLED", True):
+                mocker.patch(
+                    "app.notifications.validators.get_annual_limit_notifications_v2",
+                    return_value={
+                        "total_email_fiscal_year_to_yesterday": 2,
+                        "total_sms_fiscal_year_to_yesterday": 2,
+                    },
+                )
+                mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=1)
+                mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=1)
+
                 response = client.post(
                     path="/v2/notifications/{}".format(notification_type),
                     data=json.dumps(data),
@@ -539,9 +588,15 @@ class TestPostNotificationsErrors:
         self,
         client,
         notify_db_session,
+        mocker,
     ):
         service = create_service(service_permissions=[SMS_TYPE])
         template = create_template(service=service)
+        mocker.patch(
+            "app.notifications.validators.get_annual_limit_notifications_v2",
+            return_value={"total_sms_fiscal_year_to_yesterday": 0},
+        )
+        mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
 
         data = {"phone_number": "+20-12-1234-1234", "template_id": template.id}
         auth_header = create_authorization_header(service_id=service.id)
@@ -564,7 +619,12 @@ class TestPostNotificationsErrors:
             }
         ]
 
-    def test_post_sms_notification_with_archived_reply_to_id_returns_400(self, client, sample_template):
+    def test_post_sms_notification_with_archived_reply_to_id_returns_400(self, client, sample_template, mocker):
+        mocker.patch(
+            "app.notifications.validators.get_annual_limit_notifications_v2",
+            return_value={"total_sms_fiscal_year_to_yesterday": 0},
+        )
+        mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
         archived_sender = create_service_sms_sender(sample_template.service, "12345", is_default=False, archived=True)
         data = {
             "phone_number": "+16502532222",
@@ -626,7 +686,12 @@ class TestPostNotificationsErrors:
         ]
 
     @pytest.mark.parametrize("restricted", [True, False])
-    def test_post_sms_notification_returns_400_if_number_not_safelisted(self, notify_db_session, client, restricted):
+    def test_post_sms_notification_returns_400_if_number_not_safelisted(self, notify_db_session, client, restricted, mocker):
+        mocker.patch(
+            "app.notifications.validators.get_annual_limit_notifications_v2",
+            return_value={"total_sms_fiscal_year_to_yesterday": 0},
+        )
+        mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
         service = create_service(restricted=restricted, service_permissions=[SMS_TYPE, INTERNATIONAL_SMS_TYPE])
         template = create_template(service=service)
         create_api_key(service=service, key_type="team")
@@ -667,7 +732,7 @@ class TestPostNotificationsErrors:
 
     @pytest.mark.parametrize("notification_type", ["sms", "email"])
     def test_post_notification_with_wrong_type_of_sender(
-        self, client, sample_template, sample_email_template, notification_type, fake_uuid
+        self, client, sample_template, sample_email_template, notification_type, fake_uuid, mock_annual_limits
     ):
         if notification_type == EMAIL_TYPE:
             template = sample_email_template
@@ -697,7 +762,9 @@ class TestPostNotificationsErrors:
         assert "Additional properties are not allowed ({} was unexpected)".format(form_label) in resp_json["errors"][0]["message"]
         assert "ValidationError" in resp_json["errors"][0]["error"]
 
-    def test_post_email_notification_with_invalid_reply_to_id_returns_400(self, client, sample_email_template, mocker, fake_uuid):
+    def test_post_email_notification_with_invalid_reply_to_id_returns_400(
+        self, client, sample_email_template, mocker, fake_uuid, mock_annual_limits
+    ):
         mocker.patch("app.email_normal_publish.publish")
         data = {
             "email_address": sample_email_template.service.users[0].email_address,
@@ -720,7 +787,9 @@ class TestPostNotificationsErrors:
         )
         assert "BadRequestError" in resp_json["errors"][0]["error"]
 
-    def test_post_email_notification_with_archived_reply_to_id_returns_400(self, client, sample_email_template, mocker):
+    def test_post_email_notification_with_archived_reply_to_id_returns_400(
+        self, client, sample_email_template, mocker, mock_annual_limits
+    ):
         archived_reply_to = create_reply_to_email(
             sample_email_template.service,
             "reply_to@test.com",
@@ -757,7 +826,14 @@ class TestPostNotificationsErrors:
         ],
     )
     def test_post_email_notification_with_personalisation_too_large(
-        self, notify_api, client, sample_email_template_with_placeholders, mocker, personalisation_size, expected_success
+        self,
+        notify_api,
+        client,
+        sample_email_template_with_placeholders,
+        mocker,
+        personalisation_size,
+        expected_success,
+        mock_annual_limits,
     ):
         mocked = mocker.patch("app.email_normal_publish.publish")
 
@@ -788,7 +864,9 @@ class TestPostNotificationsErrors:
                 in resp_json["errors"][0]["message"]
             )
 
-    def test_post_notification_returns_400_when_get_json_throws_exception(self, client, sample_email_template):
+    def test_post_notification_returns_400_when_get_json_throws_exception(
+        self, client, sample_email_template, mock_annual_limits
+    ):
         auth_header = create_authorization_header(service_id=sample_email_template.service_id)
         response = client.post(
             path="v2/notifications/email",
@@ -837,6 +915,12 @@ def test_should_not_persist_or_send_notification_if_simulated_recipient(
     client, recipient, notification_type, sample_email_template, sample_template, mocker
 ):
     mock_publish = mocker.patch("app.{}_normal_publish.publish".format(notification_type))
+    mocker.patch(
+        "app.notifications.validators.get_annual_limit_notifications_v2",
+        return_value={"total_sms_fiscal_year_to_yesterday": 0, "total_email_fiscal_year_to_yesterday": 0},
+    )
+    mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
+    mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=0)
 
     if notification_type == "sms":
         data = {"phone_number": recipient, "template_id": str(sample_template.id)}
@@ -874,6 +958,7 @@ def test_send_notification_uses_appropriate_queue_according_to_template_process_
     key_send_to,
     send_to,
     process_type,
+    mock_annual_limits,
 ):
     mock_publish = mocker.patch("app.{}_{}_publish.publish".format(notification_type, process_type))
 
@@ -909,7 +994,7 @@ class TestRestrictedServices:
         ],
     )
     def test_team_keys_only_send_to_team_members(
-        self, notify_db_session, client, mocker, notify_api, notification_type, to_key, to, response_code
+        self, notify_db_session, client, mocker, notify_api, notification_type, to_key, to, response_code, mock_annual_limits
     ):
         service = create_service(restricted=True, service_permissions=[EMAIL_TYPE, SMS_TYPE, INTERNATIONAL_SMS_TYPE])
         user = create_user(mobile_number="+16132532235", email="test@example.com")
@@ -946,7 +1031,17 @@ class TestRestrictedServices:
         ],
     )
     def test_team_keys_only_send_to_team_members_bulk_endpoint(
-        self, notify_db, notify_db_session, client, mocker, notification_type, to_key, to_a, to_b, response_code
+        self,
+        notify_db,
+        notify_db_session,
+        client,
+        mocker,
+        notification_type,
+        to_key,
+        to_a,
+        to_b,
+        response_code,
+        mock_annual_limits,
     ):
         service = create_service(
             restricted=True,
@@ -984,7 +1079,9 @@ class TestSchedulingSends:
         ],
     )
     @freeze_time("2017-05-14 14:00:00")
-    def test_post_notification_with_scheduled_for(self, client, notify_db_session, notification_type, key_send_to, send_to):
+    def test_post_notification_with_scheduled_for(
+        self, client, notify_db_session, notification_type, key_send_to, send_to, mock_annual_limits
+    ):
         service = create_service(
             service_name=str(uuid.uuid4()),
             service_permissions=[EMAIL_TYPE, SMS_TYPE, SCHEDULE_NOTIFICATIONS],
@@ -1057,7 +1154,7 @@ class TestSendingDocuments:
         ],
     )
     def test_post_notification_with_document_upload(
-        self, notify_api, client, notify_db_session, mocker, filename, file_data, sending_method
+        self, notify_api, client, notify_db_session, mocker, filename, file_data, sending_method, mock_annual_limits
     ):
         service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
         content = "See attached file."
@@ -1129,7 +1226,16 @@ class TestSendingDocuments:
         ],
     )
     def test_post_notification_with_document_too_large(
-        self, notify_api, client, notify_db_session, mocker, filename, sending_method, attachment_size, expected_success
+        self,
+        notify_api,
+        client,
+        notify_db_session,
+        mocker,
+        filename,
+        sending_method,
+        attachment_size,
+        expected_success,
+        mock_annual_limits,
     ):
         mocked = mocker.patch("app.email_normal_publish.publish")
         service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
@@ -1188,7 +1294,15 @@ class TestSendingDocuments:
         ],
     )
     def test_post_notification_with_too_many_documents(
-        self, notify_api, client, notify_db_session, mocker, sending_method, attachment_number, expected_success
+        self,
+        notify_api,
+        client,
+        notify_db_session,
+        mocker,
+        sending_method,
+        attachment_number,
+        expected_success,
+        mock_annual_limits,
     ):
         mocked = mocker.patch("app.email_normal_publish.publish")
         service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
@@ -1247,7 +1361,7 @@ class TestSendingDocuments:
         ],
     )
     def test_post_notification_with_document_upload_bad_filename(
-        self, client, notify_db_session, filename, file_data, sending_method
+        self, client, notify_db_session, filename, file_data, sending_method, mock_annual_limits
     ):
         service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
         content = "See attached file."
@@ -1281,6 +1395,7 @@ class TestSendingDocuments:
         self,
         client,
         notify_db_session,
+        mock_annual_limits,
     ):
         service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
         content = "See attached file."
@@ -1321,7 +1436,7 @@ class TestSendingDocuments:
         ],
     )
     def test_post_notification_with_document_upload_filename_required_check(
-        self, client, notify_db_session, file_data, sending_method
+        self, client, notify_db_session, file_data, sending_method, mock_annual_limits
     ):
         service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
         content = "See attached file."
@@ -1355,6 +1470,7 @@ class TestSendingDocuments:
         client,
         notify_db_session,
         file_data,
+        mock_annual_limits,
     ):
         service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
         content = "See attached file."
@@ -1384,7 +1500,7 @@ class TestSendingDocuments:
         ],
     )
     def test_post_notification_with_document_upload_bad_sending_method(
-        self, client, notify_db_session, file_data, sending_method, filename
+        self, client, notify_db_session, file_data, sending_method, filename, mock_annual_limits
     ):
         service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
         content = "See attached file."
@@ -1425,6 +1541,7 @@ class TestSendingDocuments:
         notify_db_session,
         file_data,
         message,
+        mock_annual_limits,
     ):
         service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
         content = "See attached file."
@@ -1452,7 +1569,7 @@ class TestSendingDocuments:
         resp_json = json.loads(response.get_data(as_text=True))
         assert f"{message} : Error decoding base64 field" in resp_json["errors"][0]["message"]
 
-    def test_post_notification_with_document_upload_simulated(self, client, notify_db_session, mocker):
+    def test_post_notification_with_document_upload_simulated(self, client, notify_db_session, mocker, mock_annual_limits):
         service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
         template = create_template(service=service, template_type="email", content="Document: ((document))")
 
@@ -1479,7 +1596,7 @@ class TestSendingDocuments:
 
         assert resp_json["content"]["body"] == "Document: https://document-url/test-document"
 
-    def test_post_notification_without_document_upload_permission(self, client, notify_db_session, mocker):
+    def test_post_notification_without_document_upload_permission(self, client, notify_db_session, mocker, mock_annual_limits):
         service = create_service(service_permissions=[EMAIL_TYPE])
         template = create_template(service=service, template_type="email", content="Document: ((document))")
 
@@ -1504,7 +1621,7 @@ class TestSendingDocuments:
 
 
 class TestSMSSendFragments:
-    def test_post_sms_enough_messages_left(self, notify_api, client, notify_db, notify_db_session, mocker):
+    def test_post_sms_enough_messages_left(self, notify_api, client, notify_db, notify_db_session, mocker, mock_annual_limits):
         mocker.patch("app.sms_normal_publish.publish")
         service = create_service(sms_daily_limit=10, message_limit=100)
         template = create_sample_template(notify_db, notify_db_session, content=500 * "a", service=service, template_type="sms")
@@ -1527,6 +1644,24 @@ class TestSMSSendFragments:
 
     def test_post_sms_not_enough_messages_left(self, notify_api, client, notify_db, notify_db_session, mocker):
         mocker.patch("app.sms_normal_publish.publish")
+
+        mocker.patch(
+            "app.notifications.validators.get_annual_limit_notifications_v2",
+            return_value={
+                "total_email_fiscal_year_to_yesterday": 0,
+                "total_sms_fiscal_year_to_yesterday": 25999,
+            },
+        )
+        mocker.patch(
+            "app.v2.notifications.post_notifications.get_annual_limit_notifications_v2",
+            return_value={
+                "total_email_fiscal_year_to_yesterday": 0,
+                "total_sms_fiscal_year_to_yesterday": 25999,
+            },
+        )
+        mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=0)
+        mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=5)
+
         service = create_service(sms_daily_limit=10, message_limit=100)
         template = create_sample_template(notify_db, notify_db_session, content=500 * "a", service=service, template_type="sms")
         data = {
@@ -1555,7 +1690,7 @@ class TestSMSMessageCounter:
         "key_type", [KEY_TYPE_TEST, KEY_TYPE_NORMAL, pytest.param(KEY_TYPE_TEAM, marks=pytest.mark.xfail(raises=AssertionError))]
     )
     def test_API_ONEOFF_post_sms_with_test_key_does_not_count_towards_limits(
-        self, notify_api, client, notify_db, notify_db_session, mocker, key_type
+        self, notify_api, client, notify_db, notify_db_session, mocker, key_type, mock_annual_limits
     ):
         # test setup
         mocker.patch("app.sms_normal_publish.publish")
@@ -1604,7 +1739,7 @@ class TestSMSMessageCounter:
         "key_type", [KEY_TYPE_TEST, KEY_TYPE_NORMAL, pytest.param(KEY_TYPE_TEAM, marks=pytest.mark.xfail(raises=AssertionError))]
     )
     def test_API_BULK_post_sms_with_test_key_does_not_count_towards_limits(
-        self, notify_api, client, notify_db, notify_db_session, mocker, key_type
+        self, notify_api, client, notify_db, notify_db_session, mocker, key_type, mock_annual_limits
     ):
         # test setup
         mocker.patch("app.sms_normal_publish.publish")
@@ -1651,7 +1786,9 @@ class TestSMSMessageCounter:
     #   - Throw an error if a user mixes testing and non-testing numbers with a LIVE or TEAM key
     #   - Allow mixing if its a TEST key
     @pytest.mark.parametrize("key_type", [KEY_TYPE_TEST, KEY_TYPE_NORMAL, KEY_TYPE_TEAM])
-    def test_API_BULK_post_sms_with_mixed_numbers(self, notify_api, client, notify_db, notify_db_session, mocker, key_type):
+    def test_API_BULK_post_sms_with_mixed_numbers(
+        self, notify_api, client, notify_db, notify_db_session, mocker, key_type, mock_annual_limits
+    ):
         # test setup
         mocker.patch("app.sms_normal_publish.publish")
         increment_todays_requested_sms_count = mocker.patch("app.notifications.validators.increment_todays_requested_sms_count")
@@ -1703,7 +1840,7 @@ class TestSMSMessageCounter:
     # Testing ADMIN one-off:
     #   - Sending using TEST phone numbers (i.e. +16132532222)  should not count towards limits
     def test_ADMIN_ONEOFF_post_sms_with_test_phone_number_does_not_count_towards_limits(
-        self, notify_api, client, notify_db, notify_db_session, mocker
+        self, notify_api, client, notify_db, notify_db_session, mocker, mock_annual_limits
     ):
         # test setup
         mocker.patch("app.sms_normal_publish.publish")
@@ -1747,7 +1884,7 @@ class TestSMSMessageCounter:
         ],
     )
     def test_ADMIN_CSV_post_sms_with_test_phone_number_does_not_count_towards_limits(
-        self, notify_api, client, notify_db, notify_db_session, mocker, expected_status_code, phone_numbers
+        self, notify_api, client, notify_db, notify_db_session, mocker, expected_status_code, phone_numbers, mock_annual_limits
     ):
         # test setup
         mocker.patch("app.sms_normal_publish.publish")
@@ -1798,6 +1935,16 @@ class TestEmailsAndLimitsForSMSFragments:
     def test_API_ONEOFF_sends_warning_emails_and_blocks_sends(self, notify_api, client, notify_db, notify_db_session, mocker):
         # test setup
         mocker.patch("app.sms_normal_publish.publish")
+
+        # # Mock annual limits
+        mocker.patch(
+            "app.notifications.validators.get_annual_limit_notifications_v2",
+            return_value={
+                "total_email_fiscal_year_to_yesterday": 0,
+                "total_sms_fiscal_year_to_yesterday": 0,
+            },
+        )
+
         send_warning_email = mocker.patch("app.notifications.validators.send_near_sms_limit_email")
         send_limit_reached_email = mocker.patch("app.notifications.validators.send_sms_limit_reached_email")
 
@@ -1839,6 +1986,21 @@ class TestEmailsAndLimitsForSMSFragments:
         mocker.patch("app.sms_normal_publish.publish")
         send_warning_email = mocker.patch("app.notifications.validators.send_near_sms_limit_email")
         send_limit_reached_email = mocker.patch("app.notifications.validators.send_sms_limit_reached_email")
+        # # Mock annual limits
+        mocker.patch(
+            "app.notifications.validators.get_annual_limit_notifications_v2",
+            return_value={
+                "total_email_fiscal_year_to_yesterday": 0,
+                "total_sms_fiscal_year_to_yesterday": 0,
+            },
+        )
+        mocker.patch(
+            "app.v2.notifications.post_notifications.get_annual_limit_notifications_v2",
+            return_value={
+                "total_email_fiscal_year_to_yesterday": 0,
+                "total_sms_fiscal_year_to_yesterday": 0,
+            },
+        )
 
         def __send_sms():
             with set_config_values(notify_api, {"REDIS_ENABLED": True}):
@@ -1884,6 +2046,15 @@ class TestEmailsAndLimitsForSMSFragments:
         mocker.patch("app.sms_normal_publish.publish")
 
         mocker.patch("app.service.send_notification.send_notification_to_queue")
+
+        # # Mock annual limits
+        mocker.patch(
+            "app.notifications.validators.get_annual_limit_notifications_v2",
+            return_value={
+                "total_email_fiscal_year_to_yesterday": 0,
+                "total_sms_fiscal_year_to_yesterday": 0,
+            },
+        )
         send_warning_email = mocker.patch("app.notifications.validators.send_near_sms_limit_email")
         send_limit_reached_email = mocker.patch("app.notifications.validators.send_sms_limit_reached_email")
 
@@ -1930,6 +2101,21 @@ class TestEmailsAndLimitsForSMSFragments:
         mocker.patch(
             "app.job.rest.get_job_from_s3",
             return_value="phone number\r\n6502532222",
+        )
+        # # Mock annual limits
+        mocker.patch(
+            "app.notifications.validators.get_annual_limit_notifications_v2",
+            return_value={
+                "total_email_fiscal_year_to_yesterday": 0,
+                "total_sms_fiscal_year_to_yesterday": 0,
+            },
+        )
+        mocker.patch(
+            "app.job.rest.get_annual_limit_notifications_v2",
+            return_value={
+                "total_email_fiscal_year_to_yesterday": 0,
+                "total_sms_fiscal_year_to_yesterday": 0,
+            },
         )
         send_warning_email = mocker.patch("app.notifications.validators.send_near_sms_limit_email")
         send_limit_reached_email = mocker.patch("app.notifications.validators.send_sms_limit_reached_email")
@@ -2464,6 +2650,7 @@ class TestBulkSend:
         is_scheduled,
         use_sender_id,
         has_default_reply_to,
+        mock_annual_limits,
     ):
         data = {"name": "job_name", "template_id": sample_email_template.id}
         rows = [["email address"], ["foo@example.com"]]
@@ -2548,13 +2735,7 @@ class TestBulkSend:
             }
         }
 
-    def test_post_bulk_sms_sets_sender_id_from_database(
-        self,
-        client,
-        mocker,
-        notify_user,
-        notify_api,
-    ):
+    def test_post_bulk_sms_sets_sender_id_from_database(self, client, mocker, notify_user, notify_api, mock_annual_limits):
         service = create_service_with_inbound_number(inbound_number="12345")
         template = create_template(service=service)
         sms_sender = ServiceSmsSender.query.filter_by(service_id=service.id).first()
@@ -2606,7 +2787,7 @@ class TestBulkSend:
         ],
     )
     def test_post_bulk_with_too_large_sms_fail_and_shows_correct_row(
-        self, client, notify_db, notify_db_session, mocker, row_data, failure_row
+        self, client, notify_db, notify_db_session, mocker, row_data, failure_row, mock_annual_limits
     ):
         mocker.patch("app.sms_normal_publish.publish")
         mocker.patch("app.v2.notifications.post_notifications.create_bulk_job", return_value=str(uuid.uuid4()))
@@ -2636,7 +2817,7 @@ class TestBulkSend:
 
 class TestBatchPriorityLanes:
     @pytest.mark.parametrize("process_type", ["bulk", "normal", "priority"])
-    def test_sms_each_queue_is_used(self, notify_api, client, service_factory, mocker, process_type):
+    def test_sms_each_queue_is_used(self, notify_api, client, service_factory, mocker, process_type, mock_annual_limits):
         mock_redisQueue_SMS_BULK = mocker.patch("app.sms_bulk_publish.publish")
         mock_redisQueue_SMS_NORMAL = mocker.patch("app.sms_normal_publish.publish")
         mock_redisQueue_SMS_PRIORITY = mocker.patch("app.sms_priority_publish.publish")
@@ -2667,7 +2848,7 @@ class TestBatchPriorityLanes:
             assert mock_redisQueue_SMS_PRIORITY.called
 
     @pytest.mark.parametrize("process_type", ["bulk", "normal", "priority"])
-    def test_email_each_queue_is_used(self, notify_api, client, mocker, service_factory, process_type):
+    def test_email_each_queue_is_used(self, notify_api, client, mocker, service_factory, process_type, mock_annual_limits):
         mock_redisQueue_EMAIL_BULK = mocker.patch("app.email_bulk_publish.publish")
         mock_redisQueue_EMAIL_NORMAL = mocker.patch("app.email_normal_publish.publish")
         mock_redisQueue_EMAIL_PRIORITY = mocker.patch("app.email_priority_publish.publish")
@@ -2735,6 +2916,22 @@ def test_API_one_off_sends_blocks_sends_when_over_annual_limit_allows_if_under_l
     mocker.patch("app.service.send_notification.send_notification_to_queue")
     mocker.patch("app.notifications.validators.service_can_send_to_recipient")
     mocker.patch("app.notifications.validators.send_notification_to_service_users")
+
+    mocker.patch(
+        "app.notifications.validators.get_annual_limit_notifications_v2",
+        return_value={
+            "total_email_fiscal_year_to_yesterday": 0,
+            "total_sms_fiscal_year_to_yesterday": 0,
+        },
+    )
+    # Don't mock fetch_todays_* functions - they need to query the real DB to get accurate counts
+    # that update as notifications are created during the test
+
+    # Mock annual limit client checks
+    mocker.patch("app.notifications.validators.annual_limit_client.check_has_warning_been_sent", return_value=False)
+    mocker.patch("app.notifications.validators.annual_limit_client.check_has_over_limit_been_sent", return_value=False)
+    mocker.patch("app.notifications.validators.annual_limit_client.set_over_email_limit")
+    mocker.patch("app.notifications.validators.annual_limit_client.set_over_sms_limit")
 
     def __send_notification():
         with set_config_values(notify_api, {"REDIS_ENABLED": True}):

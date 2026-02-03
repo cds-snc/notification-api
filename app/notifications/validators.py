@@ -391,10 +391,10 @@ def warn_about_daily_message_limit(service: Service, messages_sent):
                 },
                 include_user_fields=["name"],
             )
+            current_app.logger.info(
+                f"service {service.id} has been rate limited for daily use sent {int(messages_sent)} limit {service.message_limit}"
+            )
 
-        current_app.logger.info(
-            f"service {service.id} has been rate limited for daily use sent {int(messages_sent)} limit {service.message_limit}"
-        )
         if service.restricted:
             raise TrialServiceTooManyRequestsError(service.message_limit)
         else:

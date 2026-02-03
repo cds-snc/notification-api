@@ -752,6 +752,11 @@ class TestAnnualLimitValidators:
         mock_logger = mocker.patch("app.notifications.validators.current_app.logger.info")
         mock_redis_set = mocker.patch("app.redis_store.set_hash_value")  # Set over / near limit keys
         mocker.patch("app.redis_store.get", return_value=counts_from_redis)  # notifications fetched from Redis
+        mocker.patch(
+            "app.notifications.validators.get_annual_limit_notifications_v2",
+            return_value={"total_email_fiscal_year_to_yesterday": counts_from_redis + ft_count},
+        )
+        mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=0)
         mocker.patch("app.annual_limit_client.check_has_warning_been_sent", return_value=has_sent_near_limit_email)
         mocker.patch(
             "app.annual_limit_client.check_has_warning_been_sent", return_value=has_sent_reached_limit_email
@@ -846,6 +851,11 @@ class TestAnnualLimitValidators:
         mock_logger = mocker.patch("app.notifications.validators.current_app.logger.info")
         mock_redis_set = mocker.patch("app.redis_store.set_hash_value")  # Set over / near limit keys
         mocker.patch("app.redis_store.get", return_value=counts_from_redis)  # notifications fetched from Redis
+        mocker.patch(
+            "app.notifications.validators.get_annual_limit_notifications_v2",
+            return_value={"total_sms_fiscal_year_to_yesterday": counts_from_redis + ft_count},
+        )
+        mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
         mocker.patch("app.annual_limit_client.check_has_warning_been_sent", return_value=has_sent_near_limit_email)
         mocker.patch(
             "app.annual_limit_client.check_has_warning_been_sent", return_value=has_sent_reached_limit_email
@@ -901,6 +911,11 @@ class TestAnnualLimitValidators:
     ):
         mocker.patch("app.redis_store.set_hash_value")
         mocker.patch("app.redis_store.get", return_value=45)
+        mocker.patch(
+            "app.notifications.validators.get_annual_limit_notifications_v2",
+            return_value={"total_sms_fiscal_year_to_yesterday": 45},
+        )
+        mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
         mocker.patch("app.annual_limit_client.check_has_warning_been_sent", return_value=True)
         mock_send_email = mocker.patch("app.notifications.validators.send_notification_to_service_users")
 
@@ -918,6 +933,11 @@ class TestAnnualLimitValidators:
     ):
         mocker.patch("app.redis_store.set_hash_value")
         mocker.patch("app.redis_store.get", return_value=45)
+        mocker.patch(
+            "app.notifications.validators.get_annual_limit_notifications_v2",
+            return_value={"total_sms_fiscal_year_to_yesterday": 45},
+        )
+        mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
         mocker.patch("app.annual_limit_client.check_has_over_limit_been_sent", return_value=True)
         mocker.patch("app.annual_limit_client.check_has_warning_been_sent", return_value=True)
         mock_send_email = mocker.patch("app.notifications.validators.send_notification_to_service_users")

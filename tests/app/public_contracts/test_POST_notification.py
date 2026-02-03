@@ -19,7 +19,13 @@ def _post_notification(client, template, url, to):
 
 def test_post_sms_contract(client, mocker, sample_template):
     mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
-
+    mocker.patch(
+        "app.notifications.validators.get_annual_limit_notifications_v2",
+        return_value={
+            "total_email_fiscal_year_to_yesterday": 0,
+            "total_sms_fiscal_year_to_yesterday": 0,
+        },
+    )
     response_json = return_json_from_response(
         _post_notification(client, sample_template, url="/notifications/sms", to="6502532222")
     )
@@ -29,6 +35,13 @@ def test_post_sms_contract(client, mocker, sample_template):
 def test_post_email_contract(client, mocker, sample_email_template):
     mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
 
+    mocker.patch(
+        "app.notifications.validators.get_annual_limit_notifications_v2",
+        return_value={
+            "total_email_fiscal_year_to_yesterday": 0,
+            "total_sms_fiscal_year_to_yesterday": 0,
+        },
+    )
     response_json = return_json_from_response(
         _post_notification(client, sample_email_template, url="/notifications/email", to="foo@bar.com")
     )

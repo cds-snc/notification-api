@@ -2448,6 +2448,13 @@ def test_search_for_notification_by_to_field_returns_content(
 def test_send_one_off_notification(sample_service, admin_request, mocker):
     template = create_template(service=sample_service)
     mocker.patch("app.service.send_notification.send_notification_to_queue")
+    mocker.patch(
+        "app.notifications.validators.get_annual_limit_notifications_v2",
+        return_value={
+            "total_email_fiscal_year_to_yesterday": 0,
+            "total_sms_fiscal_year_to_yesterday": 0,
+        },
+    )
 
     response = admin_request.post(
         "service.create_one_off_notification",
