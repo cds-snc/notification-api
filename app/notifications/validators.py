@@ -251,9 +251,7 @@ def check_sms_annual_limit(service: Service, requested_sms=0):
         sms_sent_today = fetch_todays_requested_sms_billable_units_count(service.id)
         annual_data = get_annual_limit_notifications_v2(service.id)
         # Fall back to standard key if billable units key doesn't exist yet
-        sms_sent_this_fiscal = annual_data.get(
-            TOTAL_SMS_BILLABLE_UNITS_FISCAL_YEAR_TO_YESTERDAY, annual_data.get(TOTAL_SMS_FISCAL_YEAR_TO_YESTERDAY, 0)
-        )
+        sms_sent_this_fiscal = annual_data.get(TOTAL_SMS_BILLABLE_UNITS_FISCAL_YEAR_TO_YESTERDAY)
     else:
         sms_sent_today = fetch_todays_requested_sms_count(service.id)
         sms_sent_this_fiscal = get_annual_limit_notifications_v2(service.id)[TOTAL_SMS_FISCAL_YEAR_TO_YESTERDAY]
