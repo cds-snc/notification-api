@@ -207,28 +207,17 @@ def post_bulk():
         else:
             file_data = form["csv"]
 
-        if current_app.config["FF_ANNUAL_LIMIT"]:
-            recipient_csv = RecipientCSV(
-                file_data,
-                template_type=template.template_type,
-                placeholders=template._as_utils_template().placeholders,
-                max_rows=max_rows,
-                safelist=safelisted_members(authenticated_service, api_user.key_type),
-                remaining_messages=remaining_daily_messages,
-                remaining_daily_messages=remaining_daily_messages,
-                remaining_annual_messages=remaining_annual_messages,
-                template=Template(template.__dict__),
-            )
-        else:  # TODO FF_ANNUAL_LIMIT REMOVAL - Remove this block
-            recipient_csv = RecipientCSV(
-                file_data,
-                template_type=template.template_type,
-                placeholders=template._as_utils_template().placeholders,
-                max_rows=max_rows,
-                safelist=safelisted_members(authenticated_service, api_user.key_type),
-                remaining_messages=remaining_daily_messages,
-                template=Template(template.__dict__),
-            )
+        recipient_csv = RecipientCSV(
+            file_data,
+            template_type=template.template_type,
+            placeholders=template._as_utils_template().placeholders,
+            max_rows=max_rows,
+            safelist=safelisted_members(authenticated_service, api_user.key_type),
+            remaining_messages=remaining_daily_messages,
+            remaining_daily_messages=remaining_daily_messages,
+            remaining_annual_messages=remaining_annual_messages,
+            template=Template(template.__dict__),
+        )
     except csv.Error as e:
         raise BadRequestError(message=f"Error converting to CSV: {str(e)}", status_code=400)
 
@@ -684,18 +673,6 @@ def check_for_csv_errors(recipient_csv, max_rows, remaining_daily_messages, rema
             else:
                 raise BadRequestError(
                     message=f"You only have {remaining_annual_messages} remaining messages before you reach your annual limit. You've tried to send {nb_rows} messages.",
-                    status_code=400,
-                )
-        # TODO: FF_ANNUAL_LIMIT - remove this if block in favour of more_rows_than_can_send_today found below
-        if recipient_csv.more_rows_than_can_send:
-            if recipient_csv.template_type == SMS_TYPE:
-                raise BadRequestError(
-                    message=f"You only have {remaining_daily_messages} remaining sms messages before you reach your daily limit. You've tried to send {len(recipient_csv)} sms messages.",
-                    status_code=400,
-                )
-            else:
-                raise BadRequestError(
-                    message=f"You only have {remaining_daily_messages} remaining messages before you reach your daily limit. You've tried to send {nb_rows} messages.",
                     status_code=400,
                 )
         if recipient_csv.more_rows_than_can_send_today:

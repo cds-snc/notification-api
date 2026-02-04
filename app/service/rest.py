@@ -1,5 +1,5 @@
 import itertools
-from datetime import datetime, timezone
+from datetime import datetime
 
 from flask import Blueprint, current_app, jsonify, request
 from notifications_utils.clients.redis import (
@@ -33,7 +33,6 @@ from app.dao.fact_notification_status_dao import (
     fetch_delivered_notification_stats_by_month,
     fetch_monthly_template_usage_for_service,
     fetch_notification_status_for_service_by_month,
-    fetch_notification_status_for_service_for_day,
     fetch_notification_status_for_service_for_today_and_7_previous_days,
     fetch_stats_for_all_services_by_date_range,
 )
@@ -135,7 +134,6 @@ service_blueprint = Blueprint("service", __name__)
 
 register_errors(service_blueprint)
 
-# TODO: FF_ANNUAL_LIMIT - Remove once logic is consolidated in the annual_limit_client
 ANNUAL_LIMIT_SMS_OVER_NEAR_STATUS_FIELDS = ["near_sms_limit", "near_email_limit"]
 ANNUAL_LIMIT_EMAIL_OVER_NEAR_STATUS_FIELDS = ["over_email_limit", "near_email_limit"]
 
@@ -681,14 +679,6 @@ def get_monthly_notification_stats(service_id):
 
     stats = fetch_notification_status_for_service_by_month(start_date, end_date, service_id)
     statistics.add_monthly_notification_status_stats(data, stats)
-
-    now = datetime.now(timezone.utc)
-    # end_date doesn't have tzinfo, so we need to remove it from now
-    end_date_now = now.replace(tzinfo=None)
-    # TODO FF_ANNUAL_LIMIT removal
-    if not current_app.config["FF_ANNUAL_LIMIT"] and end_date > end_date_now:
-        todays_deltas = fetch_notification_status_for_service_for_day(now, service_id=service_id)
-        statistics.add_monthly_notification_status_stats(data, todays_deltas)
 
     return jsonify(data=data)
 

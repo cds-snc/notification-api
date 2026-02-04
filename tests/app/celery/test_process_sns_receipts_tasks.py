@@ -48,7 +48,7 @@ def test_process_sns_results_delivered(sample_template, notify_db, notify_db_ses
     assert get_notification_by_id(notification.id).status == NOTIFICATION_DELIVERED
     assert get_notification_by_id(notification.id).provider_response == "Message has been accepted by phone carrier"
 
-    mock_logger.assert_called_with(f"SNS callback return status of delivered for notification: {notification.id}")
+    mock_logger.assert_any_call(f"SNS callback return status of delivered for notification: {notification.id}")
 
 
 @pytest.mark.parametrize(
@@ -107,7 +107,7 @@ def test_process_sns_results_failed(
     else:
         assert get_notification_by_id(notification.id).provider_response is None
 
-    mock_logger.assert_called_with(
+    mock_logger.assert_any_call(
         (
             f"SNS delivery failed: notification id {notification.id} and reference ref has error found. "
             f"Provider response: {provider_response}"
@@ -220,12 +220,10 @@ class TestAnnualLimit:
                 sent_by="sns",
             )
         )
-        # TODO FF_ANNUAL_LIMIT removal
-        with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
-            assert process_sns_results(sns_success_callback(reference="ref"))
+        assert process_sns_results(sns_success_callback(reference="ref"))
 
-            annual_limit_client.increment_sms_delivered.assert_called_once_with(notification.service_id)
-            annual_limit_client.increment_sms_failed.assert_not_called()
+        annual_limit_client.increment_sms_delivered.assert_called_once_with(notification.service_id)
+        annual_limit_client.increment_sms_failed.assert_not_called()
 
     @freeze_time("2019-04-01T5:30")
     def test_create_nightly_notification_status_for_day_clears_failed_delivered_notification_counts(
@@ -247,8 +245,7 @@ class TestAnnualLimit:
             annual_limit_client.seed_annual_limit_notifications(service.id, mapping)
             service_ids.append(service.id)
 
-        with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
-            create_nightly_notification_status_for_day("2019-04-01")
+        create_nightly_notification_status_for_day("2019-04-01")
 
         for service_id in service_ids:
             assert all(value == 0 for value in annual_limit_client.get_all_notification_counts(service_id).values())
@@ -287,11 +284,9 @@ class TestAnnualLimit:
             )
         )
 
-        # TODO FF_ANNUAL_LIMIT removal
-        with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
-            assert process_sns_results(sns_failed_callback(reference="ref", provider_response=provider_response))
-            annual_limit_client.increment_sms_failed.assert_called_once_with(notification.service_id)
-            annual_limit_client.increment_sms_delivered.assert_not_called()
+        assert process_sns_results(sns_failed_callback(reference="ref", provider_response=provider_response))
+        annual_limit_client.increment_sms_failed.assert_called_once_with(notification.service_id)
+        annual_limit_client.increment_sms_delivered.assert_not_called()
 
     @pytest.mark.parametrize(
         "callback, provider_response, data",

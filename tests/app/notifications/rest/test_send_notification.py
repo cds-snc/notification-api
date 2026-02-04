@@ -48,6 +48,20 @@ from tests.app.db import create_reply_to_email, create_service
 from tests.conftest import set_config
 
 
+@pytest.fixture
+def mock_annual_limits(mocker):
+    """Mock annual limit functions to return zero counts."""
+    mocker.patch(
+        "app.notifications.validators.get_annual_limit_notifications_v2",
+        return_value={
+            "total_email_fiscal_year_to_yesterday": 0,
+            "total_sms_fiscal_year_to_yesterday": 0,
+        },
+    )
+    mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=0)
+    mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
+
+
 @pytest.mark.parametrize("template_type", [SMS_TYPE, EMAIL_TYPE])
 def test_create_notification_should_reject_if_missing_required_fields(notify_api, sample_api_key, mocker, template_type):
     with notify_api.test_request_context():
@@ -70,7 +84,7 @@ def test_create_notification_should_reject_if_missing_required_fields(notify_api
             assert response.status_code == 400
 
 
-def test_should_reject_bad_phone_numbers(notify_api, sample_template, mocker):
+def test_should_reject_bad_phone_numbers(notify_api, sample_template, mocker, mock_annual_limits):
     with notify_api.test_request_context():
         with notify_api.test_client() as client:
             mocked = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
@@ -119,6 +133,15 @@ def test_send_notification_with_placeholders_replaced(notify_api, sample_email_t
     with notify_api.test_request_context():
         with notify_api.test_client() as client:
             mocked = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
+            mocker.patch(
+                "app.notifications.validators.get_annual_limit_notifications_v2",
+                return_value={
+                    "total_email_fiscal_year_to_yesterday": 0,
+                    "total_sms_fiscal_year_to_yesterday": 0,
+                },
+            )
+            mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=0)
+            mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
 
             data = {
                 "to": "ok@ok.com",
@@ -173,6 +196,11 @@ def test_send_notification_with_placeholders_replaced_with_unusual_types(
     expected_subject,
 ):
     mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
+    mocker.patch(
+        "app.notifications.validators.get_annual_limit_notifications_v2",
+        return_value={"total_sms_fiscal_year_to_yesterday": 0, "total_email_fiscal_year_to_yesterday": 0},
+    )
+    mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=0)
 
     response = client.post(
         path="/notifications/email",
@@ -195,7 +223,7 @@ def test_send_notification_with_placeholders_replaced_with_unusual_types(
     assert response_data["subject"] == expected_subject
 
 
-def test_should_not_send_notification_for_archived_template(notify_api, sample_template):
+def test_should_not_send_notification_for_archived_template(notify_api, sample_template, mock_annual_limits):
     with notify_api.test_request_context():
         with notify_api.test_client() as client:
             sample_template.archived = True
@@ -226,6 +254,15 @@ def test_should_not_send_notification_if_restricted_and_not_a_service_user(
     with notify_api.test_request_context():
         with notify_api.test_client() as client:
             mocked = mocker.patch("app.celery.provider_tasks.deliver_{}.apply_async".format(template_type))
+            mocker.patch(
+                "app.notifications.validators.get_annual_limit_notifications_v2",
+                return_value={
+                    "total_email_fiscal_year_to_yesterday": 0,
+                    "total_sms_fiscal_year_to_yesterday": 0,
+                },
+            )
+            mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=0)
+            mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
             template = sample_template if template_type == SMS_TYPE else sample_email_template
             template.service.restricted = True
             dao_update_service(template.service)
@@ -258,6 +295,15 @@ def test_should_send_notification_if_restricted_and_a_service_user(
     with notify_api.test_request_context():
         with notify_api.test_client() as client:
             mocked = mocker.patch("app.celery.provider_tasks.deliver_{}.apply_async".format(template_type))
+            mocker.patch(
+                "app.notifications.validators.get_annual_limit_notifications_v2",
+                return_value={
+                    "total_email_fiscal_year_to_yesterday": 0,
+                    "total_sms_fiscal_year_to_yesterday": 0,
+                },
+            )
+            mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=0)
+            mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
 
             template = sample_template if template_type == SMS_TYPE else sample_email_template
             to = (
@@ -314,6 +360,15 @@ def test_should_allow_valid_sms_notification(notify_api, sample_template, mocker
         with notify_api.test_client() as client:
             mocked = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
 
+            mocker.patch(
+                "app.notifications.validators.get_annual_limit_notifications_v2",
+                return_value={
+                    "total_email_fiscal_year_to_yesterday": 0,
+                    "total_sms_fiscal_year_to_yesterday": 0,
+                },
+            )
+            mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=0)
+            mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
             data = {"to": "6502532222", "template": str(sample_template.id)}
 
             auth_header = create_authorization_header(service_id=sample_template.service_id)
@@ -335,7 +390,7 @@ def test_should_allow_valid_sms_notification(notify_api, sample_template, mocker
             assert response_data["template_version"] == sample_template.version
 
 
-def test_should_reject_email_notification_with_bad_email(notify_api, sample_email_template, mocker):
+def test_should_reject_email_notification_with_bad_email(notify_api, sample_email_template, mocker, mock_annual_limits):
     with notify_api.test_request_context():
         with notify_api.test_client() as client:
             mocked = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
@@ -361,6 +416,16 @@ def test_should_allow_valid_email_notification(notify_api, sample_email_template
     with notify_api.test_request_context():
         with notify_api.test_client() as client:
             mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
+
+            mocker.patch(
+                "app.notifications.validators.get_annual_limit_notifications_v2",
+                return_value={
+                    "total_email_fiscal_year_to_yesterday": 0,
+                    "total_sms_fiscal_year_to_yesterday": 0,
+                },
+            )
+            mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=0)
+            mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
 
             data = {"to": "ok@ok.com", "template": str(sample_email_template.id)}
 
@@ -418,7 +483,6 @@ def test_should_block_api_call_if_over_annual_limit_and_allow_if_under_limit(
 ):
     with (
         notify_api.test_request_context(),
-        set_config(notify_api, "FF_ANNUAL_LIMIT", True),
         set_config(notify_api, "REDIS_ENABLED", True),
     ):
         with notify_api.test_client() as client:
@@ -435,6 +499,7 @@ def test_should_block_api_call_if_over_annual_limit_and_allow_if_under_limit(
             mocker.patch(f"app.celery.provider_tasks.deliver_{template.template_type}.apply_async")
             mocker.patch("app.notifications.validators.send_notification_to_service_users")
 
+            # Create one notification to count against the annual limit
             create_sample_notification(
                 notify_db,
                 notify_db_session,
@@ -442,6 +507,18 @@ def test_should_block_api_call_if_over_annual_limit_and_allow_if_under_limit(
                 service=service,
                 created_at=datetime.utcnow(),
             )
+
+            # Mock the annual limit functions to return 1 (the notification we just created)
+            # This simulates that 1 notification has already been sent in the fiscal year
+            mocker.patch(
+                "app.notifications.validators.get_annual_limit_notifications_v2",
+                return_value={
+                    "total_email_fiscal_year_to_yesterday": 1 if template.template_type == EMAIL_TYPE else 0,
+                    "total_sms_fiscal_year_to_yesterday": 1 if template.template_type == SMS_TYPE else 0,
+                },
+            )
+            mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=0)
+            mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
 
             auth_header = create_authorization_header(service_id=service.id)
             response = client.post(
@@ -459,7 +536,9 @@ def test_should_block_api_call_if_over_annual_limit_and_allow_if_under_limit(
 
 
 @freeze_time("2016-01-01 12:00:00.061258")
-def test_should_block_api_call_if_over_day_limit_for_live_service(notify_db, notify_db_session, notify_api, mocker):
+def test_should_block_api_call_if_over_day_limit_for_live_service(
+    notify_db, notify_db_session, notify_api, mocker, mock_annual_limits
+):
     with notify_api.test_request_context():
         with notify_api.test_client() as client:
             mocker.patch(
@@ -501,7 +580,17 @@ def test_should_block_api_call_if_over_day_limit_for_restricted_service(notify_d
                 side_effect=TrialServiceTooManyEmailRequestsError(1),
             )
 
-            service = create_sample_service(notify_db, notify_db_session, limit=1, restricted=True)
+            mocker.patch(
+                "app.notifications.validators.get_annual_limit_notifications_v2",
+                return_value={
+                    "total_email_fiscal_year_to_yesterday": 200,
+                    "total_sms_fiscal_year_to_yesterday": 0,
+                },
+            )
+            mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=2)
+            mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
+
+            service = create_sample_service(notify_db, notify_db_session, limit=1, email_annual_limit=20, restricted=True)
             create_sample_service_safelist(notify_db, notify_db_session, service=service, email_address="ok@ok.com")
             email_template = create_sample_email_template(notify_db, notify_db_session, service=service)
             create_sample_notification(
@@ -535,6 +624,16 @@ def test_should_allow_api_call_if_under_day_limit_regardless_of_type(
         with notify_api.test_client() as client:
             mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
 
+            mocker.patch(
+                "app.notifications.validators.get_annual_limit_notifications_v2",
+                return_value={
+                    "total_email_fiscal_year_to_yesterday": 0,
+                    "total_sms_fiscal_year_to_yesterday": 0,
+                },
+            )
+            mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=0)
+            mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
+
             service = create_sample_service(notify_db, notify_db_session, limit=2, restricted=restricted)
             email_template = create_sample_email_template(notify_db, notify_db_session, service=service)
             sms_template = create_sample_template(notify_db, notify_db_session, service=service)
@@ -557,6 +656,15 @@ def test_should_not_return_html_in_body(notify_api, notify_db, notify_db_session
     with notify_api.test_request_context():
         with notify_api.test_client() as client:
             mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
+            mocker.patch(
+                "app.notifications.validators.get_annual_limit_notifications_v2",
+                return_value={
+                    "total_email_fiscal_year_to_yesterday": 0,
+                    "total_sms_fiscal_year_to_yesterday": 0,
+                },
+            )
+            mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=0)
+            mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
             email_template = create_sample_email_template(notify_db, notify_db_session, content="hello\nthere")
 
             data = {"to": "ok@ok.com", "template": str(email_template.id)}
@@ -575,6 +683,15 @@ def test_should_not_return_html_in_body(notify_api, notify_db, notify_db_session
 def test_should_not_send_email_if_team_api_key_and_not_a_service_user(notify_api, sample_email_template, sample_service, mocker):
     with notify_api.test_request_context(), notify_api.test_client() as client:
         mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
+        mocker.patch(
+            "app.notifications.validators.get_annual_limit_notifications_v2",
+            return_value={
+                "total_email_fiscal_year_to_yesterday": 0,
+                "total_sms_fiscal_year_to_yesterday": 0,
+            },
+        )
+        mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=0)
+        mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
         data = {
             "to": "not-someone-we-trust@email-address.com",
             "template": str(sample_email_template.id),
@@ -602,6 +719,15 @@ def test_should_not_send_email_if_team_api_key_and_not_a_service_user(notify_api
 def test_should_not_send_sms_if_team_api_key_and_not_a_service_user(notify_api, sample_template, sample_service, mocker):
     with notify_api.test_request_context(), notify_api.test_client() as client:
         mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
+        mocker.patch(
+            "app.notifications.validators.get_annual_limit_notifications_v2",
+            return_value={
+                "total_email_fiscal_year_to_yesterday": 0,
+                "total_sms_fiscal_year_to_yesterday": 0,
+            },
+        )
+        mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=0)
+        mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
 
         data = {
             "to": "6502532229",
@@ -629,6 +755,15 @@ def test_should_not_send_sms_if_team_api_key_and_not_a_service_user(notify_api, 
 def test_should_send_email_if_team_api_key_and_a_service_user(client, sample_email_template, fake_uuid, mocker):
     mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
     mocker.patch("app.notifications.process_notifications.uuid.uuid4", return_value=fake_uuid)
+    mocker.patch(
+        "app.notifications.validators.get_annual_limit_notifications_v2",
+        return_value={
+            "total_email_fiscal_year_to_yesterday": 0,
+            "total_sms_fiscal_year_to_yesterday": 0,
+        },
+    )
+    mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=0)
+    mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
 
     data = {
         "to": sample_email_template.service.created_by.email_address,
@@ -651,7 +786,15 @@ def test_should_send_email_if_team_api_key_and_a_service_user(client, sample_ema
 def test_should_send_sms_to_anyone_with_test_key(client, sample_template, mocker, restricted, limit, fake_uuid):
     mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
     mocker.patch("app.notifications.process_notifications.uuid.uuid4", return_value=fake_uuid)
-
+    mocker.patch(
+        "app.notifications.validators.get_annual_limit_notifications_v2",
+        return_value={
+            "total_email_fiscal_year_to_yesterday": 0,
+            "total_sms_fiscal_year_to_yesterday": 0,
+        },
+    )
+    mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=0)
+    mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
     data = {"to": "6502532222", "template": sample_template.id}
     sample_template.service.restricted = restricted
     sample_template.service.message_limit = limit
@@ -681,7 +824,15 @@ def test_should_send_sms_to_anyone_with_test_key(client, sample_template, mocker
 def test_should_send_email_to_anyone_with_test_key(client, sample_email_template, mocker, restricted, limit, fake_uuid):
     mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
     mocker.patch("app.notifications.process_notifications.uuid.uuid4", return_value=fake_uuid)
-
+    mocker.patch(
+        "app.notifications.validators.get_annual_limit_notifications_v2",
+        return_value={
+            "total_email_fiscal_year_to_yesterday": 0,
+            "total_sms_fiscal_year_to_yesterday": 0,
+        },
+    )
+    mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=0)
+    mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
     data = {"to": "anyone123@example.com", "template": sample_email_template.id}
     sample_email_template.service.restricted = restricted
     sample_email_template.service.message_limit = limit
@@ -710,7 +861,15 @@ def test_should_send_email_to_anyone_with_test_key(client, sample_email_template
 def test_should_send_sms_if_team_api_key_and_a_service_user(client, sample_template, fake_uuid, mocker):
     mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
     mocker.patch("app.notifications.process_notifications.uuid.uuid4", return_value=fake_uuid)
-
+    mocker.patch(
+        "app.notifications.validators.get_annual_limit_notifications_v2",
+        return_value={
+            "total_email_fiscal_year_to_yesterday": 0,
+            "total_sms_fiscal_year_to_yesterday": 0,
+        },
+    )
+    mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=0)
+    mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
     data = {
         "to": sample_template.service.created_by.mobile_number,
         "template": sample_template.id,
@@ -752,7 +911,15 @@ def test_should_persist_notification(
 ):
     mocked = mocker.patch("app.celery.provider_tasks.deliver_{}.apply_async".format(template_type))
     mocker.patch("app.notifications.process_notifications.uuid.uuid4", return_value=fake_uuid)
-
+    mocker.patch(
+        "app.notifications.validators.get_annual_limit_notifications_v2",
+        return_value={
+            "total_email_fiscal_year_to_yesterday": 0,
+            "total_sms_fiscal_year_to_yesterday": 0,
+        },
+    )
+    mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=0)
+    mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
     template = sample_template if template_type == SMS_TYPE else sample_email_template
     to = (
         sample_template.service.created_by.mobile_number
@@ -805,6 +972,15 @@ def test_should_delete_notification_and_return_error_if_sqs_fails(
         side_effect=Exception("failed to talk to SQS"),
     )
     mocker.patch("app.notifications.process_notifications.uuid.uuid4", return_value=fake_uuid)
+    mocker.patch(
+        "app.notifications.validators.get_annual_limit_notifications_v2",
+        return_value={
+            "total_email_fiscal_year_to_yesterday": 0,
+            "total_sms_fiscal_year_to_yesterday": 0,
+        },
+    )
+    mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=0)
+    mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
 
     template = sample_template if template_type == SMS_TYPE else sample_email_template
     to = (
@@ -846,7 +1022,9 @@ def test_should_delete_notification_and_return_error_if_sqs_fails(
         "simulate-delivered-3@notification.canada.ca",
     ],
 )
-def test_should_not_persist_notification_or_send_email_if_simulated_email(client, to_email, sample_email_template, mocker):
+def test_should_not_persist_notification_or_send_email_if_simulated_email(
+    client, to_email, sample_email_template, mocker, mock_annual_limits
+):
     apply_async = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
 
     data = {"to": to_email, "template": sample_email_template.id}
@@ -865,7 +1043,9 @@ def test_should_not_persist_notification_or_send_email_if_simulated_email(client
 
 
 @pytest.mark.parametrize("to_sms", ["6132532222", "6132532223", "6132532224"])
-def test_should_not_persist_notification_or_send_sms_if_simulated_number(client, to_sms, sample_template, mocker):
+def test_should_not_persist_notification_or_send_sms_if_simulated_number(
+    client, to_sms, sample_template, mocker, mock_annual_limits
+):
     apply_async = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
 
     data = {"to": to_sms, "template": sample_template.id}
@@ -892,14 +1072,7 @@ def test_should_not_persist_notification_or_send_sms_if_simulated_number(client,
     ],
 )
 def test_should_not_send_notification_to_non_safelist_recipient_in_trial_mode(
-    client,
-    notify_db,
-    notify_db_session,
-    notification_type,
-    to,
-    _create_sample_template,
-    key_type,
-    mocker,
+    client, notify_db, notify_db_session, notification_type, to, _create_sample_template, key_type, mocker, mock_annual_limits
 ):
     service = create_sample_service(notify_db, notify_db_session, limit=2, restricted=True)
     service_safelist = create_sample_service_safelist(notify_db, notify_db_session, service=service)
@@ -961,6 +1134,15 @@ def test_should_send_notification_to_safelist_recipient(
     service_restricted,
     mocker,
 ):
+    mocker.patch(
+        "app.notifications.validators.get_annual_limit_notifications_v2",
+        return_value={
+            "total_email_fiscal_year_to_yesterday": 0,
+            "total_sms_fiscal_year_to_yesterday": 0,
+        },
+    )
+    mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=0)
+    mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
     service = create_sample_service(notify_db, notify_db_session, limit=2, restricted=service_restricted)
     apply_async = mocker.patch("app.celery.provider_tasks.deliver_{}.apply_async".format(notification_type))
     template = _create_sample_template(notify_db, notify_db_session, service=service)
@@ -1004,7 +1186,7 @@ def test_should_send_notification_to_safelist_recipient(
     ],
 )
 def test_should_error_if_notification_type_does_not_match_template_type(
-    client, notify_db, notify_db_session, template_type, notification_type, to
+    client, notify_db, notify_db_session, mock_annual_limits, template_type, notification_type, to
 ):
     template = create_sample_template(notify_db, notify_db_session, template_type=template_type)
     data = {"to": to, "template": template.id}
@@ -1074,13 +1256,7 @@ def test_create_template_raises_invalid_request_when_content_too_large(notify_db
 @pytest.mark.parametrize("notification_type, send_to", [("sms", "6502532222"), ("email", "sample@email.com")])
 @pytest.mark.parametrize("process_type", ["priority", "bulk"])
 def test_send_notification_uses_appropriate_queue_when_template_has_process_type_set(
-    client,
-    notify_db,
-    notify_db_session,
-    mocker,
-    notification_type,
-    send_to,
-    process_type,
+    client, notify_db, notify_db_session, mocker, notification_type, send_to, process_type, mock_annual_limits
 ):
     sample = create_sample_template(
         notify_db,
@@ -1144,7 +1320,7 @@ def test_returns_a_429_limit_exceeded_if_rate_limit_exceeded(
     assert not deliver_mock.called
 
 
-def test_should_allow_store_original_number_on_sms_notification(client, sample_template, mocker):
+def test_should_allow_store_original_number_on_sms_notification(client, sample_template, mocker, mock_annual_limits):
     mocked = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
 
     data = {"to": "+16502532222", "template": str(sample_template.id)}
@@ -1168,7 +1344,7 @@ def test_should_allow_store_original_number_on_sms_notification(client, sample_t
     assert "+16502532222" == notifications[0].to
 
 
-def test_should_not_allow_international_number_on_sms_notification(client, sample_template, mocker):
+def test_should_not_allow_international_number_on_sms_notification(client, sample_template, mocker, mock_annual_limits):
     mocked = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
 
     data = {"to": "+20-12-1234-1234", "template": str(sample_template.id)}
@@ -1188,7 +1364,7 @@ def test_should_not_allow_international_number_on_sms_notification(client, sampl
     assert error_json["message"]["to"][0] == "Cannot send to international mobile numbers"
 
 
-def test_should_allow_international_number_on_sms_notification(client, notify_db, notify_db_session, mocker):
+def test_should_allow_international_number_on_sms_notification(client, notify_db, notify_db_session, mocker, mock_annual_limits):
     mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
 
     service = create_sample_service(notify_db, notify_db_session, permissions=[INTERNATIONAL_SMS_TYPE, SMS_TYPE])
@@ -1223,7 +1399,7 @@ def test_should_allow_international_number_on_sms_notification(client, notify_db
     ],
 )
 def test_should_not_allow_notification_if_service_permission_not_set(
-    client, notify_db, notify_db_session, mocker, template_factory, to, expected_error
+    client, notify_db, notify_db_session, mocker, template_factory, to, expected_error, mock_annual_limits
 ):
     template_without_permission = template_factory(notify_db, notify_db_session)
     mocked = mocker.patch("app.celery.provider_tasks.deliver_{}.apply_async".format(template_without_permission.template_type))
@@ -1268,7 +1444,9 @@ def test_should_throw_exception_if_notification_type_is_invalid(client, sample_s
 
 
 @pytest.mark.parametrize("notification_type, recipient", [("sms", "6502532222"), ("email", "test@gov.uk")])
-def test_post_notification_should_set_reply_to_text(client, notify_db, notify_db_session, mocker, notification_type, recipient):
+def test_post_notification_should_set_reply_to_text(
+    client, notify_db, notify_db_session, mocker, notification_type, recipient, mock_annual_limits
+):
     mocker.patch("app.celery.provider_tasks.deliver_{}.apply_async".format(notification_type))
     service = create_service()
     template = create_sample_template(

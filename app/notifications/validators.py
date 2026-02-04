@@ -18,7 +18,6 @@ from notifications_utils.clients.redis.annual_limit import (
     TOTAL_EMAIL_FISCAL_YEAR_TO_YESTERDAY,
     TOTAL_SMS_FISCAL_YEAR_TO_YESTERDAY,
 )
-from notifications_utils.decorators import requires_feature
 from notifications_utils.recipients import (
     get_international_phone_info,
     validate_and_format_email_address,
@@ -174,8 +173,6 @@ def check_email_daily_limit(service: Service, requested_email=0):
         raise LiveServiceTooManyEmailRequestsError(service.message_limit)
 
 
-# TODO: FF_ANNUAL_LIMIT removal
-@requires_feature("FF_ANNUAL_LIMIT")
 @statsd_catch(
     namespace="validators",
     counter_name="rate_limit.trial_service_annual_email",
@@ -226,8 +223,6 @@ def check_email_annual_limit(service: Service, requested_emails=0):
         raise LiveServiceRequestExceedsEmailAnnualLimitError(service.email_annual_limit)
 
 
-# TODO: FF_ANNUAL_LIMIT removal
-@requires_feature("FF_ANNUAL_LIMIT")
 @statsd_catch(
     namespace="validators",
     counter_name="rate_limit.trial_service_annual_sms",
@@ -396,10 +391,10 @@ def warn_about_daily_message_limit(service: Service, messages_sent):
                 },
                 include_user_fields=["name"],
             )
+            current_app.logger.info(
+                f"service {service.id} has been rate limited for daily use sent {int(messages_sent)} limit {service.message_limit}"
+            )
 
-        current_app.logger.info(
-            f"service {service.id} has been rate limited for daily use sent {int(messages_sent)} limit {service.message_limit}"
-        )
         if service.restricted:
             raise TrialServiceTooManyRequestsError(service.message_limit)
         else:
