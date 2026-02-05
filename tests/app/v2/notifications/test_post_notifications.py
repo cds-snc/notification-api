@@ -3126,6 +3126,7 @@ class TestBillableUnitsInV2Notifications:
                 "app.v2.notifications.post_notifications.increment_sms_daily_count_send_warnings_if_needed"
             )
             mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
+            mocker.patch("app.sms_fragment_utils.fetch_todays_total_sms_billable_units", return_value=0)
 
             data = {
                 "phone_number": "+16502532222",
@@ -3161,6 +3162,7 @@ class TestBillableUnitsInV2Notifications:
                 "app.v2.notifications.post_notifications.increment_sms_daily_count_send_warnings_if_needed"
             )
             mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
+            mocker.patch("app.sms_fragment_utils.fetch_todays_total_sms_billable_units", return_value=0)
 
             data = {
                 "phone_number": "+16502532222",
@@ -3191,20 +3193,18 @@ class TestBillableUnitsInV2Notifications:
         with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
             sample_template.content = "a" * 200
 
-            # Create test API key
-            api_key = create_api_key(sample_template.service, key_type=KEY_TYPE_TEST)
-
             mocker.patch("app.sms_normal_publish.publish")
             mock_increment = mocker.patch(
                 "app.v2.notifications.post_notifications.increment_sms_daily_count_send_warnings_if_needed"
             )
             mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
+            mocker.patch("app.sms_fragment_utils.fetch_todays_total_sms_billable_units", return_value=0)
 
             data = {
                 "phone_number": "+16502532222",
                 "template_id": str(sample_template.id),
             }
-            auth_header = create_authorization_header(service_id=sample_template.service_id, key_id=api_key.id)
+            auth_header = create_authorization_header(service_id=sample_template.service_id, key_type=KEY_TYPE_TEST)
 
             response = client.post(
                 path="/v2/notifications/sms",
@@ -3229,6 +3229,7 @@ class TestBillableUnitsInV2Notifications:
                 "app.v2.notifications.post_notifications.increment_sms_daily_count_send_warnings_if_needed"
             )
             mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
+            mocker.patch("app.sms_fragment_utils.fetch_todays_total_sms_billable_units", return_value=0)
 
             data = {
                 "phone_number": "+16132532222",  # Simulated number
@@ -3297,6 +3298,7 @@ class TestBillableUnitsInV2Notifications:
                 "app.v2.notifications.post_notifications.increment_sms_daily_count_send_warnings_if_needed"
             )
             mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
+            mocker.patch("app.sms_fragment_utils.fetch_todays_total_sms_billable_units", return_value=0)
 
             # Long personalisation value makes message require 2 fragments
             data = {

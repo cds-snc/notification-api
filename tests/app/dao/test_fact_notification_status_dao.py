@@ -8,9 +8,12 @@ from notifications_utils.timezones import convert_utc_to_local_timezone
 
 from app.dao.fact_notification_status_dao import (
     _timing_notification_table,
+    fetch_billable_units_for_service_for_day,
+    fetch_billable_units_totals_for_service_by_fiscal_year,
     fetch_delivered_notification_stats_by_month,
     fetch_monthly_notification_statuses_per_service,
     fetch_monthly_template_usage_for_service,
+    fetch_notification_billable_units_for_service_for_today_and_7_previous_days,
     fetch_notification_stats_for_trial_services,
     fetch_notification_status_for_day,
     fetch_notification_status_for_service_by_month,
@@ -44,6 +47,7 @@ from app.models import (
     SMS_TYPE,
     FactNotificationStatus,
 )
+from app.utils import get_fiscal_year
 from tests.app.db import (
     create_api_key,
     create_ft_notification_status,
@@ -1446,7 +1450,6 @@ class TestBillableUnitsInFactNotificationStatusDao:
     @freeze_time("2024-01-15 12:00:00")
     def test_fetch_billable_units_for_service_for_day(self, notify_db_session):
         """Test fetch_billable_units_for_service_for_day returns correct data"""
-        from app.dao.fact_notification_status_dao import fetch_billable_units_for_service_for_day
 
         service = create_service(service_name="test service")
         template = create_template(service=service, template_type=SMS_TYPE)
@@ -1471,8 +1474,6 @@ class TestBillableUnitsInFactNotificationStatusDao:
     @freeze_time("2024-01-15 12:00:00")
     def test_fetch_billable_units_totals_for_service_by_fiscal_year(self, notify_db_session):
         """Test fetch_billable_units_totals_for_service_by_fiscal_year aggregates correctly"""
-        from app.dao.fact_notification_status_dao import fetch_billable_units_totals_for_service_by_fiscal_year
-        from app.utils import get_fiscal_year
 
         service = create_service(service_name="test service")
         current_fiscal_year = get_fiscal_year(date(2024, 1, 15))
@@ -1492,8 +1493,6 @@ class TestBillableUnitsInFactNotificationStatusDao:
     @freeze_time("2024-01-15 12:00:00")
     def test_fetch_billable_units_totals_for_service_by_fiscal_year_with_no_data(self, notify_db_session):
         """Test function returns 0 when no data exists"""
-        from app.dao.fact_notification_status_dao import fetch_billable_units_totals_for_service_by_fiscal_year
-        from app.utils import get_fiscal_year
 
         service = create_service(service_name="test service")
         current_fiscal_year = get_fiscal_year(date(2024, 1, 15))
@@ -1505,9 +1504,6 @@ class TestBillableUnitsInFactNotificationStatusDao:
     @freeze_time("2024-01-15 12:00:00")
     def test_fetch_notification_billable_units_for_service_for_today_and_7_previous_days(self, notify_db_session):
         """Test fetch_notification_billable_units_for_service_for_today_and_7_previous_days"""
-        from app.dao.fact_notification_status_dao import (
-            fetch_notification_billable_units_for_service_for_today_and_7_previous_days,
-        )
 
         service = create_service(service_name="test service")
         template = create_template(service=service, template_type=SMS_TYPE)
@@ -1533,9 +1529,6 @@ class TestBillableUnitsInFactNotificationStatusDao:
     @freeze_time("2024-01-15 12:00:00")
     def test_fetch_notification_billable_units_for_service_by_template(self, notify_db_session):
         """Test function groups by template when by_template=True"""
-        from app.dao.fact_notification_status_dao import (
-            fetch_notification_billable_units_for_service_for_today_and_7_previous_days,
-        )
 
         service = create_service(service_name="test service")
         template1 = create_template(service=service, template_type=SMS_TYPE, template_name="template 1")

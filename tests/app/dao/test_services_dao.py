@@ -40,6 +40,7 @@ from app.dao.services_dao import (
     delete_service_and_all_associated_db_objects,
     fetch_service_email_limit,
     fetch_todays_total_message_count,
+    fetch_todays_total_sms_billable_units,
     fetch_todays_total_sms_count,
     get_services_by_partial_name,
 )
@@ -1611,7 +1612,6 @@ class TestBillableUnitsInServicesDao:
     @freeze_time("2024-01-15 12:00:00")
     def test_fetch_todays_total_sms_billable_units_returns_sum(self, notify_db_session, sample_service):
         """Test that fetch_todays_total_sms_billable_units returns the sum of billable_units for today"""
-        from app.dao.services_dao import fetch_todays_total_sms_billable_units
 
         sms_template = create_template(service=sample_service, template_type=SMS_TYPE)
 
@@ -1638,7 +1638,6 @@ class TestBillableUnitsInServicesDao:
     @freeze_time("2024-01-15 12:00:00")
     def test_fetch_todays_total_sms_billable_units_ignores_yesterday(self, notify_db_session, sample_service):
         """Test that fetch_todays_total_sms_billable_units only counts today's notifications"""
-        from app.dao.services_dao import fetch_todays_total_sms_billable_units
 
         sms_template = create_template(service=sample_service, template_type=SMS_TYPE)
 
@@ -1655,7 +1654,6 @@ class TestBillableUnitsInServicesDao:
     @freeze_time("2024-01-15 12:00:00")
     def test_fetch_todays_total_sms_billable_units_handles_null_billable_units(self, notify_db_session, sample_service):
         """Test that fetch_todays_total_sms_billable_units handles NULL billable_units (when flag disabled)"""
-        from app.dao.services_dao import fetch_todays_total_sms_billable_units
 
         sms_template = create_template(service=sample_service, template_type=SMS_TYPE)
 
