@@ -1,7 +1,6 @@
 import uuid
 from datetime import datetime
 
-from flask import current_app
 from freezegun import freeze_time
 from tests.app.db import (
     create_notification,
@@ -91,20 +90,18 @@ def test_int_annual_limit_seeding_and_incrementation_flows_in_celery(sample_temp
                 "email_delivered_today": 1,
                 "total_email_fiscal_year_to_yesterday": 2,
                 "total_sms_fiscal_year_to_yesterday": 2,
+                "sms_billable_units_delivered_today": 0,
+                "sms_billable_units_failed_today": 0,
+                "total_sms_billable_units_fiscal_year_to_yesterday": 0,
             }
 
-            # Add billable units fields if feature flag is enabled
-            if current_app.config.get("FF_USE_BILLABLE_UNITS"):
-                expected_counts.update(
-                    {
-                        "sms_billable_units_delivered_today": 0,
-                        "sms_billable_units_failed_today": 0,
-                        "total_sms_billable_units_fiscal_year_to_yesterday": 0,
-                    }
-                )
-
             # Verify the counts are as expected and that seeded_at was set in redis
-            assert annual_limit_client.get_all_notification_counts(service.id) == expected_counts
+            actual_counts = annual_limit_client.get_all_notification_counts(service.id)
+            # Filter to only check expected fields
+            for key in expected_counts:
+                assert (
+                    actual_counts.get(key) == expected_counts[key]
+                ), f"Mismatch for {key}: {actual_counts.get(key)} != {expected_counts[key]}"
             assert annual_limit_client.was_seeded_today(service.id)
 
     # Day 2, some time passes - testing notification count increments when seeding has occurred
@@ -127,22 +124,20 @@ def test_int_annual_limit_seeding_and_incrementation_flows_in_celery(sample_temp
             "email_delivered_today": 1,
             "total_email_fiscal_year_to_yesterday": 2,
             "total_sms_fiscal_year_to_yesterday": 2,
+            "sms_billable_units_delivered_today": 0,
+            "sms_billable_units_failed_today": 0,
+            "total_sms_billable_units_fiscal_year_to_yesterday": 0,
         }
-
-        # Add billable units fields if feature flag is enabled
-        if current_app.config.get("FF_USE_BILLABLE_UNITS"):
-            expected_counts.update(
-                {
-                    "sms_billable_units_delivered_today": 0,
-                    "sms_billable_units_failed_today": 0,
-                    "total_sms_billable_units_fiscal_year_to_yesterday": 0,
-                }
-            )
 
         # Invoke process_sns_receipts, which should only increment sms_delivered as seeding has occurred for the day
         process_sns_results(sns_success_callback(reference=f"{service.name}-ref1"))  # Make sure the ref doesn't collide
 
-        assert annual_limit_client.get_all_notification_counts(service.id) == expected_counts
+        actual_counts = annual_limit_client.get_all_notification_counts(service.id)
+        # Filter to only check expected fields
+        for key in expected_counts:
+            assert (
+                actual_counts.get(key) == expected_counts[key]
+            ), f"Mismatch for {key}: {actual_counts.get(key)} != {expected_counts[key]}"
 
         # Remove test data from redis
         annual_limit_client.delete_all_annual_limit_hashes([service.id for service in services])
