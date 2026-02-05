@@ -4,9 +4,11 @@ from datetime import datetime
 from flask import Blueprint, current_app, jsonify, request
 from notifications_utils.clients.redis import (
     daily_limit_cache_key,
+    near_billable_units_sms_daily_limit_cache_key,
     near_daily_limit_cache_key,
     near_email_daily_limit_cache_key,
     near_sms_daily_limit_cache_key,
+    over_billable_units_sms_daily_limit_cache_key,
     over_daily_limit_cache_key,
     over_email_daily_limit_cache_key,
     over_sms_daily_limit_cache_key,
@@ -316,6 +318,9 @@ def update_service(service_id):
     if sms_limit_changed:
         redis_store.delete(near_sms_daily_limit_cache_key(service_id))
         redis_store.delete(over_sms_daily_limit_cache_key(service_id))
+        if current_app.config["FF_USE_BILLABLE_UNITS"]:
+            redis_store.delete(near_billable_units_sms_daily_limit_cache_key(service_id))
+            redis_store.delete(over_billable_units_sms_daily_limit_cache_key(service_id))
         if not fetched_service.restricted:
             _warn_service_users_about_sms_limit_changed(service_id, current_data)
     if sms_annual_limit_changed:

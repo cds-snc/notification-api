@@ -115,7 +115,10 @@ def send_one_off_notification(service_id, post_data):
         is_test_notification = simulated_recipient(post_data["to"], template.template_type)
         if not is_test_notification:
             # TODO FF_USE_BILLABLE_UNITS removal - Use billable_units when feature flag is enabled
-            increment_by = notification.billable_units if current_app.config.get("FF_USE_BILLABLE_UNITS") else 1
+            if current_app.config.get("FF_USE_BILLABLE_UNITS"):
+                increment_by = notification.billable_units
+            else:
+                increment_by = 1
             increment_sms_daily_count_send_warnings_if_needed(service, increment_by)
     elif template.template_type == EMAIL_TYPE:
         increment_email_daily_count_send_warnings_if_needed(service, 1)  # 1 email

@@ -10,7 +10,6 @@ from notifications_utils.recipients import (
     get_international_phone_info,
     validate_and_format_phone_number,
 )
-from notifications_utils.template import SMSMessageTemplate
 from notifications_utils.timezones import convert_local_timezone_to_utc
 
 from app import redis_store
@@ -125,13 +124,6 @@ def persist_notification(
         notification.phone_prefix = recipient_info.country_prefix
         notification.rate_multiplier = recipient_info.billable_units
 
-        # TODO FF_USE_BILLABLE_UNITS removal - Calculate billable units early when feature flag is enabled
-        if current_app.config.get("FF_USE_BILLABLE_UNITS") and billable_units is None:
-            template_obj = SMSMessageTemplate(
-                {"content": template.content, "template_type": template.template_type},
-                personalisation,
-            )
-            notification.billable_units = template_obj.fragment_count
     elif notification_type == EMAIL_TYPE:
         notification.normalised_to = format_email_address(notification.to)
     elif notification_type == LETTER_TYPE:
