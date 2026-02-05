@@ -136,8 +136,7 @@ def update_user_attribute(user_id):
     else:
         updated_by = None
 
-    if "default_editor_is_rte" in req_json:
-        isEditorDefaultUpdate = True
+    isEditorDefaultUpdate = "default_editor_is_rte" in req_json
 
     update_dct = user_update_schema_load_json.load(req_json)
 
