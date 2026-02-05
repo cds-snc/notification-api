@@ -1442,7 +1442,7 @@ class TestBillableUnitsWithFeatureFlag:
     ):
         with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
             mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
-            mocker.patch("app.notifications.process_notifications.redis_store.get", return_value=1)
+            mocker.patch("app.notifications.process_notifications.redis_store.get", return_value=None)
             mocker.patch("app.notifications.process_notifications.redis_store.incr")
 
             sample_template.content = content

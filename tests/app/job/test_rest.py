@@ -479,6 +479,12 @@ def test_should_not_create_scheduled_job_too_far_in_the_future(client, sample_te
         "app.job.rest.get_job_from_s3",
         return_value="phone number\r\n6502532222",
     )
+    mocker.patch(
+        "app.job.rest.get_annual_limit_notifications_v2",
+        return_value={
+            "total_sms_fiscal_year_to_yesterday": 0,
+        },
+    )
     data = {
         "id": fake_uuid,
         "created_by": str(sample_template.created_by.id),
@@ -515,6 +521,12 @@ def test_should_not_create_scheduled_job_in_the_past(client, sample_template, mo
     mocker.patch(
         "app.job.rest.get_job_from_s3",
         return_value="phone number\r\n6502532222",
+    )
+    mocker.patch(
+        "app.job.rest.get_annual_limit_notifications_v2",
+        return_value={
+            "total_sms_fiscal_year_to_yesterday": 0,
+        },
     )
     data = {
         "id": fake_uuid,
@@ -569,6 +581,12 @@ def test_create_job_returns_400_if_missing_data(client, sample_template, mocker,
     mocker.patch(
         "app.job.rest.get_job_from_s3",
         return_value="phone number\r\n6502532222",
+    )
+    mocker.patch(
+        "app.job.rest.get_annual_limit_notifications_v2",
+        return_value={
+            "total_sms_fiscal_year_to_yesterday": 0,
+        },
     )
     data = {
         "id": fake_uuid,

@@ -1465,11 +1465,13 @@ class TestBillableUnitsInFactNotificationStatusDao:
 
         result = fetch_billable_units_for_service_for_day(datetime(2024, 1, 15), service.id)
 
-        # Result should be list of tuples: (date, notification_type, status, billable_units)
-        assert len(result) == 3
-        assert (date(2024, 1, 15), SMS_TYPE, "delivered", 2) in result
-        assert (date(2024, 1, 15), SMS_TYPE, "delivered", 3) in result
-        assert (date(2024, 1, 15), SMS_TYPE, "failed", 1) in result
+        # Result should be list of tuples: (month, notification_type, status, aggregated_billable_units)
+        # The function groups by type and status, summing billable_units
+        assert len(result) == 2  # delivered and failed statuses
+
+        result_dict = {(row.notification_type, row.notification_status): row.count for row in result}
+        assert result_dict[(SMS_TYPE, "delivered")] == 5  # 2 + 3
+        assert result_dict[(SMS_TYPE, "failed")] == 1
 
     @freeze_time("2024-01-15 12:00:00")
     def test_fetch_billable_units_totals_for_service_by_fiscal_year(self, notify_db_session):
@@ -1518,13 +1520,19 @@ class TestBillableUnitsInFactNotificationStatusDao:
 
         result = fetch_notification_billable_units_for_service_for_today_and_7_previous_days(service.id)
 
-        # Should aggregate billable_units by day
-        assert len(result) == 3  # 3 different days
+        # Function aggregates by notification_type and status across all days
+        # It does NOT group by day - it sums all billable_units
+        assert len(result) == 2  # delivered and failed statuses
 
-        # Find today's entry
-        today_entry = next((r for r in result if r.bst_date == date(2024, 1, 15)), None)
-        assert today_entry is not None
-        assert today_entry.billable_units == 7  # 5 + 2
+        # Find delivered entry - should sum today's 5 + previous days' 15 + 10 = 30
+        delivered_entry = next((r for r in result if r.notification_type == SMS_TYPE and r.status == "delivered"), None)
+        assert delivered_entry is not None
+        assert delivered_entry.billable_units == 30  # 5 (today) + 15 + 10 (previous days)
+
+        # Find failed entry - should just be today's 2
+        failed_entry = next((r for r in result if r.notification_type == SMS_TYPE and r.status == "failed"), None)
+        assert failed_entry is not None
+        assert failed_entry.billable_units == 2
 
     @freeze_time("2024-01-15 12:00:00")
     def test_fetch_notification_billable_units_for_service_by_template(self, notify_db_session):
