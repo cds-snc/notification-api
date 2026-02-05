@@ -293,6 +293,27 @@ def test_post_user_attribute(client, mocker, sample_user, user_attribute, user_v
     mocked_salesforce_client.contact_update.assert_called_once_with(sample_user)
 
 
+def test_post_user_attribute_send_no_notification_when_default_editor_preference_changed(
+    client,
+    mocker,
+    sample_user,
+):
+    update_dict = {"default_editor_is_rte": True}
+    auth_header = create_authorization_header()
+    headers = [("Content-Type", "application/json"), auth_header]
+
+    mock_persist_notification = mocker.patch("app.user.rest.persist_notification")
+    mocker.patch("app.user.rest.send_notification_to_queue")
+    mocker.patch("app.user.rest.salesforce_client")
+
+    client.post(
+        url_for("user.update_user_attribute", user_id=sample_user.id),
+        data=json.dumps(update_dict),
+        headers=headers,
+    )
+    mock_persist_notification.assert_not_called()
+
+
 @pytest.mark.parametrize(
     "user_attribute, user_value",
     [

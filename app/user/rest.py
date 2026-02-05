@@ -136,6 +136,9 @@ def update_user_attribute(user_id):
     else:
         updated_by = None
 
+    if "default_editor_is_rte" in req_json:
+        isEditorDefaultUpdate = True
+
     update_dct = user_update_schema_load_json.load(req_json)
 
     save_user_attribute(user_to_update, update_dict=update_dct)
@@ -146,7 +149,7 @@ def update_user_attribute(user_id):
     user_alert_dct = update_dct.copy()
     user_alert_dct.pop("blocked", None)
     user_alert_dct.pop("current_session_id", None)
-    if not updated_by and user_alert_dct:
+    if not updated_by and user_alert_dct and not isEditorDefaultUpdate:
         _update_alert(user_to_update, user_alert_dct)
 
     # Alert that team member edit user
