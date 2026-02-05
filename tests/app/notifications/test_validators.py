@@ -955,7 +955,7 @@ class TestBillableUnitsInValidators:
     def test_check_sms_daily_limit_uses_billable_units_when_flag_enabled(self, notify_api, notify_db, notify_db_session, mocker):
         """Test that check_sms_daily_limit uses billable_units count when FF_USE_BILLABLE_UNITS is enabled"""
         with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
-            service = create_sample_service(notify_db, notify_db_session, sms_daily_limit=100)
+            service = create_sample_service(notify_db, notify_db_session, sms_limit=100)
 
             # Mock billable units fetch to return a count
             mocker.patch("app.notifications.validators.fetch_todays_requested_sms_billable_units_count", return_value=50)
@@ -966,7 +966,7 @@ class TestBillableUnitsInValidators:
     def test_check_sms_daily_limit_uses_message_count_when_flag_disabled(self, notify_api, notify_db, notify_db_session, mocker):
         """Test that check_sms_daily_limit uses message count when FF_USE_BILLABLE_UNITS is disabled"""
         with set_config(notify_api, "FF_USE_BILLABLE_UNITS", False):
-            service = create_sample_service(notify_db, notify_db_session, sms_daily_limit=100)
+            service = create_sample_service(notify_db, notify_db_session, sms_limit=100)
 
             # Mock regular count fetch
             mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=50)
@@ -1009,7 +1009,7 @@ class TestBillableUnitsInValidators:
     ):
         """Test that increment_sms_daily_count_send_warnings_if_needed increments billable_units when flag enabled"""
         with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
-            service = create_sample_service(notify_db, notify_db_session, sms_daily_limit=100)
+            service = create_sample_service(notify_db, notify_db_session, sms_limit=100)
 
             mock_increment_billable = mocker.patch(
                 "app.notifications.validators.increment_todays_requested_sms_billable_units_count"
@@ -1030,7 +1030,7 @@ class TestBillableUnitsInValidators:
     ):
         """Test that increment_sms_daily_count_send_warnings_if_needed increments message count when flag disabled"""
         with set_config(notify_api, "FF_USE_BILLABLE_UNITS", False):
-            service = create_sample_service(notify_db, notify_db_session, sms_daily_limit=100)
+            service = create_sample_service(notify_db, notify_db_session, sms_limit=100)
 
             mock_increment_count = mocker.patch("app.notifications.validators.increment_todays_requested_sms_count")
             mock_fetch_count = mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=50)
@@ -1047,7 +1047,7 @@ class TestBillableUnitsInValidators:
     ):
         """Test that near-limit warning is sent when using billable_units"""
         with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
-            service = create_sample_service(notify_db, notify_db_session, sms_daily_limit=100)
+            service = create_sample_service(notify_db, notify_db_session, sms_limit=100)
 
             # Mock to be near limit (80% = 80 fragments)
             mocker.patch("app.notifications.validators.fetch_todays_requested_sms_billable_units_count", return_value=75)
