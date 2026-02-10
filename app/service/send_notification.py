@@ -28,6 +28,7 @@ from app.models import (
     UPLOAD_LETTERS,
 )
 from app.notifications.process_notifications import (
+    number_of_sms_fragments,
     persist_notification,
     send_notification_to_queue,
     simulated_recipient,
@@ -95,6 +96,12 @@ def send_one_off_notification(service_id, post_data):
         service=service,
         template=template,
     )
+
+    # Calculate billable_units for SMS before creating the notification
+    billable_units = None
+    if template.template_type == SMS_TYPE:
+        billable_units = number_of_sms_fragments(template, personalisation)
+
     notification = persist_notification(
         template_id=template.id,
         template_version=template.version,
@@ -108,6 +115,7 @@ def send_one_off_notification(service_id, post_data):
         created_by_id=post_data["created_by"],
         reply_to_text=reply_to,
         reference=create_one_off_reference(template.template_type),
+        billable_units=billable_units,
     )
 
     # Increment daily counts after notification is created so we can use actual billable_units

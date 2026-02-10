@@ -2617,7 +2617,7 @@ werkzeug = "3.0.6"
 type = "git"
 url = "https://github.com/cds-snc/notifier-utils.git"
 reference = "feat/use-billable-units-3"
-resolved_reference = "e0f96b95dbc5cc3f4119d17484fb53ae63eba6a0"
+resolved_reference = "1713e72e8dab18f2df429c7e522008766a8d92b6"
 
 [[package]]
 name = "ordered-set"
