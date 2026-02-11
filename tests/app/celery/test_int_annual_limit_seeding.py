@@ -96,7 +96,7 @@ def test_int_annual_limit_seeding_and_incrementation_flows_in_celery(sample_temp
                 "total_sms_fiscal_year_to_yesterday": 2,
                 "sms_billable_units_delivered_today": 2,  # 1 from initial + 1 from sent->delivered
                 "sms_billable_units_failed_today": 1,  # 1 from initial failed
-                "total_sms_billable_units_fiscal_year_to_yesterday": 0,
+                "total_sms_billable_units_fiscal_year_to_yesterday": 2,  # 1 delivered + 1 failed from day 1
             }
 
             # Verify the counts are as expected and that seeded_at was set in redis
@@ -128,9 +128,9 @@ def test_int_annual_limit_seeding_and_incrementation_flows_in_celery(sample_temp
             "email_delivered_today": 1,
             "total_email_fiscal_year_to_yesterday": 2,
             "total_sms_fiscal_year_to_yesterday": 2,
-            "sms_billable_units_delivered_today": 0,
-            "sms_billable_units_failed_today": 0,
-            "total_sms_billable_units_fiscal_year_to_yesterday": 0,
+            "sms_billable_units_delivered_today": 2,  # Unchanged from morning (no FF)
+            "sms_billable_units_failed_today": 1,  # Unchanged from morning (no FF)
+            "total_sms_billable_units_fiscal_year_to_yesterday": 2,  # Unchanged from morning (no FF)
         }
 
         # Invoke process_sns_receipts, which should only increment sms_delivered as seeding has occurred for the day

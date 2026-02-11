@@ -3117,6 +3117,7 @@ class TestBillableUnitsInV2Notifications:
         self, notify_api, client, sample_template, mocker, mock_annual_limits
     ):
         """Test that v2 API uses billable_units for daily count when flag enabled"""
+
         with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
             # Create long SMS content that will require 2 fragments
             sample_template.content = "a" * 200
@@ -3130,9 +3131,12 @@ class TestBillableUnitsInV2Notifications:
             # Mock dao_get_template_by_id to return the modified template
             mocker.patch("app.notifications.process_notifications.dao_get_template_by_id", return_value=sample_template)
 
+            # Use scheduled_for so notification is persisted immediately
+            scheduled_time = (datetime.utcnow() + timedelta(hours=1)).strftime("%Y-%m-%d %H:%M")
             data = {
                 "phone_number": "+16502532222",
                 "template_id": str(sample_template.id),
+                "scheduled_for": scheduled_time,
             }
             auth_header = create_authorization_header(service_id=sample_template.service_id)
 
@@ -3155,6 +3159,7 @@ class TestBillableUnitsInV2Notifications:
         self, notify_api, client, sample_template, mocker, mock_annual_limits
     ):
         """Test that v2 API uses count=1 for daily count when flag disabled"""
+
         with set_config(notify_api, "FF_USE_BILLABLE_UNITS", False):
             # Create long SMS content that will require 2 fragments
             sample_template.content = "a" * 200
@@ -3166,9 +3171,12 @@ class TestBillableUnitsInV2Notifications:
             mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
             mocker.patch("app.sms_fragment_utils.fetch_todays_total_sms_billable_units", return_value=0)
 
+            # Use scheduled_for so notification is persisted immediately
+            scheduled_time = (datetime.utcnow() + timedelta(hours=1)).strftime("%Y-%m-%d %H:%M")
             data = {
                 "phone_number": "+16502532222",
                 "template_id": str(sample_template.id),
+                "scheduled_for": scheduled_time,
             }
             auth_header = create_authorization_header(service_id=sample_template.service_id)
 
@@ -3254,6 +3262,7 @@ class TestBillableUnitsInV2Notifications:
         self, notify_api, client, sample_email_template, mocker, mock_annual_limits
     ):
         """Test that email notifications always use count=1, never billable_units"""
+
         with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
             mocker.patch("app.email_normal_publish.publish")
             mock_increment = mocker.patch(
@@ -3261,9 +3270,12 @@ class TestBillableUnitsInV2Notifications:
             )
             mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=0)
 
+            # Use scheduled_for so notification is persisted immediately
+            scheduled_time = (datetime.utcnow() + timedelta(hours=1)).strftime("%Y-%m-%d %H:%M")
             data = {
                 "email_address": "test@example.com",
                 "template_id": str(sample_email_template.id),
+                "scheduled_for": scheduled_time,
             }
             auth_header = create_authorization_header(service_id=sample_email_template.service_id)
 
@@ -3287,6 +3299,7 @@ class TestBillableUnitsInV2Notifications:
         self, notify_api, client, mocker, mock_annual_limits
     ):
         """Test that billable_units accounts for personalisation expanding template"""
+
         with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
             service = create_service()
             template = create_template(
@@ -3302,11 +3315,14 @@ class TestBillableUnitsInV2Notifications:
             mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
             mocker.patch("app.sms_fragment_utils.fetch_todays_total_sms_billable_units", return_value=0)
 
+            # Use scheduled_for so notification is persisted immediately
+            scheduled_time = (datetime.utcnow() + timedelta(hours=1)).strftime("%Y-%m-%d %H:%M")
             # Long personalisation value makes message require 2 fragments
             data = {
                 "phone_number": "+16502532222",
                 "template_id": str(template.id),
                 "personalisation": {"name": "a" * 200},
+                "scheduled_for": scheduled_time,
             }
             auth_header = create_authorization_header(service_id=template.service_id)
 
