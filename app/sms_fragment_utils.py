@@ -6,12 +6,8 @@ from notifications_utils.clients.redis import (
     billable_units_sms_daily_count_cache_key,
     sms_daily_count_cache_key,
 )
-from notifications_utils.clients.redis.annual_limit import (
-    SMS_BILLABLE_UNITS_DELIVERED_TODAY,
-)
 
-from app import annual_limit_client, redis_store
-from app.annual_limit_utils import get_annual_limit_notifications_v3
+from app import redis_store
 from app.dao.services_dao import (
     fetch_todays_total_sms_billable_units,
     fetch_todays_total_sms_count,
@@ -44,10 +40,6 @@ def fetch_todays_requested_sms_billable_units_count(service_id: UUID) -> int:
     if not current_app.config["REDIS_ENABLED"]:
         return fetch_todays_total_sms_billable_units(service_id)
 
-    # When FF_USE_BILLABLE_UNITS is enabled, read from annual-limit hash
-    if current_app.config.get("FF_USE_BILLABLE_UNITS", False):
-        return annual_limit_client.get_notification_count(str(service_id), SMS_BILLABLE_UNITS_DELIVERED_TODAY)
-
     # Fallback to cache key for backwards compatibility
     cache_key = billable_units_sms_daily_count_cache_key(service_id)
     billable_units_count = redis_store.get(cache_key)
@@ -62,14 +54,7 @@ def increment_todays_requested_sms_billable_units_count(service_id: UUID, increm
     if not current_app.config["REDIS_ENABLED"]:
         return
 
-    # When FF_USE_BILLABLE_UNITS is enabled, increment the annual-limit hash
-    if current_app.config.get("FF_USE_BILLABLE_UNITS", False):
-        # First ensure the hash exists by seeding if needed
-        get_annual_limit_notifications_v3(service_id)
-        # Now increment
-        annual_limit_client.increment_notification_count(str(service_id), SMS_BILLABLE_UNITS_DELIVERED_TODAY, increment_by)
-    else:
-        # Fallback to cache key for backwards compatibility
-        fetch_todays_requested_sms_billable_units_count(service_id)  # to make sure it's set in redis
-        cache_key = billable_units_sms_daily_count_cache_key(service_id)
-        redis_store.incrby(cache_key, increment_by)
+    # Fallback to cache key for backwards compatibility
+    fetch_todays_requested_sms_billable_units_count(service_id)  # to make sure it's set in redis
+    cache_key = billable_units_sms_daily_count_cache_key(service_id)
+    redis_store.incrby(cache_key, increment_by)
