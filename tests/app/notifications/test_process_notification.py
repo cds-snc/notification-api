@@ -1246,10 +1246,14 @@ class TestBillableUnitsWithFeatureFlag:
             mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
             mocker.patch("app.notifications.process_notifications.redis_store.get", return_value=1)
             mocker.patch("app.notifications.process_notifications.redis_store.incr")
+            mocker.patch("app.dao.templates_dao.redis_store.get", return_value=None)
 
             # Long message that will result in multiple SMS fragments
             long_content = "a" * 200
             sample_template.content = long_content
+
+            # Mock dao_get_template_by_id to return the modified template
+            mocker.patch("app.notifications.process_notifications.dao_get_template_by_id", return_value=sample_template)
 
             notification = persist_notification(
                 template_id=sample_template.id,
@@ -1272,6 +1276,8 @@ class TestBillableUnitsWithFeatureFlag:
             mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
             mocker.patch("app.notifications.process_notifications.redis_store.get", return_value=1)
             mocker.patch("app.notifications.process_notifications.redis_store.incr")
+            mocker.patch("app.dao.templates_dao.redis_store.get", return_value=None)
+            mocker.patch("app.notifications.process_notifications.dao_get_template_by_id", return_value=sample_template)
 
             # Provide explicit billable_units value
             notification = persist_notification(
@@ -1296,10 +1302,14 @@ class TestBillableUnitsWithFeatureFlag:
             mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
             mocker.patch("app.notifications.process_notifications.redis_store.get", return_value=1)
             mocker.patch("app.notifications.process_notifications.redis_store.incr")
+            mocker.patch("app.dao.templates_dao.redis_store.get", return_value=None)
 
             # Long message that would result in multiple SMS fragments
             long_content = "a" * 200
             sample_template.content = long_content
+
+            # Mock dao_get_template_by_id to return the modified template
+            mocker.patch("app.notifications.process_notifications.dao_get_template_by_id", return_value=sample_template)
 
             notification = persist_notification(
                 template_id=sample_template.id,
@@ -1312,8 +1322,8 @@ class TestBillableUnitsWithFeatureFlag:
                 key_type=sample_api_key.key_type,
             )
 
-            # billable_units should be None when flag is disabled
-            assert notification.billable_units is None
+            # billable_units should be 0 (default) when flag is disabled
+            assert notification.billable_units == 0
 
     def test_persist_notification_sets_billable_units_to_none_for_email(
         self, notify_api, sample_email_template, sample_api_key, mocker
@@ -1322,6 +1332,8 @@ class TestBillableUnitsWithFeatureFlag:
             mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
             mocker.patch("app.notifications.process_notifications.redis_store.get", return_value=1)
             mocker.patch("app.notifications.process_notifications.redis_store.incr")
+            mocker.patch("app.dao.templates_dao.redis_store.get", return_value=None)
+            mocker.patch("app.notifications.process_notifications.dao_get_template_by_id", return_value=sample_email_template)
 
             notification = persist_notification(
                 template_id=sample_email_template.id,
@@ -1334,8 +1346,8 @@ class TestBillableUnitsWithFeatureFlag:
                 key_type=sample_api_key.key_type,
             )
 
-            # Email notifications should not have billable_units
-            assert notification.billable_units is None
+            # Email notifications should have billable_units = 0 (default)
+            assert notification.billable_units == 0
 
     def test_persist_notification_calculates_billable_units_with_personalisation(
         self, notify_api, sample_template_with_placeholders, sample_api_key, mocker
@@ -1344,6 +1356,10 @@ class TestBillableUnitsWithFeatureFlag:
             mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
             mocker.patch("app.notifications.process_notifications.redis_store.get", return_value=1)
             mocker.patch("app.notifications.process_notifications.redis_store.incr")
+            mocker.patch("app.dao.templates_dao.redis_store.get", return_value=None)
+            mocker.patch(
+                "app.notifications.process_notifications.dao_get_template_by_id", return_value=sample_template_with_placeholders
+            )
 
             # Template content: "Hello ((name))"
             # With personalisation, it becomes longer
@@ -1369,6 +1385,8 @@ class TestBillableUnitsWithFeatureFlag:
             mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
             mocker.patch("app.notifications.process_notifications.redis_store.get", return_value=1)
             mocker.patch("app.notifications.process_notifications.redis_store.incr")
+            mocker.patch("app.dao.templates_dao.redis_store.get", return_value=None)
+            mocker.patch("app.notifications.process_notifications.dao_get_template_by_id", return_value=sample_template)
 
             notifications_data = [
                 {
@@ -1392,6 +1410,8 @@ class TestBillableUnitsWithFeatureFlag:
     def test_persist_notification_simulated_does_not_save_to_db(self, notify_api, sample_template, sample_api_key, mocker):
         with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
             mock_dao_create = mocker.patch("app.notifications.process_notifications.dao_create_notification")
+            mocker.patch("app.dao.templates_dao.redis_store.get", return_value=None)
+            mocker.patch("app.notifications.process_notifications.dao_get_template_by_id", return_value=sample_template)
 
             notification = persist_notification(
                 template_id=sample_template.id,
@@ -1424,8 +1444,8 @@ class TestBillableUnitsWithFeatureFlag:
                 key_type=sample_api_key.key_type,
             )
 
-            # transform_notification is used for batching, billable_units passed separately
-            assert notification.billable_units is None
+            # transform_notification is used for batching, billable_units uses default value
+            assert notification.billable_units == 0
 
     @pytest.mark.parametrize(
         "content, expected_units",
@@ -1433,7 +1453,7 @@ class TestBillableUnitsWithFeatureFlag:
             ("Short message", 1),
             ("a" * 160, 1),  # Exactly 160 chars (GSM-7 single SMS)
             ("a" * 161, 2),  # 161 chars (requires 2 SMS)
-            ("a" * 320, 2),  # 320 chars (still 2 SMS)
+            ("a" * 320, 3),  # 320 chars (requires 3 SMS with multipart, each part holds 153 chars)
             ("a" * 321, 3),  # 321 chars (requires 3 SMS)
         ],
     )
@@ -1444,8 +1464,10 @@ class TestBillableUnitsWithFeatureFlag:
             mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
             mocker.patch("app.notifications.process_notifications.redis_store.get", return_value=None)
             mocker.patch("app.notifications.process_notifications.redis_store.incr")
+            mocker.patch("app.dao.templates_dao.redis_store.get", return_value=None)
 
             sample_template.content = content
+            mocker.patch("app.notifications.process_notifications.dao_get_template_by_id", return_value=sample_template)
 
             notification = persist_notification(
                 template_id=sample_template.id,
@@ -1466,9 +1488,13 @@ class TestBillableUnitsWithFeatureFlag:
             mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
             mocker.patch("app.notifications.process_notifications.redis_store.get", return_value=1)
             mocker.patch("app.notifications.process_notifications.redis_store.incr")
+            mocker.patch("app.dao.templates_dao.redis_store.get", return_value=None)
 
             # Unicode characters may affect fragment calculation
             sample_template.content = "Hello 👋 " * 30
+
+            # Mock dao_get_template_by_id to return the modified template
+            mocker.patch("app.notifications.process_notifications.dao_get_template_by_id", return_value=sample_template)
 
             notification = persist_notification(
                 template_id=sample_template.id,
@@ -1492,9 +1518,13 @@ class TestBillableUnitsWithFeatureFlag:
             mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
             mocker.patch("app.notifications.process_notifications.redis_store.get", return_value=1)
             mocker.patch("app.notifications.process_notifications.redis_store.incr")
+            mocker.patch("app.dao.templates_dao.redis_store.get", return_value=None)
 
             # Long message
             sample_template.content = "a" * 200
+
+            # Mock dao_get_template_by_id to return the modified template
+            mocker.patch("app.notifications.process_notifications.dao_get_template_by_id", return_value=sample_template)
 
             notification = persist_notification(
                 template_id=sample_template.id,

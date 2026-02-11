@@ -59,7 +59,11 @@ def test_int_annual_limit_seeding_and_incrementation_flows_in_celery(sample_temp
         assert all(value == 0 for value in annual_limit_client.get_all_notification_counts(service.id).values())
 
     # Moving onto day 2 - Testing the seeding process
-    with freeze_time("2019-04-02T010:00"), set_config(notify_api, "REDIS_ENABLED", True):
+    with (
+        freeze_time("2019-04-02T010:00"),
+        set_config(notify_api, "REDIS_ENABLED", True),
+        set_config(notify_api, "FF_USE_BILLABLE_UNITS", True),
+    ):
         # Insert delivered and failed notifications into the db so we can test that
         # the seeding process in process_sns_results collects notification counts correctly
         for service in services:
