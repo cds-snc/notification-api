@@ -1444,8 +1444,8 @@ class TestBillableUnitsWithFeatureFlag:
                 key_type=sample_api_key.key_type,
             )
 
-            # transform_notification is used for batching, billable_units uses default value
-            assert notification.billable_units == 0
+            # transform_notification creates transient objects, billable_units is None
+            assert notification.billable_units is None
 
     @pytest.mark.parametrize(
         "content, expected_units",

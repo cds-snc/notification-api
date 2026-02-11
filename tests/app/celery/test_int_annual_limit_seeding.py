@@ -94,8 +94,8 @@ def test_int_annual_limit_seeding_and_incrementation_flows_in_celery(sample_temp
                 "email_delivered_today": 1,
                 "total_email_fiscal_year_to_yesterday": 2,
                 "total_sms_fiscal_year_to_yesterday": 2,
-                "sms_billable_units_delivered_today": 0,
-                "sms_billable_units_failed_today": 0,
+                "sms_billable_units_delivered_today": 2,  # 1 from initial + 1 from sent->delivered
+                "sms_billable_units_failed_today": 1,  # 1 from initial failed
                 "total_sms_billable_units_fiscal_year_to_yesterday": 0,
             }
 

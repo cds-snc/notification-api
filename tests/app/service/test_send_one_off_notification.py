@@ -108,6 +108,7 @@ def test_send_one_off_notification_calls_persist_correctly_for_sms(persist_mock,
         created_by_id=str(service.created_by_id),
         reply_to_text="testing",
         reference=None,
+        billable_units=1,
     )
 
 
@@ -150,6 +151,7 @@ def test_send_one_off_notification_calls_persist_correctly_for_email(persist_moc
         created_by_id=str(service.created_by_id),
         reply_to_text=None,
         reference=None,
+        billable_units=None,
     )
 
 
@@ -625,6 +627,7 @@ class TestBillableUnitsInSendOneOffNotification:
             mocker.patch("app.service.send_notification.persist_notification", return_value=mock_notification)
             mocker.patch("app.service.send_notification.send_notification_to_queue")
             mock_increment = mocker.patch("app.service.send_notification.increment_sms_daily_count_send_warnings_if_needed")
+            mocker.patch("app.service.send_notification.simulated_recipient", return_value=True)
             mocker.patch(
                 "app.notifications.validators.get_annual_limit_notifications_v2",
                 return_value={

@@ -3127,6 +3127,8 @@ class TestBillableUnitsInV2Notifications:
             )
             mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
             mocker.patch("app.sms_fragment_utils.fetch_todays_total_sms_billable_units", return_value=0)
+            # Mock dao_get_template_by_id to return the modified template
+            mocker.patch("app.notifications.process_notifications.dao_get_template_by_id", return_value=sample_template)
 
             data = {
                 "phone_number": "+16502532222",
