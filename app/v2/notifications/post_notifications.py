@@ -65,6 +65,7 @@ from app.notifications.process_notifications import (
     choose_queue,
     csv_has_simulated_and_non_simulated_recipients,
     db_save_and_send_notification,
+    number_of_sms_fragments,
     persist_notification,
     persist_scheduled_notification,
     simulated_recipient,
@@ -89,7 +90,7 @@ from app.notifications.validators import (
 from app.schema_validation import validate
 from app.schemas import job_schema
 from app.service.utils import safelisted_members
-from app.sms_fragment_utils import fetch_todays_requested_sms_count, number_of_sms_fragments
+from app.sms_fragment_utils import fetch_todays_requested_sms_count
 from app.utils import get_delivery_queue_for_template
 from app.v2.errors import BadRequestError
 from app.v2.notifications import v2_notification_blueprint
