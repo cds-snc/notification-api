@@ -48,6 +48,7 @@ from tests.app.db import (
     create_api_key,
     create_reply_to_email,
     create_service,
+    create_service_permission,
     create_service_sms_sender,
     create_service_with_inbound_number,
     create_template,
@@ -3130,6 +3131,7 @@ class TestBillableUnitsInV2Notifications:
             mocker.patch("app.sms_fragment_utils.fetch_todays_total_sms_billable_units", return_value=0)
             # Mock dao_get_template_by_id to return the modified template
             mocker.patch("app.notifications.process_notifications.dao_get_template_by_id", return_value=sample_template)
+            create_service_permission(sample_template.service_id, permission=SCHEDULE_NOTIFICATIONS)
 
             # Use scheduled_for so notification is persisted immediately
             scheduled_time = (datetime.utcnow() + timedelta(hours=1)).strftime("%Y-%m-%d %H:%M")
@@ -3170,6 +3172,7 @@ class TestBillableUnitsInV2Notifications:
             )
             mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
             mocker.patch("app.sms_fragment_utils.fetch_todays_total_sms_billable_units", return_value=0)
+            create_service_permission(sample_template.service_id, permission=SCHEDULE_NOTIFICATIONS)
 
             # Use scheduled_for so notification is persisted immediately
             scheduled_time = (datetime.utcnow() + timedelta(hours=1)).strftime("%Y-%m-%d %H:%M")
@@ -3269,6 +3272,7 @@ class TestBillableUnitsInV2Notifications:
                 "app.v2.notifications.post_notifications.increment_email_daily_count_send_warnings_if_needed"
             )
             mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=0)
+            create_service_permission(sample_email_template.service_id, permission=SCHEDULE_NOTIFICATIONS)
 
             # Use scheduled_for so notification is persisted immediately
             scheduled_time = (datetime.utcnow() + timedelta(hours=1)).strftime("%Y-%m-%d %H:%M")
@@ -3301,7 +3305,7 @@ class TestBillableUnitsInV2Notifications:
         """Test that billable_units accounts for personalisation expanding template"""
 
         with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
-            service = create_service()
+            service = create_service(service_permissions=[EMAIL_TYPE, SMS_TYPE, SCHEDULE_NOTIFICATIONS])
             template = create_template(
                 service=service,
                 template_type=SMS_TYPE,
