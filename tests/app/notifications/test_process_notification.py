@@ -1322,10 +1322,9 @@ class TestBillableUnitsWithFeatureFlag:
                 key_type=sample_api_key.key_type,
             )
 
-            # billable_units should remain None when flag is disabled
-            assert notification.billable_units is None
+            assert notification.billable_units == 0
 
-    def test_persist_notification_sets_billable_units_to_none_for_email(
+    def test_persist_notification_sets_billable_units_is_zero_for_email(
         self, notify_api, sample_email_template, sample_api_key, mocker
     ):
         with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
@@ -1346,8 +1345,7 @@ class TestBillableUnitsWithFeatureFlag:
                 key_type=sample_api_key.key_type,
             )
 
-            # Email notifications should not have billable_units populated
-            assert notification.billable_units is None
+            assert notification.billable_units == 0
 
     def test_persist_notification_calculates_billable_units_with_personalisation(
         self, notify_api, sample_template_with_placeholders, sample_api_key, mocker
