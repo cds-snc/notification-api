@@ -1,5 +1,15 @@
 FROM mcr.microsoft.com/vscode/devcontainers/python:3.12-bookworm
 
+## Ensure we can verify the Yarn repo on Debian/Bookworm
+## Use Yarn's official pubkey to avoid expired/rotated key issues.
+RUN rm -f /etc/apt/sources.list.d/yarn.list || true && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends gnupg dirmngr curl ca-certificates && \
+    mkdir -p /etc/apt/keyrings && \
+    curl -fsSL "https://dl.yarnpkg.com/debian/pubkey.gpg" | gpg --dearmor --yes -o /etc/apt/keyrings/yarn-archive-keyring.gpg && \
+    echo "deb [signed-by=/etc/apt/keyrings/yarn-archive-keyring.gpg] https://dl.yarnpkg.com/debian/ stable main" > /etc/apt/sources.list.d/yarn.list && \
+    apt-get update && apt-get clean -y && rm -rf /var/lib/apt/lists/*
+
 ARG KUBENS_VERSION="0.9.4"
 ENV POETRY_VERSION="1.7.1"
 ENV POETRY_VENV_PATH="/home/vscode/.venv/workspace"
