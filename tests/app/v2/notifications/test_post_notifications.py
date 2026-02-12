@@ -3,7 +3,7 @@ import csv
 import uuid
 from datetime import datetime, timedelta
 from io import StringIO
-from unittest.mock import call
+from unittest.mock import Mock, call
 
 import pytest
 from flask import current_app, json
@@ -3142,6 +3142,10 @@ class TestBillableUnitsInV2Notifications:
             }
             auth_header = create_authorization_header(service_id=sample_template.service_id)
 
+            mock_notification = Mock(billable_units=None)
+            mock_query = mocker.patch("app.models.Notification.query")
+            mock_query.filter_by.return_value.first.return_value = mock_notification
+
             response = client.post(
                 path="/v2/notifications/sms",
                 data=json.dumps(data),
@@ -3282,6 +3286,10 @@ class TestBillableUnitsInV2Notifications:
                 "scheduled_for": scheduled_time,
             }
             auth_header = create_authorization_header(service_id=sample_email_template.service_id)
+
+            mock_notification = Mock(billable_units=None)
+            mock_query = mocker.patch("app.models.Notification.query")
+            mock_query.filter_by.return_value.first.return_value = mock_notification
 
             response = client.post(
                 path="/v2/notifications/email",
