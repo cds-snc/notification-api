@@ -26,6 +26,7 @@ from app.models import (
     ApiKey,
     Notification,
     ScheduledNotification,
+    ServicePermission,
     ServiceSmsSender,
 )
 from app.schema_validation import validate
@@ -62,6 +63,12 @@ def rows_to_csv(rows):
     writer = csv.writer(output)
     writer.writerows(rows)
     return output.getvalue()
+
+
+def ensure_service_has_permission(service_id, permission):
+    """Add the permission only if it is not already set for the service."""
+    if not ServicePermission.query.filter_by(service_id=service_id, permission=permission).first():
+        create_service_permission(service_id, permission=permission)
 
 
 @pytest.fixture
@@ -3131,7 +3138,7 @@ class TestBillableUnitsInV2Notifications:
             mocker.patch("app.sms_fragment_utils.fetch_todays_total_sms_billable_units", return_value=0)
             # Mock dao_get_template_by_id to return the modified template
             mocker.patch("app.notifications.process_notifications.dao_get_template_by_id", return_value=sample_template)
-            create_service_permission(sample_template.service_id, permission=SCHEDULE_NOTIFICATIONS)
+            ensure_service_has_permission(sample_template.service_id, SCHEDULE_NOTIFICATIONS)
 
             # Use scheduled_for so notification is persisted immediately
             scheduled_time = (datetime.utcnow() + timedelta(hours=1)).strftime("%Y-%m-%d %H:%M")
@@ -3141,14 +3148,6 @@ class TestBillableUnitsInV2Notifications:
                 "scheduled_for": scheduled_time,
             }
             auth_header = create_authorization_header(service_id=sample_template.service_id)
-
-            mock_notification = Mock(billable_units=2)
-            mock_query = mocker.patch("app.models.Notification.query")
-            mock_query.filter_by.return_value.first.return_value = mock_notification
-
-            mock_notification = Mock(billable_units=None)
-            mock_query = mocker.patch("app.models.Notification.query")
-            mock_query.filter_by.return_value.first.return_value = mock_notification
 
             response = client.post(
                 path="/v2/notifications/sms",
@@ -3180,7 +3179,7 @@ class TestBillableUnitsInV2Notifications:
             )
             mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
             mocker.patch("app.sms_fragment_utils.fetch_todays_total_sms_billable_units", return_value=0)
-            create_service_permission(sample_template.service_id, permission=SCHEDULE_NOTIFICATIONS)
+            ensure_service_has_permission(sample_template.service_id, SCHEDULE_NOTIFICATIONS)
 
             # Use scheduled_for so notification is persisted immediately
             scheduled_time = (datetime.utcnow() + timedelta(hours=1)).strftime("%Y-%m-%d %H:%M")
@@ -3279,7 +3278,7 @@ class TestBillableUnitsInV2Notifications:
                 "app.v2.notifications.post_notifications.increment_email_daily_count_send_warnings_if_needed"
             )
             mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=0)
-            create_service_permission(sample_email_template.service_id, permission=SCHEDULE_NOTIFICATIONS)
+            ensure_service_has_permission(sample_email_template.service_id, SCHEDULE_NOTIFICATIONS)
 
             # Use scheduled_for so notification is persisted immediately
             scheduled_time = (datetime.utcnow() + timedelta(hours=1)).strftime("%Y-%m-%d %H:%M")
