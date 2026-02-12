@@ -3201,8 +3201,7 @@ class TestBillableUnitsInV2Notifications:
 
             # Get the notification that was created
             notification = Notification.query.filter_by(template_id=sample_template.id).first()
-            # When flag disabled, billable_units should be None
-            assert notification.billable_units is None
+            assert notification.billable_units == 0
 
             # Verify increment was called with count=1 despite long message
             mock_increment.assert_called_once_with(sample_template.service, 1)
