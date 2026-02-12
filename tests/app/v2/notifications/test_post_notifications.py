@@ -3142,6 +3142,10 @@ class TestBillableUnitsInV2Notifications:
             }
             auth_header = create_authorization_header(service_id=sample_template.service_id)
 
+            mock_notification = Mock(billable_units=2)
+            mock_query = mocker.patch("app.models.Notification.query")
+            mock_query.filter_by.return_value.first.return_value = mock_notification
+
             mock_notification = Mock(billable_units=None)
             mock_query = mocker.patch("app.models.Notification.query")
             mock_query.filter_by.return_value.first.return_value = mock_notification
