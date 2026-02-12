@@ -41,6 +41,7 @@ def get_template_statistics_for_service_by_day(service_id):
         return jsonify(
             data=[
                 {
+                    "count": row.count,
                     "billable_units": row.billable_units,
                     "template_id": str(row.template_id),
                     "template_name": row.template_name,

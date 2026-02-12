@@ -1528,11 +1528,13 @@ class TestBillableUnitsInFactNotificationStatusDao:
         delivered_entry = next((r for r in result if r.notification_type == SMS_TYPE and r.status == "delivered"), None)
         assert delivered_entry is not None
         assert delivered_entry.billable_units == 30  # 5 (today) + 15 + 10 (previous days)
+        assert delivered_entry.count == 6  # 1 (today) + 3 + 2 (previous days)
 
         # Find failed entry - should just be today's 2
         failed_entry = next((r for r in result if r.notification_type == SMS_TYPE and r.status == "failed"), None)
         assert failed_entry is not None
         assert failed_entry.billable_units == 2
+        assert failed_entry.count == 1  # just today
 
     @freeze_time("2024-01-15 12:00:00")
     def test_fetch_notification_billable_units_for_service_by_template(self, notify_db_session):
@@ -1556,5 +1558,7 @@ class TestBillableUnitsInFactNotificationStatusDao:
 
         assert template1_entry is not None
         assert template1_entry.billable_units == 10
+        assert template1_entry.count == 1
         assert template2_entry is not None
         assert template2_entry.billable_units == 5
+        assert template2_entry.count == 1

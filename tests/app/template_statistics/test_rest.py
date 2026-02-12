@@ -184,6 +184,7 @@ def test_get_template_statistics_for_service_by_day_with_billable_units_ff(admin
         return_value=[
             Mock(
                 template_id=sample_template.id,
+                count=3,
                 billable_units=5,
                 template_name=sample_template.name,
                 notification_type=sample_template.template_type,
@@ -203,6 +204,7 @@ def test_get_template_statistics_for_service_by_day_with_billable_units_ff(admin
         assert json_resp["data"] == [
             {
                 "template_id": str(sample_template.id),
+                "count": 3,
                 "billable_units": 5,
                 "template_name": sample_template.name,
                 "template_type": sample_template.template_type,

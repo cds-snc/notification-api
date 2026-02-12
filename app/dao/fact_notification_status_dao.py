@@ -391,6 +391,7 @@ def _stats_for_days_facts_with_billable_units(service_id, start_time, by_templat
             FactNotificationStatus.notification_type.label("notification_type"),
             FactNotificationStatus.notification_status.label("status"),
             *([FactNotificationStatus.template_id.label("template_id")] if by_template else []),
+            *([func.sum(FactNotificationStatus.notification_count).label("count")]),
             *([func.sum(FactNotificationStatus.billable_units).label("billable_units")]),
         )
         .filter(
@@ -415,6 +416,7 @@ def _stats_for_today_with_billable_units(service_id, start_time, by_template=Fal
             Notification.notification_type.cast(db.Text),
             Notification.status,
             *([Notification.template_id] if by_template else []),
+            *([func.count().label("count")]),
             *([func.sum(Notification.billable_units).label("billable_units")]),
         )
         .filter(
@@ -555,6 +557,7 @@ def fetch_notification_billable_units_for_service_for_today_and_7_previous_days(
         ),
         all_stats_table.c.notification_type,
         all_stats_table.c.status,
+        func.cast(func.sum(all_stats_table.c.count), Integer).label("count"),
         func.cast(func.sum(all_stats_table.c.billable_units), Integer).label("billable_units"),
     )
 
