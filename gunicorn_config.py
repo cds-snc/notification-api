@@ -4,9 +4,19 @@ import time
 import traceback
 
 import gunicorn  # type: ignore
+from environs import Env
 
 environment = os.environ.get("NOTIFY_ENVIRONMENT")
-enable_newrelic = os.getenv("ENABLE_NEW_RELIC", "False").lower() == "true"
+
+# Ensure these are always defined so other code can rely on them.
+os.environ.setdefault("FF_ENABLE_OTEL", os.getenv("FF_ENABLE_OTEL", "False"))
+os.environ.setdefault("ENABLE_NEW_RELIC", os.getenv("ENABLE_NEW_RELIC", "False"))
+os.environ.setdefault("NEW_RELIC_CONFIG_FILE", os.getenv("NEW_RELIC_CONFIG_FILE", "newrelic.ini"))
+
+env = Env()
+
+ff_enable_otel = env.bool("FF_ENABLE_OTEL", default=False)
+enable_newrelic = env.bool("ENABLE_NEW_RELIC", default=False) and not ff_enable_otel
 
 print("enable_newrelic =", enable_newrelic)
 
@@ -16,7 +26,7 @@ if enable_newrelic:
     newrelic.agent.initialize(environment=environment)  # noqa: E402
 
 workers = int(os.getenv("GUNICORN_WORKERS", "4"))
-worker_class = os.getenv("GUNICORN_WORKER_CLASS", "gevent")
+worker_class = os.getenv("GUNICORN_WORKER_CLASS", "gevent_otel_worker.OTelAwareGeventWorker")
 worker_connections = int(os.getenv("GUNICORN_WORKER_CONNECTIONS", "256"))
 bind = "0.0.0.0:{}".format(os.getenv("PORT"))
 accesslog = "-"

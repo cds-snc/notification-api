@@ -35,6 +35,13 @@ jobs:
           role-session-name: NotifyApiApply
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
+      - name: Login to ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@5a88a04c91d5c6f97aae0d9be790e64d9b1d47b7 # v1.7.1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Build container
         run: |
           set -euo pipefail
@@ -54,19 +61,13 @@ jobs:
           else
             echo "NEW_RELIC_ENABLED=$NEW_RELIC_ENABLED -> using plain ${DOCKERFILE}" >&2
           fi
-          docker build \
+          docker buildx build \
+            --provenance=false \
             --build-arg GIT_SHA=${GITHUB_SHA::7} \
             -t $REGISTRY/${{ matrix.image }}:${GITHUB_SHA::7} \
             -f ${DOCKERFILE} \
+            --output type=image,push=true \
             .
-
-      - name: Login to ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@5a88a04c91d5c6f97aae0d9be790e64d9b1d47b7 # v1.7.1
-
-      - name: Push containers to ECR
-        run: |
-          docker push $REGISTRY/${{ matrix.image }}:${GITHUB_SHA::7}
 
       - name: Logout of Amazon ECR
         run: docker logout ${{ steps.login-ecr.outputs.registry }}
