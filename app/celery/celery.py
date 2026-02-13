@@ -3,7 +3,7 @@ import time
 from environs import Env
 from flask import current_app
 
-from app.celery.error_registry import CeleryErrorCategory, classify_error
+from app.celery.error_registry import classify_error
 from celery import Celery, Task, signals
 from celery.signals import worker_process_shutdown
 
