@@ -11,7 +11,6 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app import create_app
 
-
 load_dotenv()
 
 env = Env()

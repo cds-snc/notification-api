@@ -1,5 +1,3 @@
-import os
-
 from environs import Env
 from gevent import monkey  # type: ignore
 from gunicorn.workers.ggevent import GeventWorker  # type: ignore
