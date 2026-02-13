@@ -54,7 +54,7 @@ RUN apt-get update && \
     xvfb \
     && apt-get autoremove -y \
     && apt-get clean -y \
-    && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/* \
     && apt install -y ruby-full
 
 # Upgrade pip
