@@ -1,9 +1,10 @@
 import time
 
-from celery import Celery, Task, signals
-from celery.signals import worker_process_shutdown
 from environs import Env
 from flask import current_app
+
+from celery import Celery, Task, signals
+from celery.signals import worker_process_shutdown
 
 
 @worker_process_shutdown.connect  # type: ignore
