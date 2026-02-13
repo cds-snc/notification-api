@@ -1,0 +1,7 @@
+// Copy this file to devcontainer.local.json to enable local-only overrides.
+// Customize the source path if your checkout lives elsewhere.
+{
+	"mounts": [
+		"source=${localEnv:HOME}/vs-code-agent-feedback,target=/workspace/mcp-server,type=bind"
+	]
+}

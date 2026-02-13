@@ -1,5 +1,7 @@
 FROM mcr.microsoft.com/vscode/devcontainers/python:3.12-bookworm
 
+RUN rm -f /etc/apt/sources.list.d/yarn.list
+
 ARG KUBENS_VERSION="0.9.4"
 ENV POETRY_VERSION="1.7.1"
 ENV POETRY_VENV_PATH="/home/vscode/.venv/workspace"
@@ -53,6 +55,7 @@ RUN apt-get update && \
     && apt-get autoremove -y \
     && apt-get clean -y \
     && rm -rf /var/lib/apt/lists/*
+    && apt install -y ruby-full
 
 # Upgrade pip
 RUN pip install --upgrade pip
