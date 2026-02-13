@@ -21,7 +21,7 @@ if enable_newrelic:
     newrelic.agent.initialize(environment=environment)  # noqa: E402
 
 workers = int(os.getenv("GUNICORN_WORKERS", "4"))
-worker_class = os.getenv("GUNICORN_WORKER_CLASS", "gevent_otel_worker.OTelAwareGeventWorker")
+worker_class = gevent_otel_worker.OTelAwareGeventWorker
 worker_connections = int(os.getenv("GUNICORN_WORKER_CONNECTIONS", "256"))
 bind = "0.0.0.0:{}".format(os.getenv("PORT"))
 accesslog = "-"
