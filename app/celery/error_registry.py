@@ -10,9 +10,9 @@ from typing import Optional
 
 
 # The categories themselves are defined here, along with the logic to classify
-# exceptions into categories. The actual Celery signal handler that emits the logs
-# is in error_handlers.py to avoid coupling the error classification logic with the
-# Celery app setup.
+# exceptions into categories. The actual logging of these classifications is
+# performed by NotifyTask.on_failure in app/celery/celery.py to avoid coupling the
+# error classification logic with the Celery app setup.
 class CeleryErrorCategory(str, Enum):
     """Categories of Celery errors for log metric differentiation."""
 
@@ -55,7 +55,7 @@ def classify_error(exception: Optional[BaseException] = None) -> CeleryErrorCate
     exception class name contains any key from `_EXCEPTION_CLASS_MAP`,
     or if the exception message contains any key from `_MESSAGE_SUBSTRING_MAP`.
 
-    Returns the most specific CeleryErrorCategory found, or UNKNOWN.
+    Returns the first matching CeleryErrorCategory found, or UNKNOWN.
     """
     if exception is None:
         return CeleryErrorCategory.UNKNOWN
