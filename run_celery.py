@@ -1,15 +1,14 @@
 #!/usr/bin/env python
 import os
 
-from aws_xray_sdk.core import xray_recorder
-from aws_xray_sdk.ext.flask.middleware import XRayMiddleware
 from dotenv import load_dotenv
+from environs import Env
 from flask import Flask
 
-from app.aws.xray.context import NotifyContext
-
 environment = os.environ.get("NOTIFY_ENVIRONMENT")
-enable_newrelic = os.getenv("ENABLE_NEW_RELIC", "False").lower() == "true"
+env = Env()
+ff_enable_otel = env.bool("FF_ENABLE_OTEL", default=False)
+enable_newrelic = env.bool("ENABLE_NEW_RELIC", default=False) and not ff_enable_otel
 
 print("enable_newrelic =", enable_newrelic)
 
@@ -26,7 +25,13 @@ load_dotenv()
 application = Flask("celery")
 create_app(application)
 
-xray_recorder.configure(service="Notify", context=NotifyContext())
-XRayMiddleware(application, xray_recorder)
+if not ff_enable_otel:
+    from aws_xray_sdk.core import xray_recorder
+    from aws_xray_sdk.ext.flask.middleware import XRayMiddleware
+
+    from app.aws.xray.context import NotifyContext
+
+    xray_recorder.configure(service="Notify", context=NotifyContext())
+    XRayMiddleware(application, xray_recorder)
 
 application.app_context().push()
