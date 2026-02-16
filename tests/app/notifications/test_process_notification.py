@@ -1225,6 +1225,7 @@ class TestDBSaveAndSendNotification:
             notification_type="sms",
             api_key_id=sample_api_key.id,
             key_type=sample_api_key.key_type,
+            reference="ref2",
             to="+16502532222",
             created_at=datetime.datetime.utcnow(),
         )
