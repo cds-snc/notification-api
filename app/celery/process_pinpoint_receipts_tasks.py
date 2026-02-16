@@ -144,7 +144,7 @@ def process_pinpoint_results(self, response):
                         notification.service_id, notification.billable_units
                     )
                     current_app.logger.info(
-                        f"Incremented sms_failed billable units in Redis. Service: {service_id} Notification: {notification.id} Current counts: {annual_limit_client.get_all_notification_counts(service_id)}"
+                        f"Incremented sms_delivered billable units in Redis. Service: {service_id} Notification: {notification.id} Current counts: {annual_limit_client.get_all_notification_counts(service_id)}"
                     )
                 else:
                     current_app.logger.info(
