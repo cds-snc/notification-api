@@ -32,9 +32,12 @@ For any issues during the following instructions, make sure to review the
 
 4. In VS Code run "Remote-Containers: Open Folder in Container..." and select this repository folder
 
-5. Find and update the .env file from the root of your workspace. Copy and paste the contents of the ***api .env*** item from the ***CDS Platform - Notify Local*** vault in 1password
+5. *(Optional)* If you already have the vs-code-agent-feedback repository checked out locally and want it mounted inside the container, copy [.devcontainer/devcontainer.local.example.json](.devcontainer/devcontainer.local.example.json) to a new file named devcontainer.local.json inside the same folder, adjust the `source` path if needed, and reopen the devcontainer. The mount will only be applied when that local override file exists.
 
-6. Run the service
+6. Find and update the .env file from the root of your workspace. Copy and paste the contents of the ***api .env*** item from the ***CDS Platform - Notify Local*** vault in 1password
+
+
+7. Run the service
 
 `make run`
 
