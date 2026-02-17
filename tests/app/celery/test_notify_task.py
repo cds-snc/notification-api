@@ -1,6 +1,7 @@
 import pytest
-from app.celery.error_registry import CeleryErrorCategory, classify_error
 from sqlalchemy.exc import IntegrityError, OperationalError
+
+from app.celery.error_registry import CeleryErrorCategory, classify_error
 
 
 class TestClassifyError:
@@ -119,3 +120,44 @@ class TestClassifyError:
         exc = Exception("This message contains 'Throttling' but also 'already exists'")
         assert classify_error(exc) == CeleryErrorCategory.DUPLICATE_RECORD
 
+    def test_prefers_deepest_exception_in_chain(self):
+        """When both root and wrapper exception match, prefer the root (deepest) exception."""
+
+        class ThrottlingException(Exception):
+            """Root cause: throttling"""
+
+            pass
+
+        class JobIncompleteError(Exception):
+            """Wrapper: job incomplete"""
+
+            pass
+
+        # Create chain: wrapper exception with root cause as __cause__
+        root = ThrottlingException("Rate Exceeded")
+        wrapper = JobIncompleteError("Job interrupted by deploy")
+        wrapper.__cause__ = root
+
+        # Should classify as THROTTLING (root), not JOB_INCOMPLETE (wrapper)
+        assert classify_error(wrapper) == CeleryErrorCategory.THROTTLING
+
+    def test_deepest_match_wins_with_context_chain(self):
+        """When using __context__, still prefer the deepest matching exception."""
+
+        class TimeoutException(Exception):
+            """Root cause: timeout"""
+
+            pass
+
+        class NotifyException(Exception):
+            """Wrapper: generic notify error"""
+
+            pass
+
+        # Create chain via __context__
+        root = TimeoutException("timeout-sending-notifications reached")
+        wrapper = NotifyException("An error occurred during notification processing")
+        wrapper.__context__ = root
+
+        # Should classify as TIMEOUT (root), not UNKNOWN (wrapper)
+        assert classify_error(wrapper) == CeleryErrorCategory.TIMEOUT

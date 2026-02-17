@@ -72,18 +72,29 @@ def classify_error(exception: Optional[BaseException] = None) -> CeleryErrorCate
     """
     Walk the exception chain and classify the root cause.
 
-    The matching CeleryErrorCategory is determined by checking if the
-    exception class name contains any key from `_EXCEPTION_CLASS_MAP`,
-    or if the exception message contains any key from `_MESSAGE_SUBSTRING_MAP`.
+    Traverses the full exception chain (following __cause__ and __context__)
+    to find the deepest/root exception, then classifies it by checking:
+    1. Exception class name against `_EXCEPTION_CLASS_MAP`
+    2. Exception message against `_MESSAGE_SUBSTRING_MAP`
 
-    Returns the first matching CeleryErrorCategory found, or UNKNOWN.
+    Returns the category of the deepest/root exception that matches,
+    or UNKNOWN if no match is found.
     """
     if exception is None:
         return CeleryErrorCategory.UNKNOWN
 
-    # Walk the full chain: exception -> __cause__ -> __context__
+    # Build the full exception chain from outer to root
+    exception_chain: list[BaseException] = []
     exc: Optional[BaseException] = exception
     while exc is not None:
+        exception_chain.append(exc)
+        exc = exc.__cause__ or exc.__context__
+
+    # Reverse to start from the deepest/root exception
+    exception_chain.reverse()
+
+    # Check each exception in the chain, starting from the root
+    for exc in exception_chain:
         exc_class_name = type(exc).__name__
         exc_message = str(exc)
 
@@ -96,8 +107,5 @@ def classify_error(exception: Optional[BaseException] = None) -> CeleryErrorCate
         for pattern, category in _MESSAGE_SUBSTRING_MAP.items():
             if pattern in exc_message:
                 return category
-
-        # Traverse the chain
-        exc = exc.__cause__ or exc.__context__
 
     return CeleryErrorCategory.UNKNOWN
