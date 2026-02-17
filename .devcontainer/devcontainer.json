@@ -23,32 +23,25 @@
 				}
 			},
 			"extensions": [
-				"tamasfe.even-better-toml",
 				"charliermarsh.ruff",
-				"donjayamanne.python-extension-pack",
-				"-ms-python.autopep8",
 				"eamodio.gitlens",
 				"fill-labs.dependi",
 				"GitHub.copilot",
 				"github.copilot-chat",
 				"github.vscode-pull-request-github",
-				"googlecloudtools.cloudcode",
 				"kaiwood.center-editor-window",
 				"matangover.mypy",
 				"ms-azuretools.vscode-docker",
-				"ms-ossdata.vscode-postgresql",
 				"ms-python.python",
 				"ms-python.vscode-pylance",
 				"ms-vsliveshare.vsliveshare",
-				"mtxr.sqltools",
-				"mtxr.sqltools-driver-pg",
+				"njpwerner.autodocstring",
+				"tamasfe.even-better-toml",
 				"timonwong.shellcheck",
 				"usernamehw.errorlens",
-				"visualstudioexptteam.vscodeintellicode",
 				"wenfangdu.jump",
 				"wholroyd.jinja",
-				"yzhang.markdown-all-in-one",
-				"charliermarsh.ruff"
+				"yzhang.markdown-all-in-one"
 			]
 		}
 	},
