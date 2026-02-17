@@ -42,7 +42,8 @@ class CeleryErrorCategory(str, Enum):
 
 
 # Map exception class names (or substrings in the message) to categories.
-# Order matters: first match wins.
+# Note: Order within the map does not matter; the deepest/root exception in the
+# chain takes precedence over wrapper exceptions.
 _EXCEPTION_CLASS_MAP: dict[str, CeleryErrorCategory] = {
     "UniqueViolation": CeleryErrorCategory.DUPLICATE_RECORD,
     "JobIncompleteError": CeleryErrorCategory.JOB_INCOMPLETE,
