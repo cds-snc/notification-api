@@ -11,8 +11,6 @@ RUN apt-get update && \
     apt-get -y install --no-install-recommends \
     apt-utils \
     postgresql-client \
-    2>&1 && \
-    apt-get -y install \
     curl \
     dbus-x11 \
     dnsutils \
@@ -41,6 +39,7 @@ RUN apt-get update && \
     tldr \
     unzip \
     vim \
+    ruby-full \
     libgtk2.0-0 \
     libgtk-3-0 \
     libgbm-dev \
@@ -54,8 +53,7 @@ RUN apt-get update && \
     xvfb \
     && apt-get autoremove -y \
     && apt-get clean -y \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt install -y ruby-full
+    && rm -rf /var/lib/apt/lists/*
 
 # Upgrade pip
 RUN pip install --upgrade pip
