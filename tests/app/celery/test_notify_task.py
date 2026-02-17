@@ -1,5 +1,5 @@
 import pytest
-from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlalchemy.exc import IntegrityError
 
 from app.celery.error_registry import CeleryErrorCategory, classify_error
 
