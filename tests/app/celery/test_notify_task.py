@@ -160,3 +160,38 @@ class TestClassifyError:
 
         # Should classify as TIMEOUT (root), not UNKNOWN (wrapper)
         assert classify_error(wrapper) == CeleryErrorCategory.TIMEOUT
+
+    def test_circular_exception_chain_does_not_infinite_loop(self):
+        """Circular exception chains are detected and handled without infinite loops."""
+
+        class ThrottlingException(Exception):
+            """Throttling exception that points to itself"""
+
+            pass
+
+        # Create a circular chain: exc -> exc.__cause__ -> exc (cycle)
+        exc = ThrottlingException("Rate Exceeded")
+        exc.__cause__ = exc  # Creates a cycle
+
+        # Should classify correctly and not infinite loop
+        assert classify_error(exc) == CeleryErrorCategory.THROTTLING
+
+    def test_circular_exception_chain_multiple_exceptions(self):
+        """Complex circular chain A -> B -> A is detected and handled."""
+
+        class ThrottlingException(Exception):
+            pass
+
+        class TimeoutException(Exception):
+            pass
+
+        # Create A -> B -> A cycle
+        exc_a = ThrottlingException("Rate Exceeded")
+        exc_b = TimeoutException("timeout-sending-notifications")
+        exc_a.__cause__ = exc_b
+        exc_b.__cause__ = exc_a  # Cycle created
+
+        # Should classify as THROTTLING (encountered first in the chain)
+        # The set-based detection prevents infinite loop
+        result = classify_error(exception=exc_a)
+        assert result == CeleryErrorCategory.TIMEOUT

@@ -84,10 +84,17 @@ def classify_error(exception: Optional[BaseException] = None) -> CeleryErrorCate
     if exception is None:
         return CeleryErrorCategory.UNKNOWN
 
-    # Build the full exception chain from outer to root
+    # Build the full exception chain from outer to root, detecting cycles
     exception_chain: list[BaseException] = []
+    seen_exception_ids: set[int] = set()
     exc: Optional[BaseException] = exception
+
     while exc is not None:
+        exc_id = id(exc)
+        if exc_id in seen_exception_ids:
+            # Break if we detect a cycle (prevents infinite loops)
+            break
+        seen_exception_ids.add(exc_id)
         exception_chain.append(exc)
         exc = exc.__cause__ or exc.__context__
 
