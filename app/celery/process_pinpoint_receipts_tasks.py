@@ -44,7 +44,6 @@ from celery.exceptions import Retry
 #     }
 
 
-# TODO FF_ANNUAL_LIMIT removal: Temporarily ignore complexity
 # flake8: noqa: C901
 @notify_celery.task(bind=True, name="process-pinpoint-result", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
@@ -119,28 +118,38 @@ def process_pinpoint_results(self, response):
                     f"Provider response: {provider_response}"
                 )
             )
-            # TODO FF_ANNUAL_LIMIT removal
-            if current_app.config["FF_ANNUAL_LIMIT"]:
-                # Only increment if we didn't just seed.
-                if not did_we_seed:
-                    annual_limit_client.increment_sms_failed(service_id)
-                current_app.logger.info(
-                    f"Incremented sms_delivered count in Redis. Service: {service_id} Notification: {notification.id} Current counts: {annual_limit_client.get_all_notification_counts(service_id)}"
-                )
+            # Only increment if we didn't just seed.
+            if not did_we_seed:
+                annual_limit_client.increment_sms_failed(service_id)
+                # TODO: Remove FF_USE_BILLABLE_UNITS
+                if current_app.config.get("FF_USE_BILLABLE_UNITS"):
+                    annual_limit_client.increment_sms_billable_units_failed(notification.service_id, notification.billable_units)
+                    current_app.logger.info(
+                        f"Incremented sms_failed billable units in Redis. Service: {service_id} Notification: {notification.id} Current counts: {annual_limit_client.get_all_notification_counts(service_id)}"
+                    )
+                else:
+                    current_app.logger.info(
+                        f"Incremented sms_failed count in Redis. Service: {service_id} Notification: {notification.id} Current counts: {annual_limit_client.get_all_notification_counts(service_id)}"
+                    )
         else:
             current_app.logger.info(
                 f"Pinpoint callback return status of {notification_status} for notification: {notification.id}"
             )
 
-            # TODO FF_ANNUAL_LIMIT removal
-            if current_app.config["FF_ANNUAL_LIMIT"]:
-                # Only increment if we didn't just seed.
-                if not did_we_seed:
-                    annual_limit_client.increment_sms_delivered(service_id)
-                current_app.logger.info(
-                    f"Incremented sms_delivered count in Redis. Service: {service_id} Notification: {notification.id} Current counts: {annual_limit_client.get_all_notification_counts(service_id)}"
-                )
-
+            # Only increment if we didn't just seed.
+            if not did_we_seed:
+                annual_limit_client.increment_sms_delivered(service_id)
+                if current_app.config.get("FF_USE_BILLABLE_UNITS"):
+                    annual_limit_client.increment_sms_billable_units_delivered(
+                        notification.service_id, notification.billable_units
+                    )
+                    current_app.logger.info(
+                        f"Incremented sms_delivered billable units in Redis. Service: {service_id} Notification: {notification.id} Current counts: {annual_limit_client.get_all_notification_counts(service_id)}"
+                    )
+                else:
+                    current_app.logger.info(
+                        f"Incremented sms_delivered count in Redis. Service: {service_id} Notification: {notification.id} Current counts: {annual_limit_client.get_all_notification_counts(service_id)}"
+                    )
         statsd_client.incr(f"callback.pinpoint.{notification_status}")
 
         if notification.sent_at:

@@ -78,6 +78,7 @@ def test_get_user(admin_request, sample_service, sample_organisation):
     assert fetched["permissions"].keys() == {str(sample_service.id)}
     assert fetched["services"] == [str(sample_service.id)]
     assert fetched["organisations"] == [str(sample_organisation.id)]
+    assert fetched["default_editor_is_rte"] is False
     assert sorted(fetched["permissions"][str(sample_service.id)]) == sorted(expected_permissions)
 
 
@@ -290,6 +291,27 @@ def test_post_user_attribute(client, mocker, sample_user, user_attribute, user_v
     assert json_resp["data"][user_attribute] == user_value
 
     mocked_salesforce_client.contact_update.assert_called_once_with(sample_user)
+
+
+def test_post_user_attribute_send_no_notification_when_default_editor_preference_changed(
+    client,
+    mocker,
+    sample_user,
+):
+    update_dict = {"default_editor_is_rte": True}
+    auth_header = create_authorization_header()
+    headers = [("Content-Type", "application/json"), auth_header]
+
+    mock_persist_notification = mocker.patch("app.user.rest.persist_notification")
+    mocker.patch("app.user.rest.send_notification_to_queue")
+    mocker.patch("app.user.rest.salesforce_client")
+
+    client.post(
+        url_for("user.update_user_attribute", user_id=sample_user.id),
+        data=json.dumps(update_dict),
+        headers=headers,
+    )
+    mock_persist_notification.assert_not_called()
 
 
 @pytest.mark.parametrize(

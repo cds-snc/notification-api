@@ -8,9 +8,12 @@ from notifications_utils.timezones import convert_utc_to_local_timezone
 
 from app.dao.fact_notification_status_dao import (
     _timing_notification_table,
+    fetch_billable_units_for_service_for_day,
+    fetch_billable_units_totals_for_service_by_fiscal_year,
     fetch_delivered_notification_stats_by_month,
     fetch_monthly_notification_statuses_per_service,
     fetch_monthly_template_usage_for_service,
+    fetch_notification_billable_units_for_service_for_today_and_7_previous_days,
     fetch_notification_stats_for_trial_services,
     fetch_notification_status_for_day,
     fetch_notification_status_for_service_by_month,
@@ -44,10 +47,12 @@ from app.models import (
     SMS_TYPE,
     FactNotificationStatus,
 )
+from app.utils import get_fiscal_year
 from tests.app.db import (
     create_api_key,
     create_ft_notification_status,
     create_job,
+    create_monthly_notification_stats_summary,
     create_notification,
     create_notification_history,
     create_service,
@@ -813,138 +818,142 @@ def test_fetch_monthly_template_usage_for_service(sample_service):
     assert results[3].count == 6
 
 
-@freeze_time("2020-11-02 14:00")
-def test_fetch_delivered_notification_stats_by_month(sample_service):
-    sms_template = create_template(service=sample_service, template_type="sms", template_name="a")
-    email_template = create_template(service=sample_service, template_type="email", template_name="b")
+class TestFetchDeliveredNotificationStatsbyMonth:
+    @freeze_time("2020-11-02 14:00")
+    def test_fetch_delivered_notification_stats_by_month(self, sample_service):
+        # Not counted: before GC Notify started (2019-10)
+        create_monthly_notification_stats_summary(
+            month="2019-10-01",
+            service=sample_service,
+            notification_type="email",
+            count=3,
+        )
 
-    # Not counted: before GC Notify started
-    create_ft_notification_status(
-        utc_date=date(2019, 10, 10),
-        service=sample_service,
-        template=email_template,
-        count=3,
-    )
+        # December 2019 - email
+        create_monthly_notification_stats_summary(
+            month="2019-12-01",
+            service=sample_service,
+            notification_type="email",
+            count=3,
+        )
 
-    create_ft_notification_status(
-        utc_date=date(2019, 12, 10),
-        service=sample_service,
-        template=email_template,
-        count=3,
-    )
+        # December 2019 - sms
+        create_monthly_notification_stats_summary(
+            month="2019-12-01",
+            service=sample_service,
+            notification_type="sms",
+            count=6,
+        )
 
-    create_ft_notification_status(
-        utc_date=date(2019, 12, 5),
-        service=sample_service,
-        template=sms_template,
-        notification_status=NOTIFICATION_DELIVERED,
-        count=6,
-    )
+        # January 2020 - sms
+        create_monthly_notification_stats_summary(
+            month="2020-01-01",
+            service=sample_service,
+            notification_type="sms",
+            count=4,
+        )
 
-    create_ft_notification_status(
-        utc_date=date(2020, 1, 1),
-        service=sample_service,
-        template=sms_template,
-        notification_status=NOTIFICATION_SENT,
-        count=4,
-    )
+        # March 2020 - email
+        create_monthly_notification_stats_summary(
+            month="2020-03-01",
+            service=sample_service,
+            notification_type="email",
+            count=5,
+        )
 
-    # Not counted: failed notifications
-    create_ft_notification_status(
-        utc_date=date(2020, 1, 1),
-        service=sample_service,
-        template=sms_template,
-        notification_status=NOTIFICATION_FAILED,
-        count=10,
-    )
+        # April 2020 - email
+        create_monthly_notification_stats_summary(
+            month="2020-04-01",
+            service=sample_service,
+            notification_type="email",
+            count=5,
+        )
 
-    create_ft_notification_status(
-        utc_date=date(2020, 3, 1),
-        service=sample_service,
-        template=email_template,
-        count=5,
-    )
+        # April 2020 - email
+        sample_service_2 = create_service(service_name="yolo")
+        create_monthly_notification_stats_summary(
+            month="2020-04-01",
+            service=sample_service_2,
+            notification_type="email",
+            count=5,
+        )
 
-    results = fetch_delivered_notification_stats_by_month()
+        results = fetch_delivered_notification_stats_by_month()
 
-    assert len(results) == 4
+        assert len(results) == 5
 
-    assert results[0].keys() == ["month", "notification_type", "count"]
-    assert results[0].month.startswith("2020-03-01")
-    assert results[0].notification_type == "email"
-    assert results[0].count == 5
+        assert results[0].keys() == ["month", "notification_type", "count"]
 
-    assert results[1].month.startswith("2020-01-01")
-    assert results[1].notification_type == "sms"
-    assert results[1].count == 4
+        assert results[0].month.startswith("2020-04-01")
+        assert results[0].notification_type == "email"
+        assert results[0].count == 10
 
-    assert results[2].month.startswith("2019-12-01")
-    assert results[2].notification_type == "email"
-    assert results[2].count == 3
+        assert results[1].month.startswith("2020-03-01")
+        assert results[1].notification_type == "email"
+        assert results[1].count == 5
 
-    assert results[3].month.startswith("2019-12-01")
-    assert results[3].notification_type == "sms"
-    assert results[3].count == 6
+        assert results[2].month.startswith("2020-01-01")
+        assert results[2].notification_type == "sms"
+        assert results[2].count == 4
 
+        assert results[3].month.startswith("2019-12-01")
+        assert results[3].notification_type == "email"
+        assert results[3].count == 3
 
-@freeze_time("2020-11-02 14:00")
-def test_fetch_delivered_notification_stats_by_month_filter_heartbeats(notify_api, sample_service):
-    sms_template = create_template(service=sample_service, template_type="sms", template_name="a")
-    email_template = create_template(service=sample_service, template_type="email", template_name="b")
+        assert results[4].month.startswith("2019-12-01")
+        assert results[4].notification_type == "sms"
+        assert results[4].count == 6
 
-    # Not counted: before GC Notify started
-    create_ft_notification_status(
-        utc_date=date(2019, 10, 10),
-        service=sample_service,
-        template=email_template,
-        count=3,
-    )
+    @freeze_time("2020-11-02 14:00")
+    def test_fetch_delivered_notification_stats_by_month_filter_heartbeats(self, notify_api, sample_service):
+        # Not counted: before GC Notify started (2019-10)
+        create_monthly_notification_stats_summary(
+            month="2019-10-01",
+            service=sample_service,
+            notification_type="email",
+            count=3,
+        )
 
-    create_ft_notification_status(
-        utc_date=date(2019, 12, 10),
-        service=sample_service,
-        template=email_template,
-        count=3,
-    )
+        # December 2019 - email
+        create_monthly_notification_stats_summary(
+            month="2019-12-01",
+            service=sample_service,
+            notification_type="email",
+            count=3,
+        )
 
-    create_ft_notification_status(
-        utc_date=date(2019, 12, 5),
-        service=sample_service,
-        template=sms_template,
-        notification_status=NOTIFICATION_DELIVERED,
-        count=6,
-    )
+        # December 2019 - sms
+        create_monthly_notification_stats_summary(
+            month="2019-12-01",
+            service=sample_service,
+            notification_type="sms",
+            count=6,
+        )
 
-    create_ft_notification_status(
-        utc_date=date(2020, 1, 1),
-        service=sample_service,
-        template=sms_template,
-        notification_status=NOTIFICATION_SENT,
-        count=4,
-    )
+        # January 2020 - sms
+        create_monthly_notification_stats_summary(
+            month="2020-01-01",
+            service=sample_service,
+            notification_type="sms",
+            count=4,
+        )
 
-    # Not counted: failed notifications
-    create_ft_notification_status(
-        utc_date=date(2020, 1, 1),
-        service=sample_service,
-        template=sms_template,
-        notification_status=NOTIFICATION_FAILED,
-        count=10,
-    )
+        # March 2020 - email
+        create_monthly_notification_stats_summary(
+            month="2020-03-01",
+            service=sample_service,
+            notification_type="email",
+            count=5,
+        )
 
-    create_ft_notification_status(
-        utc_date=date(2020, 3, 1),
-        service=sample_service,
-        template=email_template,
-        count=5,
-    )
-    with set_config(notify_api, "NOTIFY_SERVICE_ID", email_template.service_id):
-        results = fetch_delivered_notification_stats_by_month(filter_heartbeats=True)
-        assert len(results) == 0
+        # When filtering heartbeats and sample_service is configured as NOTIFY_SERVICE_ID,
+        # all its records should be filtered out
+        with set_config(notify_api, "NOTIFY_SERVICE_ID", sample_service.id):
+            results = fetch_delivered_notification_stats_by_month(filter_heartbeats=True)
+            assert len(results) == 0
 
-
-def test_fetch_delivered_notification_stats_by_month_empty():
-    assert fetch_delivered_notification_stats_by_month() == []
+    def test_fetch_delivered_notification_stats_by_month_empty(self):
+        assert fetch_delivered_notification_stats_by_month() == []
 
 
 def test_fetch_notification_stats_for_trial_services(sample_service):
@@ -1432,3 +1441,124 @@ class TestFetchQuarterData:
         assert set(fetch_quarter_data(date(2018, 4, 1), date(2018, 6, 30), service_ids=[service_1.id, service_2.id])) == set(
             [(service_1.id, "sms", 10)]
         )
+
+
+# TODO: Remove feature flag checks after FF_USE_BILLABLE_UNITS go live
+class TestBillableUnitsInFactNotificationStatusDao:
+    """Tests for billable_units functionality in fact_notification_status_dao"""
+
+    @freeze_time("2024-01-15 12:00:00")
+    def test_fetch_billable_units_for_service_for_day(self, notify_db_session):
+        """Test fetch_billable_units_for_service_for_day returns correct data"""
+
+        service = create_service(service_name="test service")
+        template = create_template(service=service, template_type=SMS_TYPE)
+
+        # Create notifications with billable_units
+        save_notification(create_notification(template, status="delivered", billable_units=2))
+        save_notification(create_notification(template, status="delivered", billable_units=3))
+        save_notification(create_notification(template, status="failed", billable_units=1))
+
+        # Create notification for yesterday (should not be included)
+        yesterday = datetime.utcnow() - timedelta(days=1)
+        save_notification(create_notification(template, status="delivered", billable_units=10, created_at=yesterday))
+
+        result = fetch_billable_units_for_service_for_day(datetime(2024, 1, 15), service.id)
+
+        # Result should be list of tuples: (month, notification_type, status, aggregated_billable_units)
+        # The function groups by type and status, summing billable_units
+        assert len(result) == 2  # delivered and failed statuses
+
+        result_dict = {(row.notification_type, row.notification_status): row.count for row in result}
+        assert result_dict[(SMS_TYPE, "delivered")] == 5  # 2 + 3
+        assert result_dict[(SMS_TYPE, "failed")] == 1
+
+    @freeze_time("2024-01-15 12:00:00")
+    def test_fetch_billable_units_totals_for_service_by_fiscal_year(self, notify_db_session):
+        """Test fetch_billable_units_totals_for_service_by_fiscal_year aggregates correctly"""
+
+        service = create_service(service_name="test service")
+        current_fiscal_year = get_fiscal_year(date(2024, 1, 15))
+
+        # Create fact table entries with billable_units
+        create_ft_notification_status(date(2023, 4, 10), SMS_TYPE, service, count=5, billable_units=20)
+        create_ft_notification_status(date(2023, 5, 15), SMS_TYPE, service, count=3, billable_units=15)
+        create_ft_notification_status(date(2024, 1, 10), SMS_TYPE, service, count=2, billable_units=10)
+
+        # Create entry for previous fiscal year (should not be counted)
+        create_ft_notification_status(date(2022, 3, 31), SMS_TYPE, service, count=10, billable_units=100)
+
+        result = fetch_billable_units_totals_for_service_by_fiscal_year(service.id, current_fiscal_year, SMS_TYPE)
+
+        assert result == 45  # 20 + 15 + 10
+
+    @freeze_time("2024-01-15 12:00:00")
+    def test_fetch_billable_units_totals_for_service_by_fiscal_year_with_no_data(self, notify_db_session):
+        """Test function returns 0 when no data exists"""
+
+        service = create_service(service_name="test service")
+        current_fiscal_year = get_fiscal_year(date(2024, 1, 15))
+
+        result = fetch_billable_units_totals_for_service_by_fiscal_year(service.id, current_fiscal_year, SMS_TYPE)
+
+        assert result == 0
+
+    @freeze_time("2024-01-15 12:00:00")
+    def test_fetch_notification_billable_units_for_service_for_today_and_7_previous_days(self, notify_db_session):
+        """Test fetch_notification_billable_units_for_service_for_today_and_7_previous_days"""
+
+        service = create_service(service_name="test service")
+        template = create_template(service=service, template_type=SMS_TYPE)
+
+        # Create notifications for today
+        save_notification(create_notification(template, status="delivered", billable_units=5))
+        save_notification(create_notification(template, status="failed", billable_units=2))
+
+        # Create fact table entries for previous days
+        create_ft_notification_status(date(2024, 1, 14), SMS_TYPE, service, count=3, billable_units=15)
+        create_ft_notification_status(date(2024, 1, 13), SMS_TYPE, service, count=2, billable_units=10)
+
+        result = fetch_notification_billable_units_for_service_for_today_and_7_previous_days(service.id)
+
+        # Function aggregates by notification_type and status across all days
+        # It does NOT group by day - it sums all billable_units
+        assert len(result) == 2  # delivered and failed statuses
+
+        # Find delivered entry - should sum today's 5 + previous days' 15 + 10 = 30
+        delivered_entry = next((r for r in result if r.notification_type == SMS_TYPE and r.status == "delivered"), None)
+        assert delivered_entry is not None
+        assert delivered_entry.billable_units == 30  # 5 (today) + 15 + 10 (previous days)
+        assert delivered_entry.count == 6  # 1 (today) + 3 + 2 (previous days)
+
+        # Find failed entry - should just be today's 2
+        failed_entry = next((r for r in result if r.notification_type == SMS_TYPE and r.status == "failed"), None)
+        assert failed_entry is not None
+        assert failed_entry.billable_units == 2
+        assert failed_entry.count == 1  # just today
+
+    @freeze_time("2024-01-15 12:00:00")
+    def test_fetch_notification_billable_units_for_service_by_template(self, notify_db_session):
+        """Test function groups by template when by_template=True"""
+
+        service = create_service(service_name="test service")
+        template1 = create_template(service=service, template_type=SMS_TYPE, template_name="template 1")
+        template2 = create_template(service=service, template_type=SMS_TYPE, template_name="template 2")
+
+        # Create notifications for different templates
+        save_notification(create_notification(template1, status="delivered", billable_units=10))
+        save_notification(create_notification(template2, status="delivered", billable_units=5))
+
+        result = fetch_notification_billable_units_for_service_for_today_and_7_previous_days(service.id, by_template=True)
+
+        # Should have separate entries for each template
+        assert len(result) == 2
+
+        template1_entry = next((r for r in result if r.template_id == template1.id), None)
+        template2_entry = next((r for r in result if r.template_id == template2.id), None)
+
+        assert template1_entry is not None
+        assert template1_entry.billable_units == 10
+        assert template1_entry.count == 1
+        assert template2_entry is not None
+        assert template2_entry.billable_units == 5
+        assert template2_entry.count == 1

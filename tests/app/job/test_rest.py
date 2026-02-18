@@ -5,6 +5,11 @@ from datetime import date, datetime, timedelta
 import pytest
 import pytz
 from freezegun import freeze_time
+from notifications_utils.clients.redis.annual_limit import (
+    TOTAL_EMAIL_FISCAL_YEAR_TO_YESTERDAY,
+    TOTAL_SMS_BILLABLE_UNITS_FISCAL_YEAR_TO_YESTERDAY,
+    TOTAL_SMS_FISCAL_YEAR_TO_YESTERDAY,
+)
 
 import app.celery.tasks
 from app.dao.templates_dao import dao_update_template
@@ -26,6 +31,18 @@ from tests.app.db import (
     save_notification,
 )
 from tests.conftest import set_config
+
+
+@pytest.fixture(autouse=True)
+def mock_job_rest_annual_limits(mocker):
+    """Ensure annual limit lookups don't hit Redis during job REST tests."""
+    mock_data = {
+        TOTAL_SMS_FISCAL_YEAR_TO_YESTERDAY: 0,
+        TOTAL_EMAIL_FISCAL_YEAR_TO_YESTERDAY: 0,
+        TOTAL_SMS_BILLABLE_UNITS_FISCAL_YEAR_TO_YESTERDAY: 0,
+    }
+    mocker.patch("app.notifications.validators.get_annual_limit_notifications_v2", return_value=mock_data)
+    mocker.patch("app.job.rest.get_annual_limit_notifications_v2", return_value=mock_data)
 
 
 def test_get_job_with_invalid_service_id_returns404(client, sample_service):
@@ -155,6 +172,13 @@ def test_create_unscheduled_email_job_increments_daily_count(client, mocker, sam
         "id": fake_uuid,
         "created_by": str(sample_email_job.created_by.id),
     }
+    mocker.patch(
+        "app.notifications.validators.get_annual_limit_notifications_v2",
+        return_value={
+            "total_email_fiscal_year_to_yesterday": 0,
+            "total_sms_fiscal_year_to_yesterday": 0,
+        },
+    )
     path = "/service/{}/job".format(sample_email_job.service_id)
     auth_header = create_authorization_header()
     headers = [("Content-Type", "application/json"), auth_header]
@@ -187,6 +211,14 @@ def test_create_future_not_same_day_scheduled_email_job_does_not_increment_daily
         return_value="email address\r\nsome@email.com",
     )
     mocker.patch("app.dao.services_dao.dao_fetch_service_by_id", return_value=sample_email_job.service)
+    mocker.patch(
+        "app.notifications.validators.get_annual_limit_notifications_v2",
+        return_value={
+            "total_email_fiscal_year_to_yesterday": 0,
+            "total_sms_fiscal_year_to_yesterday": 0,
+        },
+    )
+
     data = {"id": fake_uuid, "created_by": str(sample_email_job.created_by.id), "scheduled_for": scheduled_date}
     path = "/service/{}/job".format(sample_email_job.service_id)
     auth_header = create_authorization_header()
@@ -213,6 +245,13 @@ def test_create_unscheduled_job(client, sample_template, mocker, fake_uuid):
     mocker.patch(
         "app.job.rest.get_job_from_s3",
         return_value="phone number\r\n6502532222",
+    )
+    mocker.patch(
+        "app.notifications.validators.get_annual_limit_notifications_v2",
+        return_value={
+            "total_email_fiscal_year_to_yesterday": 0,
+            "total_sms_fiscal_year_to_yesterday": 0,
+        },
     )
     data = {
         "id": fake_uuid,
@@ -255,6 +294,13 @@ def test_create_unscheduled_job_with_sender_id_in_metadata(client, sample_templa
         "app.job.rest.get_job_from_s3",
         return_value="phone number\r\n6502532222",
     )
+    mocker.patch(
+        "app.notifications.validators.get_annual_limit_notifications_v2",
+        return_value={
+            "total_email_fiscal_year_to_yesterday": 0,
+            "total_sms_fiscal_year_to_yesterday": 0,
+        },
+    )
     data = {
         "id": fake_uuid,
         "created_by": str(sample_template.created_by.id),
@@ -290,6 +336,13 @@ def test_create_job_sets_sender_id_from_database(client, mocker, fake_uuid, samp
     mocker.patch(
         "app.job.rest.get_job_from_s3",
         return_value="phone number\r\n6502532222",
+    )
+    mocker.patch(
+        "app.notifications.validators.get_annual_limit_notifications_v2",
+        return_value={
+            "total_email_fiscal_year_to_yesterday": 0,
+            "total_sms_fiscal_year_to_yesterday": 0,
+        },
     )
     data = {
         "id": fake_uuid,
@@ -443,6 +496,12 @@ def test_should_not_create_scheduled_job_too_far_in_the_future(client, sample_te
         "app.job.rest.get_job_from_s3",
         return_value="phone number\r\n6502532222",
     )
+    mocker.patch(
+        "app.job.rest.get_annual_limit_notifications_v2",
+        return_value={
+            "total_sms_fiscal_year_to_yesterday": 0,
+        },
+    )
     data = {
         "id": fake_uuid,
         "created_by": str(sample_template.created_by.id),
@@ -479,6 +538,12 @@ def test_should_not_create_scheduled_job_in_the_past(client, sample_template, mo
     mocker.patch(
         "app.job.rest.get_job_from_s3",
         return_value="phone number\r\n6502532222",
+    )
+    mocker.patch(
+        "app.job.rest.get_annual_limit_notifications_v2",
+        return_value={
+            "total_sms_fiscal_year_to_yesterday": 0,
+        },
     )
     data = {
         "id": fake_uuid,
@@ -533,6 +598,12 @@ def test_create_job_returns_400_if_missing_data(client, sample_template, mocker,
     mocker.patch(
         "app.job.rest.get_job_from_s3",
         return_value="phone number\r\n6502532222",
+    )
+    mocker.patch(
+        "app.job.rest.get_annual_limit_notifications_v2",
+        return_value={
+            "total_sms_fiscal_year_to_yesterday": 0,
+        },
     )
     data = {
         "id": fake_uuid,

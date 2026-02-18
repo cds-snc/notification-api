@@ -67,7 +67,7 @@ def test_process_pinpoint_results_delivered(
     assert updated_notification.sms_carrier_name == "Bell"
     assert updated_notification.sms_message_encoding == "GSM"
     assert updated_notification.sms_origination_phone_number == origination_phone_number
-    mock_info_logger.assert_called_with(f"Pinpoint callback return status of delivered for notification: {notification.id}")
+    mock_info_logger.assert_any_call(f"Pinpoint callback return status of delivered for notification: {notification.id}")
 
 
 def test_process_pinpoint_results_succeeded(sample_template, notify_db, notify_db_session, mocker):
@@ -180,7 +180,7 @@ def test_process_pinpoint_results_failed(
     else:
         assert updated_notification.provider_response is None
 
-    mock_logger.assert_called_with(
+    mock_logger.assert_any_call(
         (
             f"Pinpoint delivery failed: notification id {notification.id} and reference ref has error found. "
             f"Provider response: {provider_response}"
@@ -324,11 +324,9 @@ class TestAnnualLimits:
                 sent_by="pinpoint",
             )
         )
-        # TODO FF_ANNUAL_LIMIT removal
-        with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
-            process_pinpoint_results(pinpoint_failed_callback(reference="ref", provider_response=provider_response))
-            annual_limit_client.increment_sms_failed.assert_called_once_with(notification.service_id)
-            annual_limit_client.increment_sms_delivered.assert_not_called()
+        process_pinpoint_results(pinpoint_failed_callback(reference="ref", provider_response=provider_response))
+        annual_limit_client.increment_sms_failed.assert_called_once_with(notification.service_id)
+        annual_limit_client.increment_sms_delivered.assert_not_called()
 
     @pytest.mark.parametrize(
         "callback",
@@ -357,11 +355,9 @@ class TestAnnualLimits:
                 sent_by="pinpoint",
             )
         )
-        # TODO FF_ANNUAL_LIMIT removal
-        with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
-            process_pinpoint_results(callback(reference="ref"))
-            annual_limit_client.increment_sms_delivered.assert_called_once_with(notification.service_id)
-            annual_limit_client.increment_sms_failed.assert_not_called()
+        process_pinpoint_results(callback(reference="ref"))
+        annual_limit_client.increment_sms_delivered.assert_called_once_with(notification.service_id)
+        annual_limit_client.increment_sms_failed.assert_not_called()
 
     @pytest.mark.parametrize(
         "callback, provider_response, data",

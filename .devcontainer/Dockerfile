@@ -1,16 +1,16 @@
 FROM mcr.microsoft.com/vscode/devcontainers/python:3.12-bookworm
 
+RUN rm -f /etc/apt/sources.list.d/yarn.list
+
 ARG KUBENS_VERSION="0.9.4"
 ENV POETRY_VERSION="1.7.1"
 ENV POETRY_VENV_PATH="/home/vscode/.venv/workspace"
 
 # Install packages
-RUN apt-get update \
-    && apt-get -y install --no-install-recommends \
+RUN apt-get update && \
+    apt-get -y install --no-install-recommends \
     apt-utils \
     postgresql-client \
-    2>&1 \
-    && apt-get -y install \
     curl \
     dbus-x11 \
     dnsutils \
@@ -39,6 +39,7 @@ RUN apt-get update \
     tldr \
     unzip \
     vim \
+    ruby-full \
     libgtk2.0-0 \
     libgtk-3-0 \
     libgbm-dev \

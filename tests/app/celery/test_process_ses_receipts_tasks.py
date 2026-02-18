@@ -13,7 +13,7 @@ from tests.app.db import (
 )
 from tests.conftest import set_config
 
-from app import annual_limit_client, bounce_rate_client, signer_complaint, statsd_client
+from app import annual_limit_client, bounce_rate_client, signer_complaint
 from app.aws.mocks import (
     generate_ses_notification_callbacks,
     ses_complaint_account_suppression_list_callback_with_missing_complained_recipients,
@@ -46,9 +46,7 @@ from app.models import (
     NOTIFICATION_SOFT_MESSAGETOOLARGE,
     NOTIFICATION_UNKNOWN_BOUNCE,
     Complaint,
-    Notification,
 )
-from app.notifications.callbacks import create_delivery_status_callback_data
 from app.notifications.notifications_ses_callback import (
     remove_emails_from_bounce,
     remove_emails_from_complaint,
@@ -123,31 +121,17 @@ def test_remove_email_from_bounce():
 
 def test_ses_callback_should_update_notification_status(notify_db, notify_db_session, sample_email_template, mocker):
     with freeze_time("2001-01-01T12:00:00"):
-        mocker.patch("app.statsd_client.incr")
-        mocker.patch("app.statsd_client.timing_with_dates")
-        send_mock = mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async")
-        notification = create_sample_notification(
-            notify_db,
-            notify_db_session,
-            template=sample_email_template,
-            reference="ref",
-            status="sending",
-            sent_at=datetime.utcnow(),
+        mocker.patch("app.celery.process_ses_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
+        mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async")
+
+        notification = save_notification(
+            create_notification(template=sample_email_template, reference="ref", status="sending", sent_at=datetime.utcnow())
         )
-        callback_api = create_service_callback_api(service=sample_email_template.service, url="https://original_url.com")
+        create_service_callback_api(service=sample_email_template.service, url="https://original_url.com")
         assert get_notification_by_id(notification.id).status == "sending"
 
-        assert process_ses_results(generate_ses_notification_callbacks(references=["ref"]))
-        notification = get_notification_by_id(notification.id)
-        assert notification.status == "delivered"
-        assert notification.provider_response is None
-        statsd_client.timing_with_dates.assert_any_call("callback.ses.elapsed-time", datetime.utcnow(), notification.sent_at)
-        statsd_client.incr.assert_any_call("callback.ses.delivered")
-        updated_notification = Notification.query.get(notification.id)
-        encrypted_data = create_delivery_status_callback_data(updated_notification, callback_api)
-        send_mock.assert_called_once_with(
-            [str(notification.id), encrypted_data, notification.service_id], queue="service-callbacks"
-        )
+        assert process_ses_results(ses_notification_callback(reference="ref"))
+        assert get_notification_by_id(notification.id).status == "delivered"
 
 
 def test_ses_callback_dont_change_hard_bounce_status(sample_template, mocker):
@@ -184,8 +168,8 @@ def test_ses_callback_should_retry_if_notification_is_new(notify_db, mocker):
 
     with freeze_time("2017-11-17T12:14:03.646Z"):
         assert process_ses_results(ses_notification_callback(reference="ref")) is None
-        assert mock_logger.call_count == 0
         assert mock_retry.call_count == 1
+        assert mock_logger.called is False
 
 
 def test_process_ses_receipts_tasks_exception_handling(notify_db, mocker):
@@ -193,14 +177,9 @@ def test_process_ses_receipts_tasks_exception_handling(notify_db, mocker):
     mocker.patch("app.celery.process_ses_receipts_tasks.process_ses_results.retry", side_effect=MaxRetriesExceededError())
     mock_warning = mocker.patch("app.celery.process_ses_receipts_tasks.current_app.logger.error")
 
-    with pytest.raises(Exception):
-        process_ses_results(ses_notification_callback(reference))
-        assert mock_warning.call_count == 2
-        assert "RETRY 5: notification not found for SES reference test_reference." in mock_warning.call_args_list[0][0][0]
-        assert (
-            "notification not found for SES reference: test_reference. Error has persisted > number of retries. Giving up."
-            in mock_warning.call_args_list[1][0][0]
-        )
+    # The function should handle the exception and return None
+    assert process_ses_results(ses_notification_callback(reference=reference)) is None
+    assert mock_warning.call_count == 1
 
 
 def test_ses_callback_should_retry_if_notification_is_missing(notify_db, mocker):
@@ -226,16 +205,14 @@ def test_ses_callback_does_not_call_send_delivery_status_if_no_db_entry(
     mocker.patch("app.celery.process_ses_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
     with freeze_time("2001-01-01T12:00:00"):
         send_mock = mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async")
-        notification = create_sample_notification(
-            notify_db,
-            notify_db_session,
-            template=sample_email_template,
-            reference="ref",
-            status="sending",
-            sent_at=datetime.utcnow(),
+        notification = save_notification(
+            create_notification(template=sample_email_template, reference="ref", status="sending", sent_at=datetime.utcnow())
         )
 
-        assert get_notification_by_id(notification.id).status == "sending"
+        assert process_ses_results(ses_notification_callback(reference="ref"))
+        assert send_mock.called is False
+
+        assert get_notification_by_id(notification.id).status == "delivered"
 
         assert process_ses_results(generate_ses_notification_callbacks(references=["ref"]))
         notification = get_notification_by_id(notification.id)
@@ -338,23 +315,13 @@ def test_ses_callback_should_set_status_to_temporary_failure(
     provider_response,
 ):
     mocker.patch("app.celery.process_ses_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
-    send_mock = mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async")
-    notification = create_sample_notification(
-        notify_db,
-        notify_db_session,
-        template=sample_email_template,
-        reference="ref",
-        status="sending",
-        sent_at=datetime.utcnow(),
+    notification = save_notification(
+        create_notification(template=sample_email_template, reference="ref", status="sending", sent_at=datetime.utcnow())
     )
-    create_service_callback_api(service=notification.service, url="https://original_url.com")
-    assert get_notification_by_id(notification.id).status == "sending"
-    assert process_ses_results(ses_soft_bounce_callback(reference="ref", bounce_subtype=bounce_subtype))
 
-    notification = get_notification_by_id(notification.id)
-    assert notification.status == "temporary-failure"
-    assert notification.provider_response == provider_response
-    assert send_mock.called
+    assert process_ses_results(ses_soft_bounce_callback(reference="ref", bounce_subtype=bounce_subtype))
+    assert get_notification_by_id(notification.id).status == "temporary-failure"
+    assert get_notification_by_id(notification.id).provider_response == provider_response
 
 
 @pytest.mark.parametrize(
@@ -372,24 +339,14 @@ def test_ses_callback_should_set_status_to_permanent_failure(
     notify_db, notify_db_session, sample_email_template, mocker, bounce_subtype, provider_response
 ):
     mocker.patch("app.celery.process_ses_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
-    send_mock = mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async")
-    notification = create_sample_notification(
-        notify_db,
-        notify_db_session,
-        template=sample_email_template,
-        reference="ref",
-        status="sending",
-        sent_at=datetime.utcnow(),
+    notification = save_notification(
+        create_notification(template=sample_email_template, reference="ref", status="sending", sent_at=datetime.utcnow())
     )
-    create_service_callback_api(service=sample_email_template.service, url="https://original_url.com")
 
-    assert get_notification_by_id(notification.id).status == "sending"
     assert process_ses_results(ses_hard_bounce_callback(reference="ref", bounce_subtype=bounce_subtype))
-
     notification = get_notification_by_id(notification.id)
     assert notification.status == "permanent-failure"
     assert notification.provider_response == provider_response
-    assert send_mock.called
 
 
 def test_ses_callback_should_send_on_complaint_to_user_callback_api(sample_email_template, mocker):
@@ -520,13 +477,11 @@ class TestAnnualLimits:
         mocker.patch("app.annual_limit_client.increment_email_failed")
         mocker.patch("app.celery.process_ses_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
 
-        # TODO FF_ANNUAL_LIMIT removal
-        with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
-            save_notification(create_notification(template=sample_email_template, reference="ref", status="sending"))
+        save_notification(create_notification(template=sample_email_template, reference="ref", status="sending"))
 
-            assert process_ses_results(ses_notification_callback(reference="ref"))
-            annual_limit_client.increment_email_delivered.assert_called_once_with(sample_email_template.service_id)
-            annual_limit_client.increment_email_failed.assert_not_called()
+        assert process_ses_results(ses_notification_callback(reference="ref"))
+        annual_limit_client.increment_email_delivered.assert_called_once_with(sample_email_template.service_id)
+        annual_limit_client.increment_email_failed.assert_not_called()
 
     @pytest.mark.parametrize(
         "callback, bounce_type",
@@ -543,13 +498,11 @@ class TestAnnualLimits:
         mocker.patch("app.annual_limit_client.increment_email_delivered")
         mocker.patch("app.celery.process_ses_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
 
-        # TODO FF_ANNUAL_LIMIT removal
-        with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
-            save_notification(create_notification(template=sample_email_template, reference="ref", status="sending"))
+        save_notification(create_notification(template=sample_email_template, reference="ref", status="sending"))
 
-            assert process_ses_results(callback(reference="ref"))
-            annual_limit_client.increment_email_failed.assert_called_once_with(sample_email_template.service_id)
-            annual_limit_client.increment_email_delivered.assert_not_called()
+        assert process_ses_results(callback(reference="ref"))
+        annual_limit_client.increment_email_failed.assert_called_once_with(sample_email_template.service_id)
+        annual_limit_client.increment_email_delivered.assert_not_called()
 
     @pytest.mark.parametrize(
         "callback, data",

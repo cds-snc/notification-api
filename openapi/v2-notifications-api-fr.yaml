@@ -715,7 +715,7 @@ paths:
                     - ["alice@example.com", "Alice"]
                     - ["bob@example.com", "Bob"]
               basic_bulk_email_csv:
-                summary: Notification groupée de base utilisant un fichier CSV
+                summary: Notification groupée par courriel de base utilisant un fichier CSV
                 value:
                   template_id: "12345678-1234-1234-1234-123456789012"
                   name: "Rappels de rendez-vous de janvier"

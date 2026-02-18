@@ -173,6 +173,8 @@ class NewsletterSubscriber(AirtableTableMixin, Model):
         Raises:
             HTTPError: If the subscriber is not found (404) or other API errors occur.
         """
+        if not cls.table_exists():
+            cls.create_table()
         results = cls.all(formula=f"{{Email}} = '{email}'")
         if not results:
             response = Response()

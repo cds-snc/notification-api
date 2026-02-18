@@ -138,6 +138,7 @@ class User(BaseModel):
         nullable=False,
         default=datetime.datetime.utcnow,
     )
+    default_editor_is_rte = db.Column(db.Boolean, nullable=False, default=False)
     updated_at = db.Column(
         db.DateTime,
         index=False,
@@ -227,6 +228,7 @@ class User(BaseModel):
             "additional_information": self.additional_information,
             "password_expired": self.password_expired,
             "verified_phonenumber": self.verified_phonenumber,
+            "default_editor_is_rte": self.default_editor_is_rte,
         }
 
     def serialize_for_users_list(self) -> dict:
@@ -2533,6 +2535,22 @@ class FactNotificationStatus(BaseModel):
     billable_units = db.Column(db.Integer(), nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)
+
+
+class MonthlyNotificationStatsSummary(BaseModel):
+    """
+    Summary table for ft_notification_status
+    Pre-aggregates delivered/sent notifications by month, service, and notification type.
+    Supports incremental updates
+    """
+
+    __tablename__ = "monthly_notification_stats_summary"
+
+    month = db.Column(db.Text, primary_key=True, nullable=False)
+    service_id = db.Column(UUID(as_uuid=True), primary_key=True, nullable=False)
+    notification_type = db.Column(db.Text, primary_key=True, nullable=False)
+    notification_count = db.Column(db.Integer, nullable=False)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
 
 
 class Complaint(BaseModel):
