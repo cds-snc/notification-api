@@ -17,6 +17,7 @@ from app.utils import (
     get_logo_url,
     get_midnight_for_day_before,
     midnight_n_days_ago,
+    prepare_billable_units_counts_for_seeding,
     rate_limit_db_calls,
     update_dct_to_str,
 )
@@ -247,3 +248,73 @@ def test_rate_limit_db_calls_blocked(notify_api, mocker):
         assert result is None
         mock_redis.assert_called_once_with("test_prefix:123")
         mock_redis_set.assert_not_called()
+
+
+# TODO: Remove feature flag checks after FF_USE_BILLABLE_UNITS go live
+class TestPrepareBillableUnitsCountsForSeeding:
+    """Tests for prepare_billable_units_counts_for_seeding utility function"""
+
+    def test_prepare_billable_units_counts_for_seeding_with_delivered_and_failed(self):
+        """Test that billable_units are correctly aggregated for delivered and failed SMS"""
+
+        billable_units_data = [
+            (date(2024, 1, 15), SMS_TYPE, "delivered", 2),
+            (date(2024, 1, 15), SMS_TYPE, "delivered", 3),
+            (date(2024, 1, 15), SMS_TYPE, "failed", 1),
+            (date(2024, 1, 15), SMS_TYPE, "permanent-failure", 2),
+        ]
+
+        result = prepare_billable_units_counts_for_seeding(billable_units_data)
+
+        assert result["sms_billable_units_delivered_today"] == 5  # 2 + 3
+        assert result["sms_billable_units_failed_today"] == 3  # 1 + 2
+
+    def test_prepare_billable_units_counts_for_seeding_with_only_delivered(self):
+        """Test aggregation with only delivered SMS"""
+
+        billable_units_data = [
+            (date(2024, 1, 15), SMS_TYPE, "delivered", 5),
+            (date(2024, 1, 15), SMS_TYPE, "delivered", 10),
+        ]
+
+        result = prepare_billable_units_counts_for_seeding(billable_units_data)
+
+        assert result["sms_billable_units_delivered_today"] == 15
+        assert result["sms_billable_units_failed_today"] == 0
+
+    def test_prepare_billable_units_counts_for_seeding_with_empty_data(self):
+        """Test that function returns zeros for empty data"""
+
+        result = prepare_billable_units_counts_for_seeding([])
+
+        assert result["sms_billable_units_delivered_today"] == 0
+        assert result["sms_billable_units_failed_today"] == 0
+
+    def test_prepare_billable_units_counts_for_seeding_ignores_non_sms(self):
+        """Test that non-SMS notifications are ignored"""
+
+        billable_units_data = [
+            (date(2024, 1, 15), SMS_TYPE, "delivered", 5),
+            (date(2024, 1, 15), EMAIL_TYPE, "delivered", 100),  # Should be ignored
+            (date(2024, 1, 15), "letter", "delivered", 50),  # Should be ignored
+        ]
+
+        result = prepare_billable_units_counts_for_seeding(billable_units_data)
+
+        assert result["sms_billable_units_delivered_today"] == 5  # Only SMS counted
+        assert result["sms_billable_units_failed_today"] == 0
+
+    def test_prepare_billable_units_counts_for_seeding_handles_various_failure_statuses(self):
+        """Test that all failure statuses are counted correctly"""
+
+        billable_units_data = [
+            (date(2024, 1, 15), SMS_TYPE, "technical-failure", 2),
+            (date(2024, 1, 15), SMS_TYPE, "temporary-failure", 3),
+            (date(2024, 1, 15), SMS_TYPE, "permanent-failure", 1),
+            (date(2024, 1, 15), SMS_TYPE, "failed", 4),
+        ]
+
+        result = prepare_billable_units_counts_for_seeding(billable_units_data)
+
+        assert result["sms_billable_units_delivered_today"] == 0
+        assert result["sms_billable_units_failed_today"] == 10  # 2 + 3 + 1 + 4

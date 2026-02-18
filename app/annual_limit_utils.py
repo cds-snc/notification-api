@@ -5,6 +5,7 @@ from uuid import UUID
 from flask import current_app
 from notifications_utils.clients.redis.annual_limit import (
     TOTAL_EMAIL_FISCAL_YEAR_TO_YESTERDAY,
+    TOTAL_SMS_BILLABLE_UNITS_FISCAL_YEAR_TO_YESTERDAY,
     TOTAL_SMS_FISCAL_YEAR_TO_YESTERDAY,
     annual_limit_notifications_v2_key,
 )
@@ -12,11 +13,17 @@ from notifications_utils.decorators import requires_feature
 
 from app import annual_limit_client
 from app.dao.fact_notification_status_dao import (
+    fetch_billable_units_for_service_for_day,
+    fetch_billable_units_totals_for_service_by_fiscal_year,
     fetch_notification_status_for_service_for_day,
     fetch_notification_status_totals_for_service_by_fiscal_year,
 )
 from app.models import EMAIL_TYPE, SMS_TYPE
-from app.utils import get_fiscal_year, prepare_notification_counts_for_seeding
+from app.utils import (
+    get_fiscal_year,
+    prepare_billable_units_counts_for_seeding,
+    prepare_notification_counts_for_seeding,
+)
 
 
 def seed_data_in_redis(service_id: UUID) -> dict:
@@ -38,6 +45,23 @@ def seed_data_in_redis(service_id: UUID) -> dict:
     )
     data[TOTAL_SMS_FISCAL_YEAR_TO_YESTERDAY] = annual_data_sms
     data[TOTAL_EMAIL_FISCAL_YEAR_TO_YESTERDAY] = annual_data_email
+
+    # TODO FF_USE_BILLABLE_UNITS removal - Also seed billable units when feature flag is enabled
+    if current_app.config.get("FF_USE_BILLABLE_UNITS"):
+        annual_billable_units_sms = fetch_billable_units_totals_for_service_by_fiscal_year(
+            service_id, get_fiscal_year(today), notification_type=SMS_TYPE
+        )
+        billable_units_data = prepare_billable_units_counts_for_seeding(
+            fetch_billable_units_for_service_for_day(
+                datetime.now(timezone.utc),
+                service_id=service_id,
+            )
+        )
+        data[TOTAL_SMS_BILLABLE_UNITS_FISCAL_YEAR_TO_YESTERDAY] = annual_billable_units_sms
+        data.update(billable_units_data)
+        current_app.logger.info(
+            f"[seed-debug] Service {service_id} - Seeded billable units data: annual={annual_billable_units_sms}, today={billable_units_data}"
+        )
 
     # The below function will also set the SEEDED_AT key for notifications_v2 in redis
     annual_limit_client.seed_annual_limit_notifications(service_id, data)

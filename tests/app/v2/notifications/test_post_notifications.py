@@ -3,7 +3,7 @@ import csv
 import uuid
 from datetime import datetime, timedelta
 from io import StringIO
-from unittest.mock import call
+from unittest.mock import Mock, call
 
 import pytest
 from flask import current_app, json
@@ -26,6 +26,7 @@ from app.models import (
     ApiKey,
     Notification,
     ScheduledNotification,
+    ServicePermission,
     ServiceSmsSender,
 )
 from app.schema_validation import validate
@@ -48,6 +49,7 @@ from tests.app.db import (
     create_api_key,
     create_reply_to_email,
     create_service,
+    create_service_permission,
     create_service_sms_sender,
     create_service_with_inbound_number,
     create_template,
@@ -61,6 +63,12 @@ def rows_to_csv(rows):
     writer = csv.writer(output)
     writer.writerows(rows)
     return output.getvalue()
+
+
+def ensure_service_has_permission(service_id, permission):
+    """Add the permission only if it is not already set for the service."""
+    if not ServicePermission.query.filter_by(service_id=service_id, permission=permission).first():
+        create_service_permission(service_id, permission=permission)
 
 
 @pytest.fixture
@@ -3107,3 +3115,243 @@ def test_post_bulk_returns_403_if_service_suspended(client, notify_db_session, m
     )
 
     assert response.status_code == 403
+
+
+# TODO: Remove feature flag checks after FF_USE_BILLABLE_UNITS go live
+class TestBillableUnitsInV2Notifications:
+    """Tests for billable_units in v2 notifications API"""
+
+    def test_post_sms_notification_uses_billable_units_for_daily_count_when_flag_enabled(
+        self, notify_api, client, sample_template, mocker, mock_annual_limits
+    ):
+        """Test that v2 API uses billable_units for daily count when flag enabled"""
+
+        with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
+            # Create long SMS content that will require 2 fragments
+            sample_template.content = "a" * 200
+
+            mocker.patch("app.sms_normal_publish.publish")
+            mock_increment = mocker.patch(
+                "app.v2.notifications.post_notifications.increment_sms_daily_count_send_warnings_if_needed"
+            )
+            mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
+            mocker.patch("app.sms_fragment_utils.fetch_todays_total_sms_billable_units", return_value=0)
+            # Mock dao_get_template_by_id to return the modified template
+            mocker.patch("app.notifications.process_notifications.dao_get_template_by_id", return_value=sample_template)
+            ensure_service_has_permission(sample_template.service_id, SCHEDULE_NOTIFICATIONS)
+
+            # Use scheduled_for so notification is persisted immediately
+            scheduled_time = (datetime.utcnow() + timedelta(hours=1)).strftime("%Y-%m-%d %H:%M")
+            data = {
+                "phone_number": "+16502532222",
+                "template_id": str(sample_template.id),
+                "scheduled_for": scheduled_time,
+            }
+            auth_header = create_authorization_header(service_id=sample_template.service_id)
+
+            response = client.post(
+                path="/v2/notifications/sms",
+                data=json.dumps(data),
+                headers=[("Content-Type", "application/json"), auth_header],
+            )
+
+            assert response.status_code == 201
+
+            # Get the notification that was created
+            notification = Notification.query.filter_by(template_id=sample_template.id).first()
+            assert notification.billable_units == 2
+
+            # Verify increment was called with billable_units=2
+            mock_increment.assert_called_once_with(sample_template.service, 2)
+
+    def test_post_sms_notification_uses_count_of_1_when_flag_disabled(
+        self, notify_api, client, sample_template, mocker, mock_annual_limits
+    ):
+        """Test that v2 API uses count=1 for daily count when flag disabled"""
+
+        with set_config(notify_api, "FF_USE_BILLABLE_UNITS", False):
+            # Create long SMS content that will require 2 fragments
+            sample_template.content = "a" * 200
+
+            mocker.patch("app.sms_normal_publish.publish")
+            mock_increment = mocker.patch(
+                "app.v2.notifications.post_notifications.increment_sms_daily_count_send_warnings_if_needed"
+            )
+            mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
+            mocker.patch("app.sms_fragment_utils.fetch_todays_total_sms_billable_units", return_value=0)
+            ensure_service_has_permission(sample_template.service_id, SCHEDULE_NOTIFICATIONS)
+
+            # Use scheduled_for so notification is persisted immediately
+            scheduled_time = (datetime.utcnow() + timedelta(hours=1)).strftime("%Y-%m-%d %H:%M")
+            data = {
+                "phone_number": "+16502532222",
+                "template_id": str(sample_template.id),
+                "scheduled_for": scheduled_time,
+            }
+            auth_header = create_authorization_header(service_id=sample_template.service_id)
+
+            response = client.post(
+                path="/v2/notifications/sms",
+                data=json.dumps(data),
+                headers=[("Content-Type", "application/json"), auth_header],
+            )
+
+            assert response.status_code == 201
+
+            # Get the notification that was created
+            notification = Notification.query.filter_by(template_id=sample_template.id).first()
+            assert notification.billable_units == 0
+
+            # Verify increment was called with count=1 despite long message
+            mock_increment.assert_called_once_with(sample_template.service, 1)
+
+    def test_post_sms_test_key_does_not_increment_daily_count(
+        self, notify_api, client, sample_template, mocker, mock_annual_limits
+    ):
+        """Test that test key notifications don't increment daily count"""
+        with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
+            sample_template.content = "a" * 200
+
+            mocker.patch("app.sms_normal_publish.publish")
+            mock_increment = mocker.patch(
+                "app.v2.notifications.post_notifications.increment_sms_daily_count_send_warnings_if_needed"
+            )
+            mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
+            mocker.patch("app.sms_fragment_utils.fetch_todays_total_sms_billable_units", return_value=0)
+
+            data = {
+                "phone_number": "+16502532222",
+                "template_id": str(sample_template.id),
+            }
+            auth_header = create_authorization_header(service_id=sample_template.service_id, key_type=KEY_TYPE_TEST)
+
+            response = client.post(
+                path="/v2/notifications/sms",
+                data=json.dumps(data),
+                headers=[("Content-Type", "application/json"), auth_header],
+            )
+
+            assert response.status_code == 201
+
+            # Test key should not increment daily count
+            mock_increment.assert_not_called()
+
+    def test_post_sms_simulated_number_does_not_increment_daily_count(
+        self, notify_api, client, sample_template, mocker, mock_annual_limits
+    ):
+        """Test that simulated recipient doesn't increment daily count"""
+        with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
+            sample_template.content = "a" * 200
+
+            mocker.patch("app.sms_normal_publish.publish")
+            mock_increment = mocker.patch(
+                "app.v2.notifications.post_notifications.increment_sms_daily_count_send_warnings_if_needed"
+            )
+            mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
+            mocker.patch("app.sms_fragment_utils.fetch_todays_total_sms_billable_units", return_value=0)
+
+            data = {
+                "phone_number": "+16132532222",  # Simulated number
+                "template_id": str(sample_template.id),
+            }
+            auth_header = create_authorization_header(service_id=sample_template.service_id)
+
+            response = client.post(
+                path="/v2/notifications/sms",
+                data=json.dumps(data),
+                headers=[("Content-Type", "application/json"), auth_header],
+            )
+
+            assert response.status_code == 201
+
+            # Simulated recipient should not increment daily count
+            mock_increment.assert_not_called()
+
+    def test_post_email_notification_always_uses_count_of_1(
+        self, notify_api, client, sample_email_template, mocker, mock_annual_limits
+    ):
+        """Test that email notifications always use count=1, never billable_units"""
+
+        with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
+            mocker.patch("app.email_normal_publish.publish")
+            mock_increment = mocker.patch(
+                "app.v2.notifications.post_notifications.increment_email_daily_count_send_warnings_if_needed"
+            )
+            mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=0)
+            ensure_service_has_permission(sample_email_template.service_id, SCHEDULE_NOTIFICATIONS)
+
+            # Use scheduled_for so notification is persisted immediately
+            scheduled_time = (datetime.utcnow() + timedelta(hours=1)).strftime("%Y-%m-%d %H:%M")
+            data = {
+                "email_address": "test@example.com",
+                "template_id": str(sample_email_template.id),
+                "scheduled_for": scheduled_time,
+            }
+            auth_header = create_authorization_header(service_id=sample_email_template.service_id)
+
+            mock_notification = Mock(billable_units=None)
+            mock_query = mocker.patch("app.models.Notification.query")
+            mock_query.filter_by.return_value.first.return_value = mock_notification
+
+            response = client.post(
+                path="/v2/notifications/email",
+                data=json.dumps(data),
+                headers=[("Content-Type", "application/json"), auth_header],
+            )
+
+            assert response.status_code == 201
+
+            # Get the notification that was created
+            notification = Notification.query.filter_by(template_id=sample_email_template.id).first()
+            # Email should not have billable_units
+            assert notification.billable_units is None
+
+            # Verify increment was called with count=1
+            mock_increment.assert_called_once_with(sample_email_template.service, 1)
+
+    def test_post_sms_with_personalisation_calculates_billable_units_correctly(
+        self, notify_api, client, mocker, mock_annual_limits
+    ):
+        """Test that billable_units accounts for personalisation expanding template"""
+
+        with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
+            service = create_service(service_permissions=[EMAIL_TYPE, SMS_TYPE, SCHEDULE_NOTIFICATIONS])
+            template = create_template(
+                service=service,
+                template_type=SMS_TYPE,
+                content="Hello ((name))",  # Short template
+            )
+
+            mocker.patch("app.sms_normal_publish.publish")
+            mock_increment = mocker.patch(
+                "app.v2.notifications.post_notifications.increment_sms_daily_count_send_warnings_if_needed"
+            )
+            mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
+            mocker.patch("app.sms_fragment_utils.fetch_todays_total_sms_billable_units", return_value=0)
+
+            # Use scheduled_for so notification is persisted immediately
+            scheduled_time = (datetime.utcnow() + timedelta(hours=1)).strftime("%Y-%m-%d %H:%M")
+            # Long personalisation value makes message require 2 fragments
+            data = {
+                "phone_number": "+16502532222",
+                "template_id": str(template.id),
+                "personalisation": {"name": "a" * 200},
+                "scheduled_for": scheduled_time,
+            }
+            auth_header = create_authorization_header(service_id=template.service_id)
+
+            response = client.post(
+                path="/v2/notifications/sms",
+                data=json.dumps(data),
+                headers=[("Content-Type", "application/json"), auth_header],
+            )
+
+            assert response.status_code == 201
+
+            # Get the notification that was created
+            notification = Notification.query.filter_by(template_id=template.id).first()
+            # "Hello " + 200 'a's = 206 chars -> 2 fragments
+            assert notification.billable_units == 2
+
+            # Verify increment was called with billable_units=2
+            mock_increment.assert_called_once_with(template.service, 2)

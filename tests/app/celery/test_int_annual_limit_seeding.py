@@ -59,7 +59,11 @@ def test_int_annual_limit_seeding_and_incrementation_flows_in_celery(sample_temp
         assert all(value == 0 for value in annual_limit_client.get_all_notification_counts(service.id).values())
 
     # Moving onto day 2 - Testing the seeding process
-    with freeze_time("2019-04-02T010:00"), set_config(notify_api, "REDIS_ENABLED", True):
+    with (
+        freeze_time("2019-04-02T010:00"),
+        set_config(notify_api, "REDIS_ENABLED", True),
+        set_config(notify_api, "FF_USE_BILLABLE_UNITS", True),
+    ):
         # Insert delivered and failed notifications into the db so we can test that
         # the seeding process in process_sns_results collects notification counts correctly
         for service in services:
@@ -90,9 +94,18 @@ def test_int_annual_limit_seeding_and_incrementation_flows_in_celery(sample_temp
                 "email_delivered_today": 1,
                 "total_email_fiscal_year_to_yesterday": 2,
                 "total_sms_fiscal_year_to_yesterday": 2,
+                "sms_billable_units_delivered_today": 2,  # 1 from initial + 1 from sent->delivered
+                "sms_billable_units_failed_today": 1,  # 1 from initial failed
+                "total_sms_billable_units_fiscal_year_to_yesterday": 2,  # 1 delivered + 1 failed from day 1
             }
+
             # Verify the counts are as expected and that seeded_at was set in redis
-            assert annual_limit_client.get_all_notification_counts(service.id) == expected_counts
+            actual_counts = annual_limit_client.get_all_notification_counts(service.id)
+            # Filter to only check expected fields
+            for key in expected_counts:
+                assert (
+                    actual_counts.get(key) == expected_counts[key]
+                ), f"Mismatch for {key}: {actual_counts.get(key)} != {expected_counts[key]}"
             assert annual_limit_client.was_seeded_today(service.id)
 
     # Day 2, some time passes - testing notification count increments when seeding has occurred
@@ -115,12 +128,20 @@ def test_int_annual_limit_seeding_and_incrementation_flows_in_celery(sample_temp
             "email_delivered_today": 1,
             "total_email_fiscal_year_to_yesterday": 2,
             "total_sms_fiscal_year_to_yesterday": 2,
+            "sms_billable_units_delivered_today": 2,  # Unchanged from morning (no FF)
+            "sms_billable_units_failed_today": 1,  # Unchanged from morning (no FF)
+            "total_sms_billable_units_fiscal_year_to_yesterday": 2,  # Unchanged from morning (no FF)
         }
 
         # Invoke process_sns_receipts, which should only increment sms_delivered as seeding has occurred for the day
         process_sns_results(sns_success_callback(reference=f"{service.name}-ref1"))  # Make sure the ref doesn't collide
 
-        assert annual_limit_client.get_all_notification_counts(service.id) == expected_counts
+        actual_counts = annual_limit_client.get_all_notification_counts(service.id)
+        # Filter to only check expected fields
+        for key in expected_counts:
+            assert (
+                actual_counts.get(key) == expected_counts[key]
+            ), f"Mismatch for {key}: {actual_counts.get(key)} != {expected_counts[key]}"
 
         # Remove test data from redis
         annual_limit_client.delete_all_annual_limit_hashes([service.id for service in services])

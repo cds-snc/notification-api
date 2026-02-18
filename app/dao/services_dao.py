@@ -493,6 +493,22 @@ def fetch_todays_total_sms_count(service_id):
     return 0 if result is None or result.total_sms_notifications is None else result.total_sms_notifications
 
 
+def fetch_todays_total_sms_billable_units(service_id):
+    """Fetch total SMS billable units for today for a service."""
+    midnight = get_midnight(datetime.now(tz=pytz.utc))
+    result = (
+        db.session.query(func.coalesce(func.sum(Notification.billable_units), 0).label("total_sms_billable_units"))
+        .filter(
+            Notification.service_id == service_id,
+            Notification.key_type != KEY_TYPE_TEST,
+            Notification.created_at > midnight,
+            Notification.notification_type == "sms",
+        )
+        .first()
+    )
+    return 0 if result is None or result.total_sms_billable_units is None else result.total_sms_billable_units
+
+
 def fetch_service_email_limit(service_id: uuid.UUID) -> int:
     return Service.query.get(service_id).message_limit
 

@@ -65,6 +65,7 @@ from app.notifications.process_notifications import (
     choose_queue,
     csv_has_simulated_and_non_simulated_recipients,
     db_save_and_send_notification,
+    number_of_sms_fragments,
     persist_notification,
     persist_scheduled_notification,
     simulated_recipient,
@@ -351,7 +352,9 @@ def post_notification(notification_type: NotificationType):
     if template.template_type == SMS_TYPE:
         is_test_notification = api_user.key_type == KEY_TYPE_TEST or simulated_recipient(form["phone_number"], notification_type)
         if not is_test_notification:
-            increment_sms_daily_count_send_warnings_if_needed(authenticated_service, 1)
+            # TODO FF_USE_BILLABLE_UNITS removal - Use billable_units when feature flag is enabled
+            increment_by = notification.billable_units if current_app.config.get("FF_USE_BILLABLE_UNITS") else 1
+            increment_sms_daily_count_send_warnings_if_needed(authenticated_service, increment_by)
 
     if notification_type == SMS_TYPE:
         create_resp_partial = functools.partial(create_post_sms_response_from_notification, from_number=reply_to)
@@ -500,6 +503,9 @@ def process_sms_or_email_notification(
         notification["service"] = service
         notification["service_id"] = service.id
         notification["reply_to_text"] = reply_to_text
+        # Calculate billable_units for SMS if feature flag is enabled
+        if current_app.config.get("FF_USE_BILLABLE_UNITS") and notification_type == SMS_TYPE:
+            notification["billable_units"] = number_of_sms_fragments(template, personalisation)
         del notification["template"]
         del notification["api_key"]
         del notification["simulated"]

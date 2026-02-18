@@ -79,6 +79,8 @@ def process_sns_results(self, response):
             # Only increment if we didn't just seed.
             if not did_we_seed:
                 annual_limit_client.increment_sms_failed(notification.service_id)
+                if current_app.config.get("FF_USE_BILLABLE_UNITS"):
+                    annual_limit_client.increment_sms_billable_units_failed(notification.service_id, notification.billable_units)
             current_app.logger.info(
                 f"Incremented sms_failed count in Redis. Service: {notification.service_id} Notification: {notification.id} Current counts: {annual_limit_client.get_all_notification_counts(notification.service_id)}"
             )
@@ -87,6 +89,11 @@ def process_sns_results(self, response):
             # Only increment if we didn't just seed.
             if not did_we_seed:
                 annual_limit_client.increment_sms_delivered(notification.service_id)
+                if current_app.config.get("FF_USE_BILLABLE_UNITS"):
+                    annual_limit_client.increment_sms_billable_units_delivered(
+                        notification.service_id, notification.billable_units
+                    )
+
             current_app.logger.info(
                 f"Incremented sms_delivered count in Redis. Service: {notification.service_id} Notification: {notification.id} Current counts: {annual_limit_client.get_all_notification_counts(notification.service_id)}"
             )
