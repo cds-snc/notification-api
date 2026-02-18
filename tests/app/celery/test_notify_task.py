@@ -20,7 +20,7 @@ class TestClassifyError:
 
     def test_duplicate_record_integrity_error(self):
         """SQLAlchemy IntegrityError is classified as duplicate."""
-        exc = IntegrityError("INSERT", {}, Exception("duplicate key value"))
+        exc = IntegrityError("INSERT", {}, Exception("duplicate key value violates unique constraint"))
         assert classify_error(exc) == CeleryErrorCategory.DUPLICATE_RECORD
 
     def test_chained_exception_finds_root_cause(self):
@@ -45,9 +45,9 @@ class TestClassifyError:
         wrapper.__context__ = root
         assert classify_error(wrapper) == CeleryErrorCategory.THROTTLING
 
-    def test_duplicate_record_already_exists_message(self):
-        """Duplicate records caught by 'already exists' message."""
-        exc = Exception("Key already exists in database")
+    def test_duplicate_record_duplicate_key_value_violates_unique_constraint_message(self):
+        """Duplicate records caught by 'duplicate key value violates unique constraint' message."""
+        exc = Exception("duplicate key value violates unique constraint in database")
         assert classify_error(exc) == CeleryErrorCategory.DUPLICATE_RECORD
 
     def test_duplicate_record_unique_violation(self):
@@ -110,13 +110,13 @@ class TestClassifyError:
         class ThrottlingException(Exception):
             pass
 
-        exc = ThrottlingException("This message contains 'already exists' but should be throttling")
+        exc = ThrottlingException("This message contains 'duplicate key value violates unique constraint' but should be throttling")
         assert classify_error(exc) == CeleryErrorCategory.THROTTLING
 
     def test_classification_order_between_messages(self):
         """First match wins: message substrings take precedence over other message substrings."""
 
-        exc = Exception("This message contains 'Throttling' but also 'already exists'")
+        exc = Exception("This message contains 'Throttling' but also 'duplicate key value violates unique constraint'")
         assert classify_error(exc) == CeleryErrorCategory.DUPLICATE_RECORD
 
     def test_prefers_deepest_exception_in_chain(self):
