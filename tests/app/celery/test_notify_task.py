@@ -110,7 +110,9 @@ class TestClassifyError:
         class ThrottlingException(Exception):
             pass
 
-        exc = ThrottlingException("This message contains 'duplicate key value violates unique constraint' but should be throttling")
+        exc = ThrottlingException(
+            "This message contains 'duplicate key value violates unique constraint' but should be throttling"
+        )
         assert classify_error(exc) == CeleryErrorCategory.THROTTLING
 
     def test_classification_order_between_messages(self):
