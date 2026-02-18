@@ -116,6 +116,10 @@ def persist_notification(
         notification=notification, research_mode=service.research_mode, queue=get_delivery_queue_for_template(template)
     )
 
+    # Calculate billable_units if feature flag is enabled and not explicitly provided
+    if current_app.config.get("FF_USE_BILLABLE_UNITS") and billable_units is None and notification_type == SMS_TYPE:
+        notification.billable_units = number_of_sms_fragments(template, personalisation)
+
     if notification_type == SMS_TYPE:
         formatted_recipient = validate_and_format_phone_number(recipient, international=True)
         recipient_info = get_international_phone_info(formatted_recipient)
@@ -123,6 +127,7 @@ def persist_notification(
         notification.international = recipient_info.international
         notification.phone_prefix = recipient_info.country_prefix
         notification.rate_multiplier = recipient_info.billable_units
+
     elif notification_type == EMAIL_TYPE:
         notification.normalised_to = format_email_address(notification.to)
     elif notification_type == LETTER_TYPE:

@@ -8,6 +8,8 @@ from flask import current_app, url_for
 from notifications_utils.clients.redis.annual_limit import (
     EMAIL_DELIVERED_TODAY,
     EMAIL_FAILED_TODAY,
+    SMS_BILLABLE_UNITS_DELIVERED_TODAY,
+    SMS_BILLABLE_UNITS_FAILED_TODAY,
     SMS_DELIVERED_TODAY,
     SMS_FAILED_TODAY,
 )
@@ -270,6 +272,24 @@ def prepare_notification_counts_for_seeding(notification_counts: list) -> dict:
     return result
 
 
+def prepare_billable_units_counts_for_seeding(billable_units_data: list) -> dict:
+    """Utility method that transforms billable units data for seeding Redis.
+    Used to seed billable unit counts in Redis for annual limits when FF_USE_BILLABLE_UNITS is enabled.
+
+    Args:
+        billable_units_data (list): A list of tuples containing (date, notification_type, status, billable_units)
+
+    Returns:
+        dict: Mapping of billable units by SMS delivery status
+    """
+    result = {SMS_BILLABLE_UNITS_FAILED_TODAY: 0, SMS_BILLABLE_UNITS_DELIVERED_TODAY: 0}
+    for _, notification_type, status, billable_units in billable_units_data:
+        if notification_type == "sms" and (status in DELIVERED_STATUSES or status in FAILURE_STATUSES):
+            key = SMS_BILLABLE_UNITS_DELIVERED_TODAY if status in DELIVERED_STATUSES else SMS_BILLABLE_UNITS_FAILED_TODAY
+            result[key] += billable_units
+    return result
+
+
 def get_fiscal_year(current_date=None):
     """
     Determine the fiscal year for a given date.
@@ -321,10 +341,12 @@ def get_fiscal_dates(current_date=None, year=None):
         else:
             fiscal_year_start = datetime(current_date.year - 1, fiscal_year_start_month, fiscal_year_start_day)
             fiscal_year_end = datetime(current_date.year, fiscal_year_start_month - 1, 31)  # March 31 of the current year
-
-    if year:
+    elif year:
         fiscal_year_start = datetime(year, fiscal_year_start_month, fiscal_year_start_day)
         fiscal_year_end = datetime(year + 1, fiscal_year_start_month - 1, 31)
+    else:
+        # This should never happen due to the logic above, but ensures variables are always initialized
+        raise ValueError("Unable to determine fiscal year dates.")
 
     return fiscal_year_start, fiscal_year_end
 

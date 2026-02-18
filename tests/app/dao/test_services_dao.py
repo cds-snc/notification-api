@@ -40,6 +40,7 @@ from app.dao.services_dao import (
     delete_service_and_all_associated_db_objects,
     fetch_service_email_limit,
     fetch_todays_total_message_count,
+    fetch_todays_total_sms_billable_units,
     fetch_todays_total_sms_count,
     get_services_by_partial_name,
 )
@@ -1602,3 +1603,64 @@ class TestSensitiveService:
     def test_non_sensitive_service(self, notify_db, notify_db_session):
         sensitive_service = dao_fetch_service_ids_of_sensitive_services()
         assert sensitive_service == []
+
+
+# TODO: Remove feature flag checks after FF_USE_BILLABLE_UNITS go live
+class TestBillableUnitsInServicesDao:
+    """Tests for billable_units functionality in services_dao"""
+
+    @freeze_time("2024-01-15 12:00:00")
+    def test_fetch_todays_total_sms_billable_units_returns_sum(self, notify_db_session, sample_service):
+        """Test that fetch_todays_total_sms_billable_units returns the sum of billable_units for today"""
+
+        sms_template = create_template(service=sample_service, template_type=SMS_TYPE)
+
+        # Create notifications with billable_units
+        save_notification(create_notification(sms_template, billable_units=2))
+        save_notification(create_notification(sms_template, billable_units=3))
+        save_notification(create_notification(sms_template, billable_units=1))
+
+        # Create an email notification (should not be counted)
+        email_template = create_template(service=sample_service, template_type=EMAIL_TYPE)
+        save_notification(create_notification(email_template, billable_units=None))
+
+        result = fetch_todays_total_sms_billable_units(sample_service.id)
+        assert result == 6  # 2 + 3 + 1
+
+    @freeze_time("2024-01-15 12:00:00")
+    def test_fetch_todays_total_sms_billable_units_returns_zero_when_no_sms(self, notify_db_session, sample_service):
+        """Test that fetch_todays_total_sms_billable_units returns 0 when no SMS sent"""
+        from app.dao.services_dao import fetch_todays_total_sms_billable_units
+
+        result = fetch_todays_total_sms_billable_units(sample_service.id)
+        assert result == 0
+
+    @freeze_time("2024-01-15 12:00:00")
+    def test_fetch_todays_total_sms_billable_units_ignores_yesterday(self, notify_db_session, sample_service):
+        """Test that fetch_todays_total_sms_billable_units only counts today's notifications"""
+
+        sms_template = create_template(service=sample_service, template_type=SMS_TYPE)
+
+        # Create today's notification
+        save_notification(create_notification(sms_template, billable_units=5))
+
+        # Create yesterday's notification
+        yesterday = datetime.utcnow() - timedelta(days=1)
+        save_notification(create_notification(sms_template, billable_units=10, created_at=yesterday))
+
+        result = fetch_todays_total_sms_billable_units(sample_service.id)
+        assert result == 5  # Only today's count
+
+    @freeze_time("2024-01-15 12:00:00")
+    def test_fetch_todays_total_sms_billable_units_handles_null_billable_units(self, notify_db_session, sample_service):
+        """Test that fetch_todays_total_sms_billable_units handles NULL billable_units (when flag disabled)"""
+
+        sms_template = create_template(service=sample_service, template_type=SMS_TYPE)
+
+        # Create notifications with and without billable_units
+        save_notification(create_notification(sms_template, billable_units=3))
+        save_notification(create_notification(sms_template, billable_units=None))  # When FF disabled
+        save_notification(create_notification(sms_template, billable_units=2))
+
+        result = fetch_todays_total_sms_billable_units(sample_service.id)
+        assert result == 5  # 3 + 2, NULL is treated as 0

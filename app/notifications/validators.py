@@ -6,9 +6,11 @@ from flask import current_app
 from notifications_utils import SMS_CHAR_COUNT_LIMIT
 from notifications_utils.clients.redis import (
     daily_limit_cache_key,
+    near_billable_units_sms_daily_limit_cache_key,
     near_daily_limit_cache_key,
     near_email_daily_limit_cache_key,
     near_sms_daily_limit_cache_key,
+    over_billable_units_sms_daily_limit_cache_key,
     over_daily_limit_cache_key,
     over_email_daily_limit_cache_key,
     over_sms_daily_limit_cache_key,
@@ -16,6 +18,7 @@ from notifications_utils.clients.redis import (
 )
 from notifications_utils.clients.redis.annual_limit import (
     TOTAL_EMAIL_FISCAL_YEAR_TO_YESTERDAY,
+    TOTAL_SMS_BILLABLE_UNITS_FISCAL_YEAR_TO_YESTERDAY,
     TOTAL_SMS_FISCAL_YEAR_TO_YESTERDAY,
 )
 from notifications_utils.recipients import (
@@ -53,7 +56,9 @@ from app.notifications.process_notifications import create_content_for_notificat
 from app.service.sender import send_notification_to_service_users
 from app.service.utils import service_allowed_to_send_to
 from app.sms_fragment_utils import (
+    fetch_todays_requested_sms_billable_units_count,
     fetch_todays_requested_sms_count,
+    increment_todays_requested_sms_billable_units_count,
     increment_todays_requested_sms_count,
 )
 from app.utils import (
@@ -130,8 +135,13 @@ def check_service_over_daily_message_limit(key_type: ApiKeyType, service: Servic
     exception=LiveServiceTooManySMSRequestsError,
 )
 def check_sms_daily_limit(service: Service, requested_sms=0):
-    messages_sent = fetch_todays_requested_sms_count(service.id)
-    over_sms_daily_limit = (messages_sent + requested_sms) > service.sms_daily_limit
+    # TODO FF_USE_BILLABLE_UNITS removal - Use billable units when feature flag is enabled
+    if current_app.config.get("FF_USE_BILLABLE_UNITS"):
+        messages_sent = fetch_todays_requested_sms_billable_units_count(service.id)
+        over_sms_daily_limit = (messages_sent + requested_sms) > service.sms_daily_limit
+    else:
+        messages_sent = fetch_todays_requested_sms_count(service.id)
+        over_sms_daily_limit = (messages_sent + requested_sms) > service.sms_daily_limit
 
     # Send a warning when reaching the daily message limit
     if not over_sms_daily_limit:
@@ -235,8 +245,16 @@ def check_email_annual_limit(service: Service, requested_emails=0):
 )
 def check_sms_annual_limit(service: Service, requested_sms=0):
     current_fiscal_year = get_fiscal_year(datetime.utcnow())
-    sms_sent_today = fetch_todays_requested_sms_count(service.id)
-    sms_sent_this_fiscal = get_annual_limit_notifications_v2(service.id)[TOTAL_SMS_FISCAL_YEAR_TO_YESTERDAY]
+
+    # TODO FF_USE_BILLABLE_UNITS removal - Use billable units when feature flag is enabled
+    if current_app.config.get("FF_USE_BILLABLE_UNITS"):
+        sms_sent_today = fetch_todays_requested_sms_billable_units_count(service.id)
+        annual_data = get_annual_limit_notifications_v2(service.id)
+        sms_sent_this_fiscal = annual_data.get(TOTAL_SMS_BILLABLE_UNITS_FISCAL_YEAR_TO_YESTERDAY, 0)
+    else:
+        sms_sent_today = fetch_todays_requested_sms_count(service.id)
+        sms_sent_this_fiscal = get_annual_limit_notifications_v2(service.id)[TOTAL_SMS_FISCAL_YEAR_TO_YESTERDAY]
+
     send_exceeds_annual_limit = (sms_sent_today + sms_sent_this_fiscal + requested_sms) > service.sms_annual_limit
     send_reaches_annual_limit = (sms_sent_today + sms_sent_this_fiscal + requested_sms) == service.sms_annual_limit
     is_near_annual_limit = (sms_sent_today + sms_sent_this_fiscal + requested_sms) >= (
@@ -300,7 +318,16 @@ def send_warning_email_limit_emails_if_needed(service: Service) -> None:
 
 
 def send_warning_sms_limit_emails_if_needed(service: Service):
-    todays_requested_sms = fetch_todays_requested_sms_count(service.id)
+    # TODO FF_USE_BILLABLE_UNITS removal - Fetch billable units when feature flag is enabled
+    if current_app.config.get("FF_USE_BILLABLE_UNITS"):
+        todays_requested_sms = fetch_todays_requested_sms_billable_units_count(service.id)
+        near_cache_key = near_billable_units_sms_daily_limit_cache_key(service.id)
+        over_cache_key = over_billable_units_sms_daily_limit_cache_key(service.id)
+    else:
+        todays_requested_sms = fetch_todays_requested_sms_count(service.id)
+        near_cache_key = near_sms_daily_limit_cache_key(service.id)
+        over_cache_key = over_sms_daily_limit_cache_key(service.id)
+
     nearing_sms_daily_limit = todays_requested_sms >= NEAR_DAILY_LIMIT_PERCENTAGE * service.sms_daily_limit
     at_or_over_sms_daily_limit = todays_requested_sms >= service.sms_daily_limit
     current_time = datetime.utcnow().isoformat()
@@ -308,17 +335,15 @@ def send_warning_sms_limit_emails_if_needed(service: Service):
 
     # Send a warning when reaching 80% of the daily limit
     if nearing_sms_daily_limit:
-        cache_key = near_sms_daily_limit_cache_key(service.id)
-        if not redis_store.get(cache_key):
+        if not redis_store.get(near_cache_key):
             send_near_sms_limit_email(service, todays_requested_sms)
-            redis_store.set(cache_key, current_time, ex=cache_expiration)
+            redis_store.set(near_cache_key, current_time, ex=cache_expiration)
 
     # Send a warning when reaching the daily message limit
     if at_or_over_sms_daily_limit:
-        cache_key = over_sms_daily_limit_cache_key(service.id)
-        if not redis_store.get(cache_key):
+        if not redis_store.get(over_cache_key):
             send_sms_limit_reached_email(service)
-            redis_store.set(cache_key, current_time, ex=cache_expiration)
+            redis_store.set(over_cache_key, current_time, ex=cache_expiration)
 
 
 def time_until_end_of_day() -> timedelta:
@@ -334,7 +359,12 @@ def increment_sms_daily_count_send_warnings_if_needed(service: Service, requeste
     if not current_app.config["REDIS_ENABLED"]:
         return
 
-    increment_todays_requested_sms_count(service.id, requested_sms)
+    # TODO FF_USE_BILLABLE_UNITS removal - Increment billable units when feature flag is enabled
+    if current_app.config.get("FF_USE_BILLABLE_UNITS"):
+        increment_todays_requested_sms_billable_units_count(service.id, requested_sms)
+    else:
+        increment_todays_requested_sms_count(service.id, requested_sms)
+
     send_warning_sms_limit_emails_if_needed(service)
 
 
