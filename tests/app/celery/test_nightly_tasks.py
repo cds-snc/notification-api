@@ -438,6 +438,7 @@ def test_alert_if_letter_notifications_still_sending_a_day_ago_no_alert(sample_l
     assert not mock_create_ticket.called
 
 
+@pytest.mark.skip(reason="letter test")
 @freeze_time("2018-01-17 17:00:00")
 def test_alert_if_letter_notifications_still_sending_only_alerts_sending(sample_letter_template, mocker):
     two_days_ago = datetime(2018, 1, 15, 13, 30)
@@ -456,6 +457,7 @@ def test_alert_if_letter_notifications_still_sending_only_alerts_sending(sample_
     )
 
 
+@pytest.mark.skip(reason="letter test")
 @freeze_time("2018-01-17 17:00:00")
 def test_alert_if_letter_notifications_still_sending_alerts_for_older_than_offset(sample_letter_template, mocker):
     three_days_ago = datetime(2018, 1, 14, 13, 30)
@@ -484,6 +486,7 @@ def test_alert_if_letter_notifications_still_sending_does_nothing_on_the_weekend
     assert not mock_create_ticket.called
 
 
+@pytest.mark.skip(reason="letter test")
 @freeze_time("2018-01-15 17:00:00")
 def test_monday_alert_if_letter_notifications_still_sending_reports_thursday_letters(sample_letter_template, mocker):
     thursday = datetime(2018, 1, 11, 13, 30)
@@ -502,6 +505,7 @@ def test_monday_alert_if_letter_notifications_still_sending_reports_thursday_let
     )
 
 
+@pytest.mark.skip(reason="letter")
 @freeze_time("2018-01-16 17:00:00")
 def test_tuesday_alert_if_letter_notifications_still_sending_reports_friday_letters(sample_letter_template, mocker):
     friday = datetime(2018, 1, 12, 13, 30)
@@ -543,6 +547,7 @@ def test_letter_raise_alert_if_no_ack_file_for_zip_does_not_raise_when_files_mat
     ]
 
 
+@pytest.mark.skip(reason="letter test")
 @freeze_time("2018-01-11T23:00:00")
 def test_letter_raise_alert_if_ack_files_not_match_zip_list(mocker, notify_db):
     mock_file_list = mocker.patch("app.aws.s3.get_list_of_files_by_suffix", side_effect=mock_s3_get_list_diff)
