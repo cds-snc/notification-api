@@ -768,6 +768,7 @@ class Test(Development):
     TEMPLATE_PREVIEW_API_HOST = "http://localhost:9999"
     FAILED_LOGIN_LIMIT = 0
     GC_ORGANISATIONS_BUCKET_NAME = "test-gc-organisations"
+    FF_USE_BILLABLE_UNITS = True
 
 
 class Production(Config):
@@ -790,6 +791,12 @@ class Production(Config):
     API_RATE_LIMIT_ENABLED = True
     CHECK_PROXY_HEADER = False
     CRONITOR_ENABLED = False
+
+
+class ProductionFF(Production):
+    """Production with feature flags turned on/off for testing purposes"""
+
+    FF_USE_BILLABLE_UNITS = False
 
 
 class Staging(Production):
@@ -818,4 +825,5 @@ configs = {
     "staging": Staging,
     "scratch": Scratch,
     "dev": Dev,
+    "production_ff": ProductionFF,
 }
