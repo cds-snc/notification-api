@@ -796,6 +796,7 @@ class Production(Config):
 class ProductionFF(Production):
     """Production with feature flags turned on/off for testing purposes"""
 
+    NOTIFY_ENVIRONMENT = "production_ff"
     FF_USE_BILLABLE_UNITS = False
 
 
