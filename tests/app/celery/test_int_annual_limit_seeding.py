@@ -128,10 +128,17 @@ def test_int_annual_limit_seeding_and_incrementation_flows_in_celery(sample_temp
             "email_delivered_today": 1,
             "total_email_fiscal_year_to_yesterday": 2,
             "total_sms_fiscal_year_to_yesterday": 2,
-            "sms_billable_units_delivered_today": 2,  # Unchanged from morning (no FF)
-            "sms_billable_units_failed_today": 1,  # Unchanged from morning (no FF)
-            "total_sms_billable_units_fiscal_year_to_yesterday": 2,  # Unchanged from morning (no FF)
         }
+
+        # When FF_USE_BILLABLE_UNITS is enabled, billable units will be incremented since seeding already occurred
+        if notify_api.config.get("FF_USE_BILLABLE_UNITS"):
+            expected_counts.update(
+                {
+                    "sms_billable_units_delivered_today": 3,  # 2 from morning + 1 from this increment
+                    "sms_billable_units_failed_today": 1,  # Unchanged from morning
+                    "total_sms_billable_units_fiscal_year_to_yesterday": 2,  # Unchanged from morning
+                }
+            )
 
         # Invoke process_sns_receipts, which should only increment sms_delivered as seeding has occurred for the day
         process_sns_results(sns_success_callback(reference=f"{service.name}-ref1"))  # Make sure the ref doesn't collide
