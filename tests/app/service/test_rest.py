@@ -3335,31 +3335,85 @@ class TestGetSensitiveServiceids:
 
 
 class TestAnnualLimitStats:
-    def test_get_annual_limit_stats(self, admin_request, sample_service, mocker):
+    REDIS_DATA = {
+        "email_delivered_today": 5,
+        "email_failed_today": 1,
+        "sms_delivered_today": 3,
+        "sms_failed_today": 2,
+        "total_email_fiscal_year_to_yesterday": 100,
+        "total_sms_fiscal_year_to_yesterday": 200,
+    }
+
+    REDIS_DATA_BILLABLE = {
+        **REDIS_DATA,
+        "sms_billable_units_delivered_today": 6,
+        "sms_billable_units_failed_today": 2,
+        "total_sms_billable_units_fiscal_year_to_yesterday": 400,
+    }
+
+    DB_DATA = {
+        "total_email_fiscal_year_to_yesterday": 50,
+        "total_sms_fiscal_year_to_yesterday": 75,
+    }
+
+    def test_get_annual_limit_stats_redis_enabled_returns_redis_data(self, notify_api, admin_request, sample_service, mocker):
         mock_get_stats = mocker.patch(
             "app.service.rest.get_annual_limit_notifications_v2",
-            return_value={
-                "email_delivered_today": 5,
-                "email_failed_today": 1,
-                "sms_delivered_today": 3,
-                "sms_failed_today": 2,
-                "total_email_fiscal_year_to_yesterday": 100,
-                "total_sms_fiscal_year_to_yesterday": 200,
-            },
+            return_value=self.REDIS_DATA,
+        )
+        mocker.patch("app.service.rest.get_annual_data_from_db")
+
+        with set_config(notify_api, "REDIS_ENABLED", True):
+            response = admin_request.get("service.get_annual_limit_stats", service_id=sample_service.id)
+
+        assert response == self.REDIS_DATA
+        mock_get_stats.assert_called_once_with(sample_service.id)
+
+    def test_get_annual_limit_stats_redis_enabled_with_billable_units(self, notify_api, admin_request, sample_service, mocker):
+        mock_get_stats = mocker.patch(
+            "app.service.rest.get_annual_limit_notifications_v2",
+            return_value=self.REDIS_DATA_BILLABLE,
+        )
+        mocker.patch("app.service.rest.get_annual_data_from_db")
+
+        with set_config(notify_api, "REDIS_ENABLED", True):
+            with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
+                response = admin_request.get("service.get_annual_limit_stats", service_id=sample_service.id)
+
+        assert response == self.REDIS_DATA_BILLABLE
+        mock_get_stats.assert_called_once_with(sample_service.id)
+
+    def test_get_annual_limit_stats_redis_enabled_falls_back_to_db_when_empty(
+        self, notify_api, admin_request, sample_service, mocker
+    ):
+        mocker.patch(
+            "app.service.rest.get_annual_limit_notifications_v2",
+            return_value=None,  # Redis not seeded (e.g. new service with all-zero counts)
+        )
+        mock_get_db = mocker.patch(
+            "app.service.rest.get_annual_data_from_db",
+            return_value=self.DB_DATA,
         )
 
-        response = admin_request.get("service.get_annual_limit_stats", service_id=sample_service.id)
+        with set_config(notify_api, "REDIS_ENABLED", True):
+            response = admin_request.get("service.get_annual_limit_stats", service_id=sample_service.id)
 
-        assert response == {
-            "email_delivered_today": 5,
-            "email_failed_today": 1,
-            "sms_delivered_today": 3,
-            "sms_failed_today": 2,
-            "total_email_fiscal_year_to_yesterday": 100,
-            "total_sms_fiscal_year_to_yesterday": 200,
-        }
+        assert response == self.DB_DATA
+        mock_get_db.assert_called_once_with(sample_service.id)
 
-        mock_get_stats.assert_called_once_with((sample_service.id))
+    def test_get_annual_limit_stats_redis_disabled_uses_db(self, notify_api, admin_request, sample_service, mocker):
+        mock_get_redis = mocker.patch("app.service.rest.get_annual_limit_notifications_v2")
+        mock_get_db = mocker.patch(
+            "app.service.rest.get_annual_data_from_db",
+            return_value=self.DB_DATA,
+        )
+
+        with set_config(notify_api, "REDIS_ENABLED", False):
+            response = admin_request.get("service.get_annual_limit_stats", service_id=sample_service.id)
+
+        assert response == self.DB_DATA
+        mock_get_redis.assert_not_called()
+        mock_get_db.assert_called_once_with(sample_service.id)
 
 
 class TestAddUserToService:
