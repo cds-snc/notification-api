@@ -68,6 +68,33 @@ def seed_data_in_redis(service_id: UUID) -> dict:
     return data
 
 
+def get_annual_data_from_db(service_id: UUID) -> dict:
+    """
+    Fetches annual notification counts directly from the database, bypassing Redis.
+    Returns billable units when FF_USE_BILLABLE_UNITS is enabled, message counts otherwise.
+    Used as a fallback when Redis is not available or not yet seeded.
+    """
+    today = datetime.now(timezone.utc)
+    fiscal_year = get_fiscal_year(today)
+
+    result = {
+        TOTAL_EMAIL_FISCAL_YEAR_TO_YESTERDAY: fetch_notification_status_totals_for_service_by_fiscal_year(
+            service_id, fiscal_year, notification_type=EMAIL_TYPE
+        ),
+        TOTAL_SMS_FISCAL_YEAR_TO_YESTERDAY: fetch_notification_status_totals_for_service_by_fiscal_year(
+            service_id, fiscal_year, notification_type=SMS_TYPE
+        ),
+    }
+
+    # TODO FF_USE_BILLABLE_UNITS removal - Also return billable units when feature flag is enabled
+    if current_app.config.get("FF_USE_BILLABLE_UNITS"):
+        result[TOTAL_SMS_BILLABLE_UNITS_FISCAL_YEAR_TO_YESTERDAY] = fetch_billable_units_totals_for_service_by_fiscal_year(
+            service_id, fiscal_year, notification_type=SMS_TYPE
+        )
+
+    return result
+
+
 @requires_feature("REDIS_ENABLED")
 def get_annual_limit_notifications_v2(service_id: UUID) -> dict:
     if not annual_limit_client.was_seeded_today(service_id):

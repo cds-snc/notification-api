@@ -19,7 +19,7 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import redis_store, salesforce_client
-from app.annual_limit_utils import get_annual_limit_notifications_v2
+from app.annual_limit_utils import get_annual_data_from_db, get_annual_limit_notifications_v2
 from app.clients.salesforce.salesforce_engagement import ENGAGEMENT_STAGE_LIVE
 from app.config import QueueNames
 from app.dao import fact_notification_status_dao, notifications_dao
@@ -1127,8 +1127,15 @@ def create_service_data_retention(service_id):
 
 @service_blueprint.route("/<uuid:service_id>/annual-limit-stats", methods=["GET"])
 def get_annual_limit_stats(service_id):
-    data_retention = get_annual_limit_notifications_v2(service_id)
-    return data_retention if data_retention else {}, 200
+    # When Redis is enabled, use it (seeds on demand and returns billable units when FF enabled)
+    if current_app.config.get("REDIS_ENABLED"):
+        data = get_annual_limit_notifications_v2(service_id)
+        if data:
+            return jsonify(data), 200
+
+    # Fallback: query DB directly (returns billable units when FF_USE_BILLABLE_UNITS is enabled)
+    data = get_annual_data_from_db(service_id)
+    return jsonify(data), 200
 
 
 @service_blueprint.route("/<uuid:service_id>/data-retention/<uuid:data_retention_id>", methods=["POST"])
