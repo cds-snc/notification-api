@@ -3,6 +3,7 @@ import time
 from environs import Env
 from flask import current_app
 
+from app.celery.error_registry import classify_error
 from celery import Celery, Task, signals
 from celery.signals import worker_process_shutdown
 
@@ -22,8 +23,26 @@ def make_task(app):
             app.logger.info("{task_name} took {time}".format(task_name=self.name, time="{0:.4f}".format(elapsed_time)))
 
         def on_failure(self, exc, task_id, args, kwargs, einfo):
-            # ensure task will log exceptions to correct handlers
-            app.logger.exception("Celery task: {} failed".format(self.name))
+            # Classify the error to determine logging level and marker
+            category = classify_error(exc)
+
+            # Walk the chain to find root exception type
+            root_exc = exc
+            while root_exc and (root_exc.__cause__ or root_exc.__context__):
+                root_exc = root_exc.__cause__ or root_exc.__context__
+            root_exception_type = type(root_exc).__name__ if root_exc else "None"
+
+            # All task failures are errors; classification is in the message prefix
+            app.logger.error(
+                "%s task_name=%s task_id=%s root_exception=%s exception=%s",
+                category.value,
+                self.name,
+                task_id,
+                root_exception_type,
+                str(exc),
+            )
+
+            # Call parent to ensure default Celery behavior still runs
             super().on_failure(exc, task_id, args, kwargs, einfo)
 
         def __call__(self, *args, **kwargs):
