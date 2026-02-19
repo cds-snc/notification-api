@@ -32,9 +32,6 @@ jobs:
 
     - name: Install requirements
       run: poetry install --with test
-    
-    - name: Check for missing translations
-      run: make test-translations
 
     - name: Update NOTIFY_ENVIRONMENT for pytest
       run: sed -i 's/NOTIFY_ENVIRONMENT=test/NOTIFY_ENVIRONMENT=production_ff/' pytest.ini
