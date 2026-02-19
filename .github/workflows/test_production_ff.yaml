@@ -1,0 +1,51 @@
+on:
+  push:
+  schedule:
+    - cron: '1 0-12,20-23 * * 1-5'
+    - cron: '1 * * * 0,6'
+name: Continuous Integration Testing (prod feature flags)
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+
+    - uses: actions/setup-python@b64ffcaf5b410884ad320a9cfac8866006a109aa # v4.8.0
+      with:
+        python-version: '3.12'
+    
+    - uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
+      with:
+        node-version: '16.x'
+        cache: 'npm'
+
+    - uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install poetry
+      env:
+        POETRY_VERSION: "1.7.1"
+      run: pip install poetry==${POETRY_VERSION} && poetry --version
+
+    - name: Install requirements
+      run: poetry install --with test
+    
+    - name: Check for missing translations
+      run: make test-translations
+
+    - name: Update NOTIFY_ENVIRONMENT for pytest
+      run: sed -i 's/NOTIFY_ENVIRONMENT=test/NOTIFY_ENVIRONMENT=production_ff/' pytest.ini
+
+    - run: /bin/bash -c "scripts/bootstrap.sh && poetry run make test"
+      env:
+        A11Y_TRACKER_KEY: ${{ secrets.A11Y_TRACKER_KEY }}
+        
+    - name: Notify Slack channel if this job failed in default branch
+      if: ${{ failure() && github.ref == 'refs/heads/main' }}
+      run: |
+        json='{"text":"<!here> CI is failing in <https://github.com/cds-snc/notification-admin/|notification-admin> !"}'
+        curl -X POST -H 'Content-type: application/json' --data "$json"  ${{ secrets.SLACK_WEBHOOK }}
