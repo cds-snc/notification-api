@@ -741,6 +741,7 @@ class Test(Development):
     FROM_NUMBER = "testing"
     NOTIFY_ENVIRONMENT = "test"
     TESTING = True
+    REDIS_ENABLED = True  # Required for annual limit tracking and other Redis-dependent features
 
     # CSV_UPLOAD_BUCKET_NAME = 'test-notifications-csv-upload'
     TEST_LETTERS_BUCKET_NAME = "test-test-letters"
