@@ -35,7 +35,7 @@ class TestClassifyError:
         assert classify_error(wrapper) == CeleryErrorCategory.THROTTLING
 
     def test_chained_exception_via_context(self):
-        """Walks __context__ chain when __cause__ is None."""
+        """Walks __context__ chain when __cause__ is `None`."""
 
         class ThrottlingException(Exception):
             pass
