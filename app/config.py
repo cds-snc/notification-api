@@ -793,14 +793,11 @@ class Production(Config):
     CRONITOR_ENABLED = False
 
 
-class ProductionFF(Production):
-    """Production with feature flags turned on/off for testing purposes"""
+class ProductionFF(Config):
+    """Test configuration with feature flags turned off for production parity testing"""
 
     NOTIFY_ENVIRONMENT = "production_ff"
     FF_USE_BILLABLE_UNITS = False
-    # Override to provide defaults for CI testing
-    CYPRESS_USER_PW_SECRET = os.getenv("CYPRESS_USER_PW_SECRET", "test-notify-cypress-secret-key")
-    DANGEROUS_SALT = os.getenv("DANGEROUS_SALT", "test-notify-salt")
 
 
 class Staging(Production):
