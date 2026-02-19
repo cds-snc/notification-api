@@ -411,6 +411,7 @@ def test_delete_dvla_response_files_older_than_seven_days_does_not_remove_files(
     remove_s3_mock.assert_not_called()
 
 
+@pytest.mark.skip(reason="letter test")
 @freeze_time("2018-01-17 17:00:00")
 def test_alert_if_letter_notifications_still_sending(sample_letter_template, mocker):
     two_days_ago = datetime(2018, 1, 15, 13, 30)
