@@ -793,7 +793,7 @@ class Production(Config):
     CRONITOR_ENABLED = False
 
 
-class ProductionFF(Config):
+class ProductionFF(Test):
     """Test configuration with feature flags turned off for production parity testing"""
 
     NOTIFY_ENVIRONMENT = "production_ff"
