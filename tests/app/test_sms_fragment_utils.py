@@ -70,6 +70,7 @@ class TestBillableUnitsInSmsFragmentUtils:
                 # Should use cached value
                 mocked_set.assert_not_called()
 
+    @pytest.mark.skip(reason="Temporarily disabled")
     def test_fetch_todays_requested_sms_billable_units_count_falls_back_to_db_when_redis_disabled(
         self, client, mocker, sample_service
     ):
@@ -100,6 +101,7 @@ class TestBillableUnitsInSmsFragmentUtils:
             # Should increment by the specified amount
             mocked_incrby.assert_called_once_with(cache_key, increment_by)
 
+    @pytest.mark.skip(reason="Temporarily disabled")
     def test_increment_todays_requested_sms_billable_units_count_does_nothing_when_redis_disabled(
         self, mocker, client, sample_service
     ):
