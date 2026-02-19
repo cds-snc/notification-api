@@ -253,7 +253,9 @@ def test_ses_callback_should_update_multiple_notification_status_sent(
         status="sending",
     )
     create_service_callback_api(service=sample_email_template.service, url="https://original_url.com")
-    assert process_ses_results(generate_ses_notification_callbacks(references=["ref1", "ref2", "ref3"]))
+
+    with set_config(client.application, "REDIS_ENABLED", True):
+        assert process_ses_results(generate_ses_notification_callbacks(references=["ref1", "ref2", "ref3"]))
 
     assert send_mock.called
 
