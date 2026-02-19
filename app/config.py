@@ -798,6 +798,9 @@ class ProductionFF(Production):
 
     NOTIFY_ENVIRONMENT = "production_ff"
     FF_USE_BILLABLE_UNITS = False
+    # Override to provide defaults for CI testing
+    CYPRESS_USER_PW_SECRET = os.getenv("CYPRESS_USER_PW_SECRET", "test-notify-cypress-secret-key")
+    DANGEROUS_SALT = os.getenv("DANGEROUS_SALT", "test-notify-salt")
 
 
 class Staging(Production):
