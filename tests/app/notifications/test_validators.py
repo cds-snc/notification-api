@@ -867,20 +867,16 @@ class TestAnnualLimitValidators:
         mock_redis_set = mocker.patch("app.redis_store.set_hash_value")  # Set over / near limit keys
         mocker.patch("app.redis_store.get", return_value=counts_from_redis)  # notifications fetched from Redis
 
-        # Mock appropriately based on FF_USE_BILLABLE_UNITS (enabled in Test config)
-        use_billable_units = current_app.config.get("FF_USE_BILLABLE_UNITS", False)
-        if use_billable_units:
-            mocker.patch(
-                "app.notifications.validators.get_annual_limit_notifications_v2",
-                return_value={"total_sms_billable_units_fiscal_year_to_yesterday": counts_from_redis + ft_count},
-            )
-            mocker.patch("app.notifications.validators.fetch_todays_requested_sms_billable_units_count", return_value=0)
-        else:
-            mocker.patch(
-                "app.notifications.validators.get_annual_limit_notifications_v2",
-                return_value={"total_sms_fiscal_year_to_yesterday": counts_from_redis + ft_count},
-            )
-            mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
+        # Mock with BOTH keys to handle FF_USE_BILLABLE_UNITS being either enabled or disabled
+        mocker.patch(
+            "app.notifications.validators.get_annual_limit_notifications_v2",
+            return_value={
+                "total_sms_fiscal_year_to_yesterday": counts_from_redis + ft_count,
+                "total_sms_billable_units_fiscal_year_to_yesterday": counts_from_redis + ft_count,
+            },
+        )
+        mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
+        mocker.patch("app.notifications.validators.fetch_todays_requested_sms_billable_units_count", return_value=0)
 
         mocker.patch("app.annual_limit_client.check_has_warning_been_sent", return_value=has_sent_near_limit_email)
         mocker.patch(
