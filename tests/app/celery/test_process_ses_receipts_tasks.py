@@ -223,7 +223,7 @@ def test_ses_callback_does_not_call_send_delivery_status_if_no_db_entry(
 
 
 def test_ses_callback_should_update_multiple_notification_status_sent(
-    notify_db, notify_db_session, sample_email_template, mocker
+    client, notify_db, notify_db_session, sample_email_template, mocker
 ):
     send_mock = mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async")
     create_sample_notification(
@@ -253,7 +253,9 @@ def test_ses_callback_should_update_multiple_notification_status_sent(
         status="sending",
     )
     create_service_callback_api(service=sample_email_template.service, url="https://original_url.com")
-    assert process_ses_results(generate_ses_notification_callbacks(references=["ref1", "ref2", "ref3"]))
+
+    with set_config(client.application, "REDIS_ENABLED", True):
+        assert process_ses_results(generate_ses_notification_callbacks(references=["ref1", "ref2", "ref3"]))
 
     assert send_mock.called
 
