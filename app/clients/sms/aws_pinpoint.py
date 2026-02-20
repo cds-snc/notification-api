@@ -15,7 +15,10 @@ class AwsPinpointClient(SmsClient):
 
     def init_app(self, current_app, statsd_client, *args, **kwargs):
         self._client = boto3.client("pinpoint-sms-voice-v2", region_name="ca-central-1")
-        self._dedicated_client = boto3.client("pinpoint-sms-voice-v2", region_name=current_app.config["AWS_PINPOINT_REGION"])
+        if current_app.config.get("FF_USE_PINPOINT_FOR_DEDICATED", False):
+            self._dedicated_client = boto3.client("pinpoint-sms-voice-v2", region_name=current_app.config["AWS_PINPOINT_REGION"])
+        else:
+            self._dedicated_client = None
         super(AwsPinpointClient, self).__init__(*args, **kwargs)
         self.current_app = current_app
         self.name = "pinpoint"
@@ -49,7 +52,7 @@ class AwsPinpointClient(SmsClient):
                 # For international numbers we send with an AWS number for the corresponding country, using our default sender id.
                 # Note that Canada does not currently support sender ids.
                 send_with_dedicated_phone_number = self._send_with_dedicated_phone_number(sender) and self.current_app.config.get(
-                    "FF_USE_PINPOINT_FOR_US_AND_DEDICATED", False
+                    "FF_USE_PINPOINT_FOR_DEDICATED", False
                 )
                 if send_with_dedicated_phone_number:
                     response = self._dedicated_client.send_text_message(
