@@ -72,31 +72,59 @@ def ensure_service_has_permission(service_id, permission):
 
 
 @pytest.fixture
-def mock_annual_limits(mocker):
+def mock_annual_limits(mocker, notify_api):
     """Mock annual limit functions to return zero counts."""
-    mocker.patch(
-        "app.notifications.validators.get_annual_limit_notifications_v2",
-        return_value={
-            "total_email_fiscal_year_to_yesterday": 0,
-            "total_sms_fiscal_year_to_yesterday": 0,
-        },
-    )
-    mocker.patch(
-        "app.v2.notifications.post_notifications.get_annual_limit_notifications_v2",
-        return_value={
-            "total_email_fiscal_year_to_yesterday": 0,
-            "total_sms_fiscal_year_to_yesterday": 0,
-        },
-    )
-    mocker.patch(
-        "app.job.rest.get_annual_limit_notifications_v2",
-        return_value={
-            "total_email_fiscal_year_to_yesterday": 0,
-            "total_sms_fiscal_year_to_yesterday": 0,
-        },
-    )
-    mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=0)
-    mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
+    # Mock appropriately based on FF_USE_BILLABLE_UNITS (enabled in Test config)
+    use_billable_units = notify_api.config.get("FF_USE_BILLABLE_UNITS", False)
+
+    if use_billable_units:
+        mocker.patch(
+            "app.notifications.validators.get_annual_limit_notifications_v2",
+            return_value={
+                "total_email_fiscal_year_to_yesterday": 0,
+                "total_sms_billable_units_fiscal_year_to_yesterday": 0,
+            },
+        )
+        mocker.patch(
+            "app.v2.notifications.post_notifications.get_annual_limit_notifications_v2",
+            return_value={
+                "total_email_fiscal_year_to_yesterday": 0,
+                "total_sms_billable_units_fiscal_year_to_yesterday": 0,
+            },
+        )
+        mocker.patch(
+            "app.job.rest.get_annual_limit_notifications_v2",
+            return_value={
+                "total_email_fiscal_year_to_yesterday": 0,
+                "total_sms_billable_units_fiscal_year_to_yesterday": 0,
+            },
+        )
+        mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=0)
+        mocker.patch("app.notifications.validators.fetch_todays_requested_sms_billable_units_count", return_value=0)
+    else:
+        mocker.patch(
+            "app.notifications.validators.get_annual_limit_notifications_v2",
+            return_value={
+                "total_email_fiscal_year_to_yesterday": 0,
+                "total_sms_fiscal_year_to_yesterday": 0,
+            },
+        )
+        mocker.patch(
+            "app.v2.notifications.post_notifications.get_annual_limit_notifications_v2",
+            return_value={
+                "total_email_fiscal_year_to_yesterday": 0,
+                "total_sms_fiscal_year_to_yesterday": 0,
+            },
+        )
+        mocker.patch(
+            "app.job.rest.get_annual_limit_notifications_v2",
+            return_value={
+                "total_email_fiscal_year_to_yesterday": 0,
+                "total_sms_fiscal_year_to_yesterday": 0,
+            },
+        )
+        mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=0)
+        mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
 
 
 class TestSingleEndpointSucceeds:
@@ -1994,21 +2022,39 @@ class TestEmailsAndLimitsForSMSFragments:
         mocker.patch("app.sms_normal_publish.publish")
         send_warning_email = mocker.patch("app.notifications.validators.send_near_sms_limit_email")
         send_limit_reached_email = mocker.patch("app.notifications.validators.send_sms_limit_reached_email")
-        # # Mock annual limits
-        mocker.patch(
-            "app.notifications.validators.get_annual_limit_notifications_v2",
-            return_value={
-                "total_email_fiscal_year_to_yesterday": 0,
-                "total_sms_fiscal_year_to_yesterday": 0,
-            },
-        )
-        mocker.patch(
-            "app.v2.notifications.post_notifications.get_annual_limit_notifications_v2",
-            return_value={
-                "total_email_fiscal_year_to_yesterday": 0,
-                "total_sms_fiscal_year_to_yesterday": 0,
-            },
-        )
+
+        # Mock annual limits appropriately based on FF_USE_BILLABLE_UNITS
+        use_billable_units = notify_api.config.get("FF_USE_BILLABLE_UNITS", False)
+        if use_billable_units:
+            mocker.patch(
+                "app.notifications.validators.get_annual_limit_notifications_v2",
+                return_value={
+                    "total_email_fiscal_year_to_yesterday": 0,
+                    "total_sms_billable_units_fiscal_year_to_yesterday": 0,
+                },
+            )
+            mocker.patch(
+                "app.v2.notifications.post_notifications.get_annual_limit_notifications_v2",
+                return_value={
+                    "total_email_fiscal_year_to_yesterday": 0,
+                    "total_sms_billable_units_fiscal_year_to_yesterday": 0,
+                },
+            )
+        else:
+            mocker.patch(
+                "app.notifications.validators.get_annual_limit_notifications_v2",
+                return_value={
+                    "total_email_fiscal_year_to_yesterday": 0,
+                    "total_sms_fiscal_year_to_yesterday": 0,
+                },
+            )
+            mocker.patch(
+                "app.v2.notifications.post_notifications.get_annual_limit_notifications_v2",
+                return_value={
+                    "total_email_fiscal_year_to_yesterday": 0,
+                    "total_sms_fiscal_year_to_yesterday": 0,
+                },
+            )
 
         def __send_sms():
             with set_config_values(notify_api, {"REDIS_ENABLED": True}):
@@ -2046,7 +2092,9 @@ class TestEmailsAndLimitsForSMSFragments:
         assert send_limit_reached_email.called
 
         response = __send_sms()  # send the 11th fragment
-        assert response.status_code == 400  # Ensure send is blocked - not sure why we send a 400 here and a 429 everywhere else
+        # When billable units is enabled, we return 429 for consistency
+        expected_status = 429 if use_billable_units else 400
+        assert response.status_code == expected_status
 
     # ADMIN
     def test_ADMIN_ONEOFF_sends_warning_emails_and_blocks_sends(self, notify_api, client, notify_db, notify_db_session, mocker):
