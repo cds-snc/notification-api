@@ -6,7 +6,7 @@ the log filters can distinguish them from truly unexpected errors.
 """
 
 from enum import Enum
-from typing import Optional
+from typing import Optional, Tuple
 
 
 # The categories themselves are defined here, along with the logic to classify
@@ -68,7 +68,7 @@ _MESSAGE_SUBSTRING_MAP: dict[str, CeleryErrorCategory] = {
 }
 
 
-def classify_error(exception: Optional[BaseException] = None) -> CeleryErrorCategory:
+def classify_error(exception: Optional[BaseException] = None) -> Tuple[CeleryErrorCategory, Optional[BaseException]]:
     """
     Walk the exception chain and classify the root cause.
 
@@ -77,11 +77,11 @@ def classify_error(exception: Optional[BaseException] = None) -> CeleryErrorCate
     1. Exception class name against `_EXCEPTION_CLASS_MAP`
     2. Exception message against `_MESSAGE_SUBSTRING_MAP`
 
-    Returns the category of the deepest/root exception that matches,
-    or UNKNOWN if no match is found.
+    Returns a tuple of (category, root_exception) where root_exception is the
+    deepest exception in the chain, or None if the input exception is None.
     """
     if exception is None:
-        return CeleryErrorCategory.UNKNOWN
+        return (CeleryErrorCategory.UNKNOWN, None)
 
     # Build the full exception chain from outer to root, detecting cycles
     exception_chain: list[BaseException] = []
@@ -97,6 +97,9 @@ def classify_error(exception: Optional[BaseException] = None) -> CeleryErrorCate
         exception_chain.append(exc)
         exc = exc.__cause__ or exc.__context__
 
+    # The last element is the deepest/root exception
+    root_exception = exception_chain[-1] if exception_chain else exception
+
     # Reverse to start from the deepest/root exception
     exception_chain.reverse()
 
@@ -108,11 +111,11 @@ def classify_error(exception: Optional[BaseException] = None) -> CeleryErrorCate
         # Check class name
         for pattern, category in _EXCEPTION_CLASS_MAP.items():
             if pattern in exc_class_name:
-                return category
+                return (category, root_exception)
 
         # Check message substrings
         for pattern, category in _MESSAGE_SUBSTRING_MAP.items():
             if pattern in exc_message:
-                return category
+                return (category, root_exception)
 
-    return CeleryErrorCategory.UNKNOWN
+    return (CeleryErrorCategory.UNKNOWN, root_exception)

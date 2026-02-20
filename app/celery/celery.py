@@ -23,13 +23,8 @@ def make_task(app):
             app.logger.info("{task_name} took {time}".format(task_name=self.name, time="{0:.4f}".format(elapsed_time)))
 
         def on_failure(self, exc, task_id, args, kwargs, einfo):
-            # Classify the error to determine logging level and marker
-            category = classify_error(exc)
-
-            # Walk the chain to find root exception type
-            root_exc = exc
-            while root_exc and (root_exc.__cause__ or root_exc.__context__):
-                root_exc = root_exc.__cause__ or root_exc.__context__
+            # Classify the error and get the root exception
+            category, root_exc = classify_error(exc)
             root_exception_type = type(root_exc).__name__ if root_exc else "None"
 
             # All task failures are errors; classification is in the message prefix
