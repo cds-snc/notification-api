@@ -2072,6 +2072,12 @@ class TestEmailsAndLimitsForSMSFragments:
 
     # ADMIN
     def test_ADMIN_ONEOFF_sends_warning_emails_and_blocks_sends(self, notify_api, client, notify_db, notify_db_session, mocker):
+        # test setup
+        mocker.patch("app.sms_normal_publish.publish")
+
+        mocker.patch("app.service.send_notification.send_notification_to_queue")
+
+        # # Mock annual limits
         mocker.patch(
             "app.notifications.validators.get_annual_limit_notifications_v2",
             return_value={
