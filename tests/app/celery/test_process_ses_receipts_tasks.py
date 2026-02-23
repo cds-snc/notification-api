@@ -567,7 +567,20 @@ class TestAnnualLimits:
         )
         with set_config(notify_api, "REDIS_ENABLED", True):
             process_ses_results(callback(reference="ref"))
-            mock_seed_annual_limit.assert_called_once_with(notification.service_id, data)
+
+            # When FF_USE_BILLABLE_UNITS is enabled, the seed call includes billable unit fields
+            # For email notifications, these will be 0 since billable units only apply to SMS
+            expected_data = data.copy()
+            if notify_api.config.get("FF_USE_BILLABLE_UNITS"):
+                expected_data.update(
+                    {
+                        "total_sms_billable_units_fiscal_year_to_yesterday": 0,
+                        "sms_billable_units_failed_today": 0,
+                        "sms_billable_units_delivered_today": 0,
+                    }
+                )
+
+            mock_seed_annual_limit.assert_called_once_with(notification.service_id, expected_data)
             annual_limit_client.increment_email_delivered.assert_not_called()
             annual_limit_client.increment_email_failed.assert_not_called()
 
