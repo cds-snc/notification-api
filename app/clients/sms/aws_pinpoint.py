@@ -52,13 +52,20 @@ class AwsPinpointClient(SmsClient):
                     "FF_USE_PINPOINT_FOR_DEDICATED", False
                 )
                 if send_with_dedicated_phone_number:
+                    dryrun = destinationNumber == self.current_app.config["EXTERNAL_TEST_NUMBER"]
                     response = self._dedicated_client.send_text_message(
                         DestinationPhoneNumber=destinationNumber,
                         OriginationIdentity=sender,
                         MessageBody=content,
                         MessageType=messageType,
                         ConfigurationSetName=self.current_app.config["AWS_PINPOINT_CONFIGURATION_SET_NAME"],
+                        DryRun=dryrun,
                     )
+                    if dryrun:
+                        self.current_app.logger.info(
+                            f"SMS with message id {response.get('MessageId')} is sending to EXTERNAL_TEST_NUMBER using dedicated sender. "
+                            f"Boto call made to AWS, but not send on."
+                        )
                 elif phonenumbers.region_code_for_number(match.number) != "CA":
                     response = self._client.send_text_message(
                         DestinationPhoneNumber=destinationNumber,
