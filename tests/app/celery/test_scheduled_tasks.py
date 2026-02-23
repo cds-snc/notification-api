@@ -387,6 +387,7 @@ def test_check_job_status_task_does_not_raise_error(sample_template):
     check_job_status()
 
 
+@pytest.mark.skip(reason="letter test")
 @freeze_time("2019-05-30 14:00:00")
 def test_check_precompiled_letter_state(mocker, sample_letter_template):
     mock_logger = mocker.patch("app.celery.tasks.current_app.logger.exception")

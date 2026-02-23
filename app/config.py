@@ -741,6 +741,7 @@ class Test(Development):
     FROM_NUMBER = "testing"
     NOTIFY_ENVIRONMENT = "test"
     TESTING = True
+    REDIS_ENABLED = True  # Required for annual limit tracking and other Redis-dependent features
 
     # CSV_UPLOAD_BUCKET_NAME = 'test-notifications-csv-upload'
     TEST_LETTERS_BUCKET_NAME = "test-test-letters"
@@ -768,6 +769,7 @@ class Test(Development):
     TEMPLATE_PREVIEW_API_HOST = "http://localhost:9999"
     FAILED_LOGIN_LIMIT = 0
     GC_ORGANISATIONS_BUCKET_NAME = "test-gc-organisations"
+    FF_USE_BILLABLE_UNITS = True
 
 
 class Production(Config):
@@ -790,6 +792,13 @@ class Production(Config):
     API_RATE_LIMIT_ENABLED = True
     CHECK_PROXY_HEADER = False
     CRONITOR_ENABLED = False
+
+
+class ProductionFF(Test):
+    """Test configuration with feature flags turned off for production parity testing"""
+
+    NOTIFY_ENVIRONMENT = "production_ff"
+    FF_USE_BILLABLE_UNITS = False
 
 
 class Staging(Production):
@@ -818,4 +827,5 @@ configs = {
     "staging": Staging,
     "scratch": Scratch,
     "dev": Dev,
+    "production_ff": ProductionFF,
 }
