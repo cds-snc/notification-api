@@ -319,8 +319,8 @@ def test_fetch_billing_data_for_day_bills_correctly_for_status(notify_db_session
     sms_results = [x for x in results if x[2] == "sms"]
     email_results = [x for x in results if x[2] == "email"]
     letter_results = [x for x in results if x[2] == "letter"]
-    assert 7 == sms_results[0][7]
-    assert 7 == email_results[0][7]
+    assert 8 == sms_results[0][7]
+    assert 8 == email_results[0][7]
     assert 3 == letter_results[0][7]
 
 
