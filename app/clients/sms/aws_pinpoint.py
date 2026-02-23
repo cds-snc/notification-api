@@ -3,6 +3,7 @@ from time import monotonic
 
 import boto3
 import phonenumbers
+from botocore.exceptions import ClientError
 
 from app.clients.sms import SmsClient, SmsSendingVehicles
 from app.exceptions import PinpointConflictException, PinpointValidationException
@@ -87,13 +88,22 @@ class AwsPinpointClient(SmsClient):
                         self.current_app.logger.info(
                             f"SMS with message id {response.get('MessageId')} is sending to EXTERNAL_TEST_NUMBER. Boto call made to AWS, but not send on."
                         )
-            except self._client.exceptions.ConflictException as e:
-                if e.response.get("Reason") == "DESTINATION_PHONE_NUMBER_OPTED_OUT":
-                    opted_out = True
+            except ClientError as e:
+                error_code = e.response["Error"].get("Code")
+                reason = e.response.get("Reason")
+
+                if error_code == "ConflictException":
+                    if reason == "DESTINATION_PHONE_NUMBER_OPTED_OUT":
+                        opted_out = True
+                    else:
+                        raise PinpointConflictException(e)
+
+                elif error_code == "ValidationException":
+                    raise PinpointValidationException(e)
+
                 else:
-                    raise PinpointConflictException(e)
-            except self._client.exceptions.ValidationException as e:
-                raise PinpointValidationException(e)
+                    self.statsd_client.incr("clients.pinpoint.error")
+                    raise
             except Exception as e:
                 self.statsd_client.incr("clients.pinpoint.error")
                 raise e
