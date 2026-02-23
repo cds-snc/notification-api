@@ -392,7 +392,7 @@ def provider_to_use(
 ) -> Any:
     """
     Get the provider to use for sending the notification.
-    SMS that are being sent with a dedicated number or internationally should not use Pinpoint.
+    SMS that are being sent internationally should not use Pinpoint.
 
     Args:
         notification_type (str): SMS or EMAIL.

@@ -15,10 +15,7 @@ class AwsPinpointClient(SmsClient):
 
     def init_app(self, current_app, statsd_client, *args, **kwargs):
         self._client = boto3.client("pinpoint-sms-voice-v2", region_name="ca-central-1")
-        if current_app.config.get("FF_USE_PINPOINT_FOR_DEDICATED", False):
-            self._dedicated_client = boto3.client("pinpoint-sms-voice-v2", region_name=current_app.config["AWS_PINPOINT_REGION"])
-        else:
-            self._dedicated_client = None
+        self._dedicated_client = boto3.client("pinpoint-sms-voice-v2", region_name=current_app.config["AWS_PINPOINT_REGION"])
         super(AwsPinpointClient, self).__init__(*args, **kwargs)
         self.current_app = current_app
         self.name = "pinpoint"
@@ -84,6 +81,11 @@ class AwsPinpointClient(SmsClient):
                             f"SMS with message id {response.get('MessageId')} is sending to EXTERNAL_TEST_NUMBER. Boto call made to AWS, but not send on."
                         )
             except self._client.exceptions.ConflictException as e:
+                if e.response.get("Reason") == "DESTINATION_PHONE_NUMBER_OPTED_OUT":
+                    opted_out = True
+                else:
+                    raise PinpointConflictException(e)
+            except self._dedicated_client.exceptions.ConflictException as e:
                 if e.response.get("Reason") == "DESTINATION_PHONE_NUMBER_OPTED_OUT":
                     opted_out = True
                 else:

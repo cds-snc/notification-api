@@ -103,8 +103,6 @@ class TestProviderToUse:
         with set_config_values(
             notify_api,
             {
-                "AWS_PINPOINT_SC_POOL_ID": "sc_pool_id",
-                "AWS_PINPOINT_DEFAULT_POOL_ID": "default_pool_id",
                 "FF_USE_PINPOINT_FOR_DEDICATED": True,
             },
         ):
