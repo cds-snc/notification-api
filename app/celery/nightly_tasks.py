@@ -263,7 +263,7 @@ def raise_alert_if_letter_notifications_still_sending():
             still_sending, (today - timedelta(days=offset_days)).strftime("%A %d %B")
         )
         # Only send alerts in production
-        if current_app.config["NOTIFY_ENVIRONMENT"] in ["live", "production", "test"]:
+        if current_app.config["NOTIFY_ENVIRONMENT"] in ["live", "production", "test", "production_ff"]:
             zendesk_client.create_ticket(
                 subject="[{}] Letters still sending".format(current_app.config["NOTIFY_ENVIRONMENT"]),
                 message=message,
