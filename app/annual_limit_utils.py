@@ -64,7 +64,20 @@ def seed_data_in_redis(service_id: UUID) -> dict:
         )
 
     # The below function will also set the SEEDED_AT key for notifications_v2 in redis
+    # — but only when at least one count is non-zero. When all counts are zero it
+    # short-circuits and never calls set_seeded_at(), which causes an infinite
+    # re-seeding loop (every API call re-runs the expensive Postgres queries).
     annual_limit_client.seed_annual_limit_notifications(service_id, data)
+
+    # Guard: if the mapping was all zeros, seed_annual_limit_notifications
+    # skipped set_seeded_at(). Set it here so was_seeded_today() returns True
+    # on subsequent calls and we don't re-query Postgres.
+    if not data or all(v == 0 for v in data.values()):
+        current_app.logger.info(
+            f"Service {service_id} has zero notification counts — setting seeded_at to prevent re-seeding loop."
+        )
+        annual_limit_client.set_seeded_at(service_id)
+
     return data
 
 
