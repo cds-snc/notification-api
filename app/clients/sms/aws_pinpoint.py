@@ -3,7 +3,6 @@ from time import monotonic
 
 import boto3
 import phonenumbers
-from botocore.exceptions import ClientError
 
 from app.clients.sms import SmsClient, SmsSendingVehicles
 from app.exceptions import PinpointConflictException, PinpointValidationException
@@ -21,7 +20,6 @@ class AwsPinpointClient(SmsClient):
         self.current_app = current_app
         self.name = "pinpoint"
         self.statsd_client = statsd_client
-        self.long_code_regex = re.compile(r"^\+1\d{10}$")
 
     def get_name(self):
         return self.name
@@ -47,8 +45,6 @@ class AwsPinpointClient(SmsClient):
             destinationNumber = to
             try:
                 start_time = monotonic()
-                # For international numbers we send with an AWS number for the corresponding country, using our default sender id.
-                # Note that Canada does not currently support sender ids.
                 send_with_dedicated_phone_number = self._send_with_dedicated_phone_number(sender) and self.current_app.config.get(
                     "FF_USE_PINPOINT_FOR_DEDICATED", False
                 )
@@ -67,6 +63,8 @@ class AwsPinpointClient(SmsClient):
                             f"SMS with message id {response.get('MessageId')} is sending to EXTERNAL_TEST_NUMBER using dedicated sender. "
                             f"Boto call made to AWS, but not send on."
                         )
+                # For international numbers we send with an AWS number for the corresponding country, using our default sender id.
+                # Note that Canada does not currently support sender ids.
                 elif phonenumbers.region_code_for_number(match.number) != "CA":
                     response = self._client.send_text_message(
                         DestinationPhoneNumber=destinationNumber,
@@ -88,22 +86,13 @@ class AwsPinpointClient(SmsClient):
                         self.current_app.logger.info(
                             f"SMS with message id {response.get('MessageId')} is sending to EXTERNAL_TEST_NUMBER. Boto call made to AWS, but not send on."
                         )
-            except ClientError as e:
-                error_code = e.response["Error"].get("Code")
-                reason = e.response.get("Reason")
-
-                if error_code == "ConflictException":
-                    if reason == "DESTINATION_PHONE_NUMBER_OPTED_OUT":
-                        opted_out = True
-                    else:
-                        raise PinpointConflictException(e)
-
-                elif error_code == "ValidationException":
-                    raise PinpointValidationException(e)
-
+            except self._client.exceptions.ConflictException as e:
+                if e.response.get("Reason") == "DESTINATION_PHONE_NUMBER_OPTED_OUT":
+                    opted_out = True
                 else:
-                    self.statsd_client.incr("clients.pinpoint.error")
-                    raise
+                    raise PinpointConflictException(e)
+            except self._client.exceptions.ValidationException as e:
+                raise PinpointValidationException(e)
             except Exception as e:
                 self.statsd_client.incr("clients.pinpoint.error")
                 raise e
@@ -120,4 +109,4 @@ class AwsPinpointClient(SmsClient):
             raise ValueError("No valid numbers found for SMS delivery")
 
     def _send_with_dedicated_phone_number(self, sender):
-        return sender and re.match(self.long_code_regex, sender)
+        return sender and re.match(self.LONG_CODE_REGEX, sender)
