@@ -59,7 +59,6 @@ class NotifyCelery(Celery):
             signals.task_postrun.connect(xray_task_postrun)
             signals.task_prerun.connect(xray_task_prerun)
 
-
         # See https://docs.celeryproject.org/en/stable/userguide/configuration.html
         self.conf.update(
             {
