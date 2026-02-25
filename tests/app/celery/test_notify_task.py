@@ -233,8 +233,8 @@ class TestClassifyError:
         exc_a.__cause__ = exc_b
         exc_b.__cause__ = exc_a  # Cycle created
 
-        # Should classify as THROTTLING (encountered first in the chain)
-        # The set-based detection prevents infinite loop
+        # Should classify as TIMEOUT (deepest/root in the chain), not THROTTLING encountered earlier
+        # The set-based detection prevents infinite loop while still finding the deepest matching exception
         category, root_exc = classify_error(exception=exc_a)
         assert category == CeleryErrorCategory.TIMEOUT
         assert root_exc is exc_b  # Should return the last exception before cycle detected
