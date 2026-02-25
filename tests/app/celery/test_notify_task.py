@@ -11,17 +11,23 @@ class TestClassifyError:
             pass
 
         exc = ThrottlingException("Rate Exceeded")
-        assert classify_error(exc) == CeleryErrorCategory.THROTTLING
+        category, root_exc = classify_error(exc)
+        assert category == CeleryErrorCategory.THROTTLING
+        assert root_exc is exc  # Should return the original exception as root
 
     def test_throttling_by_message(self):
         """Generic exceptions with throttling messages are classified."""
         exc = Exception("An error occurred (ThrottlingException): Rate Exceeded")
-        assert classify_error(exc) == CeleryErrorCategory.THROTTLING
+        category, root_exc = classify_error(exc)
+        assert category == CeleryErrorCategory.THROTTLING
+        assert root_exc is exc  # Should return the original exception as root
 
     def test_duplicate_record_integrity_error(self):
         """SQLAlchemy IntegrityError is classified as duplicate."""
         exc = IntegrityError("INSERT", {}, Exception("duplicate key value violates unique constraint"))
-        assert classify_error(exc) == CeleryErrorCategory.DUPLICATE_RECORD
+        category, root_exc = classify_error(exc)
+        assert category == CeleryErrorCategory.DUPLICATE_RECORD
+        assert root_exc is exc  # Should return the original exception as root
 
     def test_chained_exception_finds_root_cause(self):
         """Walks __cause__ chain to find the root throttling error."""
@@ -32,7 +38,9 @@ class TestClassifyError:
         root = ThrottlingException("Rate Exceeded")
         wrapper = Exception("Task failed")
         wrapper.__cause__ = root
-        assert classify_error(wrapper) == CeleryErrorCategory.THROTTLING
+        category, root_exc = classify_error(wrapper)
+        assert category == CeleryErrorCategory.THROTTLING
+        assert root_exc is root  # Should return the root exception
 
     def test_chained_exception_via_context(self):
         """Walks __context__ chain when __cause__ is `None`."""
@@ -43,12 +51,16 @@ class TestClassifyError:
         root = ThrottlingException("Rate Exceeded")
         wrapper = Exception("Task failed")
         wrapper.__context__ = root
-        assert classify_error(wrapper) == CeleryErrorCategory.THROTTLING
+        category, root_exc = classify_error(wrapper)
+        assert category == CeleryErrorCategory.THROTTLING
+        assert root_exc is root  # Should return the root exception
 
     def test_duplicate_record_duplicate_key_value_violates_unique_constraint_message(self):
         """Duplicate records caught by 'duplicate key value violates unique constraint' message."""
         exc = Exception("duplicate key value violates unique constraint in database")
-        assert classify_error(exc) == CeleryErrorCategory.DUPLICATE_RECORD
+        category, root_exc = classify_error(exc)
+        assert category == CeleryErrorCategory.DUPLICATE_RECORD
+        assert root_exc is exc  # Should return the original exception as root
 
     def test_duplicate_record_unique_violation(self):
         """PostgreSQL UniqueViolation exception is classified as duplicate."""
@@ -57,7 +69,9 @@ class TestClassifyError:
             pass
 
         exc = UniqueViolation("duplicate key value violates unique constraint")
-        assert classify_error(exc) == CeleryErrorCategory.DUPLICATE_RECORD
+        category, root_exc = classify_error(exc)
+        assert category == CeleryErrorCategory.DUPLICATE_RECORD
+        assert root_exc is exc  # Should return the original exception as root
 
     def test_job_incomplete_error(self):
         """JobIncompleteError is classified correctly."""
@@ -66,7 +80,9 @@ class TestClassifyError:
             pass
 
         exc = JobIncompleteError("Job was interrupted during deploy")
-        assert classify_error(exc) == CeleryErrorCategory.JOB_INCOMPLETE
+        category, root_exc = classify_error(exc)
+        assert category == CeleryErrorCategory.JOB_INCOMPLETE
+        assert root_exc is exc  # Should return the original exception as root
 
     def test_notification_not_found_by_exception(self):
         """NoResultFound exception is classified as notification not found."""
@@ -75,34 +91,48 @@ class TestClassifyError:
             pass
 
         exc = NoResultFound("No notification found for this ID")
-        assert classify_error(exc) == CeleryErrorCategory.NOTIFICATION_NOT_FOUND
+        category, root_exc = classify_error(exc)
+        assert category == CeleryErrorCategory.NOTIFICATION_NOT_FOUND
+        assert root_exc is exc  # Should return the original exception as root
 
     def test_notification_not_found_by_message(self):
         """Messages about SES references not found are classified correctly."""
         exc = Exception("notifications not found for SES references: [id-123]")
-        assert classify_error(exc) == CeleryErrorCategory.NOTIFICATION_NOT_FOUND
+        category, root_exc = classify_error(exc)
+        assert category == CeleryErrorCategory.NOTIFICATION_NOT_FOUND
+        assert root_exc is exc  # Should return the original exception as root
 
     def test_shutdown_error(self):
         """SIGKILL messages are classified as shutdown."""
         exc = Exception("Process received SIGKILL during graceful shutdown")
-        assert classify_error(exc) == CeleryErrorCategory.SHUTDOWN
+        category, root_exc = classify_error(exc)
+        assert category == CeleryErrorCategory.SHUTDOWN
+        assert root_exc is exc  # Should return the original exception as root
 
     def test_timeout_error(self):
         """Timeout-related messages are classified correctly."""
         exc = Exception("timeout-sending-notifications: Task exceeded time limit")
-        assert classify_error(exc) == CeleryErrorCategory.TIMEOUT
+        category, root_exc = classify_error(exc)
+        assert category == CeleryErrorCategory.TIMEOUT
+        assert root_exc is exc  # Should return the original exception as root
 
     def test_xray_error(self):
         """X-Ray related errors are classified correctly."""
         exc = Exception("Error in xray-celery segment creation")
-        assert classify_error(exc) == CeleryErrorCategory.XRAY
+        category, root_exc = classify_error(exc)
+        assert category == CeleryErrorCategory.XRAY
+        assert root_exc is exc  # Should return the original exception as root
 
     def test_unknown_error(self):
         exc = Exception("Something completely unexpected")
-        assert classify_error(exc) == CeleryErrorCategory.UNKNOWN
+        category, root_exc = classify_error(exc)
+        assert category == CeleryErrorCategory.UNKNOWN
+        assert root_exc is exc  # Should return the original exception as root
 
     def test_none_exception(self):
-        assert classify_error(None) == CeleryErrorCategory.UNKNOWN
+        category, root_exc = classify_error(None)
+        assert category == CeleryErrorCategory.UNKNOWN
+        assert root_exc is None
 
     def test_classification_order(self):
         """First match wins: class name patterns take precedence over message substrings."""
@@ -113,13 +143,17 @@ class TestClassifyError:
         exc = ThrottlingException(
             "This message contains 'duplicate key value violates unique constraint' but should be throttling"
         )
-        assert classify_error(exc) == CeleryErrorCategory.THROTTLING
+        category, root_exc = classify_error(exception=exc)
+        assert category == CeleryErrorCategory.THROTTLING
+        assert root_exc is exc  # Should return the original exception as root
 
     def test_classification_order_between_messages(self):
         """First match wins: message substrings take precedence over other message substrings."""
 
         exc = Exception("This message contains 'Throttling' but also 'duplicate key value violates unique constraint'")
-        assert classify_error(exc) == CeleryErrorCategory.DUPLICATE_RECORD
+        category, root_exc = classify_error(exc)
+        assert category == CeleryErrorCategory.DUPLICATE_RECORD
+        assert root_exc is exc  # Should return the original exception as root
 
     def test_prefers_deepest_exception_in_chain(self):
         """When both root and wrapper exception match, prefer the root (deepest) exception."""
@@ -140,7 +174,9 @@ class TestClassifyError:
         wrapper.__cause__ = root
 
         # Should classify as THROTTLING (root), not JOB_INCOMPLETE (wrapper)
-        assert classify_error(wrapper) == CeleryErrorCategory.THROTTLING
+        category, root_exc = classify_error(wrapper)
+        assert category == CeleryErrorCategory.THROTTLING
+        assert root_exc is root  # Should return the root exception as root
 
     def test_deepest_match_wins_with_context_chain(self):
         """When using __context__, still prefer the deepest matching exception."""
@@ -161,7 +197,9 @@ class TestClassifyError:
         wrapper.__context__ = root
 
         # Should classify as TIMEOUT (root), not UNKNOWN (wrapper)
-        assert classify_error(wrapper) == CeleryErrorCategory.TIMEOUT
+        category, root_exc = classify_error(wrapper)
+        assert category == CeleryErrorCategory.TIMEOUT
+        assert root_exc is root  # Should return the root exception as root
 
     def test_circular_exception_chain_does_not_infinite_loop(self):
         """Circular exception chains are detected and handled without infinite loops."""
@@ -176,7 +214,9 @@ class TestClassifyError:
         exc.__cause__ = exc  # Creates a cycle
 
         # Should classify correctly and not infinite loop
-        assert classify_error(exc) == CeleryErrorCategory.THROTTLING
+        category, root_exc = classify_error(exc)
+        assert category == CeleryErrorCategory.THROTTLING
+        assert root_exc is exc  # Should return the original exception as root
 
     def test_circular_exception_chain_multiple_exceptions(self):
         """Complex circular chain A -> B -> A is detected and handled."""
@@ -193,7 +233,8 @@ class TestClassifyError:
         exc_a.__cause__ = exc_b
         exc_b.__cause__ = exc_a  # Cycle created
 
-        # Should classify as THROTTLING (encountered first in the chain)
-        # The set-based detection prevents infinite loop
-        result = classify_error(exception=exc_a)
-        assert result == CeleryErrorCategory.TIMEOUT
+        # Should classify as TIMEOUT (deepest/root in the chain), not THROTTLING encountered earlier
+        # The set-based detection prevents infinite loop while still finding the deepest matching exception
+        category, root_exc = classify_error(exception=exc_a)
+        assert category == CeleryErrorCategory.TIMEOUT
+        assert root_exc is exc_b  # Should return the last exception before cycle detected

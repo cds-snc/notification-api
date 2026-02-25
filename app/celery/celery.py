@@ -20,27 +20,32 @@ def make_task(app):
 
         def on_success(self, retval, task_id, args, kwargs):
             elapsed_time = time.time() - self.start
-            app.logger.info("{task_name} took {time}".format(task_name=self.name, time="{0:.4f}".format(elapsed_time)))
+            app.logger.info("{task_name} took {time}s".format(task_name=self.name, time="{0:.4f}".format(elapsed_time)))
 
         def on_failure(self, exc, task_id, args, kwargs, einfo):
-            # Classify the error to determine logging level and marker
-            category = classify_error(exc)
+            # Debugging statement to check how logging works in deployed environment.
+            print(f"DEBUG: on_failure called for task {self.name}", flush=True)  # Goes to stderr
 
-            # Walk the chain to find root exception type
-            root_exc = exc
-            while root_exc and (root_exc.__cause__ or root_exc.__context__):
-                root_exc = root_exc.__cause__ or root_exc.__context__
-            root_exception_type = type(root_exc).__name__ if root_exc else "None"
+            try:
+                # Classify the error and get the root exception
+                category, root_exc = classify_error(exc)
+                root_exception_type = type(root_exc).__name__ if root_exc else "None"
 
-            # All task failures are errors; classification is in the message prefix
-            app.logger.error(
-                "%s task_name=%s task_id=%s root_exception=%s exception=%s",
-                category.value,
-                self.name,
-                task_id,
-                root_exception_type,
-                str(exc),
-            )
+                # Testing the exception function call.
+                app.logger.exception(f"FALLBACK (exception): Task {self.name} failed with {type(exc).__name__}")
+
+                # All task failures are errors; classification is in the message prefix
+                app.logger.error(
+                    "%s task_name=%s task_id=%s root_exception=%s exception=%s",
+                    category.value,
+                    self.name,
+                    task_id,
+                    root_exception_type,
+                    str(exc),
+                )
+            except Exception as classify_err:
+                app.logger.exception(f"ERROR in on_failure: {classify_err}")
+                print(f"DEBUG: Exception in on_failure: {classify_err}", flush=True)
 
             # Call parent to ensure default Celery behavior still runs
             super().on_failure(exc, task_id, args, kwargs, einfo)
