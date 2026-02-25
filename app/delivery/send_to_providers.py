@@ -392,7 +392,6 @@ def provider_to_use(
 ) -> Any:
     """
     Get the provider to use for sending the notification.
-    SMS that are being sent with a dedicated number or internationally should not use Pinpoint.
 
     Args:
         notification_type (str): SMS or EMAIL.
@@ -425,8 +424,9 @@ def provider_to_use(
             recipient_outside_canada = True
     using_sc_pool_template = template_id is not None and str(template_id) in current_app.config["AWS_PINPOINT_SC_TEMPLATE_IDS"]
     zone_1_outside_canada = recipient_outside_canada and not international
+    use_pinpoint_for_dedicated = current_app.config.get("FF_USE_PINPOINT_FOR_DEDICATED", False)
     do_not_use_pinpoint = (
-        has_dedicated_number
+        (has_dedicated_number and not use_pinpoint_for_dedicated)
         or sending_to_us_number
         or cannot_determine_recipient_country
         or zone_1_outside_canada
