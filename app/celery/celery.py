@@ -59,9 +59,6 @@ class NotifyCelery(Celery):
             signals.task_postrun.connect(xray_task_postrun)
             signals.task_prerun.connect(xray_task_prerun)
 
-            # Register the error classification handlers
-            signals.task_retry.connect(classify_celery_task_retry)
-            signals.task_failure.connect(classify_celery_task_failure)
 
         # See https://docs.celeryproject.org/en/stable/userguide/configuration.html
         self.conf.update(
@@ -78,8 +75,8 @@ class NotifyCelery(Celery):
         )
 
 
-# Define error classification maps for both exception class names and message substrings
-# These are used to classify errors in the Celery task failure and retry handlers
+# Register Celery signal handlers that classify errors using the maps defined in
+# app.celery.error_registry (both by exception class name and message substrings).
 
 
 @signals.task_retry.connect
