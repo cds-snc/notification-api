@@ -1,5 +1,8 @@
+from unittest.mock import MagicMock, patch
+
 from sqlalchemy.exc import IntegrityError
 
+from app.celery.celery import classify_celery_task_failure, classify_celery_task_retry
 from app.celery.error_registry import CeleryErrorCategory, classify_error
 
 
@@ -238,3 +241,112 @@ class TestClassifyError:
         category, root_exc = classify_error(exception=exc_a)
         assert category == CeleryErrorCategory.TIMEOUT
         assert root_exc is exc_b  # Should return the last exception before cycle detected
+
+
+class TestCelerySignalHandlers:
+    @patch("app.celery.celery.logger")
+    def test_task_retry_classifies_throttling(self, mock_logger):
+        """task_retry signal handler classifies and logs throttling errors."""
+
+        class ThrottlingException(Exception):
+            pass
+
+        sender = MagicMock()
+        sender.name = "deliver_email"
+        request = MagicMock()
+        request.id = "abc-123"
+
+        classify_celery_task_retry(
+            sender=sender,
+            reason=ThrottlingException("Rate Exceeded"),
+            request=request,
+        )
+
+        mock_logger.error.assert_called_once()
+        log_message = mock_logger.error.call_args[0][0] % mock_logger.error.call_args[0][1:]
+        assert "CELERY_KNOWN_ERROR::THROTTLING" in log_message
+        assert "deliver_email" in log_message
+        assert "abc-123" in log_message
+
+    @patch("app.celery.celery.logger")
+    def test_task_retry_unknown_when_reason_is_not_exception(self, mock_logger):
+        """task_retry classifies as UNKNOWN when reason is not an Exception."""
+        sender = MagicMock()
+        sender.name = "deliver_sms"
+        request = MagicMock()
+        request.id = "def-456"
+
+        classify_celery_task_retry(
+            sender=sender,
+            reason="some string reason",
+            request=request,
+        )
+
+        mock_logger.error.assert_called_once()
+        log_message = mock_logger.error.call_args[0][0] % mock_logger.error.call_args[0][1:]
+        assert "CELERY_UNKNOWN_ERROR" in log_message
+
+    @patch("app.celery.celery.logger")
+    def test_task_retry_handles_missing_sender_and_request(self, mock_logger):
+        """task_retry handles None sender and request gracefully."""
+        classify_celery_task_retry(
+            sender=None,
+            reason=Exception("some error"),
+            request=None,
+        )
+
+        mock_logger.error.assert_called_once()
+        log_message = mock_logger.error.call_args[0][0] % mock_logger.error.call_args[0][1:]
+        assert "task_name=unknown" in log_message
+        assert "task_id=unknown" in log_message
+
+    @patch("app.celery.celery.logger")
+    def test_task_failure_classifies_throttling(self, mock_logger):
+        """task_failure signal handler classifies and logs throttling errors."""
+
+        class ThrottlingException(Exception):
+            pass
+
+        sender = MagicMock()
+        sender.name = "deliver_email"
+
+        classify_celery_task_failure(
+            sender=sender,
+            task_id="abc-123",
+            exception=ThrottlingException("Rate Exceeded"),
+        )
+
+        mock_logger.error.assert_called_once()
+        log_message = mock_logger.error.call_args[0][0] % mock_logger.error.call_args[0][1:]
+        assert "CELERY_KNOWN_ERROR::THROTTLING" in log_message
+        assert "deliver_email" in log_message
+        assert "abc-123" in log_message
+
+    @patch("app.celery.celery.logger")
+    def test_task_failure_classifies_unknown(self, mock_logger):
+        """task_failure classifies unrecognized exceptions as UNKNOWN."""
+        sender = MagicMock()
+        sender.name = "deliver_sms"
+
+        classify_celery_task_failure(
+            sender=sender,
+            task_id="ghi-789",
+            exception=Exception("Something unexpected"),
+        )
+
+        mock_logger.error.assert_called_once()
+        log_message = mock_logger.error.call_args[0][0] % mock_logger.error.call_args[0][1:]
+        assert "CELERY_UNKNOWN_ERROR" in log_message
+
+    @patch("app.celery.celery.logger")
+    def test_task_failure_handles_missing_sender(self, mock_logger):
+        """task_failure handles None sender gracefully."""
+        classify_celery_task_failure(
+            sender=None,
+            task_id="jkl-012",
+            exception=Exception("error"),
+        )
+
+        mock_logger.error.assert_called_once()
+        log_message = mock_logger.error.call_args[0][0] % mock_logger.error.call_args[0][1:]
+        assert "task_name=unknown" in log_message
