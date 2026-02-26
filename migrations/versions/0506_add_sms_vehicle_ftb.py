@@ -1,6 +1,6 @@
 """
-Revision ID: 0506_add_sms_vehicle_to_ft_billing
-Revises: 0505_add_sms_vehicle_to_rates
+Revision ID: 0506_add_sms_vehicle_ftb
+Revises: 0505_add_sms_vehicle
 Create Date: 2026-02-25 00:00:00
 
 Add sms_sending_vehicle to ft_billing as part of the composite primary key.

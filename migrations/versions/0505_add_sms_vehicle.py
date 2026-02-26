@@ -1,5 +1,5 @@
 """
-Revision ID: 0505_add_sms_vehicle_to_rates
+Revision ID: 0505_add_sms_vehicle
 Revises: 0504_fix_template_link
 Create Date: 2026-02-25 00:00:00
 
