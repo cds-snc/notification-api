@@ -1477,7 +1477,7 @@ def test_post_notification_should_set_reply_to_text(
 
 # TODO: Remove feature flag checks after FF_USE_BILLABLE_UNITS go live
 class TestBillableUnitsInV1SendNotification:
-    """Tests for FF_USE_BILLABLE_UNITS in V1 send_notification (app/notifications/rest.py)"""
+    """Tests FF_USE_BILLABLE_UNITS behaviour for the V1 /notifications/sms send_notification endpoint."""
 
     def test_sms_uses_billable_units_for_limit_checks_when_flag_enabled(self, notify_api, sample_template, mocker):
         """When FF_USE_BILLABLE_UNITS is enabled, check_sms_annual_limit and check_sms_daily_limit
