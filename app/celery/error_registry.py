@@ -25,6 +25,9 @@ class CeleryErrorCategory(str, Enum):
     # Notification not found for SES references — safe to ignore, but should be investigated if it spikes
     NOTIFICATION_NOT_FOUND = "CELERY_KNOWN_ERROR::NOTIFICATION_NOT_FOUND"
 
+    # Celery retry mechanism -- these errors are normal and leverage by Celery to retry a task
+    TASK_RETRY = "CELERY_KNOWN_ERROR::RETRY"
+
     # Shutdown related errors — expected during deploys, safe to ignore
     SHUTDOWN = "CELERY_KNOWN_ERROR::SHUTDOWN"
 
@@ -50,6 +53,7 @@ _EXCEPTION_CLASS_MAP: dict[str, CeleryErrorCategory] = {
     "ThrottlingException": CeleryErrorCategory.THROTTLING,
     "TooManyRequestsException": CeleryErrorCategory.THROTTLING,
     "RequestLimitExceeded": CeleryErrorCategory.THROTTLING,
+    "Retry": CeleryErrorCategory.TASK_RETRY,
     "NoResultFound": CeleryErrorCategory.NOTIFICATION_NOT_FOUND,
 }
 
@@ -61,6 +65,7 @@ _MESSAGE_SUBSTRING_MAP: dict[str, CeleryErrorCategory] = {
     "SIGKILL": CeleryErrorCategory.SHUTDOWN,
     "Rate Exceeded": CeleryErrorCategory.THROTTLING,
     "rate exceeded": CeleryErrorCategory.THROTTLING,
+    "Retry in 300s": CeleryErrorCategory.TASK_RETRY,
     "Throttling": CeleryErrorCategory.THROTTLING,
     "Too Many Requests": CeleryErrorCategory.THROTTLING,
     "timeout-sending-notifications": CeleryErrorCategory.TIMEOUT,
