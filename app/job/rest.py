@@ -200,7 +200,7 @@ def create_job(service_id):
         # Check and track limits if we're not sending test notifications
         if has_real_recipients and not has_simulated:
             csv_length = len(recipient_csv)
-            if current_app.config["FF_USE_BILLABLE_UNITS"]:
+            if current_app.config.get("FF_USE_BILLABLE_UNITS"):
                 total_billable_units = recipient_csv.sms_fragment_count
                 check_sms_annual_limit(service, total_billable_units)
                 check_sms_daily_limit(service, total_billable_units)
