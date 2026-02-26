@@ -24,7 +24,7 @@ from notifications_utils.timezones import (
     convert_local_timezone_to_utc,
     convert_utc_to_local_timezone,
 )
-from sqlalchemy import CheckConstraint, Index, UniqueConstraint
+from sqlalchemy import CheckConstraint, Computed, Index, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSON, JSONB, UUID
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.declarative import declared_attr
@@ -1759,6 +1759,7 @@ class Notification(BaseModel):
     created_at = db.Column(db.DateTime, index=True, unique=False, nullable=False)
     sent_at = db.Column(db.DateTime, index=False, unique=False, nullable=True)
     sent_by = db.Column(db.String, nullable=True)
+    billable = db.Column(db.Boolean, Computed("sent_by IS NOT NULL", persisted=True))
     updated_at = db.Column(
         db.DateTime,
         index=False,
@@ -2083,6 +2084,7 @@ class NotificationHistory(BaseModel, HistoryModel):
     created_at = db.Column(db.DateTime, index=True, unique=False, nullable=False)
     sent_at = db.Column(db.DateTime, index=False, unique=False, nullable=True)
     sent_by = db.Column(db.String, nullable=True)
+    billable = db.Column(db.Boolean, Computed("sent_by IS NOT NULL", persisted=True))
     updated_at = db.Column(
         db.DateTime,
         index=False,
