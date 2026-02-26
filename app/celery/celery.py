@@ -1,3 +1,4 @@
+import logging
 import time
 
 from environs import Env
@@ -6,6 +7,8 @@ from flask import current_app
 from app.celery.error_registry import classify_error
 from celery import Celery, Task, signals
 from celery.signals import worker_process_shutdown
+
+logger = logging.getLogger(__name__)
 
 
 @worker_process_shutdown.connect  # type: ignore
@@ -21,34 +24,6 @@ def make_task(app):
         def on_success(self, retval, task_id, args, kwargs):
             elapsed_time = time.time() - self.start
             app.logger.info("{task_name} took {time}s".format(task_name=self.name, time="{0:.4f}".format(elapsed_time)))
-
-        def on_failure(self, exc, task_id, args, kwargs, einfo):
-            # Debugging statement to check how logging works in deployed environment.
-            print(f"DEBUG: on_failure called for task {self.name}", flush=True)  # Goes to stderr
-
-            try:
-                # Classify the error and get the root exception
-                category, root_exc = classify_error(exc)
-                root_exception_type = type(root_exc).__name__ if root_exc else "None"
-
-                # Testing the exception function call.
-                app.logger.exception(f"FALLBACK (exception): Task {self.name} failed with {type(exc).__name__}")
-
-                # All task failures are errors; classification is in the message prefix
-                app.logger.error(
-                    "%s task_name=%s task_id=%s root_exception=%s exception=%s",
-                    category.value,
-                    self.name,
-                    task_id,
-                    root_exception_type,
-                    str(exc),
-                )
-            except Exception as classify_err:
-                app.logger.exception(f"ERROR in on_failure: {classify_err}")
-                print(f"DEBUG: Exception in on_failure: {classify_err}", flush=True)
-
-            # Call parent to ensure default Celery behavior still runs
-            super().on_failure(exc, task_id, args, kwargs, einfo)
 
         def __call__(self, *args, **kwargs):
             # ensure task has flask context to access config, logger, etc
@@ -97,3 +72,43 @@ class NotifyCelery(Celery):
                 "accept_content": app.config["CELERY_ACCEPT_CONTENT"],
             }
         )
+
+
+# Register Celery signal handlers that classify errors using the maps defined in
+# app.celery.error_registry (both by exception class name and message substrings).
+
+
+@signals.task_retry.connect
+def classify_celery_task_retry(sender=None, reason=None, request=None, einfo=None, **kwargs):
+    """Fires on each retry — classifies the transient error."""
+    task_name = sender.name if sender else "unknown"
+    task_id = request.id if request else "unknown"
+    exception = reason if isinstance(reason, Exception) else None
+    category, root_exc = classify_error(exception)
+    root_exception_type = type(root_exc).__name__ if root_exc else "None"
+
+    logger.error(
+        "%s task_name=%s task_id=%s root_exception=%s exception=%s",
+        category.value,
+        task_name,
+        task_id,
+        root_exception_type,
+        str(exception),
+    )
+
+
+@signals.task_failure.connect
+def classify_celery_task_failure(sender=None, task_id=None, exception=None, **kwargs):
+    """Fires when retries are exhausted — classifies the permanent failure."""
+    task_name = sender.name if sender else "unknown"
+    category, root_exc = classify_error(exception)
+    root_exception_type = type(root_exc).__name__ if root_exc else "None"
+
+    logger.error(
+        "%s task_name=%s task_id=%s root_exception=%s exception=%s",
+        category.value,
+        task_name,
+        task_id,
+        root_exception_type,
+        str(exception),
+    )
