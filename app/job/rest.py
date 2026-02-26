@@ -38,7 +38,6 @@ from app.models import (
 )
 from app.notifications.process_notifications import (
     csv_has_simulated_and_non_simulated_recipients,
-    number_of_sms_fragments,
 )
 from app.notifications.validators import (
     check_email_annual_limit,
@@ -202,10 +201,10 @@ def create_job(service_id):
         if has_real_recipients and not has_simulated:
             csv_length = len(recipient_csv)
             if current_app.config["FF_USE_BILLABLE_UNITS"]:
-                billable_unit = number_of_sms_fragments(template, {})
-                check_sms_annual_limit(service, billable_unit * csv_length)
-                check_sms_daily_limit(service, billable_unit * csv_length)
-                increment_sms_daily_count_send_warnings_if_needed(service, billable_unit * csv_length)
+                total_billable_units = recipient_csv.sms_fragment_count
+                check_sms_annual_limit(service, total_billable_units)
+                check_sms_daily_limit(service, total_billable_units)
+                increment_sms_daily_count_send_warnings_if_needed(service, total_billable_units)
             else:
                 check_sms_annual_limit(service, csv_length)
                 check_sms_daily_limit(service, csv_length)

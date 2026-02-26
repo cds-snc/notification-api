@@ -258,10 +258,10 @@ def post_bulk():
         if not is_test_notification:
             # TODO FF_USE_BILLABLE_UNITS removal - Use billable units when feature flag is enabled
             if current_app.config.get("FF_USE_BILLABLE_UNITS"):
-                billable_unit = number_of_sms_fragments(template, {})
-                check_sms_annual_limit(authenticated_service, billable_unit * len(recipient_csv))
-                check_sms_daily_limit(authenticated_service, billable_unit * len(recipient_csv))
-                increment_sms_daily_count_send_warnings_if_needed(authenticated_service, billable_unit * len(recipient_csv))
+                total_billable_units = recipient_csv.sms_fragment_count
+                check_sms_annual_limit(authenticated_service, total_billable_units)
+                check_sms_daily_limit(authenticated_service, total_billable_units)
+                increment_sms_daily_count_send_warnings_if_needed(authenticated_service, total_billable_units)
             else:
                 check_sms_annual_limit(authenticated_service, len(recipient_csv))
                 check_sms_daily_limit(authenticated_service, len(recipient_csv))
