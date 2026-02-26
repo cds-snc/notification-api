@@ -1091,7 +1091,7 @@ class TestBillableUnitsInJobCreation:
 
     def test_create_sms_job_uses_billable_units_when_flag_enabled(self, client, sample_template, mocker, fake_uuid, notify_api):
         """When FF_USE_BILLABLE_UNITS is enabled, check_sms_annual_limit and check_sms_daily_limit
-        should be called with billable_unit * csv_length instead of csv_length."""
+        should be called with total_billable_units from recipient_csv.sms_fragment_count."""
         with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
             mocker.patch("app.celery.tasks.process_job.apply_async")
             mocker.patch(
@@ -1107,8 +1107,12 @@ class TestBillableUnitsInJobCreation:
                 "app.job.rest.get_job_from_s3",
                 return_value="phone number\r\n6502532222",
             )
-            # Mock number_of_sms_fragments to return 2 (simulating a long message)
-            mocker.patch("app.job.rest.number_of_sms_fragments", return_value=2)
+            # Mock sms_fragment_count on RecipientCSV to return 2 (simulating a long message)
+            mocker.patch(
+                "notifications_utils.recipients.RecipientCSV.sms_fragment_count",
+                new_callable=mocker.PropertyMock,
+                return_value=2,
+            )
 
             mock_check_annual = mocker.patch("app.job.rest.check_sms_annual_limit")
             mock_check_daily = mocker.patch("app.job.rest.check_sms_daily_limit")
@@ -1122,7 +1126,7 @@ class TestBillableUnitsInJobCreation:
             response = client.post(path, data=json.dumps(data), headers=headers)
             assert response.status_code == 201
 
-            # With 1 recipient and 2 fragments, should be called with 2 (2 * 1)
+            # sms_fragment_count returns 2, so limit checks should use 2
             mock_check_annual.assert_called_once_with(sample_template.service, 2)
             mock_check_daily.assert_called_once_with(sample_template.service, 2)
             mock_increment.assert_called_once_with(sample_template.service, 2)
@@ -1163,11 +1167,11 @@ class TestBillableUnitsInJobCreation:
             mock_check_daily.assert_called_once_with(sample_template.service, 1)
             mock_increment.assert_called_once_with(sample_template.service, 1)
 
-    def test_create_sms_job_multiple_recipients_uses_billable_units_times_csv_length(
+    def test_create_sms_job_multiple_recipients_uses_total_billable_units(
         self, client, sample_template, mocker, fake_uuid, notify_api
     ):
         """When FF_USE_BILLABLE_UNITS is enabled with multiple recipients, limit checks
-        should be called with billable_unit * csv_length."""
+        should be called with total_billable_units from recipient_csv.sms_fragment_count."""
         with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
             mocker.patch("app.celery.tasks.process_job.apply_async")
             mocker.patch(
@@ -1183,8 +1187,13 @@ class TestBillableUnitsInJobCreation:
                 "app.job.rest.get_job_from_s3",
                 return_value="phone number\r\n6502532222\r\n6502532223\r\n6502532224",
             )
-            # Mock number_of_sms_fragments to return 2 (simulating a long message)
-            mocker.patch("app.job.rest.number_of_sms_fragments", return_value=2)
+            # Mock sms_fragment_count on RecipientCSV to return 6
+            # (simulating 3 recipients × 2 fragments each)
+            mocker.patch(
+                "notifications_utils.recipients.RecipientCSV.sms_fragment_count",
+                new_callable=mocker.PropertyMock,
+                return_value=6,
+            )
 
             mock_check_annual = mocker.patch("app.job.rest.check_sms_annual_limit")
             mock_check_daily = mocker.patch("app.job.rest.check_sms_daily_limit")
@@ -1198,7 +1207,7 @@ class TestBillableUnitsInJobCreation:
             response = client.post(path, data=json.dumps(data), headers=headers)
             assert response.status_code == 201
 
-            # With 3 recipients and 2 fragments each, should be called with 6 (2 * 3)
+            # sms_fragment_count returns 6, so limit checks should use 6
             mock_check_annual.assert_called_once_with(sample_template.service, 6)
             mock_check_daily.assert_called_once_with(sample_template.service, 6)
             mock_increment.assert_called_once_with(sample_template.service, 6)
