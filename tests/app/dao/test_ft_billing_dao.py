@@ -21,6 +21,7 @@ from app.dao.fact_billing_dao import (
 )
 from app.dao.organisation_dao import dao_add_service_to_organisation
 from app.models import NOTIFICATION_STATUS_TYPES, FactBilling, Notification
+from tests.app.conftest import create_template_category
 from tests.app.db import (
     create_annual_billing,
     create_ft_billing,
@@ -213,6 +214,47 @@ def test_fetch_billing_data_for_day_is_grouped_by_international(notify_db_sessio
     assert results[1].notifications_sent == 1
 
 
+def test_fetch_billing_data_for_day_is_grouped_by_sms_sending_vehicle(notify_db_session):
+    service = create_service()
+    template = create_template(service=service, template_type="sms")
+    # Long code: origination number matches +1 followed by 10 digits
+    save_notification(create_notification(template=template, status="delivered", sms_origination_phone_number="+12025551234"))
+    # Short code: origination number does not match the long code pattern
+    save_notification(create_notification(template=template, status="delivered", sms_origination_phone_number="12345"))
+
+    today = convert_utc_to_local_timezone(datetime.utcnow())
+    results = fetch_billing_data_for_day(today)
+    assert len(results) == 2
+    vehicles = {r.sms_sending_vehicle for r in results}
+    assert vehicles == {"long_code", "short_code"}
+    assert all(r.notifications_sent == 1 for r in results)
+
+
+def test_fetch_billing_data_for_day_null_origination_number_is_long_code(notify_db_session):
+    service = create_service()
+    template = create_template(service=service, template_type="sms")
+    # NULL origination number should fall back to template category's sms_sending_vehicle (long_code by default)
+    save_notification(create_notification(template=template, status="delivered", sms_origination_phone_number=None))
+
+    today = convert_utc_to_local_timezone(datetime.utcnow())
+    results = fetch_billing_data_for_day(today)
+    assert len(results) == 1
+    assert results[0].sms_sending_vehicle == "long_code"
+
+
+def test_fetch_billing_data_for_day_null_origination_uses_template_category_vehicle(notify_db, notify_db_session):
+    service = create_service()
+    short_code_category = create_template_category(notify_db, notify_db_session, sms_sending_vehicle="short_code")
+    template = create_template(service=service, template_type="sms", template_category=short_code_category)
+    # NULL origination + short_code category → should yield short_code
+    save_notification(create_notification(template=template, status="delivered", sms_origination_phone_number=None))
+
+    today = convert_utc_to_local_timezone(datetime.utcnow())
+    results = fetch_billing_data_for_day(today)
+    assert len(results) == 1
+    assert results[0].sms_sending_vehicle == "short_code"
+
+
 def test_fetch_billing_data_for_day_is_grouped_by_notification_type(notify_db_session):
     service = create_service()
     sms_template = create_template(service=service, template_type="sms")
@@ -362,6 +404,42 @@ def test_get_rate(notify_db_session):
 
     assert rate == 2.2
     assert letter_rate == Decimal("0.3")
+
+
+@freeze_time("2017-06-01 12:00")
+def test_get_rate_differentiates_by_sms_sending_vehicle(notify_db_session):
+    create_rate(
+        start_date=datetime(2017, 5, 30, 23, 0),
+        value=1.5,
+        notification_type="sms",
+        sms_sending_vehicle="long_code",
+    )
+    create_rate(
+        start_date=datetime(2017, 5, 30, 23, 0),
+        value=3.0,
+        notification_type="sms",
+        sms_sending_vehicle="short_code",
+    )
+
+    non_letter_rates, letter_rates = get_rates_for_billing()
+
+    long_code_rate = get_rate(
+        non_letter_rates=non_letter_rates,
+        letter_rates=letter_rates,
+        notification_type="sms",
+        date=date(2017, 6, 1),
+        sms_sending_vehicle="long_code",
+    )
+    short_code_rate = get_rate(
+        non_letter_rates=non_letter_rates,
+        letter_rates=letter_rates,
+        notification_type="sms",
+        date=date(2017, 6, 1),
+        sms_sending_vehicle="short_code",
+    )
+
+    assert long_code_rate == 1.5
+    assert short_code_rate == 3.0
 
 
 @pytest.mark.parametrize("letter_post_class,expected_rate", [("first", "0.61"), ("second", "0.35")])
