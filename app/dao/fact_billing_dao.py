@@ -38,6 +38,11 @@ def fetch_sms_free_allowance_remainder(start_date):
 
     billable_units = func.coalesce(func.sum(FactBilling.billable_units * FactBilling.rate_multiplier), 0)
 
+    # NOTE: sms_sending_vehicle_case is defined where it's used below in
+    # `_query_for_billing_data`. A stray definition here would reference
+    # an undefined `table` variable and cause errors, so it is intentionally
+    # omitted from this function.
+
     query = (
         db.session.query(
             AnnualBilling.service_id.label("service_id"),
@@ -331,7 +336,7 @@ def fetch_billing_data_for_day(process_day, service_id=None):
         service_ids = [service_id]
 
     for id_of_service in service_ids:
-        for notification_type in SMS_TYPE:
+        for notification_type in (SMS_TYPE, EMAIL_TYPE, LETTER_TYPE):
             results = _query_for_billing_data(
                 table=Notification,
                 notification_type=notification_type,
@@ -360,6 +365,26 @@ def _query_for_billing_data(table, notification_type, start_date, end_date, serv
         EMAIL_TYPE: NOTIFICATION_STATUS_TYPES_BILLABLE,
         LETTER_TYPE: NOTIFICATION_STATUS_TYPES_BILLABLE_FOR_LETTERS,
     }
+    sms_sending_vehicle_case = case(
+        [
+            (
+                and_(
+                    table.notification_type == SMS_TYPE,
+                    table.sms_origination_phone_number.isnot(None),
+                    ~(table.sms_origination_phone_number.op("~")(SmsClient.LONG_CODE_REGEX.pattern)),
+                ),
+                "short_code",
+            ),
+            (
+                and_(
+                    table.notification_type == SMS_TYPE,
+                    table.sms_origination_phone_number.is_(None),
+                ),
+                func.coalesce(TemplateCategory.sms_sending_vehicle, "long_code"),
+            ),
+        ],
+        else_="long_code",
+    ).label("sms_sending_vehicle")
     query = (
         db.session.query(
             table.template_id,
@@ -386,26 +411,7 @@ def _query_for_billing_data(table, notification_type, start_date, end_date, serv
             func.count().label("notifications_sent"),
             Service.crown,
             func.coalesce(table.postage, "none").label("postage"),
-            case(
-                [
-                    (
-                        and_(
-                            table.notification_type == SMS_TYPE,
-                            table.sms_origination_phone_number.isnot(None),
-                            ~(table.sms_origination_phone_number.op("~")(SmsClient.LONG_CODE_REGEX.pattern)),
-                        ),
-                        "short_code",
-                    ),
-                    (
-                        and_(
-                            table.notification_type == SMS_TYPE,
-                            table.sms_origination_phone_number.is_(None),
-                        ),
-                        func.coalesce(TemplateCategory.sms_sending_vehicle, "long_code"),
-                    ),
-                ],
-                else_="long_code",
-            ).label("sms_sending_vehicle"),
+            sms_sending_vehicle_case,
         )
         .filter(
             table.status.in_(billable_type_list[notification_type]),
@@ -425,8 +431,7 @@ def _query_for_billing_data(table, notification_type, start_date, end_date, serv
             table.international,
             Service.crown,
             table.postage,
-            table.sms_origination_phone_number,
-            "sms_sending_vehicle",
+            sms_sending_vehicle_case,
         )
         .join(Service, Service.id == table.service_id)
         .outerjoin(Template, Template.id == table.template_id)
