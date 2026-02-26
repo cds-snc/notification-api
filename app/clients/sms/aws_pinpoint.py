@@ -1,3 +1,4 @@
+import re
 from time import monotonic
 
 import boto3
@@ -14,6 +15,7 @@ class AwsPinpointClient(SmsClient):
 
     def init_app(self, current_app, statsd_client, *args, **kwargs):
         self._client = boto3.client("pinpoint-sms-voice-v2", region_name="ca-central-1")
+        self._dedicated_client = boto3.client("pinpoint-sms-voice-v2", region_name=current_app.config["AWS_PINPOINT_REGION"])
         super(AwsPinpointClient, self).__init__(*args, **kwargs)
         self.current_app = current_app
         self.name = "pinpoint"
@@ -43,9 +45,27 @@ class AwsPinpointClient(SmsClient):
             destinationNumber = to
             try:
                 start_time = monotonic()
+                send_with_dedicated_phone_number = self._send_with_dedicated_phone_number(sender) and self.current_app.config.get(
+                    "FF_USE_PINPOINT_FOR_DEDICATED", False
+                )
+                if send_with_dedicated_phone_number:
+                    dryrun = destinationNumber == self.current_app.config["EXTERNAL_TEST_NUMBER"]
+                    response = self._dedicated_client.send_text_message(
+                        DestinationPhoneNumber=destinationNumber,
+                        OriginationIdentity=sender,
+                        MessageBody=content,
+                        MessageType=messageType,
+                        ConfigurationSetName=self.current_app.config["AWS_PINPOINT_CONFIGURATION_SET_NAME"],
+                        DryRun=dryrun,
+                    )
+                    if dryrun:
+                        self.current_app.logger.info(
+                            f"SMS with message id {response.get('MessageId')} is sending to EXTERNAL_TEST_NUMBER using dedicated sender. "
+                            f"Boto call made to AWS, but not send on."
+                        )
                 # For international numbers we send with an AWS number for the corresponding country, using our default sender id.
                 # Note that Canada does not currently support sender ids.
-                if phonenumbers.region_code_for_number(match.number) != "CA":
+                elif phonenumbers.region_code_for_number(match.number) != "CA":
                     response = self._client.send_text_message(
                         DestinationPhoneNumber=destinationNumber,
                         MessageBody=content,
@@ -87,3 +107,6 @@ class AwsPinpointClient(SmsClient):
             self.statsd_client.incr("clients.pinpoint.error")
             self.current_app.logger.error("No valid numbers found in {}".format(to))
             raise ValueError("No valid numbers found for SMS delivery")
+
+    def _send_with_dedicated_phone_number(self, sender):
+        return sender and re.match(self.LONG_CODE_REGEX, sender)

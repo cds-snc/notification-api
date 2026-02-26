@@ -212,3 +212,45 @@ def test_send_sms_uses_dryrun(notify_api, mocker, sample_template, template_id):
         ConfigurationSetName="config_set_name",
         DryRun=True,
     )
+
+
+@pytest.mark.serial
+def test_send_sms_uses_dedicated_number_when_flag_enabled(notify_api, mocker):
+    # Mock AWS clients
+    dedicated_mock = mocker.patch.object(aws_pinpoint_client, "_dedicated_client", create=True)
+    default_mock = mocker.patch.object(aws_pinpoint_client, "_client", create=True)
+    mocker.patch.object(aws_pinpoint_client, "statsd_client", create=True)
+
+    sender = "+19025551234"  # Long code format
+    to = "6135555555"
+    content = "foo"
+    reference = "ref"
+
+    with set_config_values(
+        notify_api,
+        {
+            "AWS_PINPOINT_SC_POOL_ID": "sc_pool_id",
+            "AWS_PINPOINT_DEFAULT_POOL_ID": "default_pool_id",
+            "AWS_PINPOINT_CONFIGURATION_SET_NAME": "config_set_name",
+            "FF_USE_PINPOINT_FOR_DEDICATED": True,
+        },
+    ):
+        aws_pinpoint_client.send_sms(
+            to=to,
+            content=content,
+            reference=reference,
+            sender=sender,
+        )
+
+    # Dedicated client used
+    dedicated_mock.send_text_message.assert_called_once_with(
+        DestinationPhoneNumber=f"+1{to}",
+        OriginationIdentity=sender,
+        MessageBody=content,
+        MessageType="TRANSACTIONAL",
+        ConfigurationSetName="config_set_name",
+        DryRun=False,
+    )
+
+    # Default client NOT used
+    default_mock.send_text_message.assert_not_called()
