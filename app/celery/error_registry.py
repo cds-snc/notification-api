@@ -65,7 +65,7 @@ _MESSAGE_SUBSTRING_MAP: dict[str, CeleryErrorCategory] = {
     "SIGKILL": CeleryErrorCategory.SHUTDOWN,
     "Rate Exceeded": CeleryErrorCategory.THROTTLING,
     "rate exceeded": CeleryErrorCategory.THROTTLING,
-    "Retry in 300s": CeleryErrorCategory.TASK_RETRY,
+    "Retry in ": CeleryErrorCategory.TASK_RETRY,
     "Throttling": CeleryErrorCategory.THROTTLING,
     "Too Many Requests": CeleryErrorCategory.THROTTLING,
     "timeout-sending-notifications": CeleryErrorCategory.TIMEOUT,
