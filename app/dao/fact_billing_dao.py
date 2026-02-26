@@ -14,8 +14,6 @@ from app.models import (
     EMAIL_TYPE,
     KEY_TYPE_TEST,
     LETTER_TYPE,
-    NOTIFICATION_STATUS_TYPES_BILLABLE,
-    NOTIFICATION_STATUS_TYPES_BILLABLE_FOR_LETTERS,
     SMS_TYPE,
     AnnualBilling,
     FactBilling,
@@ -329,7 +327,7 @@ def fetch_billing_data_for_day(process_day, service_id=None):
     else:
         service_ids = [service_id]
     for id_of_service in service_ids:
-        for notification_type in (SMS_TYPE, EMAIL_TYPE, LETTER_TYPE):
+        for notification_type in (SMS_TYPE, EMAIL_TYPE):
             results = _query_for_billing_data(
                 table=Notification,
                 notification_type=notification_type,
@@ -353,26 +351,18 @@ def fetch_billing_data_for_day(process_day, service_id=None):
 
 
 def _query_for_billing_data(table, notification_type, start_date, end_date, service_id):
-    billable_type_list = {
-        SMS_TYPE: NOTIFICATION_STATUS_TYPES_BILLABLE,
-        EMAIL_TYPE: NOTIFICATION_STATUS_TYPES_BILLABLE,
-        LETTER_TYPE: NOTIFICATION_STATUS_TYPES_BILLABLE_FOR_LETTERS,
-    }
     query = (
         db.session.query(
             table.template_id,
             table.service_id,
             table.notification_type,
-            func.coalesce(
-                table.sent_by,
-                case(
-                    [
-                        (table.notification_type == "letter", "dvla"),
-                        (table.notification_type == "sms", "unknown"),
-                        (table.notification_type == "email", "ses"),
-                    ]
-                ),
-            ).label("sent_by"),
+            # sent_by is only set after a successful hand-off to the provider, so
+            # filtering on sent_by IS NOT NULL is equivalent to "the notification was
+            # actually dispatched" — this correctly excludes pre-send technical-failures
+            # (invalid URL, empty message, inactive service, max retries before first
+            # send, etc.) while including post-send technical-failures that came back
+            # via provider receipts.
+            table.sent_by.label("sent_by"),
             func.coalesce(table.rate_multiplier, 1).cast(Integer).label("rate_multiplier"),
             func.coalesce(table.international, False).label("international"),
             case(
@@ -386,7 +376,7 @@ def _query_for_billing_data(table, notification_type, start_date, end_date, serv
             func.coalesce(table.postage, "none").label("postage"),
         )
         .filter(
-            table.status.in_(billable_type_list[notification_type]),
+            table.sent_by.isnot(None),
             table.key_type != KEY_TYPE_TEST,
             table.created_at >= start_date,
             table.created_at < end_date,
@@ -421,7 +411,7 @@ def get_service_ids_that_need_billing_populated(start_date, end_date):
         .filter(
             NotificationHistory.created_at >= start_date,
             NotificationHistory.created_at <= end_date,
-            NotificationHistory.notification_type.in_([SMS_TYPE, EMAIL_TYPE, LETTER_TYPE]),
+            NotificationHistory.notification_type.in_([SMS_TYPE, EMAIL_TYPE]),
             NotificationHistory.billable_units != 0,
         )
         .distinct()
