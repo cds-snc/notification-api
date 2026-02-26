@@ -1,6 +1,5 @@
 from datetime import date, datetime, time, timedelta
 
-from flask import current_app
 from notifications_utils.timezones import (
     convert_local_timezone_to_utc,
     convert_utc_to_local_timezone,
@@ -9,6 +8,7 @@ from sqlalchemy import Date, Integer, and_, case, desc, func
 from sqlalchemy.dialects.postgresql import insert
 
 from app import db
+from app.clients.sms import SmsClient
 from app.dao.date_util import get_financial_year, get_financial_year_for_datetime
 from app.models import (
     EMAIL_TYPE,
@@ -25,6 +25,8 @@ from app.models import (
     Organisation,
     Rate,
     Service,
+    Template,
+    TemplateCategory,
 )
 from app.utils import get_local_timezone_midnight_in_utc
 
@@ -322,14 +324,14 @@ def fetch_billing_data_for_day(process_day, service_id=None):
     end_date = convert_local_timezone_to_utc(datetime.combine(process_day + timedelta(days=1), time.min))
     # use notification_history if process day is older than 7 days
     # this is useful if we need to rebuild the ft_billing table for a date older than 7 days ago.
-    current_app.logger.info("Populate ft_billing for {} to {}".format(start_date, end_date))
     transit_data = []
     if not service_id:
         service_ids = [x.id for x in Service.query.all()]
     else:
         service_ids = [service_id]
+
     for id_of_service in service_ids:
-        for notification_type in (SMS_TYPE, EMAIL_TYPE, LETTER_TYPE):
+        for notification_type in SMS_TYPE:
             results = _query_for_billing_data(
                 table=Notification,
                 notification_type=notification_type,
@@ -384,6 +386,26 @@ def _query_for_billing_data(table, notification_type, start_date, end_date, serv
             func.count().label("notifications_sent"),
             Service.crown,
             func.coalesce(table.postage, "none").label("postage"),
+            case(
+                [
+                    (
+                        and_(
+                            table.notification_type == SMS_TYPE,
+                            table.sms_origination_phone_number.isnot(None),
+                            ~(table.sms_origination_phone_number.op("~")(SmsClient.LONG_CODE_REGEX.pattern)),
+                        ),
+                        "short_code",
+                    ),
+                    (
+                        and_(
+                            table.notification_type == SMS_TYPE,
+                            table.sms_origination_phone_number.is_(None),
+                        ),
+                        func.coalesce(TemplateCategory.sms_sending_vehicle, "long_code"),
+                    ),
+                ],
+                else_="long_code",
+            ).label("sms_sending_vehicle"),
         )
         .filter(
             table.status.in_(billable_type_list[notification_type]),
@@ -403,10 +425,17 @@ def _query_for_billing_data(table, notification_type, start_date, end_date, serv
             table.international,
             Service.crown,
             table.postage,
+            table.sms_origination_phone_number,
+            "sms_sending_vehicle",
         )
-        .join(Service)
+        .join(Service, Service.id == table.service_id)
+        .outerjoin(Template, Template.id == table.template_id)
+        .outerjoin(TemplateCategory, TemplateCategory.id == Template.template_category_id)
     )
-    return query.all()
+
+    results = query.all()
+
+    return results
 
 
 def get_rates_for_billing():
@@ -437,6 +466,7 @@ def get_rate(
     crown=None,
     letter_page_count=None,
     post_class="second",
+    sms_sending_vehicle="long_code",
 ):
     start_of_day = get_local_timezone_midnight_in_utc(date)
 
@@ -455,7 +485,13 @@ def get_rate(
         )
     elif notification_type == SMS_TYPE:
         return next(
-            r.rate for r in non_letter_rates if (notification_type == r.notification_type and start_of_day >= r.valid_from)
+            r.rate
+            for r in non_letter_rates
+            if (
+                notification_type == r.notification_type
+                and start_of_day >= r.valid_from
+                and sms_sending_vehicle == r.sms_sending_vehicle
+            )
         )
     else:
         return 0
@@ -471,7 +507,9 @@ def update_fact_billing(data, process_day):
         data.crown,
         data.letter_page_count,
         data.postage,
+        data.sms_sending_vehicle,
     )
+
     billing_record = create_billing_record(data, rate, process_day)
 
     table = FactBilling.__table__
@@ -493,6 +531,7 @@ def update_fact_billing(data, process_day):
         notifications_sent=billing_record.notifications_sent,
         rate=billing_record.rate,
         postage=billing_record.postage,
+        sms_sending_vehicle=billing_record.sms_sending_vehicle,
     )
 
     stmt = stmt.on_conflict_do_update(
@@ -520,5 +559,6 @@ def create_billing_record(data, rate, process_day):
         notifications_sent=data.notifications_sent,
         rate=rate,
         postage=data.postage,
+        sms_sending_vehicle=data.sms_sending_vehicle,
     )
     return billing_record
