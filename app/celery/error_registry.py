@@ -25,8 +25,8 @@ class CeleryErrorCategory(str, Enum):
     # Notification not found for SES references — safe to ignore, but should be investigated if it spikes
     NOTIFICATION_NOT_FOUND = "CELERY_KNOWN_ERROR::NOTIFICATION_NOT_FOUND"
 
-    # Celery retry mechanism -- these errors are normal and leverage by Celery to retry a task
-    TASK_RETRY = "CELERY_KNOWN_ERROR::RETRY"
+    # Celery retry mechanism -- these errors are normal and used by Celery to retry a task
+    TASK_RETRY = "CELERY_KNOWN_ERROR::TASK_RETRY"
 
     # Shutdown related errors — expected during deploys, safe to ignore
     SHUTDOWN = "CELERY_KNOWN_ERROR::SHUTDOWN"
