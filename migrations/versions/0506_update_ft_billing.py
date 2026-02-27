@@ -1,16 +1,17 @@
 """
-Revision ID: 0506_add_sms_vehicle_ftb
+Revision ID: 0506_update_ft_billing
 Revises: 0505_add_sms_vehicle
 Create Date: 2026-02-25 00:00:00
 
-Add sms_sending_vehicle to ft_billing as part of the composite primary key.
-Different vehicles (short code vs long code) can have different rates and
-should be tracked as separate billing rows.
+Update `ft_billing` to include `sms_sending_vehicle` in the composite
+primary key and add `billing_total` column to store the total cost for
+each billing row.
 """
 import sqlalchemy as sa
 from alembic import op
+import uuid
 
-revision = "0506_add_sms_vehicle_ftb"
+revision = "0506_update_ft_billing"
 down_revision = "0505_add_sms_vehicle"
 
 # Reference the existing enum type created by 0456_update_template_categories
@@ -42,9 +43,31 @@ def upgrade():
         ),
     )
 
+    # Add billing_total column to store the total cost for the row
+    op.add_column(
+        "ft_billing",
+        sa.Column(
+            "billing_total",
+            sa.Numeric(16, 8),
+            nullable=True,
+        ),
+    )
+
     # Replace the existing primary key with one that includes sms_sending_vehicle
     op.drop_constraint("ft_billing_pkey", "ft_billing", type_="primary")
     op.create_primary_key("ft_billing_pkey", "ft_billing", FT_BILLING_PK_COLUMNS)
+
+    # Remove any existing rates and insert the new billing rates for SMS
+    # valid_from set to 2026-02-27
+    op.execute("DELETE FROM rates;")
+    op.execute(
+        f"""
+        INSERT INTO rates (id, valid_from, rate, notification_type, sms_sending_vehicle)
+        VALUES
+        ('{uuid.uuid4()}', '2026-02-27 00:00:00', 0.02065, 'sms', 'long_code'),
+        ('{uuid.uuid4()}', '2026-02-27 00:00:00', 0.06240, 'sms', 'short_code');
+        """
+    )
 
 
 def downgrade():
@@ -55,3 +78,4 @@ def downgrade():
         [c for c in FT_BILLING_PK_COLUMNS if c != "sms_sending_vehicle"],
     )
     op.drop_column("ft_billing", "sms_sending_vehicle")
+    op.drop_column("ft_billing", "billing_total")
