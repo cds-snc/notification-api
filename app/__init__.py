@@ -211,9 +211,6 @@ def register_blueprint(application):
     from app.letter_branding.letter_branding_rest import letter_branding_blueprint
     from app.letters.rest import letter_job
     from app.newsletter.rest import newsletter_blueprint
-    from app.notifications.notifications_letter_callback import (
-        letter_callback_blueprint,
-    )
     from app.notifications.rest import notifications as notifications_blueprint
     from app.organisation.invite_rest import organisation_invite_blueprint
     from app.organisation.rest import organisation_blueprint
@@ -265,8 +262,6 @@ def register_blueprint(application):
     register_notify_blueprint(application, sre_tools_blueprint, requires_sre_auth, "/sre-tools")
 
     register_notify_blueprint(application, letter_job, requires_admin_auth)
-
-    register_notify_blueprint(application, letter_callback_blueprint, requires_no_auth)
 
     register_notify_blueprint(application, billing_blueprint, requires_admin_auth)
 
