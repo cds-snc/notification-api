@@ -126,7 +126,14 @@ def enable_sqlalchemy_debug_logging(app: Flask, db: RoutingSQLAlchemy) -> None:
 
         @event.listens_for(engine, "after_cursor_execute")
         def after_cursor_execute(
-            conn, _cursor, statement, _parameters, _context, _executemany, _bind_name=bind_name, _threshold_ms=slow_query_threshold_ms
+            conn,
+            _cursor,
+            statement,
+            _parameters,
+            _context,
+            _executemany,
+            _bind_name=bind_name,
+            _threshold_ms=slow_query_threshold_ms,
         ):
             starts = conn.info.get("notify_query_start", [])
             started = starts.pop() if starts else None
