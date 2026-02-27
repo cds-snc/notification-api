@@ -1,4 +1,5 @@
 from datetime import date, datetime, time, timedelta
+from decimal import Decimal
 
 from notifications_utils.timezones import (
     convert_local_timezone_to_utc,
@@ -504,6 +505,9 @@ def get_rate(
 
 def update_fact_billing(data, process_day):
     non_letter_rates, letter_rates = get_rates_for_billing()
+    # International SMS is always billed at the long_code rate regardless of the
+    # sending vehicle — the rate_multiplier already accounts for the higher cost.
+    vehicle_for_rate = "long_code" if (data.notification_type == SMS_TYPE and data.international) else data.sms_sending_vehicle
     rate = get_rate(
         non_letter_rates,
         letter_rates,
@@ -512,7 +516,7 @@ def update_fact_billing(data, process_day):
         data.crown,
         data.letter_page_count,
         data.postage,
-        data.sms_sending_vehicle,
+        vehicle_for_rate,
     )
 
     billing_record = create_billing_record(data, rate, process_day)
@@ -537,6 +541,7 @@ def update_fact_billing(data, process_day):
         rate=billing_record.rate,
         postage=billing_record.postage,
         sms_sending_vehicle=billing_record.sms_sending_vehicle,
+        billing_total=billing_record.billing_total,
     )
 
     stmt = stmt.on_conflict_do_update(
@@ -544,6 +549,7 @@ def update_fact_billing(data, process_day):
         set_={
             "notifications_sent": stmt.excluded.notifications_sent,
             "billable_units": stmt.excluded.billable_units,
+            "billing_total": stmt.excluded.billing_total,
             "updated_at": datetime.utcnow(),
         },
     )
@@ -566,4 +572,20 @@ def create_billing_record(data, rate, process_day):
         postage=data.postage,
         sms_sending_vehicle=data.sms_sending_vehicle,
     )
+
+    # compute billing total per row:
+    # - SMS: billable_units * rate_multiplier * rate
+    # - Letters and Email: notifications_sent * rate
+    # Use str() when converting float rates to Decimal to avoid float precision issues.
+    if rate is None:
+        billing_record.billing_total = Decimal(0)
+    else:
+        rate_decimal = Decimal(str(rate))
+        if data.notification_type == SMS_TYPE:
+            billable_units = data.billable_units or 0
+            rate_multiplier = data.rate_multiplier or 1
+            billing_record.billing_total = Decimal(billable_units) * Decimal(rate_multiplier) * rate_decimal
+        else:
+            notifications_sent = data.notifications_sent or 0
+            billing_record.billing_total = Decimal(notifications_sent) * rate_decimal
     return billing_record
