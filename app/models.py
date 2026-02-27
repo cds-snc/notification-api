@@ -2490,6 +2490,7 @@ class FactBilling(BaseModel):
     rate = db.Column(db.Numeric(), nullable=False, primary_key=True)
     postage = db.Column(db.String, nullable=False, primary_key=True)
     sms_sending_vehicle = db.Column(sms_sending_vehicles, nullable=False, primary_key=True)
+    billing_total = db.Column(db.Numeric(16, 8), nullable=True)
     billable_units = db.Column(db.Integer(), nullable=True)
     notifications_sent = db.Column(db.Integer(), nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
