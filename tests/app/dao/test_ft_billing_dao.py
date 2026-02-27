@@ -1,6 +1,8 @@
+import uuid
 from calendar import monthrange
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+from types import SimpleNamespace
 
 import pytest
 from freezegun import freeze_time
@@ -8,6 +10,7 @@ from notifications_utils.timezones import convert_utc_to_local_timezone
 
 from app import db
 from app.dao.fact_billing_dao import (
+    create_billing_record,
     delete_billing_data_for_service_for_day,
     fetch_billing_data_for_day,
     fetch_billing_totals_for_year,
@@ -18,6 +21,7 @@ from app.dao.fact_billing_dao import (
     fetch_sms_free_allowance_remainder,
     get_rate,
     get_rates_for_billing,
+    update_fact_billing,
 )
 from app.dao.organisation_dao import dao_add_service_to_organisation
 from app.models import NOTIFICATION_STATUS_TYPES, FactBilling, Notification
@@ -929,3 +933,110 @@ def test_fetch_letter_line_items_for_all_service(notify_db_session):
         "second",
         15,
     )
+
+
+def test_fetch_billing_data_for_day_long_code_origination_is_long_code(notify_db_session):
+    """A +1XXXXXXXXXX origination number should map to long_code, not short_code."""
+    service = create_service()
+    template = create_template(service=service, template_type="sms")
+    save_notification(
+        create_notification(
+            template=template,
+            status="delivered",
+            sms_origination_phone_number="+12025551234",
+        )
+    )
+
+    today = convert_utc_to_local_timezone(datetime.utcnow())
+    results = fetch_billing_data_for_day(today)
+    assert len(results) == 1
+    assert results[0].sms_sending_vehicle == "long_code"
+
+
+def test_create_billing_record_sms_billing_total():
+    """billing_total for SMS = billable_units * rate_multiplier * rate."""
+    data = SimpleNamespace(
+        template_id=uuid.uuid4(),
+        service_id=uuid.uuid4(),
+        notification_type="sms",
+        sent_by="sns",
+        rate_multiplier=2,
+        international=False,
+        billable_units=3,
+        notifications_sent=3,
+        postage="none",
+        sms_sending_vehicle="long_code",
+        crown=True,
+        letter_page_count=None,
+    )
+    rate = Decimal("0.0165")
+
+    record = create_billing_record(data, rate, date(2026, 2, 27))
+
+    # 3 units * 2 multiplier * 0.0165 = 0.0990
+    assert record.billing_total == Decimal("0.0990")
+
+
+def test_update_fact_billing_persists_billing_total(notify_db_session, billing_rates):
+    """End-to-end: billing_total is written to ft_billing by update_fact_billing."""
+    service = create_service()
+    template = create_template(service=service, template_type="sms")
+    today = convert_utc_to_local_timezone(datetime.utcnow())
+
+    save_notification(
+        create_notification(
+            template=template,
+            status="delivered",
+            sent_by="sns",
+            rate_multiplier=1,
+            billable_units=2,
+            sms_origination_phone_number="+12025551234",  # long_code
+        )
+    )
+
+    rows = fetch_billing_data_for_day(today)
+    assert len(rows) == 1
+
+    update_fact_billing(rows[0], today.date())
+
+    record = FactBilling.query.one()
+    # 2 billable_units * 1 rate_multiplier * 0.162 (long_code rate from billing_rates) = 0.324
+    assert record.billing_total == Decimal("2") * Decimal("1") * Decimal("0.162")
+
+
+def test_update_fact_billing_international_sms_uses_long_code_rate(notify_db_session):
+    """International SMS is always rated at long_code rate even if sent via short_code vehicle.
+    The rate_multiplier already accounts for the higher per-country cost.
+    """
+    service = create_service()
+    template = create_template(service=service, template_type="sms")
+    today = convert_utc_to_local_timezone(datetime.utcnow())
+
+    # Insert both rates; short_code is purposely higher to prove it isn't chosen
+    create_rate(start_date=datetime(2016, 1, 1), value=0.162, notification_type="sms", sms_sending_vehicle="long_code")
+    create_rate(start_date=datetime(2016, 1, 1), value=0.999, notification_type="sms", sms_sending_vehicle="short_code")
+
+    # Notification is international (rate_multiplier=2) but sent from a short_code origination
+    save_notification(
+        create_notification(
+            template=template,
+            status="delivered",
+            sent_by="sns",
+            rate_multiplier=2,
+            billable_units=1,
+            international=True,
+            sms_origination_phone_number="12345",  # short_code pattern
+        )
+    )
+
+    rows = fetch_billing_data_for_day(today)
+    assert len(rows) == 1
+    assert rows[0].sms_sending_vehicle == "short_code"  # vehicle is still recorded correctly
+
+    update_fact_billing(rows[0], today.date())
+
+    record = FactBilling.query.one()
+    # Should use long_code rate (0.162), not short_code rate (0.999)
+    # billing_total = 1 unit * 2 multiplier * 0.162 = 0.324
+    assert record.rate == Decimal("0.162")
+    assert record.billing_total == Decimal("1") * Decimal("2") * Decimal("0.162")
