@@ -9,6 +9,7 @@ from fido2.server import Fido2Server
 from fido2.webauthn import PublicKeyCredentialRpEntity
 from kombu import Exchange, Queue
 from notifications_utils import logging
+from sqlalchemy.pool import NullPool
 
 from celery.schedules import crontab
 
@@ -279,10 +280,15 @@ class Config(object):
     NOTIFY_APP_NAME = "api"
     SQLALCHEMY_RECORD_QUERIES = False
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_POOL_SIZE = env.int("SQLALCHEMY_POOL_SIZE", 5)
-    SQLALCHEMY_POOL_TIMEOUT = 30
+    SQLALCHEMY_DISABLE_POOL = env.bool("SQLALCHEMY_DISABLE_POOL", False)
+    SQLALCHEMY_ENGINE_OPTIONS = {"poolclass": NullPool} if SQLALCHEMY_DISABLE_POOL else {}
+    SQLALCHEMY_POOL_SIZE = None if SQLALCHEMY_DISABLE_POOL else env.int("SQLALCHEMY_POOL_SIZE", 5)
+    SQLALCHEMY_POOL_TIMEOUT = None if SQLALCHEMY_DISABLE_POOL else 30
     SQLALCHEMY_POOL_RECYCLE = 300
+    SQLALCHEMY_DEBUG_POOL_LOGGING = env.bool("SQLALCHEMY_DEBUG_POOL_LOGGING", False)
+    SQLALCHEMY_DEBUG_QUERY_MS = env.int("SQLALCHEMY_DEBUG_QUERY_MS", 250)
     SQLALCHEMY_ECHO = env.bool("SQLALCHEMY_ECHO", False)
+    OTEL_REQUEST_METRICS_ENABLED = env.bool("OTEL_REQUEST_METRICS_ENABLED", False)
     PAGE_SIZE = 50
     PERSONALISATION_SIZE_LIMIT = env.int(
         "PERSONALISATION_SIZE_LIMIT", 1024 * 50

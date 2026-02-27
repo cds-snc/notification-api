@@ -33,9 +33,10 @@ from app.clients.performance_platform.performance_platform_client import (
 from app.clients.salesforce.salesforce_client import SalesforceClient
 from app.clients.sms.aws_pinpoint import AwsPinpointClient
 from app.clients.sms.aws_sns import AwsSnsClient
-from app.dbsetup import RoutingSQLAlchemy
+from app.dbsetup import RoutingSQLAlchemy, enable_sqlalchemy_debug_logging
 from app.encryption import CryptoSigner
 from app.json_provider import NotifyJSONProvider
+from app.otel_request_metrics import init_otel_request_metrics
 from app.queue import RedisQueue
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
@@ -108,11 +109,13 @@ def create_app(application, config=None):
     application.json = NotifyJSONProvider(application)
     request_helper.init_app(application)
     db.init_app(application)
+    enable_sqlalchemy_debug_logging(application, db)
     migrate.init_app(application, db=db)
     marshmallow.init_app(application)
     zendesk_client.init_app(application)
     statsd_client.init_app(application)
     logging.init_app(application, statsd_client)
+    init_otel_request_metrics(application)
     aws_sns_client.init_app(application, statsd_client=statsd_client)
     aws_pinpoint_client.init_app(application, statsd_client=statsd_client)
     aws_ses_client.init_app(application.config["AWS_REGION"], statsd_client=statsd_client)

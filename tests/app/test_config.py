@@ -71,3 +71,21 @@ def test_get_sensitive_config():
     assert sensitive_config
     for key in sensitive_config:
         assert key
+
+
+def test_sqlalchemy_disable_pool_sets_null_pool(monkeypatch, reload_config):
+    monkeypatch.setenv("SQLALCHEMY_DISABLE_POOL", "true")
+    importlib.reload(config)
+
+    assert config.Config.SQLALCHEMY_DISABLE_POOL is True
+    assert config.Config.SQLALCHEMY_ENGINE_OPTIONS["poolclass"].__name__ == "NullPool"
+    assert config.Config.SQLALCHEMY_POOL_SIZE is None
+    assert config.Config.SQLALCHEMY_POOL_TIMEOUT is None
+
+
+def test_sqlalchemy_disable_pool_default_false(monkeypatch, reload_config):
+    monkeypatch.delenv("SQLALCHEMY_DISABLE_POOL", raising=False)
+    importlib.reload(config)
+
+    assert config.Config.SQLALCHEMY_DISABLE_POOL is False
+    assert config.Config.SQLALCHEMY_ENGINE_OPTIONS == {}
