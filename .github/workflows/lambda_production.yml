@@ -57,7 +57,7 @@ jobs:
           -f ci/Dockerfile.lambda
 
       - name: Generate docker SBOM
-        uses: cds-snc/security-tools/.github/actions/generate-sbom@34794baf2af592913bb5b51d8df4f8d0acc49b6f # v3.2.0
+        uses: cds-snc/security-tools/.github/actions/generate-sbom@12a0cdea1c5a515dfcbe353693db804a1793c0ed #v4.0.1
         env:
           TRIVY_DB_REPOSITORY: ${{ vars.TRIVY_DB_REPOSITORY }}
         with:
