@@ -70,6 +70,18 @@ run-celery-local-filtered: ## Run the celery workers with all queues but filter 
 run-celery-purge: ## Purge the celery queues
 	poetry run ./scripts/run_celery_purge.sh
 
+.PHONY: run-billing-for-day
+run-billing-for-day: ## Run the nightly billing task for a given day (usage: make run-billing-for-day DAY=2026-02-27)
+ifndef DAY
+	$(error DAY is required. Usage: make run-billing-for-day DAY=2026-02-27)
+endif
+	poetry run python -c "\
+from application import create_app; from flask import Flask; \
+app = Flask('billing'); create_app(app); \
+app.app_context().push(); \
+from app.celery.reporting_tasks import create_nightly_billing_for_day; \
+create_nightly_billing_for_day('$(DAY)')"
+
 .PHONY: run-db
 run-db: ## psql to access dev database
 	psql postgres://postgres:chummy@db:5432/notification_api
