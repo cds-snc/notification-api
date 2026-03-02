@@ -591,7 +591,6 @@ def create_billing_record(data, rate, process_day):
 
     # compute billing total per row:
     # - SMS: billable_units * rate_multiplier * rate
-    # - Letters and Email: notifications_sent * rate
     # Use str() when converting float rates to Decimal to avoid float precision issues.
     if rate is None:
         billing_record.billing_total = Decimal(0)
@@ -601,7 +600,4 @@ def create_billing_record(data, rate, process_day):
             billable_units = data.billable_units or 0
             rate_multiplier = data.rate_multiplier or 1
             billing_record.billing_total = Decimal(billable_units) * Decimal(rate_multiplier) * rate_decimal
-        else:
-            notifications_sent = data.notifications_sent or 0
-            billing_record.billing_total = Decimal(notifications_sent) * rate_decimal
     return billing_record
