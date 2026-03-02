@@ -73,8 +73,13 @@ def send_one_off_notification(service_id, post_data):
     if template.template_type == SMS_TYPE:
         is_test_notification = simulated_recipient(post_data["to"], template.template_type)
         if not is_test_notification:
-            check_sms_annual_limit(service, 1)
-            check_sms_daily_limit(service, 1)
+            if current_app.config.get("FF_USE_BILLABLE_UNITS"):
+                billable_unit = number_of_sms_fragments(template_with_content, personalisation)
+                check_sms_annual_limit(service, billable_unit)
+                check_sms_daily_limit(service, billable_unit)
+            else:
+                check_sms_annual_limit(service, 1)
+                check_sms_daily_limit(service, 1)
     elif template.template_type == EMAIL_TYPE:
         check_email_annual_limit(service, 1)
         check_email_daily_limit(service, 1)  # 1 email

@@ -256,9 +256,16 @@ def post_bulk():
         is_test_notification = api_user.key_type == KEY_TYPE_TEST or (has_simulated and not has_real_recipients)
 
         if not is_test_notification:
-            check_sms_annual_limit(authenticated_service, len(recipient_csv))
-            check_sms_daily_limit(authenticated_service, len(recipient_csv))
-            increment_sms_daily_count_send_warnings_if_needed(authenticated_service, len(recipient_csv))
+            # TODO FF_USE_BILLABLE_UNITS removal - Use billable units when feature flag is enabled
+            if current_app.config.get("FF_USE_BILLABLE_UNITS"):
+                total_billable_units = recipient_csv.sms_fragment_count
+                check_sms_annual_limit(authenticated_service, total_billable_units)
+                check_sms_daily_limit(authenticated_service, total_billable_units)
+                increment_sms_daily_count_send_warnings_if_needed(authenticated_service, total_billable_units)
+            else:
+                check_sms_annual_limit(authenticated_service, len(recipient_csv))
+                check_sms_daily_limit(authenticated_service, len(recipient_csv))
+                increment_sms_daily_count_send_warnings_if_needed(authenticated_service, len(recipient_csv))
 
     job = create_bulk_job(authenticated_service, api_user, template, form, recipient_csv)
 
@@ -320,8 +327,14 @@ def post_notification(notification_type: NotificationType):
     if template.template_type == SMS_TYPE:
         is_test_notification = api_user.key_type == KEY_TYPE_TEST or simulated_recipient(form["phone_number"], notification_type)
         if not is_test_notification:
-            check_sms_annual_limit(authenticated_service, 1)
-            check_sms_daily_limit(authenticated_service, 1)
+            # TODO FF_USE_BILLABLE_UNITS removal - Use billable units when feature flag is enabled
+            if current_app.config.get("FF_USE_BILLABLE_UNITS"):
+                billable_unit = number_of_sms_fragments(template, personalisation)
+                check_sms_annual_limit(authenticated_service, billable_unit)
+                check_sms_daily_limit(authenticated_service, billable_unit)
+            else:
+                check_sms_annual_limit(authenticated_service, 1)
+                check_sms_daily_limit(authenticated_service, 1)
 
     current_app.logger.info(f"Trying to send notification for Template ID: {template.id}")
 
