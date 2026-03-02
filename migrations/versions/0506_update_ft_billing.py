@@ -57,9 +57,6 @@ def upgrade():
     op.drop_constraint("ft_billing_pkey", "ft_billing", type_="primary")
     op.create_primary_key("ft_billing_pkey", "ft_billing", FT_BILLING_PK_COLUMNS)
 
-    # Remove any existing rates and insert the new billing rates for SMS
-    # valid_from set to 2026-02-27
-    op.execute("DELETE FROM rates;")
     op.execute(
         f"""
         INSERT INTO rates (id, valid_from, rate, notification_type, sms_sending_vehicle)
@@ -71,6 +68,39 @@ def upgrade():
 
 
 def downgrade():
+    # Remove rates that were seeded in upgrade to avoid orphaned/duplicate data
+    op.execute(
+        """
+        DELETE FROM rates
+        WHERE notification_type = 'sms'
+          AND valid_from = '2026-02-27 00:00:00'
+          AND sms_sending_vehicle IN ('long_code', 'short_code')
+          AND rate IN (0.02065, 0.06240);
+        """
+    )
+
+    # Remove ft_billing rows for the 'short_code' vehicle when a corresponding
+    # 'long_code' row exists with the same values for the other PK columns.
+    # This prevents UNIQUE constraint violations when removing the
+    # `sms_sending_vehicle` column from the primary key.
+    op.execute(
+        """
+        DELETE FROM ft_billing a
+        USING ft_billing b
+        WHERE a.sms_sending_vehicle = 'short_code'
+          AND b.sms_sending_vehicle = 'long_code'
+          AND a.bst_date = b.bst_date
+          AND a.template_id = b.template_id
+          AND a.service_id = b.service_id
+          AND a.notification_type = b.notification_type
+          AND a.provider = b.provider
+          AND a.rate_multiplier = b.rate_multiplier
+          AND a.international = b.international
+          AND a.rate = b.rate
+          AND (a.postage IS NOT DISTINCT FROM b.postage);
+        """
+    )
+
     op.drop_constraint("ft_billing_pkey", "ft_billing", type_="primary")
     op.create_primary_key(
         "ft_billing_pkey",
