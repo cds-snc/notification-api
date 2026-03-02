@@ -470,6 +470,30 @@ def test_get_rate_for_letters_when_page_count_is_zero(notify_db_session):
     assert letter_rate == 0
 
 
+@freeze_time("2026-03-01 12:00")
+def test_get_rate_logs_error_when_no_rate_exists_for_vehicle(notify_db_session, mocker):
+    """When no rate exists at all for the requested vehicle, get_rate() logs an error and raises ValueError."""
+    mock_logger = mocker.patch("app.dao.fact_billing_dao.current_app")
+
+    # Only a short_code rate exists; requesting long_code should find nothing
+    create_rate(start_date=datetime(2026, 2, 27, 0, 0), value=0.06240, notification_type="sms", sms_sending_vehicle="short_code")
+    non_letter_rates, letter_rates = get_rates_for_billing()
+
+    with pytest.raises(ValueError, match=r"\[error-sms-rates\]"):
+        get_rate(
+            non_letter_rates=non_letter_rates,
+            letter_rates=letter_rates,
+            notification_type="sms",
+            date=date(2026, 2, 26),
+            sms_sending_vehicle="long_code",
+        )
+
+    mock_logger.logger.error.assert_called_once()
+    error_message = mock_logger.logger.error.call_args[0][0]
+    assert "[error-sms-rates]" in error_message
+    assert "long_code" in error_message
+
+
 def test_fetch_monthly_billing_for_year(notify_db_session):
     service = create_service()
     template = create_template(service=service, template_type="sms")
@@ -1031,12 +1055,13 @@ def test_update_fact_billing_international_sms_uses_long_code_rate(notify_db_ses
 
     rows = fetch_billing_data_for_day(today)
     assert len(rows) == 1
-    assert rows[0].sms_sending_vehicle == "short_code"  # vehicle is still recorded correctly
+    assert rows[0].sms_sending_vehicle == "long_code"  # international always reported as long_code
 
     update_fact_billing(rows[0], today.date())
 
     record = FactBilling.query.one()
     # Should use long_code rate (0.162), not short_code rate (0.999)
     # billing_total = 1 unit * 2 multiplier * 0.162 = 0.324
+    assert record.sms_sending_vehicle == "long_code"
     assert record.rate == Decimal("0.162")
     assert record.billing_total == Decimal("1") * Decimal("2") * Decimal("0.162")
