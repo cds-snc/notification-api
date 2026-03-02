@@ -484,7 +484,7 @@ def test_get_rate_logs_error_when_no_rate_exists_for_vehicle(notify_db_session, 
             non_letter_rates=non_letter_rates,
             letter_rates=letter_rates,
             notification_type="sms",
-            date=date(2026, 2, 26),
+            date=date(2026, 3, 1),
             sms_sending_vehicle="long_code",
         )
 
