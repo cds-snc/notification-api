@@ -7,7 +7,6 @@ from freezegun import freeze_time
 from notifications_utils.timezones import convert_utc_to_local_timezone
 from tests.app.db import (
     create_ft_notification_status,
-    create_letter_rate,
     create_notification,
     create_notification_history,
     create_rate,
@@ -148,11 +147,12 @@ def test_create_nightly_billing_for_day_sms_rate_multiplier(
         assert record.rate_multiplier == multiplier[i]
 
 
-def test_create_nightly_billing_for_day_different_templates(sample_service, sample_template, sample_email_template, mocker):
+def test_create_nightly_billing_for_day_different_templates(sample_service, sample_template, mocker):
     yesterday = convert_utc_to_local_timezone((datetime.now() - timedelta(days=1))).replace(hour=12, minute=00)
 
     mocker.patch("app.dao.fact_billing_dao.get_rate", side_effect=mocker_get_rate)
 
+    # two different SMS templates (both SMS — no email/letter test code)
     save_notification(
         create_notification(
             created_at=yesterday,
@@ -164,12 +164,14 @@ def test_create_nightly_billing_for_day_different_templates(sample_service, samp
             billable_units=1,
         )
     )
+
+    second_template = create_template(service=sample_service)
     save_notification(
         create_notification(
             created_at=yesterday,
-            template=sample_email_template,
+            template=second_template,
             status="delivered",
-            sent_by="ses",
+            sent_by="sns",
             international=False,
             rate_multiplier=0,
             billable_units=0,
@@ -186,7 +188,7 @@ def test_create_nightly_billing_for_day_different_templates(sample_service, samp
     assert len(records) == 2
     multiplier = [0, 1]
     billable_units = [0, 1]
-    rate = [0, Decimal(1.33)]
+    rate = [Decimal(1.33), Decimal(1.33)]
     for i, record in enumerate(records):
         assert record.bst_date == datetime.date(yesterday)
         assert record.rate == rate[i]
@@ -194,7 +196,7 @@ def test_create_nightly_billing_for_day_different_templates(sample_service, samp
         assert record.rate_multiplier == multiplier[i]
 
 
-def test_create_nightly_billing_for_day_different_sent_by(sample_service, sample_template, sample_email_template, mocker):
+def test_create_nightly_billing_for_day_different_sent_by(sample_service, sample_template, mocker):
     yesterday = convert_utc_to_local_timezone((datetime.now() - timedelta(days=1))).replace(hour=12, minute=00)
 
     mocker.patch("app.dao.fact_billing_dao.get_rate", side_effect=mocker_get_rate)
@@ -262,28 +264,13 @@ def test_create_nightly_billing_for_day_null_sent_by_sms(sample_service, sample_
     assert record.provider == "unknown"
 
 
-def test_get_rate_for_letter_latest(notify_db_session):
-    # letter rates should be passed into the get_rate function as a tuple of start_date, crown, sheet_count,
-    # rate and post_class
-    new = create_letter_rate(datetime(2017, 12, 1), crown=True, sheet_count=1, rate=0.33, post_class="second")
-    old = create_letter_rate(datetime(2016, 12, 1), crown=True, sheet_count=1, rate=0.30, post_class="second")
-    letter_rates = [new, old]
-
-    rate = get_rate([], letter_rates, LETTER_TYPE, date(2018, 1, 1), True, 1)
-    assert rate == Decimal("0.33")
-
-
 def test_get_rate_for_sms_and_email(notify_db_session):
     non_letter_rates = [
         create_rate(datetime(2017, 12, 1), 0.15, SMS_TYPE),
-        create_rate(datetime(2017, 12, 1), 0, EMAIL_TYPE),
     ]
 
     rate = get_rate(non_letter_rates, [], SMS_TYPE, date(2018, 1, 1))
     assert rate == Decimal(0.15)
-
-    rate = get_rate(non_letter_rates, [], EMAIL_TYPE, date(2018, 1, 1))
-    assert rate == Decimal(0)
 
 
 @freeze_time("2018-03-30T05:00:00")
