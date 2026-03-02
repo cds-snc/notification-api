@@ -1,6 +1,7 @@
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
+from flask import current_app
 from notifications_utils.timezones import (
     convert_local_timezone_to_utc,
     convert_utc_to_local_timezone,
@@ -368,6 +369,14 @@ def _query_for_billing_data(table, notification_type, start_date, end_date, serv
     }
     sms_sending_vehicle_case = case(
         [
+            # International SMS is always treated as long_code — rate_multiplier covers the cost
+            (
+                and_(
+                    table.notification_type == SMS_TYPE,
+                    table.international == True,  # noqa: E712
+                ),
+                "long_code",
+            ),
             (
                 and_(
                     table.notification_type == SMS_TYPE,
@@ -490,24 +499,34 @@ def get_rate(
             )
         )
     elif notification_type == SMS_TYPE:
-        return next(
-            r.rate
-            for r in non_letter_rates
-            if (
-                notification_type == r.notification_type
-                and start_of_day >= r.valid_from
-                and sms_sending_vehicle == r.sms_sending_vehicle
-            )
+        rate = next(
+            (
+                r.rate
+                for r in non_letter_rates
+                if (
+                    notification_type == r.notification_type
+                    and start_of_day >= r.valid_from
+                    and sms_sending_vehicle == r.sms_sending_vehicle
+                )
+            ),
+            None,
         )
+        if rate is not None:
+            return rate
+
+        # No matching rate — log an error; this indicates a problem with the rates table setup
+        error_msg = (
+            f"[error-sms-rates]: No SMS rate found for vehicle={sms_sending_vehicle!r} on {date!r}. "
+            "Please ensure rates are populated in the rates table."
+        )
+        current_app.logger.error(error_msg)
+        raise ValueError(error_msg)
     else:
         return 0
 
 
 def update_fact_billing(data, process_day):
     non_letter_rates, letter_rates = get_rates_for_billing()
-    # International SMS is always billed at the long_code rate regardless of the
-    # sending vehicle — the rate_multiplier already accounts for the higher cost.
-    vehicle_for_rate = "long_code" if (data.notification_type == SMS_TYPE and data.international) else data.sms_sending_vehicle
     rate = get_rate(
         non_letter_rates,
         letter_rates,
@@ -516,7 +535,7 @@ def update_fact_billing(data, process_day):
         data.crown,
         data.letter_page_count,
         data.postage,
-        vehicle_for_rate,
+        data.sms_sending_vehicle,
     )
 
     billing_record = create_billing_record(data, rate, process_day)
