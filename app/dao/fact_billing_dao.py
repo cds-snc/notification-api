@@ -17,7 +17,6 @@ from app.models import (
     KEY_TYPE_TEST,
     LETTER_TYPE,
     NOTIFICATION_STATUS_TYPES_BILLABLE,
-    NOTIFICATION_STATUS_TYPES_BILLABLE_FOR_LETTERS,
     SMS_TYPE,
     AnnualBilling,
     FactBilling,
@@ -338,7 +337,7 @@ def fetch_billing_data_for_day(process_day, service_id=None):
         service_ids = [service_id]
 
     for id_of_service in service_ids:
-        for notification_type in (SMS_TYPE, EMAIL_TYPE, LETTER_TYPE):
+        for notification_type in (SMS_TYPE,):
             results = _query_for_billing_data(
                 table=Notification,
                 notification_type=notification_type,
@@ -364,8 +363,6 @@ def fetch_billing_data_for_day(process_day, service_id=None):
 def _query_for_billing_data(table, notification_type, start_date, end_date, service_id):
     billable_type_list = {
         SMS_TYPE: NOTIFICATION_STATUS_TYPES_BILLABLE,
-        EMAIL_TYPE: NOTIFICATION_STATUS_TYPES_BILLABLE,
-        LETTER_TYPE: NOTIFICATION_STATUS_TYPES_BILLABLE_FOR_LETTERS,
     }
     sms_sending_vehicle_case = case(
         [
