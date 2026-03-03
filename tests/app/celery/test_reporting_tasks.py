@@ -39,6 +39,44 @@ from app.models import (
 )
 
 
+def test_rerun_preserves_rate_when_new_rate_added(notify_db_session):
+    service = create_service()
+    template = create_template(service=service, template_type="sms")
+
+    # Seed an initial rate that applies to the billing date
+    create_rate(start_date=datetime(2026, 2, 1, 0, 0), value=0.02, notification_type="sms", sms_sending_vehicle="long_code")
+
+    # Create a delivered SMS notification for 2026-02-26
+    created_at = datetime(2026, 2, 26, 12, 0)
+    save_notification(
+        create_notification(
+            created_at=created_at,
+            template=template,
+            status="delivered",
+            sent_by="pinpoint",
+            international=False,
+            rate_multiplier=1.0,
+            billable_units=1,
+            sms_origination_phone_number="+12025551234",
+        )
+    )
+
+    # Run nightly billing for that day and assert the stored rate is the initial one
+    create_nightly_billing_for_day("2026-02-26")
+    records = FactBilling.query.all()
+    assert len(records) == 1
+    assert records[0].rate == Decimal("0.02")
+
+    # Now add a new rate (simulating a later rate insertion) and re-run billing
+    create_rate(start_date=datetime(2026, 3, 1, 0, 0), value=0.05, notification_type="sms", sms_sending_vehicle="long_code")
+    create_nightly_billing_for_day("2026-02-26")
+
+    # Re-fetch and ensure the rate stored in ft_billing did not change
+    records = FactBilling.query.all()
+    assert len(records) == 1
+    assert records[0].rate == Decimal("0.02")
+
+
 def mocker_get_rate(
     non_letter_rates,
     letter_rates,
