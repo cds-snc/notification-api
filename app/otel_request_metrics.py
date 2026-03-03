@@ -1,3 +1,4 @@
+import logging
 import os
 import resource
 import sys
@@ -6,7 +7,6 @@ from time import perf_counter
 from typing import Optional
 
 from flask import Flask, g, request
-import logging
 
 logger = logging.getLogger(__name__)
 
