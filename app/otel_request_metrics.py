@@ -6,6 +6,9 @@ from time import perf_counter
 from typing import Optional
 
 from flask import Flask, g, request
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def init_otel_request_metrics(app: Flask) -> None:
@@ -106,7 +109,8 @@ def init_otel_request_metrics(app: Flask) -> None:
                 if callable(fn):
                     observations.append(Observation(fn(), {"db_bind": bind, "worker_pid": str(pid)}))
             except Exception:
-                pass
+                # Metrics collection is best-effort; log and skip failures for this bind.
+                logger.exception("Failed to collect DB pool metric '%s' for bind '%s'", stat_fn_name, bind)
 
         return observations
 
