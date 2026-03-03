@@ -3,26 +3,18 @@ import threading
 from time import perf_counter
 from typing import Dict, Optional, Tuple
 
+from celery import signals
 from flask import Flask
+
+from app.celery.error_registry import classify_error
 
 
 def init_otel_celery_metrics(app: Flask) -> None:
-    if not app.config.get("OTEL_REQUEST_METRICS_ENABLED", False):
-        return
-
     try:
         from opentelemetry.metrics import Observation, get_meter
     except Exception as e:  # pragma: no cover - depends on runtime injection
         app.logger.warning(f"OTEL celery metrics unavailable: {e}")
         return
-
-    try:
-        from celery import signals
-    except ImportError as e:  # pragma: no cover
-        app.logger.warning(f"Celery not available for OTEL metrics: {e}")
-        return
-
-    from app.celery.error_registry import classify_error
 
     pid = os.getpid()
     inflight = 0

@@ -7,13 +7,12 @@ from typing import Optional
 
 from flask import Flask, g, request
 
+from app import db as _db
+
 logger = logging.getLogger(__name__)
 
 
 def init_otel_request_metrics(app: Flask) -> None:
-    if not app.config.get("OTEL_REQUEST_METRICS_ENABLED", False):
-        return
-
     try:
         from opentelemetry.metrics import Observation, get_meter
     except Exception as e:  # pragma: no cover - depends on runtime injection
@@ -114,8 +113,6 @@ def init_otel_request_metrics(app: Flask) -> None:
     def _refresh_pool_stats() -> dict:
         """Collect all pool stats for every bind in one pass. Returns a mapping
         of bind_name -> {stat_fn_name: value} for stats supported by the pool."""
-        from app import db as _db
-
         snapshot: dict = {}
         binds_config = app.config.get("SQLALCHEMY_BINDS") or {}
         bind_names = list(binds_config.keys()) if binds_config else ["default"]

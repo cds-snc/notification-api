@@ -25,7 +25,8 @@ load_dotenv()
 
 application = Flask("celery")
 create_app(application)
-init_otel_celery_metrics(application)
+if application.config.get("OTEL_REQUEST_METRICS_ENABLED", False):
+    init_otel_celery_metrics(application)
 
 if not ff_enable_otel:
     from aws_xray_sdk.core import xray_recorder
