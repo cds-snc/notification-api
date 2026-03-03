@@ -1,7 +1,6 @@
 import logging
 import os
 import resource
-import sys
 import threading
 from time import perf_counter
 from typing import Optional
@@ -55,30 +54,39 @@ def init_otel_request_metrics(app: Flask) -> None:
     )
 
     # --- RSS memory --------------------------------------------------------------
-    _is_macos = sys.platform == "darwin"
 
     def observe_rss_bytes(_options) -> list:
-        rss_raw = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-        # macOS reports bytes; Linux reports kilobytes
-        rss_bytes = rss_raw if _is_macos else rss_raw * 1024
+        try:
+            with open("/proc/self/status") as f:
+                for line in f:
+                    if line.startswith("VmRSS:"):
+                        rss_bytes = int(line.split()[1]) * 1024  # kB -> bytes
+                        break
+                else:
+                    raise ValueError("VmRSS not found")
+        except OSError:
+            # macOS fallback: ru_maxrss reports bytes on macOS
+            rss_bytes = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
         return [Observation(rss_bytes, {"worker_pid": str(pid)})]
 
     meter.create_observable_gauge(
         "notify_api_worker_rss_bytes",
         callbacks=[observe_rss_bytes],
-        description="RSS memory usage of this Gunicorn worker process",
+        description="Current RSS memory usage of this Gunicorn worker process",
         unit="By",
     )
 
     # --- Worker capacity --------------------------------------------------------
     # Total configured concurrency for this pod so dashboards can derive
     # saturation: notify_api_inflight_requests / notify_api_worker_capacity.
+    # Emitted without worker_pid because this is a pod-level constant; tagging
+    # it per-pid would cause overcounting if dashboards sum across workers.
     _worker_count = int(os.getenv("GUNICORN_WORKERS", "4"))
     _worker_connections = int(os.getenv("GUNICORN_WORKER_CONNECTIONS", "256"))
     _total_capacity = _worker_count * _worker_connections
 
     def observe_worker_capacity(_options) -> list:
-        return [Observation(_total_capacity, {"worker_pid": str(pid)})]
+        return [Observation(_total_capacity, {})]
 
     meter.create_observable_gauge(
         "notify_api_worker_capacity",
@@ -94,25 +102,53 @@ def init_otel_request_metrics(app: Flask) -> None:
     # --- SQLAlchemy connection pool ---------------------------------------------
     # NullPool (used when SQLALCHEMY_DISABLE_POOL=true) has no pool stats;
     # getattr guards against that gracefully.
-    def _pool_observations(stat_fn_name: str) -> list:
-        # Deferred import to avoid circular dependency at module load time.
+    #
+    # All four gauge callbacks share a single per-scrape snapshot so engines
+    # are resolved only once per collection cycle rather than once per metric.
+    # A TTL of 1 s is short enough to be effectively per-scrape while preventing
+    # redundant work if the SDK somehow calls callbacks in rapid succession.
+    _POOL_STATS_TTL = 1.0  # seconds
+    _pool_stats_cache: dict = {"ts": -1.0, "data": {}}  # bind -> {stat: value}
+    _pool_stats_lock = threading.Lock()
+
+    def _refresh_pool_stats() -> dict:
+        """Collect all pool stats for every bind in one pass. Returns a mapping
+        of bind_name -> {stat_fn_name: value} for stats supported by the pool."""
         from app import db as _db
 
-        observations = []
+        snapshot: dict = {}
         binds_config = app.config.get("SQLALCHEMY_BINDS") or {}
         bind_names = list(binds_config.keys()) if binds_config else ["default"]
+        stat_names = ("checkedout", "checkedin", "overflow", "size")
 
         for bind in bind_names:
             try:
                 engine = _db.get_engine(app, bind=bind if bind != "default" else None)
-                fn = getattr(engine.pool, stat_fn_name, None)
-                if callable(fn):
-                    observations.append(Observation(fn(), {"db_bind": bind, "worker_pid": str(pid)}))
+                bind_stats = {}
+                for stat in stat_names:
+                    fn = getattr(engine.pool, stat, None)
+                    if callable(fn):
+                        bind_stats[stat] = fn()
+                snapshot[bind] = bind_stats
             except Exception:
-                # Metrics collection is best-effort; log and skip failures for this bind.
-                logger.exception("Failed to collect DB pool metric '%s' for bind '%s'", stat_fn_name, bind)
+                logger.exception("Failed to collect DB pool stats for bind '%s'", bind)
 
-        return observations
+        return snapshot
+
+    def _get_pool_stats() -> dict:
+        now = perf_counter()
+        with _pool_stats_lock:
+            if now - _pool_stats_cache["ts"] >= _POOL_STATS_TTL:
+                _pool_stats_cache["data"] = _refresh_pool_stats()
+                _pool_stats_cache["ts"] = now
+            return _pool_stats_cache["data"]
+
+    def _pool_observations(stat_fn_name: str) -> list:
+        return [
+            Observation(value, {"db_bind": bind, "worker_pid": str(pid)})
+            for bind, stats in _get_pool_stats().items()
+            if (value := stats.get(stat_fn_name)) is not None
+        ]
 
     meter.create_observable_gauge(
         "notify_api_db_pool_checkedout",
