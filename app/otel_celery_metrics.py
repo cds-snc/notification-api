@@ -81,6 +81,9 @@ def init_otel_celery_metrics(app: Flask) -> None:
     def _otel_task_prerun(task_id: Optional[str] = None, task=None, **kwargs) -> None:
         nonlocal inflight
 
+        if task_id is None:
+            return
+
         task_name = task.name if task else "unknown"
         now = perf_counter()
 
@@ -96,7 +99,7 @@ def init_otel_celery_metrics(app: Flask) -> None:
         nonlocal inflight
 
         with task_start_lock:
-            entry = task_start_times.pop(task_id, None)
+            entry = task_start_times.pop(task_id, None) if task_id is not None else None
 
         if entry is not None:
             started, task_name = entry
