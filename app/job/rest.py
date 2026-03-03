@@ -199,11 +199,16 @@ def create_job(service_id):
 
         # Check and track limits if we're not sending test notifications
         if has_real_recipients and not has_simulated:
-            check_sms_annual_limit(service, len(recipient_csv))
-
-            check_sms_daily_limit(service, len(recipient_csv))
-
-            increment_sms_daily_count_send_warnings_if_needed(service, len(recipient_csv))
+            csv_length = len(recipient_csv)
+            if current_app.config.get("FF_USE_BILLABLE_UNITS"):
+                total_billable_units = recipient_csv.sms_fragment_count
+                check_sms_annual_limit(service, total_billable_units)
+                check_sms_daily_limit(service, total_billable_units)
+                increment_sms_daily_count_send_warnings_if_needed(service, total_billable_units)
+            else:
+                check_sms_annual_limit(service, csv_length)
+                check_sms_daily_limit(service, csv_length)
+                increment_sms_daily_count_send_warnings_if_needed(service, csv_length)
 
     elif template.template_type == EMAIL_TYPE:
         if "notification_count" in data:
