@@ -3,10 +3,10 @@ import threading
 from time import perf_counter
 from typing import Dict, Optional, Tuple
 
-from celery import signals
 from flask import Flask
 
 from app.celery.error_registry import classify_error
+from celery import signals
 
 
 def init_otel_celery_metrics(app: Flask) -> None:
