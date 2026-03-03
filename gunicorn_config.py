@@ -25,11 +25,15 @@ if enable_newrelic:
 
     newrelic.agent.initialize(environment=environment)  # noqa: E402
 
+default_worker_class = "gevent_otel_worker.OTelAwareGeventWorker" if ff_enable_otel else "gevent"
+
 workers = int(os.getenv("GUNICORN_WORKERS", "4"))
-worker_class = os.getenv("GUNICORN_WORKER_CLASS", "gevent_otel_worker.OTelAwareGeventWorker")
+worker_class = os.getenv("GUNICORN_WORKER_CLASS", default_worker_class)
 worker_connections = int(os.getenv("GUNICORN_WORKER_CONNECTIONS", "256"))
+preload_app = env.bool("GUNICORN_PRELOAD_APP", default=False)
 bind = "0.0.0.0:{}".format(os.getenv("PORT"))
 accesslog = "-"
+access_log_format = '%(h)s %(l)s %(u)s [%(t)s] "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s" request_time_us=%(D)s request_time_s=%(T)s'
 # Guincorn sets the server type on our app. We don't want to show it in the header in the response.
 gunicorn.SERVER = "Undisclosed"
 

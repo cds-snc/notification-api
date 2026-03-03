@@ -15,6 +15,7 @@ from tests.app.db import (
     create_user,
     save_notification,
 )
+from tests.conftest import set_config
 
 from app import annual_limit_client
 from app.celery.reporting_tasks import (
@@ -407,53 +408,58 @@ def test_create_nightly_billing_for_day_update_when_record_exists(sample_service
 
 
 @freeze_time("2019-01-05")
-def test_create_nightly_notification_status_for_day(notify_db_session):
-    first_service = create_service(service_name="First Service")
-    first_template = create_template(service=first_service)
-    second_service = create_service(service_name="second Service")
-    second_template = create_template(service=second_service, template_type="email")
-    third_service = create_service(service_name="third Service")
-    third_template = create_template(service=third_service, template_type="letter")
+@pytest.mark.parametrize("ff_use_billable_units", [True, False])
+def test_create_nightly_notification_status_for_day(notify_db_session, notify_api, ff_use_billable_units):
+    with set_config(notify_api, "FF_USE_BILLABLE_UNITS", ff_use_billable_units):
+        first_service = create_service(service_name="First Service")
+        first_template = create_template(service=first_service)
+        second_service = create_service(service_name="second Service")
+        second_template = create_template(service=second_service, template_type="email")
+        third_service = create_service(service_name="third Service")
+        third_template = create_template(service=third_service, template_type="letter")
 
-    save_notification(create_notification(template=first_template, status="delivered"))
-    save_notification(
-        create_notification(
-            template=first_template,
-            status="delivered",
-            created_at=datetime(2019, 1, 1, 12, 0),
+        save_notification(create_notification(template=first_template, status="delivered"))
+        save_notification(
+            create_notification(
+                template=first_template,
+                status="delivered",
+                created_at=datetime(2019, 1, 1, 12, 0),
+            )
         )
-    )
 
-    save_notification(create_notification(template=second_template, status="temporary-failure"))
-    save_notification(
-        create_notification(
-            template=second_template,
-            status="temporary-failure",
-            created_at=datetime(2019, 1, 1, 12, 0),
+        save_notification(create_notification(template=second_template, status="temporary-failure"))
+        save_notification(
+            create_notification(
+                template=second_template,
+                status="temporary-failure",
+                created_at=datetime(2019, 1, 1, 12, 0),
+            )
         )
-    )
 
-    save_notification(create_notification(template=third_template, status="created", billable_units=100))
-    save_notification(
-        create_notification(
-            template=third_template,
-            status="created",
-            created_at=datetime(2019, 1, 1, 12, 0),
-            billable_units=100,
+        save_notification(create_notification(template=third_template, status="created", billable_units=100))
+        save_notification(
+            create_notification(
+                template=third_template,
+                status="created",
+                created_at=datetime(2019, 1, 1, 12, 0),
+                billable_units=100,
+            )
         )
-    )
 
-    assert len(FactNotificationStatus.query.all()) == 0
+        assert len(FactNotificationStatus.query.all()) == 0
 
-    create_nightly_notification_status_for_day("2019-01-01")
+        create_nightly_notification_status_for_day("2019-01-01")
 
-    new_data = FactNotificationStatus.query.all()
+        new_data = FactNotificationStatus.query.order_by(FactNotificationStatus.notification_type).all()
 
-    assert len(new_data) == 3
-    assert new_data[0].bst_date == date(2019, 1, 1)
-    assert new_data[1].bst_date == date(2019, 1, 1)
-    assert new_data[2].bst_date == date(2019, 1, 1)
-    assert new_data[2].billable_units == 100
+        assert len(new_data) == 3
+        assert all(d.bst_date == date(2019, 1, 1) for d in new_data)
+
+        # Ordered by notification_type: email, letter, sms
+        assert new_data[0].notification_type == EMAIL_TYPE
+        assert new_data[1].notification_type == LETTER_TYPE
+        assert new_data[2].notification_type == SMS_TYPE
+        assert new_data[1].billable_units == 100
 
 
 @freeze_time("2019-01-05")
