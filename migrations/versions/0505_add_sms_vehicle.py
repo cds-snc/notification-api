@@ -17,6 +17,8 @@ sms_sending_vehicle = sa.Enum("short_code", "long_code", name="sms_sending_vehic
 
 
 def upgrade():
+    op.execute('CREATE EXTENSION IF NOT EXISTS pgcrypto')
+
     op.add_column(
         "rates",
         sa.Column(
