@@ -84,9 +84,11 @@ def test_update_fact_notification_status(notify_db_session):
     data = fetch_notification_status_for_day(process_day=process_day, service_ids=service_ids)
     update_fact_notification_status(data=data, process_day=process_day.date(), service_ids=service_ids)
 
-    new_fact_data = FactNotificationStatus.query.order_by(
-        FactNotificationStatus.bst_date, FactNotificationStatus.notification_type
-    ).all()
+    new_fact_data = (
+        FactNotificationStatus.query.filter(FactNotificationStatus.service_id.in_(service_ids))
+        .order_by(FactNotificationStatus.bst_date, FactNotificationStatus.notification_type)
+        .all()
+    )
 
     assert len(new_fact_data) == 3
     assert new_fact_data[0].bst_date == process_day.date()
@@ -125,9 +127,11 @@ class TestUpdateFactNotificationStatus:
         data = fetch_notification_status_for_day(process_day=process_day, service_ids=service_ids)
         update_fact_notification_status(data=data, process_day=process_day.date(), service_ids=service_ids)
 
-        new_fact_data = FactNotificationStatus.query.order_by(
-            FactNotificationStatus.bst_date, FactNotificationStatus.notification_type
-        ).all()
+        new_fact_data = (
+            FactNotificationStatus.query.filter(FactNotificationStatus.service_id == first_service.id)
+            .order_by(FactNotificationStatus.bst_date, FactNotificationStatus.notification_type)
+            .all()
+        )
         assert len(new_fact_data) == 1
         assert new_fact_data[0].notification_count == 1
 
@@ -136,9 +140,11 @@ class TestUpdateFactNotificationStatus:
         data = fetch_notification_status_for_day(process_day=process_day, service_ids=service_ids)
         update_fact_notification_status(data=data, process_day=process_day.date(), service_ids=service_ids)
 
-        updated_fact_data = FactNotificationStatus.query.order_by(
-            FactNotificationStatus.bst_date, FactNotificationStatus.notification_type
-        ).all()
+        updated_fact_data = (
+            FactNotificationStatus.query.filter(FactNotificationStatus.service_id == first_service.id)
+            .order_by(FactNotificationStatus.bst_date, FactNotificationStatus.notification_type)
+            .all()
+        )
         assert len(updated_fact_data) == 1
         assert updated_fact_data[0].notification_count == 2
 
