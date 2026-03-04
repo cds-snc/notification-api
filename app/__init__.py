@@ -115,7 +115,8 @@ def create_app(application, config=None):
     zendesk_client.init_app(application)
     statsd_client.init_app(application)
     logging.init_app(application, statsd_client)
-    init_otel_request_metrics(application)
+    if application.config.get("OTEL_REQUEST_METRICS_ENABLED", False):
+        init_otel_request_metrics(application)
     aws_sns_client.init_app(application, statsd_client=statsd_client)
     aws_pinpoint_client.init_app(application, statsd_client=statsd_client)
     aws_ses_client.init_app(application.config["AWS_REGION"], statsd_client=statsd_client)

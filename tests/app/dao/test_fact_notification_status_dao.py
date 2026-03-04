@@ -80,12 +80,15 @@ def test_update_fact_notification_status(notify_db_session):
     save_notification(create_notification(template=third_template, created_at=local_now - timedelta(days=1)))
 
     process_day = local_now
-    data = fetch_notification_status_for_day(process_day=process_day)
-    update_fact_notification_status(data=data, process_day=process_day.date())
+    service_ids = [first_service.id, second_service.id, third_service.id]
+    data = fetch_notification_status_for_day(process_day=process_day, service_ids=service_ids)
+    update_fact_notification_status(data=data, process_day=process_day.date(), service_ids=service_ids)
 
-    new_fact_data = FactNotificationStatus.query.order_by(
-        FactNotificationStatus.bst_date, FactNotificationStatus.notification_type
-    ).all()
+    new_fact_data = (
+        FactNotificationStatus.query.filter(FactNotificationStatus.service_id.in_(service_ids))
+        .order_by(FactNotificationStatus.bst_date, FactNotificationStatus.notification_type)
+        .all()
+    )
 
     assert len(new_fact_data) == 3
     assert new_fact_data[0].bst_date == process_day.date()
@@ -120,23 +123,28 @@ class TestUpdateFactNotificationStatus:
         save_notification(create_notification(template=first_template, status="delivered"))
 
         process_day = convert_utc_to_local_timezone(datetime.utcnow())
-        data = fetch_notification_status_for_day(process_day=process_day)
-        update_fact_notification_status(data=data, process_day=process_day.date())
+        service_ids = [first_service.id]
+        data = fetch_notification_status_for_day(process_day=process_day, service_ids=service_ids)
+        update_fact_notification_status(data=data, process_day=process_day.date(), service_ids=service_ids)
 
-        new_fact_data = FactNotificationStatus.query.order_by(
-            FactNotificationStatus.bst_date, FactNotificationStatus.notification_type
-        ).all()
+        new_fact_data = (
+            FactNotificationStatus.query.filter(FactNotificationStatus.service_id == first_service.id)
+            .order_by(FactNotificationStatus.bst_date, FactNotificationStatus.notification_type)
+            .all()
+        )
         assert len(new_fact_data) == 1
         assert new_fact_data[0].notification_count == 1
 
         save_notification(create_notification(template=first_template, status="delivered"))
 
-        data = fetch_notification_status_for_day(process_day=process_day)
-        update_fact_notification_status(data=data, process_day=process_day.date())
+        data = fetch_notification_status_for_day(process_day=process_day, service_ids=service_ids)
+        update_fact_notification_status(data=data, process_day=process_day.date(), service_ids=service_ids)
 
-        updated_fact_data = FactNotificationStatus.query.order_by(
-            FactNotificationStatus.bst_date, FactNotificationStatus.notification_type
-        ).all()
+        updated_fact_data = (
+            FactNotificationStatus.query.filter(FactNotificationStatus.service_id == first_service.id)
+            .order_by(FactNotificationStatus.bst_date, FactNotificationStatus.notification_type)
+            .all()
+        )
         assert len(updated_fact_data) == 1
         assert updated_fact_data[0].notification_count == 2
 
