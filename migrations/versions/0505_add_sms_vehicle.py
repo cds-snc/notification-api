@@ -27,6 +27,46 @@ def upgrade():
         ),
     )
 
+    # All existing SMS rates now have sms_sending_vehicle='long_code' (the server default).
+    # Insert a short_code mirror for each one so that ft_billing can be regenerated for
+    # any historical date in any environment, regardless of when rates were originally inserted.
+    op.execute(
+        """
+        INSERT INTO rates (id, valid_from, rate, notification_type, sms_sending_vehicle)
+        SELECT
+            gen_random_uuid(),
+            lc.valid_from,
+            lc.rate,
+            'sms',
+            'short_code'
+        FROM rates lc
+        WHERE lc.notification_type = 'sms'
+          AND lc.sms_sending_vehicle = 'long_code'
+          AND NOT EXISTS (
+              SELECT 1
+              FROM rates sc
+              WHERE sc.notification_type = 'sms'
+                AND sc.sms_sending_vehicle = 'short_code'
+                AND sc.valid_from = lc.valid_from
+          );
+        """
+    )
+
 
 def downgrade():
+    # Remove short_code mirror rates that were inserted to match existing long_code
+    # rates (same valid_from and same rate value).
+    op.execute(
+        """
+        DELETE FROM rates sc
+        USING rates lc
+        WHERE sc.notification_type = 'sms'
+          AND sc.sms_sending_vehicle = 'short_code'
+          AND lc.notification_type = 'sms'
+          AND lc.sms_sending_vehicle = 'long_code'
+          AND sc.valid_from = lc.valid_from
+          AND sc.rate = lc.rate;
+        """
+    )
+
     op.drop_column("rates", "sms_sending_vehicle")
