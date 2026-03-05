@@ -23,6 +23,7 @@ class AwsSesClient(EmailClient):
 
     def init_app(self, region, statsd_client, *args, **kwargs):
         self._client = boto3.client("ses", region_name=region)
+        self._client_v2 = boto3.client("sesv2", region_name=region)
         super(AwsSesClient, self).__init__(*args, **kwargs)
         self.name = "ses"
         self.statsd_client = statsd_client
@@ -119,6 +120,33 @@ class AwsSesClient(EmailClient):
             self.statsd_client.timing("clients.ses.request-time", elapsed_time)
             self.statsd_client.incr("clients.ses.success")
             return response["MessageId"]
+
+    def remove_email_from_suppression_list(self, email_address):
+        """
+        Remove an email address from the account-level suppression list.
+        Uses SES v2 API to delete from the account suppression list.
+        Returns True if successful, raises exception if failed.
+        """
+        try:
+            self._client_v2.delete_suppressed_destination(EmailAddress=email_address)
+            current_app.logger.info(f"Successfully removed {email_address} from suppression list")
+            self.statsd_client.incr("clients.ses.suppression-removal.success")
+            return True
+        except botocore.exceptions.ClientError as e:
+            error_code = e.response["Error"]["Code"]
+            if error_code == "NotFoundException":
+                # Email was not in suppression list, treat as success
+                current_app.logger.info(f"Email {email_address} was not in suppression list")
+                self.statsd_client.incr("clients.ses.suppression-removal.not-found")
+                return True
+            else:
+                current_app.logger.error(f"Failed to remove {email_address} from suppression list: {e}")
+                self.statsd_client.incr("clients.ses.suppression-removal.error")
+                raise AwsSesClientException(f"Failed to remove email from suppression list: {str(e)}")
+        except Exception as e:
+            current_app.logger.error(f"Unexpected error removing {email_address} from suppression list: {e}")
+            self.statsd_client.incr("clients.ses.suppression-removal.error")
+            raise AwsSesClientException(f"Failed to remove email from suppression list: {str(e)}")
 
 
 def punycode_encode_email(email_address):

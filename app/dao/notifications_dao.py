@@ -980,3 +980,30 @@ def total_hard_bounces_grouped_by_hour(service_id, default_time=datetime.utcnow(
         .order_by(func.date_trunc("hour", Notification.created_at))
     )
     return query.all()
+
+
+@statsd(namespace="dao")
+def dao_check_service_has_sent_to_email(service_id, email_address):
+    """
+    Check if a service has ever sent a notification to a specific email address.
+    Returns True if at least one notification exists, False otherwise.
+    """
+    try:
+        normalised = validate_and_format_email_address(email_address)
+    except InvalidEmailError:
+        normalised = email_address.lower()
+
+    normalised = escape_special_characters(normalised)
+
+    count = (
+        db.session.query(func.count(Notification.id))
+        .filter(
+            Notification.service_id == service_id,
+            Notification.normalised_to.like("%{}%".format(normalised)),
+            Notification.notification_type == EMAIL_TYPE,
+            Notification.key_type != KEY_TYPE_TEST,
+        )
+        .scalar()
+    )
+
+    return count > 0
