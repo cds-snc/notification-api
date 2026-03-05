@@ -268,6 +268,7 @@ def create_notification(
     created_by_id=None,
     postage=None,
     queue_name=None,
+    sms_origination_phone_number=None,
 ):
     """
     Creates in memory Notification Model
@@ -326,6 +327,7 @@ def create_notification(
         "created_by_id": created_by_id,
         "postage": postage,
         "queue_name": queue_name,
+        "sms_origination_phone_number": sms_origination_phone_number,
     }
     return Notification(**data)
 
@@ -553,12 +555,13 @@ def create_email_branding(
     return email_branding
 
 
-def create_rate(start_date, value, notification_type):
+def create_rate(start_date, value, notification_type, sms_sending_vehicle="long_code"):
     rate = Rate(
         id=uuid.uuid4(),
         valid_from=start_date,
         rate=value,
         notification_type=notification_type,
+        sms_sending_vehicle=sms_sending_vehicle,
     )
     db.session.add(rate)
     db.session.commit()
@@ -744,6 +747,7 @@ def create_ft_billing(
     billable_unit=1,
     notifications_sent=1,
     postage="none",
+    sms_sending_vehicle="long_code",
 ):
     if not service:
         service = create_service()
@@ -762,6 +766,7 @@ def create_ft_billing(
         billable_units=billable_unit,
         notifications_sent=notifications_sent,
         postage=postage,
+        sms_sending_vehicle=sms_sending_vehicle,
     )
     db.session.add(data)
     db.session.commit()

@@ -414,6 +414,7 @@ def create_template_category(
     email_process_type="normal",
     hidden=False,
     created_by_id=None,
+    sms_sending_vehicle="long_code",
 ):
     data = {
         "name_en": name_en,
@@ -423,6 +424,7 @@ def create_template_category(
         "sms_process_type": sms_process_type,
         "email_process_type": email_process_type,
         "hidden": hidden,
+        "sms_sending_vehicle": sms_sending_vehicle,
     }
 
     if not created_by_id:
