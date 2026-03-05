@@ -2338,11 +2338,13 @@ class Rate(BaseModel):
     valid_from = db.Column(db.DateTime, nullable=False)
     rate = db.Column(db.Float(asdecimal=False), nullable=False)
     notification_type = db.Column(notification_types, index=True, nullable=False)
+    sms_sending_vehicle = db.Column(sms_sending_vehicles, nullable=False, default="long_code")
 
     def __str__(self):
         the_string = "{}".format(self.rate)
         the_string += " {}".format(self.notification_type)
         the_string += " {}".format(self.valid_from)
+        the_string += " {}".format(self.sms_sending_vehicle)
         return the_string
 
 
@@ -2487,6 +2489,8 @@ class FactBilling(BaseModel):
     international = db.Column(db.Boolean, nullable=False, primary_key=True)
     rate = db.Column(db.Numeric(), nullable=False, primary_key=True)
     postage = db.Column(db.String, nullable=False, primary_key=True)
+    sms_sending_vehicle = db.Column(sms_sending_vehicles, nullable=False, primary_key=True)
+    billing_total = db.Column(db.Numeric(16, 8), nullable=True)
     billable_units = db.Column(db.Integer(), nullable=True)
     notifications_sent = db.Column(db.Integer(), nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)

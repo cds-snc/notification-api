@@ -227,3 +227,25 @@ class Matcher:
 
     def __repr__(self):
         return "<Matcher: {}>".format(self.description)
+
+
+@pytest.fixture
+def billing_rates(notify_db_session):
+    """Insert minimal Rate and LetterRate rows for billing-related tests.
+
+    This fixture is opt-in (not autouse). Tests that need existing rates can
+    include `billing_rates` as an argument.
+    """
+    from datetime import datetime
+
+    from tests.app.db import create_letter_rate, create_rate
+
+    # Minimal SMS rates for long_code and short_code
+    create_rate(start_date=datetime(2016, 1, 1), value=0.162, notification_type="sms", sms_sending_vehicle="long_code")
+    create_rate(start_date=datetime(2016, 1, 1), value=0.30, notification_type="sms", sms_sending_vehicle="short_code")
+
+    # A default email rate (zero) and a letter rate used by some tests
+    create_rate(start_date=datetime(2016, 1, 1), value=0, notification_type="email")
+    create_letter_rate(start_date=datetime(2016, 1, 1), rate=0.33, post_class="second")
+
+    yield
