@@ -62,6 +62,7 @@ from tests.app.db import (
 from tests.conftest import set_config
 
 
+@freeze_time("2019-06-18T12:00:00")
 def test_update_fact_notification_status(notify_db_session):
     local_now = convert_utc_to_local_timezone(datetime.utcnow())
     first_service = create_service(service_name="First Service")
@@ -117,6 +118,7 @@ def test_update_fact_notification_status(notify_db_session):
 
 
 class TestUpdateFactNotificationStatus:
+    @freeze_time("2019-06-18T12:00:00")
     def test_update_fact_notification_status_updates_row(self, notify_db_session):
         first_service = create_service(service_name="First Service")
         first_template = create_template(service=first_service)
