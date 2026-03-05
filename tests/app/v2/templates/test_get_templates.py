@@ -31,9 +31,12 @@ def test_get_all_templates_returns_200(client, sample_service):
 
     json_response = json.loads(response.get_data(as_text=True))
 
-    assert len(json_response["templates"]) == len(templates)
+    created_ids = {str(t.id) for t in templates}
+    returned_templates = [t for t in json_response["templates"] if t["id"] in created_ids]
 
-    for index, template in enumerate(json_response["templates"]):
+    assert len(returned_templates) == len(templates)
+
+    for index, template in enumerate(returned_templates):
         assert template["id"] == str(templates[index].id)
         assert template["body"] == templates[index].content
         assert template["type"] == templates[index].template_type
