@@ -18,15 +18,19 @@ class Client(object):
 
 
 class Clients(object):
-    sms_clients: Dict[str, Any] = {}
     email_clients: Dict[str, Any] = {}
+    rcs_clients: Dict[str, Any] = {}
+    sms_clients: Dict[str, Any] = {}
 
-    def init_app(self, sms_clients, email_clients):
-        for client in sms_clients:
-            self.sms_clients[client.name] = client
-
+    def init_app(self, sms_clients, email_clients, rcs_clients):
         for client in email_clients:
             self.email_clients[client.name] = client
+
+        for client in rcs_clients:
+            self.rcs_clients[client.name] = client
+
+        for client in sms_clients:
+            self.sms_clients[client.name] = client
 
     def get_sms_client(self, name):
         return self.sms_clients.get(name)
@@ -42,3 +46,6 @@ class Clients(object):
 
         if notification_type == "sms":
             return self.get_sms_client(name)
+
+        if notification_type == "rcs":
+            return self.get_rcs_client(name)

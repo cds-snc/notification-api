@@ -33,3 +33,16 @@ class SmsClient(Client):
 
     def get_name(self):
         raise NotImplementedError("TODO Need to implement.")
+
+class RcsClient(Client):
+    """
+    Base RCS client for sending RCS messages.
+    """
+
+    LONG_CODE_REGEX = re.compile(r"^\+1\d{10}$")
+
+    def send_rcs(self, *args, **kwargs):
+        raise NotImplementedError("TODO Need to implement.")
+
+    def get_name(self):
+        raise NotImplementedError("TODO Need to implement.")
