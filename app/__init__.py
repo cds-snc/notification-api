@@ -33,6 +33,7 @@ from app.clients.performance_platform.performance_platform_client import (
 from app.clients.salesforce.salesforce_client import SalesforceClient
 from app.clients.sms.aws_pinpoint import AwsPinpointClient
 from app.clients.sms.aws_sns import AwsSnsClient
+from app.clients.sms.twilio_rcs import TwilioRcsClient
 from app.dbsetup import RoutingSQLAlchemy, enable_sqlalchemy_debug_logging
 from app.encryption import CryptoSigner
 from app.json_provider import NotifyJSONProvider
@@ -48,9 +49,19 @@ db: RoutingSQLAlchemy = RoutingSQLAlchemy()
 migrate = Migrate()
 marshmallow = Marshmallow()
 notify_celery = NotifyCelery()
+
+# Provider clients
+clients = Clients()
 aws_ses_client = AwsSesClient()
 aws_sns_client = AwsSnsClient()
 aws_pinpoint_client = AwsPinpointClient()
+twilio_rcs_client = TwilioRcsClient()
+
+airtable_client = AirtableClient()
+salesforce_client = SalesforceClient()
+zendesk_client = ZendeskClient()
+
+# Encryption signers
 signer_notification = CryptoSigner()
 signer_personalisation = CryptoSigner()
 signer_complaint = CryptoSigner()
@@ -58,24 +69,24 @@ signer_delivery_status = CryptoSigner()
 signer_bearer_token = CryptoSigner()
 signer_api_key = CryptoSigner()
 signer_inbound_sms = CryptoSigner()
-zendesk_client = ZendeskClient()
+
+# Metrics and logging
 statsd_client = StatsdClient()
+metrics_logger = MetricsLogger()
+performance_platform_client = PerformancePlatformClient()
+
+# Cache and Redis clients
 flask_redis = FlaskRedis()
 flask_cache_ops = FlaskRedis(config_prefix="CACHE_OPS")
 redis_store = RedisClient()
 bounce_rate_client = RedisBounceRate(redis_store)
 annual_limit_client = RedisAnnualLimit(redis_store)
-metrics_logger = MetricsLogger()
+
+
+# Queues
 # TODO: Rework instantiation to decouple redis_store.redis_store and pass it in.\
 email_queue = RedisQueue("email")
 sms_queue = RedisQueue("sms")
-performance_platform_client = PerformancePlatformClient()
-document_download_client = DocumentDownloadClient()
-salesforce_client = SalesforceClient()
-airtable_client = AirtableClient()
-
-clients = Clients()
-
 api_user: Any = LocalProxy(lambda: g.api_user)
 authenticated_service: Any = LocalProxy(lambda: g.authenticated_service)
 
@@ -92,6 +103,9 @@ sms_priority_publish = RedisQueue("sms", process_type="priority")
 email_bulk_publish = RedisQueue("email", process_type="bulk")
 email_normal_publish = RedisQueue("email", process_type="normal")
 email_priority_publish = RedisQueue("email", process_type="priority")
+
+# APIs
+document_download_client = DocumentDownloadClient()
 
 
 def create_app(application, config=None):
@@ -120,6 +134,7 @@ def create_app(application, config=None):
     aws_sns_client.init_app(application, statsd_client=statsd_client)
     aws_pinpoint_client.init_app(application, statsd_client=statsd_client)
     aws_ses_client.init_app(application.config["AWS_REGION"], statsd_client=statsd_client)
+    twilio_rcs_client.init_app(application, statsd_client=statsd_client)
     notify_celery.init_app(application)
     NewsletterSubscriber.init_app(application)
     LatestNewsletterTemplate.init_app(application)
@@ -135,7 +150,9 @@ def create_app(application, config=None):
     performance_platform_client.init_app(application)
     document_download_client.init_app(application)
     airtable_client.init_app(application)
-    clients.init_app(sms_clients=[aws_sns_client, aws_pinpoint_client], email_clients=[aws_ses_client])
+    clients.init_app(
+        sms_clients=[aws_sns_client, aws_pinpoint_client], email_clients=[aws_ses_client], rcs_clients=[twilio_rcs_client]
+    )
 
     if application.config["FF_SALESFORCE_CONTACT"]:
         salesforce_client.init_app(application)

@@ -274,6 +274,9 @@ class Config(object):
         "FF_USE_PINPOINT_FOR_DEDICATED", False
     )  # Feature flag to control whether to use Pinpoint for sending messages from long dedicated numbers
     AWS_US_TOLL_FREE_NUMBER = os.getenv("AWS_US_TOLL_FREE_NUMBER")
+    TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "")
+    TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "")
+    TWILIO_RCS_MESSAGING_SERVICE_SID = os.getenv("TWILIO_RCS_MESSAGING_SERVICE_SID", "")
     CSV_UPLOAD_BUCKET_NAME = os.getenv("CSV_UPLOAD_BUCKET_NAME", "notification-alpha-canada-ca-csv-upload")
     ASSET_DOMAIN = os.getenv("ASSET_DOMAIN", "assets.notification.canada.ca")
     INVITATION_EXPIRATION_DAYS = 2
