@@ -1428,7 +1428,7 @@ SMS_PROVIDERS = [SNS_PROVIDER, PINPOINT_PROVIDER]
 EMAIL_PROVIDERS = [SES_PROVIDER]
 PROVIDERS = SMS_PROVIDERS + EMAIL_PROVIDERS
 
-NotificationType = Literal["email", "sms", "letter"]
+NotificationType = Literal["email", "sms", "letter", "rcs"]
 NOTIFICATION_TYPE = [EMAIL_TYPE, SMS_TYPE, LETTER_TYPE, RCS_TYPE]
 notification_types = db.Enum(*NOTIFICATION_TYPE, name="notification_type")
 

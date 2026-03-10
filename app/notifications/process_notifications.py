@@ -30,6 +30,7 @@ from app.models import (
     KEY_TYPE_TEST,
     LETTER_TYPE,
     NOTIFICATION_CREATED,
+    RCS_TYPE,
     SMS_TYPE,
     ApiKeyType,
     Notification,
@@ -274,6 +275,10 @@ def send_notification_to_queue(notification, research_mode, queue=None):
             queue = QueueNames.SEND_THROTTLED_SMS
         if not queue or queue == QueueNames.NORMAL:
             queue = QueueNames.SEND_SMS_MEDIUM
+    if notification.notification_type == RCS_TYPE:
+        if not queue or queue == QueueNames.NORMAL:
+            queue = QueueNames.SEND_RCS_MEDIUM
+        deliver_task = provider_tasks.deliver_rcs
     if notification.notification_type == EMAIL_TYPE:
         if not queue or queue == QueueNames.NORMAL:
             queue = QueueNames.SEND_EMAIL_MEDIUM

@@ -93,6 +93,11 @@ authenticated_service: Any = LocalProxy(lambda: g.authenticated_service)
 sms_bulk = RedisQueue("sms", process_type="bulk")
 sms_normal = RedisQueue("sms", process_type="normal")
 sms_priority = RedisQueue("sms", process_type="priority")
+
+rcs_bulk = RedisQueue("rcs", process_type="bulk")
+rcs_normal = RedisQueue("rcs", process_type="normal")
+rcs_priority = RedisQueue("rcs", process_type="priority")
+
 email_bulk = RedisQueue("email", process_type="bulk")
 email_normal = RedisQueue("email", process_type="normal")
 email_priority = RedisQueue("email", process_type="priority")
@@ -100,6 +105,11 @@ email_priority = RedisQueue("email", process_type="priority")
 sms_bulk_publish = RedisQueue("sms", process_type="bulk")
 sms_normal_publish = RedisQueue("sms", process_type="normal")
 sms_priority_publish = RedisQueue("sms", process_type="priority")
+
+rcs_bulk_publish = RedisQueue("rcs", process_type="bulk")
+rcs_normal_publish = RedisQueue("rcs", process_type="normal")
+rcs_priority_publish = RedisQueue("rcs", process_type="priority")
+
 email_bulk_publish = RedisQueue("email", process_type="bulk")
 email_normal_publish = RedisQueue("email", process_type="normal")
 email_priority_publish = RedisQueue("email", process_type="priority")

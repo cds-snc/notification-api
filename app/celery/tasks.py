@@ -74,6 +74,7 @@ from app.models import (
     LETTER_TYPE,
     NORMAL,
     PRIORITY,
+    RCS_TYPE,
     SMS_TYPE,
     Job,
     Notification,
@@ -90,8 +91,10 @@ from app.sms_fragment_utils import fetch_todays_requested_sms_count
 from app.types import VerifiedNotification
 from app.utils import get_csv_max_rows, get_delivery_queue_for_template, get_fiscal_year
 from app.v2.errors import (
+    LiveServiceTooManyRCSRequestsError,
     LiveServiceTooManyRequestsError,
     LiveServiceTooManySMSRequestsError,
+    TrialServiceTooManyRCSRequestsError,
     TrialServiceTooManyRequestsError,
     TrialServiceTooManySMSRequestsError,
 )
@@ -359,6 +362,114 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
             )
         except (LiveServiceTooManySMSRequestsError, TrialServiceTooManySMSRequestsError) as e:
             current_app.logger.info(f"{e.message}: SMS {notification_obj.id} not created")
+
+
+
+@notify_celery.task(bind=True, name="save-rcss", max_retries=5, default_retry_delay=300)
+@statsd(namespace="tasks")
+def save_rcss(self, service_id: Optional[str], signed_notifications: List[SignedNotification], receipt: Optional[UUID]):
+    """
+    Function that takes a list of signed notifications, stores
+    them in the DB and then sends these to the queue. If the receipt
+    is not None then it is passed to the RedisQueue to let it know it
+    can delete the inflight notifications.
+    """
+    verified_notifications: List[VerifiedNotification] = []
+    notification_id_queue: Dict = {}
+    saved_notifications: List[Notification] = []
+    for signed_notification in signed_notifications:
+        try:
+            _notification = signer_notification.verify(signed_notification)
+        except BadSignature:
+            current_app.logger.exception(f"Invalid signature for signed_notification {signed_notification}")
+            raise
+        service_id = _notification.get("service_id", service_id)  # take it it out of the notification if it's there
+        service = dao_fetch_service_by_id(service_id, use_cache=True)
+
+        template = dao_get_template_by_id(
+            _notification.get("template"), version=_notification.get("template_version"), use_cache=True
+        )
+        # todo: _notification may not have "sender_id" key
+        sender_id = _notification.get("sender_id")  # type: ignore
+        notification_id = _notification.get("id", create_uuid())
+
+        # REVIEW: the logic for reply_to_text but should it be different for RCS?
+        if "reply_to_text" in _notification and _notification["reply_to_text"]:
+            reply_to_text = _notification["reply_to_text"]
+        else:
+            reply_to_text = ""  # type: ignore
+            if sender_id:
+                reply_to_text = try_validate_and_format_phone_number(
+                    dao_get_service_sms_senders_by_id(service_id, sender_id).sms_sender
+                )
+            elif template.service:
+                reply_to_text = template.get_reply_to_text()
+            else:
+                reply_to_text = service.get_default_sms_sender()  # type: ignore
+
+        notification: VerifiedNotification = {
+            **_notification,  # type: ignore
+            "notification_id": notification_id,
+            "reply_to_text": reply_to_text,
+            "service": service,
+            "key_type": _notification.get("key_type", KEY_TYPE_NORMAL),
+            "template_id": template.id,
+            "template_version": template.version,
+            "recipient": _notification.get("to"),
+            "personalisation": _notification.get("personalisation"),
+            "notification_type": RCS_TYPE,  # type: ignore
+            "simulated": _notification.get("simulated", None),
+            "api_key_id": _notification.get("api_key", None),
+            "created_at": datetime.utcnow(),
+            "job_id": _notification.get("job", None),
+            "job_row_number": _notification.get("row_number", None),
+        }
+
+        verified_notifications.append(notification)
+        notification_id_queue[notification_id] = notification.get("queue")  # type: ignore
+        process_type = template.process_type  # type: ignore
+
+    try:
+        # If the data is not present in the encrypted data then fallback on whats needed for process_job.
+        saved_notifications = persist_notifications(verified_notifications)
+        current_app.logger.debug(
+            f"Saved following notifications into db: {notification_id_queue.keys()} associated with receipt {receipt}"
+        )
+        if receipt:
+            acknowledge_receipt(RCS_TYPE, process_type, receipt)
+            current_app.logger.debug(
+                f"Batch saving: receipt_id {receipt} removed from buffer queue for notification_id {notification_id} for process_type {process_type}"
+            )
+        else:
+            put_batch_saving_bulk_processed(
+                metrics_logger,
+                1,
+                notification_type=RCS_TYPE,
+                priority=process_type,  # type: ignore
+            )
+
+    except SQLAlchemyError as e:
+        signed_and_verified = list(zip(signed_notifications, verified_notifications))
+        handle_batch_error_and_forward(self, signed_and_verified, RCS_TYPE, e, receipt, template)
+
+    current_app.logger.debug(f"Sending following rcs notifications to AWS: {notification_id_queue.keys()}")
+    for notification_obj in saved_notifications:
+        try:
+            queue = notification_id_queue.get(notification_obj.id) or get_delivery_queue_for_template(template)
+            send_notification_to_queue(
+                notification_obj,
+                service.research_mode,
+                queue=queue,
+            )
+            current_app.logger.debug(
+                "RCS {} created at {} for job {}".format(
+                    notification_obj.id,
+                    notification_obj.created_at,
+                    notification_obj.job,
+                )
+            )
+        except (LiveServiceTooManyRCSRequestsError, TrialServiceTooManyRCSRequestsError) as e:
+            current_app.logger.info(f"{e.message}: RCS {notification_obj.id} not created")
 
 
 @notify_celery.task(bind=True, name="save-emails", max_retries=5, default_retry_delay=300)

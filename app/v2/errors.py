@@ -38,6 +38,14 @@ class TooManySMSRequestsError(InvalidRequest):
         self.message = self.message_template.format(sending_limit)
 
 
+class TooManyRCSRequestsError(InvalidRequest):
+    status_code = 429
+    message_template = "Exceeded RCS daily sending limit of {} fragments"
+
+    def __init__(self, sending_limit):
+        self.message = self.message_template.format(sending_limit)
+
+
 class TooManyEmailRequestsError(InvalidRequest):
     status_code = 429
     messsage_template = "Exceeded email daily sending limit of {} messages"
@@ -67,6 +75,10 @@ class LiveServiceTooManyRequestsError(TooManyRequestsError):
 
 
 class LiveServiceTooManySMSRequestsError(TooManySMSRequestsError):
+    pass
+
+
+class LiveServiceTooManyRCSRequestsError(TooManyRCSRequestsError):
     pass
 
 

@@ -139,6 +139,51 @@ def _deliver_sms(self, notification_id):
             raise NotificationTechnicalFailureException(message)
 
 
+
+@notify_celery.task(
+    bind=True,
+    name="deliver_rcs",
+    max_retries=48,
+    default_retry_delay=300,
+    rate_limit=Config.CELERY_DELIVER_RCS_RATE_LIMIT,
+)
+@statsd(namespace="tasks")
+def deliver_rcs(self, notification_id):
+    try:
+        current_app.logger.info("Start sending RCS for notification id: {}".format(notification_id))
+        notification = notifications_dao.get_notification_by_id(notification_id)
+        if not notification:
+            raise NoResultFound()
+        send_to_providers.send_rcs_to_provider(notification)
+    except InvalidUrlException:
+        current_app.logger.error(f"Cannot send notification {notification_id}, got an invalid direct file url.")
+        update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
+        _check_and_queue_callback_task(notification)
+    # REVIEW: Catch Twilio related exceptions instead of the AWS related ones.
+    except (PinpointConflictException, PinpointValidationException) as e:
+        # As this is due to Pinpoint errors, we are NOT retrying the notification
+        # We are only warning on the error, and not logging an error
+        current_app.logger.warning("RCS delivery failed for notification_id {} Pinpoint error: {}".format(notification.id, e))
+        # PinpointConflictException reasons: https://botocore.amazonaws.com/v1/documentation/api/latest/reference/services/pinpoint-sms-voice-v2/client/exceptions/ConflictException.html
+        # PinpointValidationException reasons: https://botocore.amazonaws.com/v1/documentation/api/latest/reference/services/pinpoint-sms-voice-v2/client/exceptions/ValidationException.html
+        update_notification_status_by_id(
+            notification_id, NOTIFICATION_PROVIDER_FAILURE, feedback_reason=e.original_exception.response.get("Reason", "")
+        )
+        _check_and_queue_callback_task(notification)
+    except Exception:
+        try:
+            current_app.logger.exception("RCS notification delivery for id: {} failed".format(notification_id))
+            self.retry(**CeleryParams.retry(None if notification is None else notification.template.process_type))
+        except self.MaxRetriesExceededError:
+            message = (
+                "RETRY FAILED: Max retries reached. The task send_rcs_to_provider failed for notification {}. "
+                "Notification has been updated to technical-failure".format(notification_id)
+            )
+            update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
+            _check_and_queue_callback_task(notification)
+            raise NotificationTechnicalFailureException(message)
+
+
 def _handle_error_with_email_retry(
     task: Task, e: Exception, notification_id: int, notification: Optional[Notification], countdown: Optional[None] = None
 ):
