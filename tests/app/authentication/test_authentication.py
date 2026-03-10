@@ -189,10 +189,11 @@ def test_should_not_allow_invalid_secret(client, sample_api_key, mocker):
     assert response.status_code == 403
     data = json.loads(response.get_data())
     assert data["message"] == {"token": ["Invalid token: signature, api token not found"]}
-    mock_logger.assert_called_once_with(
+    mock_logger.assert_called_once()
+    assert mock_logger.call_args.args == (
         "Rejected JWT with invalid signature for service %s, client %s",
         sample_api_key.service_id,
-        None,
+        "Werkzeug/3.0.6",
     )
 
 
@@ -210,10 +211,11 @@ def test_should_reject_token_with_unsupported_algorithm(client, sample_api_key, 
     assert response.status_code == 403
     data = json.loads(response.get_data())
     assert data["message"] == {"token": ["Invalid token: signature, api token not found"]}
-    mock_logger.assert_called_once_with(
+    mock_logger.assert_called_once()
+    assert mock_logger.call_args.args == (
         "Rejected JWT with unsupported algorithm for service %s, client %s",
         sample_api_key.service_id,
-        None,
+        "Werkzeug/3.0.6",
     )
 
 
