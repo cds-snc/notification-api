@@ -13,15 +13,22 @@ down_revision = "0507_add_rcs_notification_type"
 
 
 def upgrade():
+    id = str(uuid.uuid4())
     # Add Twilio as a provider option in the provider_details table
     op.execute(
-        """
+        f"""
         INSERT INTO provider_details (id, display_name, identifier, priority, notification_type, active, version)
-        SELECT '{}'::uuid, 'Twilio', 'twilio', 10, 'rcs', true, 1
+        SELECT '{id}'::uuid, 'Twilio', 'twilio', 10, 'rcs', true, 1
         WHERE NOT EXISTS (
             SELECT 1 FROM provider_details WHERE identifier = 'twilio'
         )
-        """.format(str(uuid.uuid4()))
+        """
+    )
+    op.execute(
+        f"""
+        INSERT INTO provider_details_history (id, display_name, identifier, priority, notification_type, active, version) 
+        VALUES ('{id}', 'Twilio', 'twilio', 10, 'rcs', true, 1)
+    """
     )
 
 

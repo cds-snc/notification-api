@@ -17,6 +17,7 @@ def upgrade():
 
     # Add a new notification type enumeration value for RCS
     op.execute("ALTER TYPE notification_type ADD VALUE 'rcs'")
+    op.execute("INSERT INTO service_permission_types (name) VALUES ('rcs') ON CONFLICT DO NOTHING")
 
 
 def downgrade():
@@ -26,4 +27,7 @@ def downgrade():
             AND enumtypid = (
               SELECT oid FROM pg_type WHERE typname = 'notification_type'
             )"""
+    op.execute(sql)
+    
+    sql = f"""DELETE FROM service_permission_types WHERE name = 'rcs'"""
     op.execute(sql)
