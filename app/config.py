@@ -79,6 +79,11 @@ class QueueNames(object):
     SEND_SMS_MEDIUM = "send-sms-medium"
     SEND_SMS_LOW = "send-sms-low"
 
+    # Queues for sending all RCS messages.
+    SEND_RCS_HIGH = "send-rcs-high"
+    SEND_RCS_MEDIUM = "send-rcs-medium"
+    SEND_RCS_LOW = "send-rcs-low"
+
     # Primarily used for long dedicated numbers sent from us-west-2 upon which
     # we have a limit to send per second and hence, needs to be throttled.
     SEND_THROTTLED_SMS = "send-throttled-sms-tasks"
@@ -123,6 +128,11 @@ class QueueNames(object):
             Priorities.LOW: BULK,
             Priorities.MEDIUM: NORMAL,
             Priorities.HIGH: PRIORITY,
+        },
+        "rcs": {
+            Priorities.LOW: SEND_RCS_LOW,
+            Priorities.MEDIUM: SEND_RCS_MEDIUM,
+            Priorities.HIGH: SEND_RCS_HIGH,
         },
     }
 
@@ -473,6 +483,22 @@ class Config(object):
             "schedule": 10,
             "options": {"queue": QueueNames.PERIODIC},
         },
+        "beat-inbox-rcs-normal": {
+            "task": "beat-inbox-rcs-normal",
+            "schedule": 10.0,
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        "beat-inbox-rcs-bulk": {
+            "task": "beat-inbox-rcs-bulk",
+            "schedule": 10.0,
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+        "beat-inbox-rcs-priority": {
+            "task": "beat-inbox-rcs-priority",
+            "schedule": 10.0,
+            "options": {"queue": QueueNames.PERIODIC},
+        },
+
         # app/celery/nightly_tasks.py
         "timeout-sending-notifications": {
             "task": "timeout-sending-notifications",
@@ -583,6 +609,7 @@ class Config(object):
     }
     CELERY_QUEUES: List[Any] = []
     CELERY_DELIVER_SMS_RATE_LIMIT = os.getenv("CELERY_DELIVER_SMS_RATE_LIMIT", "1/s")
+    CELERY_DELIVER_RCS_RATE_LIMIT = os.getenv("CELERY_DELIVER_RCS_RATE_LIMIT", "1/s")
     AWS_SEND_SMS_BOTO_CALL_LATENCY = os.getenv("AWS_SEND_SMS_BOTO_CALL_LATENCY", 0.06)  # average delay in production
 
     CONTACT_FORM_EMAIL_ADDRESS = os.getenv("CONTACT_FORM_EMAIL_ADDRESS", "helpdesk@cds-snc.ca")
