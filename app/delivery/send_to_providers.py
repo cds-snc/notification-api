@@ -191,9 +191,10 @@ def send_rcs_to_provider(notification):
             return
 
         if service.research_mode or notification.key_type == KEY_TYPE_TEST or sending_to_internal_test_number:
-            current_app.logger.info(f"notification {notification.id} is sending to INTERNAL_TEST_NUMBER, no boto call to AWS.")
+            current_app.logger.info(f"notification {notification.id} is sending to INTERNAL_TEST_NUMBER, no external provider call.")
             notification.reference = str(create_uuid())
             update_notification_to_sending(notification, provider)
+            # TODO: Change for send_rcs_response and set to sent
             send_sms_response(provider.get_name(), notification.to, notification.reference)
         else:
             try:
@@ -209,6 +210,7 @@ def send_rcs_to_provider(notification):
             except Exception as e:
                 notification.billable_units = template.fragment_count
                 dao_update_notification(notification)
+                # TODO: Make it specific to RCS please.
                 dao_toggle_sms_provider(provider.name)
                 raise e
             else:
@@ -222,8 +224,8 @@ def send_rcs_to_provider(notification):
                     update_notification_to_sending(notification, provider)
 
         # Record StatsD stats to compute SLOs
-        statsd_client.timing_with_dates("sms.total-time", notification.sent_at, notification.created_at)
-        statsd_key = f"sms.process_type-{template_dict['process_type']}"
+        statsd_client.timing_with_dates("rcs.total-time", notification.sent_at, notification.created_at)
+        statsd_key = f"rcs.process_type-{template_dict['process_type']}"
         statsd_client.timing_with_dates(statsd_key, notification.sent_at, notification.created_at)
         statsd_client.incr(statsd_key)
 
