@@ -190,7 +190,8 @@ def test_should_not_allow_invalid_secret(client, sample_api_key):
     assert data["message"] == {"token": ["Invalid token: signature, api token not found"]}
 
 
-def test_should_reject_token_with_unsupported_algorithm(client, sample_api_key):
+def test_should_reject_token_with_unsupported_algorithm(client, sample_api_key, mocker):
+    mock_logger = mocker.patch("app.authentication.auth.current_app.logger.warning")
     token = jwt.encode(
         payload={"iss": str(sample_api_key.service_id), "iat": int(time.time())},
         key=get_unsigned_secret(sample_api_key.id),
@@ -203,6 +204,11 @@ def test_should_reject_token_with_unsupported_algorithm(client, sample_api_key):
     assert response.status_code == 403
     data = json.loads(response.get_data())
     assert data["message"] == {"token": ["Invalid token: signature, api token not found"]}
+    mock_logger.assert_called_once_with(
+        "Rejected JWT with unsupported algorithm for service %s, client %s",
+        sample_api_key.service_id,
+        None,
+    )
 
 
 @pytest.mark.parametrize("scheme", ["bearer", "Bearer"])

@@ -179,7 +179,14 @@ def requires_auth():
     for api_key in service.api_keys:
         try:
             decode_jwt_token(auth_token, api_key.secret)
-        except (TokenAlgorithmError, TokenDecodeError):
+        except TokenAlgorithmError:
+            current_app.logger.warning(
+                "Rejected JWT with unsupported algorithm for service %s, client %s",
+                service.id,
+                request.headers.get("User-Agent"),
+            )
+            continue
+        except TokenDecodeError:
             continue
         except TokenExpiredError:
             try:
@@ -243,5 +250,11 @@ def handle_admin_key(auth_token, secret):
         decode_jwt_token(auth_token, secret)
     except TokenExpiredError:
         raise AuthError("Invalid token: expired, check that your system clock is accurate", 403)
-    except (TokenAlgorithmError, TokenDecodeError):
+    except TokenAlgorithmError:
+        current_app.logger.warning(
+            "Rejected admin JWT with unsupported algorithm, client %s",
+            request.headers.get("User-Agent"),
+        )
+        raise AuthError("Invalid token: signature, api token is not valid", 403)
+    except TokenDecodeError:
         raise AuthError("Invalid token: signature, api token is not valid", 403)
