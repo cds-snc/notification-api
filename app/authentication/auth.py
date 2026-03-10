@@ -7,6 +7,7 @@ from notifications_python_client.authentication import (
     get_token_issuer,
 )
 from notifications_python_client.errors import (
+    TokenAlgorithmError,
     TokenDecodeError,
     TokenExpiredError,
     TokenIssuerError,
@@ -178,7 +179,7 @@ def requires_auth():
     for api_key in service.api_keys:
         try:
             decode_jwt_token(auth_token, api_key.secret)
-        except TokenDecodeError:
+        except (TokenAlgorithmError, TokenDecodeError):
             continue
         except TokenExpiredError:
             try:
@@ -242,5 +243,5 @@ def handle_admin_key(auth_token, secret):
         decode_jwt_token(auth_token, secret)
     except TokenExpiredError:
         raise AuthError("Invalid token: expired, check that your system clock is accurate", 403)
-    except TokenDecodeError:
+    except (TokenAlgorithmError, TokenDecodeError):
         raise AuthError("Invalid token: signature, api token is not valid", 403)

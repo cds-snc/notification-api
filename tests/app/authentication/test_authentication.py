@@ -190,6 +190,21 @@ def test_should_not_allow_invalid_secret(client, sample_api_key):
     assert data["message"] == {"token": ["Invalid token: signature, api token not found"]}
 
 
+def test_should_reject_token_with_unsupported_algorithm(client, sample_api_key):
+    token = jwt.encode(
+        payload={"iss": str(sample_api_key.service_id), "iat": int(time.time())},
+        key=get_unsigned_secret(sample_api_key.id),
+        algorithm="HS512",
+        headers={"typ": "JWT"},
+    )
+
+    response = client.get("/notifications", headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 403
+    data = json.loads(response.get_data())
+    assert data["message"] == {"token": ["Invalid token: signature, api token not found"]}
+
+
 @pytest.mark.parametrize("scheme", ["bearer", "Bearer"])
 def test_should_allow_valid_token(client, sample_api_key, scheme):
     token = __create_token(sample_api_key.service_id)
