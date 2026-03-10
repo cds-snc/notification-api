@@ -204,7 +204,7 @@ def requires_auth():
                 )
                 continue
             current_app.logger.warning(
-                'Rejected expired JWT for service %s, client %s: iat value was %s while server clock is %s',
+                "Rejected expired JWT for service %s, client %s: iat value was %s while server clock is %s",
                 service.id,
                 request.headers.get("User-Agent"),
                 decoded_token["iat"],
