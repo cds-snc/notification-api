@@ -36,8 +36,11 @@ class TwilioRcsClient(RcsClient):
 
             try:
                 start_time = monotonic()
+                # REVIEW: we might need a from
+                # API doc: https://www.twilio.com/docs/libraries/reference/twilio-python/
                 message = self._client.messages.create(
                     to=to,
+                    # REVIEW: what's that?
                     messaging_service_sid=self._messaging_service_sid,
                     body=content,
                 )
