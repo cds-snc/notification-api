@@ -35,3 +35,4 @@ def upgrade():
 def downgrade():
     # Remove the Twilio provider option from the provider_details table
     op.execute("DELETE FROM provider_details WHERE identifier = 'twilio' AND notification_type = 'rcs'")
+    op.execute("DELETE FROM provider_details_history WHERE identifier = 'twilio' AND notification_type = 'rcs'")
