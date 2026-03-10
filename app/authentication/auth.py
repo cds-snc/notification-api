@@ -187,13 +187,29 @@ def requires_auth():
             )
             continue
         except TokenDecodeError:
+            current_app.logger.warning(
+                "Rejected JWT with invalid signature for service %s, client %s",
+                service.id,
+                request.headers.get("User-Agent"),
+            )
             continue
         except TokenExpiredError:
             try:
                 decoded_token = decode_token(auth_token)
             except PyJWTError:
+                current_app.logger.warning(
+                    "Rejected expired JWT for service %s, client %s",
+                    service.id,
+                    request.headers.get("User-Agent"),
+                )
                 continue
-            current_app.logger.info(f'JWT: iat value was {decoded_token["iat"]} while server clock is {epoch_seconds()}')
+            current_app.logger.warning(
+                'Rejected expired JWT for service %s, client %s: iat value was %s while server clock is %s',
+                service.id,
+                request.headers.get("User-Agent"),
+                decoded_token["iat"],
+                epoch_seconds(),
+            )
             err_msg = "Error: Your system clock must be accurate to within 30 seconds"
             raise AuthError(err_msg, 403, service_id=service.id, api_key_id=api_key.id)
 

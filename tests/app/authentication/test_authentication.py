@@ -182,12 +182,18 @@ def test_should_not_allow_expired_api_key(client, sample_api_key):
     assert error_message["message"] == {"token": ["Invalid token: API key revoked"]}
 
 
-def test_should_not_allow_invalid_secret(client, sample_api_key):
+def test_should_not_allow_invalid_secret(client, sample_api_key, mocker):
+    mock_logger = mocker.patch("app.authentication.auth.current_app.logger.warning")
     token = create_jwt_token(secret="not-so-secret", client_id=str(sample_api_key.service_id))
     response = client.get("/notifications", headers={"Authorization": "Bearer {}".format(token)})
     assert response.status_code == 403
     data = json.loads(response.get_data())
     assert data["message"] == {"token": ["Invalid token: signature, api token not found"]}
+    mock_logger.assert_called_once_with(
+        "Rejected JWT with invalid signature for service %s, client %s",
+        sample_api_key.service_id,
+        None,
+    )
 
 
 def test_should_reject_token_with_unsupported_algorithm(client, sample_api_key, mocker):
@@ -377,7 +383,7 @@ def test_should_return_403_when_token_is_expired(
     sample_api_key,
     mocker,
 ):
-    mock_logger = mocker.patch("app.authentication.auth.current_app.logger.info")
+    mock_logger = mocker.patch("app.authentication.auth.current_app.logger.warning")
     with freeze_time("2001-01-01T12:00:00"):
         token = __create_token(sample_api_key.service_id)
     with freeze_time("2001-01-01T12:00:40"):
@@ -389,7 +395,13 @@ def test_should_return_403_when_token_is_expired(
     assert exc.value.service_id == sample_api_key.service_id
     assert exc.value.api_key_id == sample_api_key.id
 
-    mock_logger.assert_called_with("JWT: iat value was 978350400 while server clock is 978350440")
+    mock_logger.assert_called_with(
+        "Rejected expired JWT for service %s, client %s: iat value was %s while server clock is %s",
+        sample_api_key.service_id,
+        None,
+        978350400,
+        978350440,
+    )
 
 
 def __create_token(service_id):
