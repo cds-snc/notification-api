@@ -110,6 +110,10 @@ class TrialServiceTooManySMSRequestsError(TooManySMSRequestsError):
     pass
 
 
+class TrialServiceTooManyRCSRequestsError(TooManyRCSRequestsError):
+    pass
+
+
 class TrialServiceTooManyEmailRequestsError(TooManyEmailRequestsError):
     pass
 
