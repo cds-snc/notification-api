@@ -2639,8 +2639,8 @@ werkzeug = "3.0.6"
 [package.source]
 type = "git"
 url = "https://github.com/cds-snc/notifier-utils.git"
-reference = "fix/sms-variable-bug"
-resolved_reference = "9689150493965a1068c1d107798668cf078f930d"
+reference = "53.2.19"
+resolved_reference = "bfc95b0616a530bf7e220f882d6657d9e1220dfb"
 
 [[package]]
 name = "opentelemetry-api"
@@ -4812,4 +4812,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.12.7"
-content-hash = "0eeda24335d005ce28933e3c2b9ede475cde9b8ab41ec805ebf3a7ff748de6d8"
+content-hash = "03c750e50d9b3a83127ffe380a1487244a2c4c881b04530765478723a3d76aaa"
