@@ -7,6 +7,7 @@ from notifications_python_client.authentication import (
     get_token_issuer,
 )
 from notifications_python_client.errors import (
+    TokenAlgorithmError,
     TokenDecodeError,
     TokenExpiredError,
     TokenIssuerError,
@@ -178,14 +179,37 @@ def requires_auth():
     for api_key in service.api_keys:
         try:
             decode_jwt_token(auth_token, api_key.secret)
+        except TokenAlgorithmError:
+            current_app.logger.warning(
+                "Rejected JWT with unsupported algorithm for service %s, client %s",
+                service.id,
+                request.headers.get("User-Agent"),
+            )
+            continue
         except TokenDecodeError:
+            current_app.logger.warning(
+                "Rejected JWT with invalid signature for service %s, client %s",
+                service.id,
+                request.headers.get("User-Agent"),
+            )
             continue
         except TokenExpiredError:
             try:
                 decoded_token = decode_token(auth_token)
             except PyJWTError:
+                current_app.logger.warning(
+                    "Rejected expired JWT for service %s, client %s",
+                    service.id,
+                    request.headers.get("User-Agent"),
+                )
                 continue
-            current_app.logger.info(f'JWT: iat value was {decoded_token["iat"]} while server clock is {epoch_seconds()}')
+            current_app.logger.warning(
+                "Rejected expired JWT for service %s, client %s: iat value was %s while server clock is %s",
+                service.id,
+                request.headers.get("User-Agent"),
+                decoded_token["iat"],
+                epoch_seconds(),
+            )
             err_msg = "Error: Your system clock must be accurate to within 30 seconds"
             raise AuthError(err_msg, 403, service_id=service.id, api_key_id=api_key.id)
 
@@ -242,5 +266,11 @@ def handle_admin_key(auth_token, secret):
         decode_jwt_token(auth_token, secret)
     except TokenExpiredError:
         raise AuthError("Invalid token: expired, check that your system clock is accurate", 403)
+    except TokenAlgorithmError:
+        current_app.logger.warning(
+            "Rejected admin JWT with unsupported algorithm, client %s",
+            request.headers.get("User-Agent"),
+        )
+        raise AuthError("Invalid token: signature, api token is not valid", 403)
     except TokenDecodeError:
         raise AuthError("Invalid token: signature, api token is not valid", 403)
