@@ -194,6 +194,8 @@ def _decide_permanent_temporary_failure(current_status, status):
 
 
 def country_records_delivery(phone_prefix):
+    if phone_prefix not in INTERNATIONAL_BILLING_RATES:
+        return False
     dlr = INTERNATIONAL_BILLING_RATES[phone_prefix]["attributes"]["dlr"]
     return dlr and dlr.lower() == "yes"
 
