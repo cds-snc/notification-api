@@ -216,7 +216,7 @@ def test_should_not_update_status_by_id_if_sent_to_country_with_unknown_delivery
             sample_template,
             status=NOTIFICATION_SENT,
             international=True,
-            phone_prefix="249",  # sudan has no delivery receipts (or at least, that we know about)
+            phone_prefix="886",  # Taiwan has no delivery receipts (or at least, that we know about)
         )
     )
 
