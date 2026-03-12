@@ -124,7 +124,7 @@ def test_process_pinpoint_results_missing_sms_data(notify_api, sample_template, 
     [
         (
             "Blocked as spam by phone carrier",
-            NOTIFICATION_TECHNICAL_FAILURE,
+            NOTIFICATION_TEMPORARY_FAILURE,
             False,
             True,
         ),
