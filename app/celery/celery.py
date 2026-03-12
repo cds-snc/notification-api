@@ -134,11 +134,18 @@ def classify_celery_task_unknown(sender=None, name=None, message=None, **kwargs)
     exception = Exception(f"Unknown task: {name} message={message}")
     category, root_exc = classify_error(exception)
     root_exception_type = type(root_exc).__name__ if root_exc else "None"
+    # Extract only safe metadata from the broker message — never log the body/args
+    task_id = "unknown"
+    if message is not None:
+        try:
+            task_id = (getattr(message, "headers", None) or {}).get("id") or "unknown"
+        except Exception:
+            pass
 
     current_app.logger.warning(
-        "%s task_name=%s root_exception=%s exception=%s",
+        "%s task_name=%s task_id=%s root_exception=%s",
         category.value,
         name or "unknown",
+        task_id,
         root_exception_type,
-        str(exception),
     )
