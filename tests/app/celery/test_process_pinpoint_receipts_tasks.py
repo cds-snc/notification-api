@@ -302,6 +302,7 @@ class TestAnnualLimits:
             "Phone number is opted out",
             "This delivery would exceed max price",
             "Unknown error attempting to reach phone",
+            "Unhandled provider",
         ],
     )
     def test_process_pinpoint_results_should_increment_sms_failed_when_delivery_receipt_is_failure(

@@ -56,7 +56,7 @@ def test_process_sns_results_delivered(sample_template, notify_db, notify_db_ses
     [
         (
             "Blocked as spam by phone carrier",
-            NOTIFICATION_TECHNICAL_FAILURE,
+            NOTIFICATION_PERMANENT_FAILURE,
             False,
             True,
         ),
@@ -265,6 +265,7 @@ class TestAnnualLimit:
             "Phone number is opted out",
             "This delivery would exceed max price",
             "Unknown error attempting to reach phone",
+            "Unhandled provider",
         ],
     )
     def test_sns_callback_should_increment_sms_failed_when_delivery_receipt_is_failure(
