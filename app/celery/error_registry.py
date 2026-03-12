@@ -53,8 +53,8 @@ _EXCEPTION_CLASS_MAP: dict[str, CeleryErrorCategory] = {
     "ThrottlingException": CeleryErrorCategory.THROTTLING,
     "TooManyRequestsException": CeleryErrorCategory.THROTTLING,
     "RequestLimitExceeded": CeleryErrorCategory.THROTTLING,
-    "Retry": CeleryErrorCategory.TASK_RETRY,
     "NoResultFound": CeleryErrorCategory.NOTIFICATION_NOT_FOUND,
+    "Retry": CeleryErrorCategory.TASK_RETRY,
 }
 
 # Some errors don't have a specific exception class, but can be identified
