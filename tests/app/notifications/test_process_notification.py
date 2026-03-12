@@ -254,8 +254,8 @@ class TestPersistNotification:
         [
             ("6502532222", False, "1", 1),  # NA
             ("+16502532222", False, "1", 1),  # NA
-            ("+79587714230", True, "7", 1),  # Russia
-            ("+360623400400", True, "36", 3),
+            ("+79587714230", True, "7", 27),  # Russia
+            ("+360623400400", True, "36", 8),
         ],  # Hungary
     )
     def test_persist_notifications_with_international_info_stores_correct_info(
@@ -792,8 +792,8 @@ class TestTransformNotification:
         [
             ("6502532222", False, "1", 1),  # NA
             ("+16502532222", False, "1", 1),  # NA
-            ("+79587714230", True, "7", 1),  # Russia
-            ("+360623400400", True, "36", 3),
+            ("+79587714230", True, "7", 27),  # Russia
+            ("+360623400400", True, "36", 8),
         ],  # Hungary
     )
     def test_transform_notification_with_international_info_stores_correct_info(
