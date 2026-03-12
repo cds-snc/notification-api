@@ -109,3 +109,36 @@ def classify_celery_task_failure(sender=None, task_id=None, exception=None, **kw
         root_exception_type,
         str(exception),
     )
+
+
+@signals.task_internal_error.connect
+def classify_celery_task_internal_error(sender=None, task_id=None, exception=None, **kwargs):
+    """Fires on errors outside the task body (e.g. serialization, worker crashes)."""
+    task_name = sender.name if sender else "unknown"
+    category, root_exc = classify_error(exception)
+    root_exception_type = type(root_exc).__name__ if root_exc else "None"
+
+    current_app.logger.warning(
+        "%s task_name=%s task_id=%s root_exception=%s exception=%s",
+        category.value,
+        task_name,
+        task_id,
+        root_exception_type,
+        str(exception),
+    )
+
+
+@signals.task_unknown.connect
+def classify_celery_task_unknown(sender=None, name=None, message=None, **kwargs):
+    """Fires when a worker receives a task it doesn't recognise."""
+    exception = Exception(f"Unknown task: {name} message={message}")
+    category, root_exc = classify_error(exception)
+    root_exception_type = type(root_exc).__name__ if root_exc else "None"
+
+    current_app.logger.warning(
+        "%s task_name=%s root_exception=%s exception=%s",
+        category.value,
+        name or "unknown",
+        root_exception_type,
+        str(exception),
+    )

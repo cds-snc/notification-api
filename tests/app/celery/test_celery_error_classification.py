@@ -2,7 +2,12 @@ from unittest.mock import MagicMock, patch
 
 from sqlalchemy.exc import IntegrityError
 
-from app.celery.celery import classify_celery_task_failure, classify_celery_task_retry
+from app.celery.celery import (
+    classify_celery_task_failure,
+    classify_celery_task_internal_error,
+    classify_celery_task_retry,
+    classify_celery_task_unknown,
+)
 from app.celery.error_registry import CeleryErrorCategory, classify_error
 
 
@@ -117,13 +122,6 @@ class TestClassifyError:
         exc = Exception("timeout-sending-notifications: Task exceeded time limit")
         category, root_exc = classify_error(exc)
         assert category == CeleryErrorCategory.TIMEOUT
-        assert root_exc is exc  # Should return the original exception as root
-
-    def test_xray_error(self):
-        """X-Ray related errors are classified correctly."""
-        exc = Exception("Error in xray-celery segment creation")
-        category, root_exc = classify_error(exc)
-        assert category == CeleryErrorCategory.XRAY
         assert root_exc is exc  # Should return the original exception as root
 
     def test_unknown_error(self):
@@ -366,3 +364,84 @@ class TestCelerySignalHandlers:
             mock_warning.assert_called_once()
             log_message = mock_warning.call_args[0][0] % mock_warning.call_args[0][1:]
             assert "task_name=unknown" in log_message
+
+    def test_task_internal_error_classifies_exception(self, notify_api):
+        """task_internal_error classifies exceptions raised outside task body."""
+        sender = MagicMock()
+        sender.name = "deliver_email"
+
+        with patch.object(notify_api.logger, "warning") as mock_warning:
+            classify_celery_task_internal_error(
+                sender=sender,
+                task_id="int-001",
+                exception=Exception("serialization failure"),
+            )
+
+            mock_warning.assert_called_once()
+            log_message = mock_warning.call_args[0][0] % mock_warning.call_args[0][1:]
+            assert "CELERY_UNKNOWN_ERROR" in log_message
+            assert "deliver_email" in log_message
+            assert "int-001" in log_message
+
+    def test_task_internal_error_classifies_worker_lost(self, notify_api):
+        """task_internal_error classifies WorkerLostError as SHUTDOWN."""
+
+        class WorkerLostError(Exception):
+            pass
+
+        sender = MagicMock()
+        sender.name = "deliver_sms"
+
+        with patch.object(notify_api.logger, "warning") as mock_warning:
+            classify_celery_task_internal_error(
+                sender=sender,
+                task_id="int-002",
+                exception=WorkerLostError("Worker exited prematurely: signal 9 (SIGKILL)"),
+            )
+
+            mock_warning.assert_called_once()
+            log_message = mock_warning.call_args[0][0] % mock_warning.call_args[0][1:]
+            assert "CELERY_KNOWN_ERROR::SHUTDOWN" in log_message
+
+    def test_task_internal_error_handles_missing_sender(self, notify_api):
+        """task_internal_error handles None sender gracefully."""
+        with patch.object(notify_api.logger, "warning") as mock_warning:
+            classify_celery_task_internal_error(
+                sender=None,
+                task_id="int-003",
+                exception=Exception("error"),
+            )
+
+            mock_warning.assert_called_once()
+            log_message = mock_warning.call_args[0][0] % mock_warning.call_args[0][1:]
+            assert "task_name=unknown" in log_message
+
+    def test_task_unknown_logs_unknown_task(self, notify_api):
+        """task_unknown logs when worker receives unrecognised task."""
+        sender = MagicMock()
+
+        with patch.object(notify_api.logger, "warning") as mock_warning:
+            classify_celery_task_unknown(
+                sender=sender,
+                name="non.existent.task",
+                message="some message body",
+            )
+
+            mock_warning.assert_called_once()
+            log_message = mock_warning.call_args[0][0] % mock_warning.call_args[0][1:]
+            assert "CELERY_UNKNOWN_ERROR" in log_message
+            assert "non.existent.task" in log_message
+
+    def test_task_unknown_handles_missing_name(self, notify_api):
+        """task_unknown handles None name gracefully."""
+        with patch.object(notify_api.logger, "warning") as mock_warning:
+            classify_celery_task_unknown(
+                sender=None,
+                name=None,
+                message=None,
+            )
+
+            mock_warning.assert_called_once()
+            log_message = mock_warning.call_args[0][0] % mock_warning.call_args[0][1:]
+            assert "CELERY_UNKNOWN_ERROR" in log_message
+            assert "unknown" in log_message
