@@ -141,6 +141,6 @@ def determine_status(sns_status, provider_response):
     if not status:
         # TODO: Pattern matching in Python 3.10 should simplify this overall function logic.
         if "is opted out" in provider_response:
-            return NOTIFICATION_PERMANENT_FAILURE
+            return NOTIFICATION_TECHNICAL_FAILURE
 
     return status
