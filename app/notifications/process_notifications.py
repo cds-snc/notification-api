@@ -12,8 +12,7 @@ from notifications_utils.recipients import (
 )
 from notifications_utils.timezones import convert_local_timezone_to_utc
 
-import models
-from app import redis_store
+from app import models, redis_store
 from app.celery import provider_tasks
 from app.celery.letters_pdf_tasks import create_letters_pdf
 from app.config import QueueNames

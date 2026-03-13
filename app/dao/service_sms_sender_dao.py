@@ -49,7 +49,7 @@ def dao_update_service_sms_sender(service_id, service_sms_sender_id, is_default,
     if is_default:
         _reset_old_default_to_false(old_default)
     else:
-        if old_default.id == service_sms_sender_id:
+        if old_default and old_default.id == service_sms_sender_id:
             raise Exception("You must have at least one SMS sender as the default")
 
     sms_sender_to_update = ServiceSmsSender.query.get(service_sms_sender_id)
