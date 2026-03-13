@@ -282,24 +282,31 @@ def test_fetch_billing_data_for_day_returns_empty_list(notify_db_session):
     assert results == []
 
 
+@freeze_time("2024-01-15 12:00:00")
 def test_fetch_billing_data_for_day_uses_notification_history(notify_db_session):
-    local_now = convert_utc_to_local_timezone(datetime.utcnow())
+    # Use a fixed reference time to avoid timezone race conditions at day boundaries
+    reference_time = datetime(2024, 1, 15, 12, 0, 0)
+    history_time = reference_time - timedelta(days=8)  # 2024-01-07 12:00:00
+
     service = create_service()
     sms_template = create_template(service=service, template_type="sms")
     create_notification_history(
         template=sms_template,
         status="delivered",
-        created_at=datetime.utcnow() - timedelta(days=8),
+        created_at=history_time,
     )
     create_notification_history(
         template=sms_template,
         status="delivered",
-        created_at=datetime.utcnow() - timedelta(days=8),
+        created_at=history_time,
     )
 
     Notification.query.delete()
     db.session.commit()
-    results = fetch_billing_data_for_day(process_day=local_now - timedelta(days=8), service_id=service.id)
+
+    # Query using the local timezone converted from the same reference time
+    local_history_date = convert_utc_to_local_timezone(history_time)
+    results = fetch_billing_data_for_day(process_day=local_history_date, service_id=service.id)
     assert len(results) == 1
     assert results[0].notifications_sent == 2
 
