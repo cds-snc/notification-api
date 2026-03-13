@@ -139,7 +139,6 @@ def _deliver_sms(self, notification_id):
             raise NotificationTechnicalFailureException(message)
 
 
-
 @notify_celery.task(
     bind=True,
     name="deliver_rcs",

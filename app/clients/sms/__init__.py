@@ -34,6 +34,7 @@ class SmsClient(Client):
     def get_name(self):
         raise NotImplementedError("TODO Need to implement.")
 
+
 class RcsClient(Client):
     """
     Base RCS client for sending RCS messages.

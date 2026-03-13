@@ -3,6 +3,7 @@ def create_post_sms_response_from_notification(notification, content, from_numbe
     noti["content"] = {"from_number": from_number, "body": content}
     return noti
 
+
 def create_post_rcs_response_from_notification(notification, content, from_number, url_root, scheduled_for):
     notification = __create_notification_response(notification, url_root, scheduled_for)
     notification["content"] = {"from_number": from_number, "body": content}

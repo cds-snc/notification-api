@@ -364,7 +364,6 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
             current_app.logger.info(f"{e.message}: SMS {notification_obj.id} not created")
 
 
-
 @notify_celery.task(bind=True, name="save-rcss", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
 def save_rcss(self, service_id: Optional[str], signed_notifications: List[SignedNotification], receipt: Optional[UUID]):
