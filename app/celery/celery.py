@@ -137,10 +137,7 @@ def classify_celery_task_unknown(sender=None, name=None, message=None, **kwargs)
     # Extract only safe metadata from the broker message — never log the body/args
     task_id = "unknown"
     if message is not None:
-        try:
-            task_id = (getattr(message, "headers", None) or {}).get("id") or "unknown"
-        except Exception:
-            pass
+        task_id = (getattr(message, "headers", None) or {}).get("id") or "unknown"
 
     current_app.logger.warning(
         "%s task_name=%s task_id=%s root_exception=%s",
