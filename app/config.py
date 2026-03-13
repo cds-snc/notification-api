@@ -530,6 +530,11 @@ class Config(object):
             "schedule": crontab(hour=9, minute=45),  # 4:45 EST in UTC, after 'create-nightly-notification-status'
             "options": {"queue": QueueNames.PERIODIC},
         },
+        "delete-rcs-notifications": {
+            "task": "delete-rcs-notifications",
+            "schedule": crontab(hour=10, minute=00),  # 5:00 EST in UTC,  after 'create-nightly-notification-status'
+            "options": {"queue": QueueNames.PERIODIC},
+        },
         "delete-inbound-sms": {
             "task": "delete-inbound-sms",
             "schedule": crontab(hour=6, minute=40),  # 1:40 EST in UTC

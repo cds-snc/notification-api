@@ -101,6 +101,17 @@ SMS_STATUS_FORMATTED = {
     "sent": "Sent",
 }
 
+RCS_STATUS_FORMATTED = {
+    "failed": "Failed",
+    "technical-failure": "Tech issue",
+    "temporary-failure": "Carrier issue",
+    "permanent-failure": "No such number",
+    "delivered": "Delivered",
+    "sending": "Sent",
+    "created": "In transit",
+    "pending": "In transit",
+    "sent": "Sent",
+}
 
 def filter_null_value_fields(obj):
     return dict(filter(lambda x: x[1] is not None, obj.items()))

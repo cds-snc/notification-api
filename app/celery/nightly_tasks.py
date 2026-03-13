@@ -86,6 +86,21 @@ def delete_sms_notifications_older_than_retention():
         raise
 
 
+@notify_celery.task(name="delete-rcs-notifications")
+@cronitor("delete-rcs-notifications")
+@statsd(namespace="tasks")
+def delete_rcs_notifications_older_than_retention():
+    try:
+        start = datetime.utcnow()
+        deleted = delete_notifications_older_than_retention_by_type("rcs")
+        current_app.logger.info(
+            "Delete {} job started {} finished {} deleted {} rcs notifications".format("rcs", start, datetime.utcnow(), deleted)
+        )
+    except SQLAlchemyError:
+        current_app.logger.exception("Failed to delete rcs notifications")
+        raise
+
+
 @notify_celery.task(name="delete-email-notifications")
 @cronitor("delete-email-notifications")
 @statsd(namespace="tasks")
