@@ -191,7 +191,9 @@ def send_rcs_to_provider(notification):
             return
 
         if service.research_mode or notification.key_type == KEY_TYPE_TEST or sending_to_internal_test_number:
-            current_app.logger.info(f"notification {notification.id} is sending to INTERNAL_TEST_NUMBER, no external provider call.")
+            current_app.logger.info(
+                f"notification {notification.id} is sending to INTERNAL_TEST_NUMBER, no external provider call."
+            )
             notification.reference = str(create_uuid())
             update_notification_to_sending(notification, provider)
             # TODO: Change for send_rcs_response and set to sent

@@ -113,6 +113,7 @@ RCS_STATUS_FORMATTED = {
     "sent": "Sent",
 }
 
+
 def filter_null_value_fields(obj):
     return dict(filter(lambda x: x[1] is not None, obj.items()))
 
