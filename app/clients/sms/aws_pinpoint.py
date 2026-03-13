@@ -38,7 +38,7 @@ class AwsPinpointClient(SmsClient):
         else:
             pool_id = self.current_app.config["AWS_PINPOINT_DEFAULT_POOL_ID"]
 
-        for match in phonenumbers.PhoneNumberMatcher(to, "US"):
+        for match in phonenumbers.PhoneNumberMatcher(to, region="US"):
             matched = True
             opted_out = False
             to = phonenumbers.format_number(match.number, phonenumbers.PhoneNumberFormat.E164)

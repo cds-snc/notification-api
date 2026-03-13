@@ -403,6 +403,7 @@ def _query_for_billing_data(table, notification_type, start_date, end_date, serv
                     [
                         (table.notification_type == "letter", "dvla"),
                         (table.notification_type == "sms", "unknown"),
+                        (table.notification_type == "rcs", "twilio"),
                         (table.notification_type == "email", "ses"),
                     ]
                 ),

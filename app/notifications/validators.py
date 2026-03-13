@@ -42,6 +42,7 @@ from app.models import (
     KEY_TYPE_TEAM,
     KEY_TYPE_TEST,
     LETTER_TYPE,
+    RCS_TYPE,
     SCHEDULE_NOTIFICATIONS,
     SMS_TYPE,
     ApiKey,
@@ -624,7 +625,7 @@ def validate_and_format_recipient(
 
     service_can_send_to_recipient(send_to, key_type, service, allow_safelisted_recipients)
 
-    if notification_type == SMS_TYPE:
+    if notification_type in (SMS_TYPE, RCS_TYPE):
         international_phone_info = get_international_phone_info(send_to)
 
         if international_phone_info.international and INTERNATIONAL_SMS_TYPE not in [p.permission for p in service.permissions]:

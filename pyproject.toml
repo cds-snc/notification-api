@@ -73,6 +73,7 @@ PyYAML = "6.0.3"
 simple-salesforce = "^1.12.3"
 SQLAlchemy = "1.4.54"
 tldextract = "3.5.0"
+twilio = "^9.10.2"
 types-psycopg2 = "^2.9.21.20250516"
 # rsa = "4.9  # awscli 1.22.38 depends on rsa<4.8
 typing-extensions = "4.12.2"

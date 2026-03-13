@@ -47,8 +47,9 @@ TemplateType = Literal["sms", "email", "letter"]
 SMS_TYPE = "sms"
 EMAIL_TYPE = "email"
 LETTER_TYPE = "letter"
+RCS_TYPE = "rcs"
 
-TEMPLATE_TYPES = [SMS_TYPE, EMAIL_TYPE, LETTER_TYPE]
+TEMPLATE_TYPES = [SMS_TYPE, EMAIL_TYPE, LETTER_TYPE, RCS_TYPE]
 
 template_types = db.Enum(*TEMPLATE_TYPES, name="template_type")
 
@@ -95,6 +96,18 @@ SMS_STATUS_FORMATTED = {
     "permanent-failure": "No such number",
     "delivered": "Delivered",
     "sending": "In transit",
+    "created": "In transit",
+    "pending": "In transit",
+    "sent": "Sent",
+}
+
+RCS_STATUS_FORMATTED = {
+    "failed": "Failed",
+    "technical-failure": "Tech issue",
+    "temporary-failure": "Carrier issue",
+    "permanent-failure": "No such number",
+    "delivered": "Delivered",
+    "sending": "Sent",
     "created": "In transit",
     "pending": "In transit",
     "sent": "Sent",
@@ -415,6 +428,7 @@ UPLOAD_LETTERS = "upload_letters"
 SERVICE_PERMISSION_TYPES = [
     EMAIL_TYPE,
     SMS_TYPE,
+    RCS_TYPE,
     LETTER_TYPE,
     INTERNATIONAL_SMS_TYPE,
     INBOUND_SMS_TYPE,
@@ -1212,7 +1226,7 @@ class TemplateBase(BaseModel):
 
     @hybrid_property
     def process_type(self):
-        if self.template_type == SMS_TYPE:
+        if self.template_type == SMS_TYPE or self.template_type == RCS_TYPE:
             return self.process_type_column if self.process_type_column else self.template_category.sms_process_type
         elif self.template_type == EMAIL_TYPE:
             return self.process_type_column if self.process_type_column else self.template_category.email_process_type
@@ -1266,7 +1280,7 @@ class TemplateBase(BaseModel):
             return self.service_letter_contact.contact_block if self.service_letter_contact else None
         elif self.template_type == EMAIL_TYPE:
             return self.service.get_default_reply_to_email_address()
-        elif self.template_type == SMS_TYPE:
+        elif self.template_type == SMS_TYPE or self.template_type == RCS_TYPE:
             return try_validate_and_format_phone_number(self.service.get_default_sms_sender())
         else:
             return None
@@ -1426,8 +1440,8 @@ SMS_PROVIDERS = [SNS_PROVIDER, PINPOINT_PROVIDER]
 EMAIL_PROVIDERS = [SES_PROVIDER]
 PROVIDERS = SMS_PROVIDERS + EMAIL_PROVIDERS
 
-NotificationType = Literal["email", "sms", "letter"]
-NOTIFICATION_TYPE = [EMAIL_TYPE, SMS_TYPE, LETTER_TYPE]
+NotificationType = Literal["email", "sms", "letter", "rcs"]
+NOTIFICATION_TYPE = [EMAIL_TYPE, SMS_TYPE, LETTER_TYPE, RCS_TYPE]
 notification_types = db.Enum(*NOTIFICATION_TYPE, name="notification_type")
 
 

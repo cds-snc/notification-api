@@ -135,6 +135,15 @@ def dao_fetch_live_services_data(filter_heartbeats=None):
             case(
                 [
                     (
+                        this_year_ft_billing.c.notification_type == "rcs",
+                        func.sum(this_year_ft_billing.c.notifications_sent),
+                    )
+                ],
+                else_=0,
+            ).label("rcs_totals"),
+            case(
+                [
+                    (
                         this_year_ft_billing.c.notification_type == "letter",
                         func.sum(this_year_ft_billing.c.notifications_sent),
                     )
@@ -190,6 +199,7 @@ def dao_fetch_live_services_data(filter_heartbeats=None):
         if existing_service is not None:
             existing_service["email_totals"] += row.email_totals
             existing_service["sms_totals"] += row.sms_totals
+            existing_service["rcs_totals"] += row.rcs_totals
             existing_service["letter_totals"] += row.letter_totals
         else:
             results.append(row._asdict())
