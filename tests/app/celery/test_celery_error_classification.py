@@ -119,7 +119,7 @@ class TestClassifyError:
 
     def test_timeout_error(self):
         """Timeout-related messages are classified correctly."""
-        exc = Exception("timeout-sending-notifications: Task exceeded time limit")
+        exc = Exception("timeout-sending-notifications: Task exceeded time limit, notifications have been updated to technical-failure because they have timed out.")
         category, root_exc = classify_error(exc)
         assert category == CeleryErrorCategory.TIMEOUT
         assert root_exc is exc  # Should return the original exception as root
@@ -193,7 +193,7 @@ class TestClassifyError:
             pass
 
         # Create chain via __context__
-        root = TimeoutException("timeout-sending-notifications reached")
+        root = TimeoutException("timeout-sending-notifications reached, notifications have been updated to technical-failure because they have timed out.")
         wrapper = NotifyException("An error occurred during notification processing")
         wrapper.__context__ = root
 
@@ -230,7 +230,7 @@ class TestClassifyError:
 
         # Create A -> B -> A cycle
         exc_a = ThrottlingException("Rate Exceeded")
-        exc_b = TimeoutException("timeout-sending-notifications")
+        exc_b = TimeoutException("timeout-sending-notifications, notifications have been updated to technical-failure because they have timed out.")
         exc_a.__cause__ = exc_b
         exc_b.__cause__ = exc_a  # Cycle created
 
