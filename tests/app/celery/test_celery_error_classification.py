@@ -416,7 +416,6 @@ class TestCelerySignalHandlers:
             log_message = mock_warning.call_args[0][0] % mock_warning.call_args[0][1:]
             assert "task_name=unknown" in log_message
 
-
     def test_task_unknown_logs_unknown_task(self, notify_api):
         """task_unknown logs safe metadata and does not log the raw message body."""
         sender = MagicMock()
@@ -437,7 +436,6 @@ class TestCelerySignalHandlers:
             assert "task-uuid-abc" in log_message
             # Raw body must never appear in the log
             assert str(mock_message) not in log_message
-
 
     def test_task_unknown_handles_missing_name(self, notify_api):
         """task_unknown handles None name and message gracefully."""
