@@ -21,6 +21,9 @@ from app import (
     email_bulk_publish,
     email_normal_publish,
     email_priority_publish,
+    rcs_bulk_publish,
+    rcs_normal_publish,
+    rcs_priority_publish,
     signer_notification,
     sms_bulk_publish,
     sms_normal_publish,
@@ -53,6 +56,7 @@ from app.models import (
     NOTIFICATION_DELIVERED,
     NOTIFICATION_SENDING,
     PRIORITY,
+    RCS_TYPE,
     SMS_TYPE,
     UPLOAD_DOCUMENT,
     ApiKey,
@@ -97,6 +101,7 @@ from app.v2.notifications import v2_notification_blueprint
 from app.v2.notifications.create_response import (
     create_post_email_response_from_notification,
     create_post_letter_response_from_notification,
+    create_post_rcs_response_from_notification,
     create_post_sms_response_from_notification,
 )
 from app.v2.notifications.notification_schemas import (
@@ -104,6 +109,7 @@ from app.v2.notifications.notification_schemas import (
     post_email_request,
     post_letter_request,
     post_precompiled_letter_request,
+    post_rcs_request,
     post_sms_request,
 )
 
@@ -291,6 +297,8 @@ def post_notification(notification_type: NotificationType):
         form = validate(request_json, post_email_request)
     elif notification_type == SMS_TYPE:
         form = validate(request_json, post_sms_request)
+    elif notification_type == RCS_TYPE:
+        form = validate(request_json, post_rcs_request)  # RCS uses the same schema as SMS
     elif notification_type == LETTER_TYPE:
         form = validate(request_json, post_letter_request)
     else:
@@ -324,7 +332,8 @@ def post_notification(notification_type: NotificationType):
         check_email_annual_limit(authenticated_service, 1)
         check_email_daily_limit(authenticated_service, 1)  # 1 email
 
-    if template.template_type == SMS_TYPE:
+    # REVIEW: RCS uses the same limits as SMS for now
+    if template.template_type in (SMS_TYPE, RCS_TYPE):
         is_test_notification = api_user.key_type == KEY_TYPE_TEST or simulated_recipient(form["phone_number"], notification_type)
         if not is_test_notification:
             # TODO FF_USE_BILLABLE_UNITS removal - Use billable units when feature flag is enabled
@@ -348,7 +357,7 @@ def post_notification(notification_type: NotificationType):
             reply_to_text=reply_to,
         )
     else:
-        notification = process_sms_or_email_notification(
+        notification = process_sms_or_email_rcs_notification(
             form=form,
             notification_type=notification_type,
             api_key=api_user,
@@ -362,7 +371,8 @@ def post_notification(notification_type: NotificationType):
     if template.template_type == EMAIL_TYPE and api_user.key_type != KEY_TYPE_TEST:
         increment_email_daily_count_send_warnings_if_needed(authenticated_service, 1)  # 1 email
 
-    if template.template_type == SMS_TYPE:
+    # REVIEW: RCS uses the same limits as SMS for now
+    if template.template_type in (SMS_TYPE, RCS_TYPE):
         is_test_notification = api_user.key_type == KEY_TYPE_TEST or simulated_recipient(form["phone_number"], notification_type)
         if not is_test_notification:
             # TODO FF_USE_BILLABLE_UNITS removal - Use billable_units when feature flag is enabled
@@ -371,6 +381,8 @@ def post_notification(notification_type: NotificationType):
 
     if notification_type == SMS_TYPE:
         create_resp_partial = functools.partial(create_post_sms_response_from_notification, from_number=reply_to)
+    elif notification_type == RCS_TYPE:
+        create_resp_partial = functools.partial(create_post_rcs_response_from_notification, from_number=reply_to)
     elif notification_type == EMAIL_TYPE:
         if authenticated_service.sending_domain is None or authenticated_service.sending_domain.strip() == "":
             sending_domain = current_app.config["NOTIFY_EMAIL_DOMAIN"]
@@ -414,6 +426,13 @@ def triage_notification_to_queues(notification_type: NotificationType, signed_no
             sms_normal_publish.publish(signed_notification_data)
         elif template.process_type == BULK:
             sms_bulk_publish.publish(signed_notification_data)
+    elif notification_type == RCS_TYPE:
+        if template.process_type == PRIORITY:
+            rcs_priority_publish.publish(signed_notification_data)
+        elif template.process_type == NORMAL:
+            rcs_normal_publish.publish(signed_notification_data)
+        elif template.process_type == BULK:
+            rcs_bulk_publish.publish(signed_notification_data)
     elif notification_type == EMAIL_TYPE:
         if template.process_type == PRIORITY:
             email_priority_publish.publish(signed_notification_data)
@@ -423,7 +442,7 @@ def triage_notification_to_queues(notification_type: NotificationType, signed_no
             email_bulk_publish.publish(signed_notification_data)
 
 
-def process_sms_or_email_notification(
+def process_sms_or_email_rcs_notification(
     *, form, notification_type: NotificationType, api_key: ApiKey, template: Template, service: Service, reply_to_text=None
 ) -> Notification:
     form_send_to = form["email_address"] if notification_type == EMAIL_TYPE else form["phone_number"]

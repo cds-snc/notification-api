@@ -12,6 +12,7 @@ from notifications_utils.recipients import (
 )
 from notifications_utils.timezones import convert_local_timezone_to_utc
 
+import models
 from app import redis_store
 from app.celery import provider_tasks
 from app.celery.letters_pdf_tasks import create_letters_pdf
@@ -251,15 +252,20 @@ def choose_queue(notification, research_mode, queue=None) -> QueueNames:
     return queue
 
 
-def choose_deliver_task(notification):
-    if notification.notification_type == SMS_TYPE:
-        deliver_task = provider_tasks.deliver_sms
-        if notification.sends_with_custom_number():
-            deliver_task = provider_tasks.deliver_throttled_sms
-    if notification.notification_type == EMAIL_TYPE:
-        deliver_task = provider_tasks.deliver_email
-    if notification.notification_type == LETTER_TYPE:
-        deliver_task = create_letters_pdf
+def choose_deliver_task(notification: Notification):
+    match notification.notification_type:
+        case models.SMS_TYPE:
+            deliver_task = provider_tasks.deliver_sms
+            if notification.sends_with_custom_number():
+                deliver_task = provider_tasks.deliver_throttled_sms
+        case models.RCS_TYPE:
+            deliver_task = provider_tasks.deliver_rcs
+        case models.EMAIL_TYPE:
+            deliver_task = provider_tasks.deliver_email
+        case models.LETTER_TYPE:
+            deliver_task = create_letters_pdf
+        case _:
+            raise ValueError(f"Unknown notification type: {notification.notification_type}")
 
     return deliver_task
 
