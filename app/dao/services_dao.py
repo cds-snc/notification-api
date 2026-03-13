@@ -28,7 +28,6 @@ from app.models import (
     KEY_TYPE_TEST,
     NHS_ORGANISATION_TYPES,
     NON_CROWN_ORGANISATION_TYPES,
-    RCS_TYPE,
     SMS_TYPE,
     AnnualBilling,
     ApiKey,
