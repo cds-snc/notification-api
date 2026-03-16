@@ -543,8 +543,12 @@ def send_near_annual_limit_warning_email(service: Service, notification_type: No
     else:
         message_limit_fr = "{:,}".format(service.sms_annual_limit).replace(",", " ")
         message_limit_en = service.sms_annual_limit
-        message_type_en = "text messages"
-        message_type_fr = "messages texte"
+        if current_app.config["FF_USE_BILLABLE_UNITS"]:
+            message_type_en = "text message parts"
+            message_type_fr = "parties de messages texte"
+        else:
+            message_type_en = "text messages"
+            message_type_fr = "messages texte"
         remaining_en = "{:,}".format(service.sms_annual_limit - count_en)
         remaining_fr = "{:,}".format(service.sms_annual_limit - count_en).replace(",", " ")
 
