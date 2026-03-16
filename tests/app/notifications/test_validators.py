@@ -117,13 +117,11 @@ class TestCheckDailySMSEmailLimits:
     ):
         mocker.patch("app.notifications.validators.redis_store.get", return_value=1)
         mocker.patch("app.notifications.validators.redis_store.set")
-        mocker.patch("app.notifications.validators.services_dao")
         if limit_type == "sms":
             check_sms_daily_limit(sample_service)
         else:
             check_email_daily_limit(sample_service)
         app.notifications.validators.redis_store.set.assert_not_called()
-        assert not app.notifications.validators.services_dao.mock_calls
 
     @pytest.mark.parametrize(
         "limit_type",
@@ -134,13 +132,11 @@ class TestCheckDailySMSEmailLimits:
     ):
         mocker.patch("app.notifications.validators.redis_store.get", return_value=1)
         mocker.patch("app.notifications.validators.redis_store.set")
-        mocker.patch("app.notifications.validators.services_dao")
         if limit_type == "sms":
             check_sms_daily_limit(sample_service)
         else:
             check_email_daily_limit(sample_service)
             app.notifications.validators.redis_store.set.assert_not_called()
-        assert not app.notifications.validators.services_dao.mock_calls
 
     @pytest.mark.parametrize(
         "limit_type, template_name",
@@ -366,7 +362,6 @@ def test_that_when_exceed_rate_limit_request_fails(notify_db, notify_db_session,
             api_key_type = key_type
 
         mocker.patch("app.redis_store.exceeded_rate_limit", return_value=True)
-        mocker.patch("app.notifications.validators.services_dao")
 
         service = create_sample_service(notify_db, notify_db_session, restricted=True)
         api_key = create_sample_api_key(notify_db, notify_db_session, service=service, key_type=api_key_type)
@@ -386,7 +381,6 @@ def test_that_when_exceed_rate_limit_request_fails(notify_db, notify_db_session,
 def test_that_when_not_exceeded_rate_limit_request_succeeds(notify_db, notify_db_session, mocker):
     with freeze_time("2016-01-01 12:00:00.000000"):
         mocker.patch("app.redis_store.exceeded_rate_limit", return_value=False)
-        mocker.patch("app.notifications.validators.services_dao")
 
         service = create_sample_service(notify_db, notify_db_session, restricted=True)
         api_key = create_sample_api_key(notify_db, notify_db_session, service=service, key_type="normal")
@@ -400,7 +394,6 @@ def test_should_not_rate_limit_if_limiting_is_disabled(notify_db, notify_db_sess
         current_app.config["API_RATE_LIMIT_ENABLED"] = False
 
         mocker.patch("app.redis_store.exceeded_rate_limit", return_value=False)
-        mocker.patch("app.notifications.validators.services_dao")
 
         service = create_sample_service(notify_db, notify_db_session, restricted=True)
         api_key = create_sample_api_key(notify_db, notify_db_session, service=service)
