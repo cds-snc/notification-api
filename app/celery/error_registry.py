@@ -40,9 +40,6 @@ class CeleryErrorCategory(str, Enum):
     # Unknown / unclassified — these should trigger sensitive alarms
     UNKNOWN = "CELERY_UNKNOWN_ERROR"
 
-    # Xray related errors
-    XRAY = "CELERY_KNOWN_ERROR::XRAY"
-
 
 # Map exception class names (or substrings in the message) to categories.
 # Note: Order within the map does not matter; the deepest/root exception in the
@@ -53,8 +50,9 @@ _EXCEPTION_CLASS_MAP: dict[str, CeleryErrorCategory] = {
     "ThrottlingException": CeleryErrorCategory.THROTTLING,
     "TooManyRequestsException": CeleryErrorCategory.THROTTLING,
     "RequestLimitExceeded": CeleryErrorCategory.THROTTLING,
-    "Retry": CeleryErrorCategory.TASK_RETRY,
     "NoResultFound": CeleryErrorCategory.NOTIFICATION_NOT_FOUND,
+    "Retry": CeleryErrorCategory.TASK_RETRY,
+    "WorkerLostError": CeleryErrorCategory.SHUTDOWN,
 }
 
 # Some errors don't have a specific exception class, but can be identified
@@ -63,13 +61,13 @@ _MESSAGE_SUBSTRING_MAP: dict[str, CeleryErrorCategory] = {
     "duplicate key value violates unique constraint": CeleryErrorCategory.DUPLICATE_RECORD,
     "notifications not found for SES references": CeleryErrorCategory.NOTIFICATION_NOT_FOUND,
     "SIGKILL": CeleryErrorCategory.SHUTDOWN,
+    "Worker exited prematurely": CeleryErrorCategory.SHUTDOWN,
     "Rate Exceeded": CeleryErrorCategory.THROTTLING,
     "rate exceeded": CeleryErrorCategory.THROTTLING,
     "Retry in ": CeleryErrorCategory.TASK_RETRY,
     "Throttling": CeleryErrorCategory.THROTTLING,
     "Too Many Requests": CeleryErrorCategory.THROTTLING,
-    "timeout-sending-notifications": CeleryErrorCategory.TIMEOUT,
-    "xray-celery": CeleryErrorCategory.XRAY,
+    "notifications have been updated to technical-failure because they have timed out": CeleryErrorCategory.TIMEOUT,
 }
 
 
