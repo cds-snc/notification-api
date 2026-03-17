@@ -177,6 +177,8 @@ class TestCheckDailySMSEmailLimits:
                     "remaining_fr": "1",
                     "message_limit_en": "5",
                     "message_limit_fr": "5",
+                    "message_type_en": "text message parts",
+                    "message_type_fr": "parties de messages texte",
                     **kwargs,
                 },
                 include_user_fields=["name"],
