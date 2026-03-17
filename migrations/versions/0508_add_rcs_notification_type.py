@@ -1,13 +1,13 @@
 """
-Revision ID: 0507_add_rcs_notification_type
-Revises: 0506_update_ft_billing
+Revision ID: 0508_add_rcs_notification_type
+Revises: 0507_sms_templates_parts
 Create Date: 2026-03-05 00:00:00
 
 Add a new notification type enumeration value for RCS.
 """
 from alembic import op
 
-revision = "0507_add_rcs_notification_type"
+revision = "0507_sms_templates_parts"
 down_revision = "0506_update_ft_billing"
 
 

@@ -9,7 +9,7 @@ from alembic import op
 import uuid
 
 revision = "0508_add_twilio_provider"
-down_revision = "0507_add_rcs_notification_type"
+down_revision = "0508_add_rcs_notification_type"
 
 
 def upgrade():
