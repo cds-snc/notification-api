@@ -37,7 +37,7 @@ near_content = "\n".join(
         "",
         "((service_name)) a envoyé ((count_fr)) messages de sa limite de ((message_limit_fr)) ((message_type_fr)) par 24 heures.",
         "",
-        "**((service_name)) peut encore envoyer ((remaining_fr)) ((message_type_fr)) d'ici à ce que votre limite de ((message_type_fr)) soit réinitialisée à ((limit_reset_time_et_24hr)), heure de l'Est.** Comparez les [heures officielles à travers le Canada](https://nrc.canada.ca/en/web-clock/).",
+        "**((service_name)) peut encore envoyer ((remaining_fr)) messages d'ici à ce que votre limite de ((message_type_fr)) soit réinitialisée à ((limit_reset_time_et_24hr)), heure de l'Est.** Comparez les [heures officielles à travers le Canada](https://nrc.canada.ca/fr/horloge-web/).",
         "",
         "Pour demander une augmentation de votre limite, [veuillez nous joindre](((contact_url))). Nous vous répondrons en un jour ouvrable.",
         "",
