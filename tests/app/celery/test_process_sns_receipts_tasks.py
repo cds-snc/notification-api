@@ -56,7 +56,31 @@ def test_process_sns_results_delivered(sample_template, notify_db, notify_db_ses
     [
         (
             "Blocked as spam by phone carrier",
-            NOTIFICATION_TECHNICAL_FAILURE,
+            NOTIFICATION_PERMANENT_FAILURE,
+            False,
+            True,
+        ),
+        (
+            "Destination is on a blocked list",
+            NOTIFICATION_PERMANENT_FAILURE,
+            False,
+            True,
+        ),
+        (
+            "Invalid phone number",
+            NOTIFICATION_PERMANENT_FAILURE,
+            False,
+            True,
+        ),
+        (
+            "Message body is invalid",
+            NOTIFICATION_PERMANENT_FAILURE,
+            False,
+            True,
+        ),
+        (
+            "Phone carrier has blocked this message",
+            NOTIFICATION_TEMPORARY_FAILURE,
             False,
             True,
         ),
@@ -67,7 +91,43 @@ def test_process_sns_results_delivered(sample_template, notify_db, notify_db_ses
             True,
         ),
         (
+            "Phone has blocked SMS",
+            NOTIFICATION_TEMPORARY_FAILURE,
+            False,
+            True,
+        ),
+        (
+            "Phone is on a blocked list",
+            NOTIFICATION_TEMPORARY_FAILURE,
+            False,
+            True,
+        ),
+        (
             "Phone is currently unreachable/unavailable",
+            NOTIFICATION_PERMANENT_FAILURE,
+            False,
+            True,
+        ),
+        (
+            "Phone number is opted out",
+            NOTIFICATION_TECHNICAL_FAILURE,
+            False,
+            True,
+        ),
+        (
+            "This delivery would exceed max price",
+            NOTIFICATION_TEMPORARY_FAILURE,
+            False,
+            True,
+        ),
+        (
+            "Unknown error attempting to reach phone",
+            NOTIFICATION_PERMANENT_FAILURE,
+            False,
+            True,
+        ),
+        (
+            "Unhandled provider",
             NOTIFICATION_PERMANENT_FAILURE,
             False,
             True,
@@ -265,6 +325,7 @@ class TestAnnualLimit:
             "Phone number is opted out",
             "This delivery would exceed max price",
             "Unknown error attempting to reach phone",
+            "Unhandled provider",
         ],
     )
     def test_sns_callback_should_increment_sms_failed_when_delivery_receipt_is_failure(

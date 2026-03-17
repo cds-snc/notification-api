@@ -188,19 +188,23 @@ def determine_pinpoint_status(status: str, provider_response: str, isFinal: bool
 
     response_lower = provider_response.lower()
 
-    if "blocked" in response_lower:
-        return NOTIFICATION_TECHNICAL_FAILURE
-    elif "invalid" in response_lower:
-        return NOTIFICATION_TECHNICAL_FAILURE
-    elif "is opted out" in response_lower:
+    if "blocked as spam" in response_lower or "destination is on a blocked list" in response_lower:
         return NOTIFICATION_PERMANENT_FAILURE
+    elif "blocked" in response_lower:
+        return NOTIFICATION_TEMPORARY_FAILURE
+    elif "invalid" in response_lower:
+        return NOTIFICATION_PERMANENT_FAILURE
+    elif "is opted out" in response_lower:
+        return NOTIFICATION_TECHNICAL_FAILURE
     elif "unknown error" in response_lower:
-        return NOTIFICATION_TECHNICAL_FAILURE
+        return NOTIFICATION_PERMANENT_FAILURE
     elif "exceed max price" in response_lower:
-        return NOTIFICATION_TECHNICAL_FAILURE
+        return NOTIFICATION_TEMPORARY_FAILURE
     elif "phone carrier is currently unreachable/unavailable" in response_lower:
         return NOTIFICATION_TEMPORARY_FAILURE
     elif "phone is currently unreachable/unavailable" in response_lower:
+        return NOTIFICATION_PERMANENT_FAILURE
+    elif "unhandled provider" in response_lower:
         return NOTIFICATION_PERMANENT_FAILURE
     else:
         return None
