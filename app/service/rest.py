@@ -370,6 +370,7 @@ def _warn_service_users_about_message_limit_changed(service_id, data):
 
 
 def _warn_service_users_about_sms_limit_changed(service_id, data):
+    use_parts = current_app.config.get("FF_USE_BILLABLE_UNITS", False)
     send_notification_to_service_users(
         service_id=service_id,
         template_id=current_app.config["DAILY_SMS_LIMIT_UPDATED_TEMPLATE_ID"],
@@ -377,6 +378,8 @@ def _warn_service_users_about_sms_limit_changed(service_id, data):
             "service_name": data["name"],
             "message_limit_en": "{:,}".format(data["sms_daily_limit"]),
             "message_limit_fr": "{:,}".format(data["sms_daily_limit"]).replace(",", " "),
+            "message_type_en": "text message parts" if use_parts else "text messages",
+            "message_type_fr": "parties de messages texte" if use_parts else "messages texte",
         },
         include_user_fields=["name"],
     )

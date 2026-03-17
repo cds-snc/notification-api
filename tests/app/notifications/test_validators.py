@@ -165,6 +165,16 @@ class TestCheckDailySMSEmailLimits:
                 call(near_key(limit_type, service.id)),
             ]
             kwargs = {"limit_reset_time_et_12hr": "7PM", "limit_reset_time_et_24hr": "19"}
+            sms_kwargs = (
+                {
+                    "message_type_en": "text message parts" if current_app.config["FF_USE_BILLABLE_UNITS"] else "text messages",
+                    "message_type_fr": "parties de messages texte"
+                    if current_app.config["FF_USE_BILLABLE_UNITS"]
+                    else "messages texte",
+                }
+                if limit_type == "sms"
+                else {}
+            )
             send_notification.assert_called_once_with(
                 service_id=service.id,
                 template_id=current_app.config[template_name],
@@ -177,6 +187,7 @@ class TestCheckDailySMSEmailLimits:
                     "remaining_fr": "1",
                     "message_limit_en": "5",
                     "message_limit_fr": "5",
+                    **sms_kwargs,
                     **kwargs,
                 },
                 include_user_fields=["name"],

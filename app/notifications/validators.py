@@ -353,6 +353,7 @@ def check_rate_limiting(service: Service, api_key: ApiKey):
 def send_near_sms_limit_email(service: Service, sms_sent):
     limit_reset_time_et = get_limit_reset_time_et()
     sms_remaining = service.sms_daily_limit - sms_sent
+    use_parts = current_app.config.get("FF_USE_BILLABLE_UNITS", False)
     send_notification_to_service_users(
         service_id=service.id,
         template_id=current_app.config["NEAR_DAILY_SMS_LIMIT_TEMPLATE_ID"],
@@ -365,6 +366,8 @@ def send_near_sms_limit_email(service: Service, sms_sent):
             "remaining_fr": "{:,}".format(sms_remaining).replace(",", " "),
             "message_limit_en": "{:,}".format(service.sms_daily_limit),
             "message_limit_fr": "{:,}".format(service.sms_daily_limit).replace(",", " "),
+            "message_type_en": "text message parts" if use_parts else "text messages",
+            "message_type_fr": "parties de messages texte" if use_parts else "messages texte",
             "limit_reset_time_et_12hr": limit_reset_time_et["12hr"],
             "limit_reset_time_et_24hr": limit_reset_time_et["24hr"],
         },
@@ -402,6 +405,7 @@ def send_near_email_limit_email(service: Service, emails_sent) -> None:
 
 def send_sms_limit_reached_email(service: Service):
     limit_reset_time_et = get_limit_reset_time_et()
+    use_parts = current_app.config.get("FF_USE_BILLABLE_UNITS", False)
     send_notification_to_service_users(
         service_id=service.id,
         template_id=current_app.config["REACHED_DAILY_SMS_LIMIT_TEMPLATE_ID"],
@@ -410,6 +414,8 @@ def send_sms_limit_reached_email(service: Service):
             "contact_url": f"{current_app.config['ADMIN_BASE_URL']}/contact",
             "message_limit_en": "{:,}".format(service.sms_daily_limit),
             "message_limit_fr": "{:,}".format(service.sms_daily_limit).replace(",", " "),
+            "message_type_en": "text message parts" if use_parts else "text messages",
+            "message_type_fr": "parties de messages texte" if use_parts else "messages texte",
             "limit_reset_time_et_12hr": limit_reset_time_et["12hr"],
             "limit_reset_time_et_24hr": limit_reset_time_et["24hr"],
         },
