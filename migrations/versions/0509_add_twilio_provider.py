@@ -1,6 +1,6 @@
 """
-Revision ID: 0508_add_twilio_provider
-Revises: 0507_add_rcs_notification_type
+Revision ID: 0509_add_twilio_provider
+Revises: 0508_add_rcs_notification_type
 Create Date: 2026-03-05 00:00:00
 
 Add Twilio as a provider option in the provider_details table.
@@ -8,7 +8,7 @@ Add Twilio as a provider option in the provider_details table.
 from alembic import op
 import uuid
 
-revision = "0508_add_twilio_provider"
+revision = "0509_add_twilio_provider"
 down_revision = "0508_add_rcs_notification_type"
 
 
