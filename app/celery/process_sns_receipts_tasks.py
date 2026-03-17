@@ -122,24 +122,25 @@ def determine_status(sns_status, provider_response):
     # See all the possible provider responses
     # https://docs.aws.amazon.com/sns/latest/dg/sms_stats_cloudwatch.html#sms_stats_delivery_fail_reasons
     reasons = {
-        "Blocked as spam by phone carrier": NOTIFICATION_TECHNICAL_FAILURE,
-        "Destination is on a blocked list": NOTIFICATION_TECHNICAL_FAILURE,
-        "Invalid phone number": NOTIFICATION_TECHNICAL_FAILURE,
-        "Message body is invalid": NOTIFICATION_TECHNICAL_FAILURE,
-        "Phone carrier has blocked this message": NOTIFICATION_TECHNICAL_FAILURE,
+        "Blocked as spam by phone carrier": NOTIFICATION_PERMANENT_FAILURE,
+        "Destination is on a blocked list": NOTIFICATION_PERMANENT_FAILURE,
+        "Invalid phone number": NOTIFICATION_PERMANENT_FAILURE,
+        "Message body is invalid": NOTIFICATION_PERMANENT_FAILURE,
+        "Phone carrier has blocked this message": NOTIFICATION_TEMPORARY_FAILURE,
         "Phone carrier is currently unreachable/unavailable": NOTIFICATION_TEMPORARY_FAILURE,
-        "Phone has blocked SMS": NOTIFICATION_TECHNICAL_FAILURE,
-        "Phone is on a blocked list": NOTIFICATION_TECHNICAL_FAILURE,
+        "Phone has blocked SMS": NOTIFICATION_TEMPORARY_FAILURE,
+        "Phone is on a blocked list": NOTIFICATION_TEMPORARY_FAILURE,
         "Phone is currently unreachable/unavailable": NOTIFICATION_PERMANENT_FAILURE,
-        "Phone number is opted out": NOTIFICATION_PERMANENT_FAILURE,
-        "This delivery would exceed max price": NOTIFICATION_TECHNICAL_FAILURE,
-        "Unknown error attempting to reach phone": NOTIFICATION_TECHNICAL_FAILURE,
+        "Phone number is opted out": NOTIFICATION_TECHNICAL_FAILURE,
+        "This delivery would exceed max price": NOTIFICATION_TEMPORARY_FAILURE,
+        "Unknown error attempting to reach phone": NOTIFICATION_PERMANENT_FAILURE,
+        "Unhandled provider": NOTIFICATION_PERMANENT_FAILURE,
     }
 
     status = reasons.get(provider_response)  # could be None
     if not status:
         # TODO: Pattern matching in Python 3.10 should simplify this overall function logic.
         if "is opted out" in provider_response:
-            return NOTIFICATION_PERMANENT_FAILURE
+            return NOTIFICATION_TECHNICAL_FAILURE
 
     return status

@@ -5,13 +5,10 @@ from datetime import datetime, time, timedelta
 from flask import current_app
 from notifications_utils import SMS_CHAR_COUNT_LIMIT
 from notifications_utils.clients.redis import (
-    daily_limit_cache_key,
     near_billable_units_sms_daily_limit_cache_key,
-    near_daily_limit_cache_key,
     near_email_daily_limit_cache_key,
     near_sms_daily_limit_cache_key,
     over_billable_units_sms_daily_limit_cache_key,
-    over_daily_limit_cache_key,
     over_email_daily_limit_cache_key,
     over_sms_daily_limit_cache_key,
     rate_limit_cache_key,
@@ -31,7 +28,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from app import annual_limit_client, redis_store
 from app.annual_limit_utils import get_annual_limit_notifications_v2
-from app.dao import services_dao, templates_dao
+from app.dao import templates_dao
 from app.dao.service_email_reply_to_dao import dao_get_reply_to_by_id
 from app.dao.service_letter_contact_dao import dao_get_letter_contact_by_id
 from app.dao.service_sms_sender_dao import dao_get_service_sms_senders_by_id
@@ -40,7 +37,6 @@ from app.models import (
     EMAIL_TYPE,
     INTERNATIONAL_SMS_TYPE,
     KEY_TYPE_TEAM,
-    KEY_TYPE_TEST,
     LETTER_TYPE,
     RCS_TYPE,
     SCHEDULE_NOTIFICATIONS,
@@ -74,13 +70,11 @@ from app.v2.errors import (
     LiveServiceRequestExceedsEmailAnnualLimitError,
     LiveServiceRequestExceedsSMSAnnualLimitError,
     LiveServiceTooManyEmailRequestsError,
-    LiveServiceTooManyRequestsError,
     LiveServiceTooManySMSRequestsError,
     RateLimitError,
     TrialServiceRequestExceedsEmailAnnualLimitError,
     TrialServiceRequestExceedsSMSAnnualLimitError,
     TrialServiceTooManyEmailRequestsError,
-    TrialServiceTooManyRequestsError,
     TrialServiceTooManySMSRequestsError,
 )
 
@@ -102,27 +96,6 @@ def check_service_over_api_rate_limit_and_update_rate(service: Service, api_key:
         if redis_store.exceeded_rate_limit(cache_key, rate_limit, interval):
             current_app.logger.info("service {} has been rate limited for throughput".format(service.id))
             raise RateLimitError(rate_limit, interval, api_key.key_type)
-
-
-@statsd_catch(
-    namespace="validators",
-    counter_name="rate_limit.trial_service_daily",
-    exception=TrialServiceTooManyRequestsError,
-)
-@statsd_catch(
-    namespace="validators",
-    counter_name="rate_limit.live_service_daily",
-    exception=LiveServiceTooManyRequestsError,
-)
-def check_service_over_daily_message_limit(key_type: ApiKeyType, service: Service):
-    if key_type != KEY_TYPE_TEST and current_app.config["REDIS_ENABLED"]:
-        cache_key = daily_limit_cache_key(service.id)
-        messages_sent = redis_store.get(cache_key)
-        if not messages_sent:
-            messages_sent = services_dao.fetch_todays_total_message_count(service.id)
-            redis_store.set(cache_key, messages_sent, ex=int(timedelta(hours=2).total_seconds()))
-
-        warn_about_daily_message_limit(service, int(messages_sent))
 
 
 @statsd_catch(
@@ -378,63 +351,10 @@ def check_rate_limiting(service: Service, api_key: ApiKey):
     check_service_over_api_rate_limit_and_update_rate(service, api_key)
 
 
-def warn_about_daily_message_limit(service: Service, messages_sent):
-    nearing_daily_message_limit = messages_sent >= NEAR_DAILY_LIMIT_PERCENTAGE * service.message_limit
-    over_daily_message_limit = messages_sent >= service.message_limit
-
-    current_time = datetime.utcnow().isoformat()
-    cache_expiration = int(timedelta(days=1).total_seconds())
-
-    # Send a warning when reaching 80% of the daily limit
-    if nearing_daily_message_limit:
-        cache_key = near_daily_limit_cache_key(service.id)
-        if not redis_store.get(cache_key):
-            redis_store.set(cache_key, current_time, ex=cache_expiration)
-            send_notification_to_service_users(
-                service_id=service.id,
-                template_id=current_app.config["NEAR_DAILY_LIMIT_TEMPLATE_ID"],
-                personalisation={
-                    "service_name": service.name,
-                    "count": messages_sent,
-                    "contact_url": f"{current_app.config['ADMIN_BASE_URL']}/contact",
-                    "message_limit_en": "{:,}".format(service.message_limit),
-                    "message_limit_fr": "{:,}".format(service.message_limit).replace(",", " "),
-                },
-                include_user_fields=["name"],
-            )
-            current_app.logger.info(
-                f"service {service.id} is approaching its daily limit, sent {int(messages_sent)} limit {service.message_limit}"
-            )
-
-    # Send a warning when reaching the daily message limit
-    if over_daily_message_limit:
-        cache_key = over_daily_limit_cache_key(service.id)
-        if not redis_store.get(cache_key):
-            redis_store.set(cache_key, current_time, ex=cache_expiration)
-            send_notification_to_service_users(
-                service_id=service.id,
-                template_id=current_app.config["REACHED_DAILY_LIMIT_TEMPLATE_ID"],
-                personalisation={
-                    "service_name": service.name,
-                    "contact_url": f"{current_app.config['ADMIN_BASE_URL']}/contact",
-                    "message_limit_en": "{:,}".format(service.message_limit),
-                    "message_limit_fr": "{:,}".format(service.message_limit).replace(",", " "),
-                },
-                include_user_fields=["name"],
-            )
-            current_app.logger.info(
-                f"service {service.id} has been rate limited for daily use sent {int(messages_sent)} limit {service.message_limit}"
-            )
-
-        if service.restricted:
-            raise TrialServiceTooManyRequestsError(service.message_limit)
-        else:
-            raise LiveServiceTooManyRequestsError(service.message_limit)
-
-
 def send_near_sms_limit_email(service: Service, sms_sent):
     limit_reset_time_et = get_limit_reset_time_et()
     sms_remaining = service.sms_daily_limit - sms_sent
+    use_parts = current_app.config.get("FF_USE_BILLABLE_UNITS", False)
     send_notification_to_service_users(
         service_id=service.id,
         template_id=current_app.config["NEAR_DAILY_SMS_LIMIT_TEMPLATE_ID"],
@@ -447,6 +367,8 @@ def send_near_sms_limit_email(service: Service, sms_sent):
             "remaining_fr": "{:,}".format(sms_remaining).replace(",", " "),
             "message_limit_en": "{:,}".format(service.sms_daily_limit),
             "message_limit_fr": "{:,}".format(service.sms_daily_limit).replace(",", " "),
+            "message_type_en": "text message parts" if use_parts else "text messages",
+            "message_type_fr": "parties de messages texte" if use_parts else "messages texte",
             "limit_reset_time_et_12hr": limit_reset_time_et["12hr"],
             "limit_reset_time_et_24hr": limit_reset_time_et["24hr"],
         },
@@ -484,6 +406,7 @@ def send_near_email_limit_email(service: Service, emails_sent) -> None:
 
 def send_sms_limit_reached_email(service: Service):
     limit_reset_time_et = get_limit_reset_time_et()
+    use_parts = current_app.config.get("FF_USE_BILLABLE_UNITS", False)
     send_notification_to_service_users(
         service_id=service.id,
         template_id=current_app.config["REACHED_DAILY_SMS_LIMIT_TEMPLATE_ID"],
@@ -492,6 +415,8 @@ def send_sms_limit_reached_email(service: Service):
             "contact_url": f"{current_app.config['ADMIN_BASE_URL']}/contact",
             "message_limit_en": "{:,}".format(service.sms_daily_limit),
             "message_limit_fr": "{:,}".format(service.sms_daily_limit).replace(",", " "),
+            "message_type_en": "text message parts" if use_parts else "text messages",
+            "message_type_fr": "parties de messages texte" if use_parts else "messages texte",
             "limit_reset_time_et_12hr": limit_reset_time_et["12hr"],
             "limit_reset_time_et_24hr": limit_reset_time_et["24hr"],
         },
@@ -517,13 +442,23 @@ def send_email_limit_reached_email(service: Service):
 
 
 def send_annual_limit_reached_email(service: Service, notification_type: NotificationType, fiscal_end: int):
+    if notification_type == EMAIL_TYPE:
+        message_type_en = "emails"
+        message_type_fr = "courriels"
+    elif current_app.config["FF_USE_BILLABLE_UNITS"]:
+        message_type_en = "text message parts"
+        message_type_fr = "parties de messages texte"
+    else:
+        message_type_en = "text messages"
+        message_type_fr = "messages texte"
+
     send_notification_to_service_users(
         service_id=service.id,
         template_id=current_app.config["REACHED_ANNUAL_LIMIT_TEMPLATE_ID"],
         personalisation={
             "service_name": service.name,
-            "message_type_en": "emails" if notification_type == EMAIL_TYPE else "text messages",
-            "message_type_fr": "courriels" if notification_type == EMAIL_TYPE else "messages texte",
+            "message_type_en": message_type_en,
+            "message_type_fr": message_type_fr,
             "fiscal_end": fiscal_end,
             "hyperlink_to_page_en": f"{current_app.config['ADMIN_BASE_URL']}/services/{service.id}/monthly",
             "hyperlink_to_page_fr": f"{current_app.config['ADMIN_BASE_URL']}/services/{service.id}/monthly?lang=fr",
@@ -544,8 +479,12 @@ def send_near_annual_limit_warning_email(service: Service, notification_type: No
     else:
         message_limit_fr = "{:,}".format(service.sms_annual_limit).replace(",", " ")
         message_limit_en = service.sms_annual_limit
-        message_type_en = "text messages"
-        message_type_fr = "messages texte"
+        if current_app.config["FF_USE_BILLABLE_UNITS"]:
+            message_type_en = "text message parts"
+            message_type_fr = "parties de messages texte"
+        else:
+            message_type_en = "text messages"
+            message_type_fr = "messages texte"
         remaining_en = "{:,}".format(service.sms_annual_limit - count_en)
         remaining_fr = "{:,}".format(service.sms_annual_limit - count_en).replace(",", " ")
 
