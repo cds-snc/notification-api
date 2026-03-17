@@ -386,13 +386,23 @@ def _warn_service_users_about_sms_limit_changed(service_id, data):
 
 
 def _warn_service_users_about_annual_limit_change(service: Service, notification_type: NotificationType):
+    if notification_type == EMAIL_TYPE:
+        message_type_en = "emails"
+        message_type_fr = "courriels"
+    elif current_app.config["FF_USE_BILLABLE_UNITS"]:
+        message_type_en = "text message parts"
+        message_type_fr = "parties de messages texte"
+    else:
+        message_type_en = "text messages"
+        message_type_fr = "messages texte"
+
     send_notification_to_service_users(
         service_id=service.id,
         template_id=current_app.config["ANNUAL_LIMIT_UPDATED_TEMPLATE_ID"],
         personalisation={
             "service_name": service.name,
-            "message_type_en": "emails" if notification_type == EMAIL_TYPE else "text messages",
-            "message_type_fr": "courriels" if notification_type == EMAIL_TYPE else "messages texte",
+            "message_type_en": message_type_en,
+            "message_type_fr": message_type_fr,
             "message_limit_en": "{:,}".format(service.email_annual_limit)
             if notification_type == EMAIL_TYPE
             else "{:,}".format(service.sms_annual_limit),

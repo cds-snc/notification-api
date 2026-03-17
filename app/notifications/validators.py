@@ -441,13 +441,23 @@ def send_email_limit_reached_email(service: Service):
 
 
 def send_annual_limit_reached_email(service: Service, notification_type: NotificationType, fiscal_end: int):
+    if notification_type == EMAIL_TYPE:
+        message_type_en = "emails"
+        message_type_fr = "courriels"
+    elif current_app.config["FF_USE_BILLABLE_UNITS"]:
+        message_type_en = "text message parts"
+        message_type_fr = "parties de messages texte"
+    else:
+        message_type_en = "text messages"
+        message_type_fr = "messages texte"
+
     send_notification_to_service_users(
         service_id=service.id,
         template_id=current_app.config["REACHED_ANNUAL_LIMIT_TEMPLATE_ID"],
         personalisation={
             "service_name": service.name,
-            "message_type_en": "emails" if notification_type == EMAIL_TYPE else "text messages",
-            "message_type_fr": "courriels" if notification_type == EMAIL_TYPE else "messages texte",
+            "message_type_en": message_type_en,
+            "message_type_fr": message_type_fr,
             "fiscal_end": fiscal_end,
             "hyperlink_to_page_en": f"{current_app.config['ADMIN_BASE_URL']}/services/{service.id}/monthly",
             "hyperlink_to_page_fr": f"{current_app.config['ADMIN_BASE_URL']}/services/{service.id}/monthly?lang=fr",
@@ -468,8 +478,12 @@ def send_near_annual_limit_warning_email(service: Service, notification_type: No
     else:
         message_limit_fr = "{:,}".format(service.sms_annual_limit).replace(",", " ")
         message_limit_en = service.sms_annual_limit
-        message_type_en = "text messages"
-        message_type_fr = "messages texte"
+        if current_app.config["FF_USE_BILLABLE_UNITS"]:
+            message_type_en = "text message parts"
+            message_type_fr = "parties de messages texte"
+        else:
+            message_type_en = "text messages"
+            message_type_fr = "messages texte"
         remaining_en = "{:,}".format(service.sms_annual_limit - count_en)
         remaining_fr = "{:,}".format(service.sms_annual_limit - count_en).replace(",", " ")
 
