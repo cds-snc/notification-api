@@ -9,6 +9,16 @@ from sqlalchemy.orm.exc import NoResultFound
 from app import annual_limit_client, bounce_rate_client, notify_celery, statsd_client
 from app.annual_limit_utils import get_annual_limit_notifications_v3
 from app.config import QueueNames
+
+
+def _safe_get_notification_counts(service_id):
+    """Safely get notification counts for logging. Returns 'unavailable' if Redis is unreachable."""
+    try:
+        return annual_limit_client.get_all_notification_counts(service_id)
+    except Exception:
+        return "unavailable"
+
+
 from app.dao import notifications_dao
 from app.models import NOTIFICATION_DELIVERED, NOTIFICATION_PERMANENT_FAILURE, Notification
 from app.notifications.callbacks import _check_and_queue_callback_task
@@ -238,7 +248,7 @@ def update_annual_limit_and_bounce_rate(
         if not did_we_seed:
             annual_limit_client.increment_email_failed(notification.service_id)
             current_app.logger.info(
-                f"Incremented email_failed count in Redis. Service: {notification.service_id} Notification: {notification.id} Current counts: {annual_limit_client.get_all_notification_counts(notification.service_id)}"
+                f"Incremented email_failed count in Redis. Service: {notification.service_id} Notification: {notification.id} Current counts: {_safe_get_notification_counts(notification.service_id)}"
             )
     else:
         current_app.logger.info(
@@ -250,7 +260,7 @@ def update_annual_limit_and_bounce_rate(
         if not did_we_seed:
             annual_limit_client.increment_email_delivered(notification.service_id)
             current_app.logger.info(
-                f"Incremented email_delivered count in Redis. Service: {notification.service_id} Notification: {notification.id} current counts: {annual_limit_client.get_all_notification_counts(notification.service_id)}"
+                f"Incremented email_delivered count in Redis. Service: {notification.service_id} Notification: {notification.id} current counts: {_safe_get_notification_counts(notification.service_id)}"
             )
 
     statsd_client.incr("callback.ses.{}".format(new_status))

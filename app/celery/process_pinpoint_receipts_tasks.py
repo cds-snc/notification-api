@@ -8,6 +8,16 @@ from sqlalchemy.orm.exc import NoResultFound
 from app import annual_limit_client, notify_celery, statsd_client
 from app.annual_limit_utils import get_annual_limit_notifications_v3
 from app.config import QueueNames
+
+
+def _safe_get_notification_counts(service_id):
+    """Safely get notification counts for logging. Returns 'unavailable' if Redis is unreachable."""
+    try:
+        return annual_limit_client.get_all_notification_counts(service_id)
+    except Exception:
+        return "unavailable"
+
+
 from app.dao import notifications_dao
 from app.models import (
     NOTIFICATION_DELIVERED,
@@ -125,11 +135,11 @@ def process_pinpoint_results(self, response):
                 if current_app.config.get("FF_USE_BILLABLE_UNITS"):
                     annual_limit_client.increment_sms_billable_units_failed(notification.service_id, notification.billable_units)
                     current_app.logger.info(
-                        f"Incremented sms_failed billable units in Redis. Service: {service_id} Notification: {notification.id} Current counts: {annual_limit_client.get_all_notification_counts(service_id)}"
+                        f"Incremented sms_failed billable units in Redis. Service: {service_id} Notification: {notification.id} Current counts: {_safe_get_notification_counts(service_id)}"
                     )
                 else:
                     current_app.logger.info(
-                        f"Incremented sms_failed count in Redis. Service: {service_id} Notification: {notification.id} Current counts: {annual_limit_client.get_all_notification_counts(service_id)}"
+                        f"Incremented sms_failed count in Redis. Service: {service_id} Notification: {notification.id} Current counts: {_safe_get_notification_counts(service_id)}"
                     )
         else:
             current_app.logger.info(
@@ -144,11 +154,11 @@ def process_pinpoint_results(self, response):
                         notification.service_id, notification.billable_units
                     )
                     current_app.logger.info(
-                        f"Incremented sms_delivered billable units in Redis. Service: {service_id} Notification: {notification.id} Current counts: {annual_limit_client.get_all_notification_counts(service_id)}"
+                        f"Incremented sms_delivered billable units in Redis. Service: {service_id} Notification: {notification.id} Current counts: {_safe_get_notification_counts(service_id)}"
                     )
                 else:
                     current_app.logger.info(
-                        f"Incremented sms_delivered count in Redis. Service: {service_id} Notification: {notification.id} Current counts: {annual_limit_client.get_all_notification_counts(service_id)}"
+                        f"Incremented sms_delivered count in Redis. Service: {service_id} Notification: {notification.id} Current counts: {_safe_get_notification_counts(service_id)}"
                     )
         statsd_client.incr(f"callback.pinpoint.{notification_status}")
 
