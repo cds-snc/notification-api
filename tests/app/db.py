@@ -30,6 +30,7 @@ from app.dao.template_categories_dao import dao_create_template_category
 from app.dao.templates_dao import dao_create_template, dao_update_template
 from app.dao.users_dao import save_model_user
 from app.models import (
+    DEFAULT_SMS_DAILY_LIMIT,
     EMAIL_TYPE,
     KEY_TYPE_NORMAL,
     LETTER_TYPE,
@@ -112,7 +113,7 @@ def create_service(
     email_from=None,
     prefix_sms=True,
     message_limit=1000,
-    sms_daily_limit=1000,
+    sms_daily_limit=DEFAULT_SMS_DAILY_LIMIT,
     email_annual_limit=10000000,
     sms_annual_limit=25000,
     organisation_type="central",

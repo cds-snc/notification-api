@@ -89,6 +89,7 @@ from app.dao.templates_dao import dao_get_template_by_id
 from app.dao.users_dao import get_user_by_id
 from app.errors import CannotRemoveUserError, InvalidRequest, UserAlreadyInServiceError, register_errors
 from app.models import (
+    DEFAULT_SMS_DAILY_LIMIT,
     EMAIL_TYPE,
     KEY_TYPE_NORMAL,
     LETTER_TYPE,
@@ -243,7 +244,7 @@ def get_service_notification_statistics(service_id):
 def create_service():
     data = request.get_json()
     data["sms_daily_limit"] = data.get(
-        "sms_daily_limit", 1000
+        "sms_daily_limit", DEFAULT_SMS_DAILY_LIMIT
     )  # TODO this is to support current admin. can remove after admin sends an sms_daily_limit
 
     if not data.get("user_id"):
