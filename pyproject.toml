@@ -24,7 +24,7 @@ awscli-cwlogs = "1.4.6"
 boto = "2.49.0"
 
 cachelib = "0.13.0"
-celery = {extras = ["sqs"], version = "5.4.0"}
+celery = {extras = ["sqs"], version = "5.6.2"}
 
 # Pinned dependencies
 certifi = "^2024.0.0" # pinned for security reasons: https://github.com/cds-snc/notification-api/security/dependabot/119
