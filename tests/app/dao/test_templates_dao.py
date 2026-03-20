@@ -234,6 +234,8 @@ def test_get_all_templates_for_service(service_factory):
 
 
 def test_get_all_templates_for_service_eager_loads_redaction_for_serialization(sample_service):
+    service_id = sample_service.id
+
     for i in range(5):
         create_template(
             service=sample_service,
@@ -254,7 +256,7 @@ def test_get_all_templates_for_service_eager_loads_redaction_for_serialization(s
     writer_engine = db.get_engine(bind="writer")
     event.listen(writer_engine, "before_cursor_execute", before_cursor_execute)
     try:
-        templates = dao_get_all_templates_for_service(sample_service.id)
+        templates = dao_get_all_templates_for_service(service_id)
         reduced_template_schema.dump(templates, many=True)
     finally:
         event.remove(writer_engine, "before_cursor_execute", before_cursor_execute)
