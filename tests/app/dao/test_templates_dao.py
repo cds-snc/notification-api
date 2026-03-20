@@ -257,6 +257,7 @@ def test_get_all_templates_for_service_eager_loads_redaction_for_serialization(s
     event.listen(writer_engine, "before_cursor_execute", before_cursor_execute)
     try:
         templates = dao_get_all_templates_for_service(service_id)
+        # Trigger serialization and potential lazy loading if there are any remaining
         reduced_template_schema.dump(templates, many=True)
     finally:
         event.remove(writer_engine, "before_cursor_execute", before_cursor_execute)
