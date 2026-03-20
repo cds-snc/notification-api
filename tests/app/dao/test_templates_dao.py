@@ -248,6 +248,7 @@ def test_get_all_templates_for_service_eager_loads_redaction_for_serialization(s
 
     matching_statements = []
 
+    # Make sure that individual lazy queries are not called after serializing the templates.
     def before_cursor_execute(_conn, _cursor, statement, _parameters, _context, _executemany):
         normalized_statement = " ".join(statement.split())
         if "FROM template_redacted" in normalized_statement and "WHERE template_redacted.template_id =" in normalized_statement:
