@@ -6,6 +6,7 @@ from typing import Union
 from flask import current_app
 from notifications_utils.clients.redis import template_version_cache_key
 from sqlalchemy import asc, desc
+from sqlalchemy.orm import joinedload
 
 from app import db, redis_store
 from app.dao.dao_utils import VersionOptions, transactional, version_class
@@ -178,9 +179,17 @@ def dao_get_template_by_id(template_id, version=None, use_cache=False) -> Union[
 
 
 def dao_get_all_templates_for_service(service_id, template_type=None):
+    query = Template.query.options(
+        joinedload("template_redacted"),
+        joinedload("template_category"),
+        joinedload("created_by"),
+        joinedload("service_letter_contact"),
+        joinedload("service"),
+    )
+
     if template_type is not None:
         return (
-            Template.query.filter_by(
+            query.filter_by(
                 service_id=service_id,
                 template_type=template_type,
                 hidden=False,
@@ -194,7 +203,7 @@ def dao_get_all_templates_for_service(service_id, template_type=None):
         )
 
     return (
-        Template.query.filter_by(service_id=service_id, hidden=False, archived=False)
+        query.filter_by(service_id=service_id, hidden=False, archived=False)
         .order_by(
             asc(Template.name),
             asc(Template.template_type),
