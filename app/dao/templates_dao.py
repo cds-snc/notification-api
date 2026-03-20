@@ -184,7 +184,6 @@ def dao_get_all_templates_for_service(service_id, template_type=None):
         joinedload("template_category"),
         joinedload("created_by"),
         joinedload("service_letter_contact"),
-        joinedload("service"),
     )
 
     if template_type is not None:
