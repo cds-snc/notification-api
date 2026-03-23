@@ -46,6 +46,7 @@ gunicorn = "23.0.0"
 # Pinned dependencies
 idna = "3.11" # pinned to align with test moto dependency requirements (for <=2.9)
 iso8601 = "2.1.0"
+urllib3 = ">=2.6.3,<3" # Pinned this transitive dependency to resolve a number of high security vulnerabilities: https://github.com/cds-snc/notification-api/pull/2806
 # REVIEW: v2 is using sha512 instead of sha1 by default (in v1)
 itsdangerous = "2.2.0"
 jsonschema = "3.2.0"
