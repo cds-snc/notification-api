@@ -56,7 +56,7 @@ from celery.exceptions import MaxRetriesExceededError
 
 def test_process_ses_results(sample_email_template, mocker):
     mocker.patch("app.celery.process_ses_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
-    mocker.patch("app.celery.process_ses_receipts_tasks._safe_get_notification_counts", return_value={})
+    mocker.patch("app.annual_limit_client.get_all_notification_counts", return_value={})
     refs = []
     for i in range(10):
         ref = f"ref{i}"
@@ -123,7 +123,7 @@ def test_remove_email_from_bounce():
 def test_ses_callback_should_update_notification_status(notify_db, notify_db_session, sample_email_template, mocker):
     with freeze_time("2001-01-01T12:00:00"):
         mocker.patch("app.celery.process_ses_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
-        mocker.patch("app.celery.process_ses_receipts_tasks._safe_get_notification_counts", return_value={})
+        mocker.patch("app.annual_limit_client.get_all_notification_counts", return_value={})
         mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async")
 
         notification = save_notification(
@@ -142,7 +142,7 @@ def test_ses_callback_dont_change_hard_bounce_status(sample_template, mocker):
         mocker.patch("app.statsd_client.timing_with_dates")
         mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async")
         mocker.patch("app.celery.process_ses_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
-        mocker.patch("app.celery.process_ses_receipts_tasks._safe_get_notification_counts", return_value={})
+        mocker.patch("app.annual_limit_client.get_all_notification_counts", return_value={})
         notification = save_notification(
             create_notification(
                 sample_template,
@@ -160,7 +160,7 @@ def test_ses_callback_dont_change_hard_bounce_status(sample_template, mocker):
 def test_ses_callback_should_update_notification_status_when_receiving_new_delivery_receipt(sample_email_template, mocker):
     notification = save_notification(create_notification(template=sample_email_template, reference="ref", status="delivered"))
     mocker.patch("app.celery.process_ses_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
-    mocker.patch("app.celery.process_ses_receipts_tasks._safe_get_notification_counts", return_value={})
+    mocker.patch("app.annual_limit_client.get_all_notification_counts", return_value={})
 
     assert process_ses_results(ses_hard_bounce_callback(reference="ref"))
     assert get_notification_by_id(notification.id).status == "permanent-failure"
@@ -207,7 +207,7 @@ def test_ses_callback_does_not_call_send_delivery_status_if_no_db_entry(
     notify_db, notify_db_session, sample_email_template, mocker
 ):
     mocker.patch("app.celery.process_ses_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
-    mocker.patch("app.celery.process_ses_receipts_tasks._safe_get_notification_counts", return_value={})
+    mocker.patch("app.annual_limit_client.get_all_notification_counts", return_value={})
     with freeze_time("2001-01-01T12:00:00"):
         send_mock = mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async")
         notification = save_notification(
@@ -269,7 +269,7 @@ def test_ses_callback_should_only_enqueue_failed_updates_for_retry(notify_db, no
     mock_send = mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async")
     mock_retry: Mock = mocker.patch("app.celery.process_ses_receipts_tasks.process_ses_results.retry")
     mocker.patch("app.celery.process_ses_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
-    mocker.patch("app.celery.process_ses_receipts_tasks._safe_get_notification_counts", return_value={})
+    mocker.patch("app.annual_limit_client.get_all_notification_counts", return_value={})
     callbacks = generate_ses_notification_callbacks(references=["ref1", "ref2", "ref3", "ref4", "ref5"])
     ids_to_retry = ["ref4", "ref5"]
     retry_args = [{"Messages": list(filter(lambda x: x["mail"]["messageId"] in ids_to_retry, callbacks["Messages"]))}]
@@ -323,7 +323,7 @@ def test_ses_callback_should_set_status_to_temporary_failure(
     provider_response,
 ):
     mocker.patch("app.celery.process_ses_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
-    mocker.patch("app.celery.process_ses_receipts_tasks._safe_get_notification_counts", return_value={})
+    mocker.patch("app.annual_limit_client.get_all_notification_counts", return_value={})
     notification = save_notification(
         create_notification(template=sample_email_template, reference="ref", status="sending", sent_at=datetime.utcnow())
     )
@@ -348,7 +348,7 @@ def test_ses_callback_should_set_status_to_permanent_failure(
     notify_db, notify_db_session, sample_email_template, mocker, bounce_subtype, provider_response
 ):
     mocker.patch("app.celery.process_ses_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
-    mocker.patch("app.celery.process_ses_receipts_tasks._safe_get_notification_counts", return_value={})
+    mocker.patch("app.annual_limit_client.get_all_notification_counts", return_value={})
     notification = save_notification(
         create_notification(template=sample_email_template, reference="ref", status="sending", sent_at=datetime.utcnow())
     )
@@ -404,7 +404,7 @@ class TestBounceRates:
         self, sample_email_template, mocker, bounce_subtype, expected_subtype
     ):
         mocker.patch("app.celery.process_ses_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
-        mocker.patch("app.celery.process_ses_receipts_tasks._safe_get_notification_counts", return_value={})
+        mocker.patch("app.annual_limit_client.get_all_notification_counts", return_value={})
         notification = save_notification(create_notification(template=sample_email_template, reference="ref", status="delivered"))
 
         assert process_ses_results(ses_hard_bounce_callback(reference="ref", bounce_subtype=bounce_subtype))
@@ -425,7 +425,7 @@ class TestBounceRates:
         self, sample_email_template, mocker, bounce_subtype, expected_subtype
     ):
         mocker.patch("app.celery.process_ses_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
-        mocker.patch("app.celery.process_ses_receipts_tasks._safe_get_notification_counts", return_value={})
+        mocker.patch("app.annual_limit_client.get_all_notification_counts", return_value={})
         notification = save_notification(create_notification(template=sample_email_template, reference="ref", status="delivered"))
 
         assert process_ses_results(ses_soft_bounce_callback(reference="ref", bounce_subtype=bounce_subtype))
@@ -471,7 +471,7 @@ class TestBounceRates:
         mocker.patch("app.bounce_rate_client.set_sliding_hard_bounce")
         mocker.patch("app.bounce_rate_client.set_sliding_notifications")
         mocker.patch("app.celery.process_ses_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
-        mocker.patch("app.celery.process_ses_receipts_tasks._safe_get_notification_counts", return_value={})
+        mocker.patch("app.annual_limit_client.get_all_notification_counts", return_value={})
 
         save_notification(create_notification(template=sample_email_template, reference="ref", status="delivered"))
 
@@ -489,7 +489,7 @@ class TestAnnualLimits:
         mocker.patch("app.annual_limit_client.increment_email_delivered")
         mocker.patch("app.annual_limit_client.increment_email_failed")
         mocker.patch("app.celery.process_ses_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
-        mocker.patch("app.celery.process_ses_receipts_tasks._safe_get_notification_counts", return_value={})
+        mocker.patch("app.annual_limit_client.get_all_notification_counts", return_value={})
 
         save_notification(create_notification(template=sample_email_template, reference="ref", status="sending"))
 
@@ -511,7 +511,7 @@ class TestAnnualLimits:
         mocker.patch("app.annual_limit_client.increment_email_failed")
         mocker.patch("app.annual_limit_client.increment_email_delivered")
         mocker.patch("app.celery.process_ses_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
-        mocker.patch("app.celery.process_ses_receipts_tasks._safe_get_notification_counts", return_value={})
+        mocker.patch("app.annual_limit_client.get_all_notification_counts", return_value={})
 
         save_notification(create_notification(template=sample_email_template, reference="ref", status="sending"))
 
@@ -673,7 +673,7 @@ def test_process_ses_results_mixed_complaint_and_non_complaint_receipts(sample_e
     mock_complaint_callback = mocker.patch("app.celery.process_ses_receipts_tasks._check_and_queue_complaint_callback_task")
     mock_check_callback = mocker.patch("app.celery.process_ses_receipts_tasks._check_and_queue_callback_task")
     mocker.patch("app.celery.process_ses_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
-    mocker.patch("app.celery.process_ses_receipts_tasks._safe_get_notification_counts", return_value={})
+    mocker.patch("app.annual_limit_client.get_all_notification_counts", return_value={})
 
     # Create mixed receipts: one complaint, one delivery
     complaint_msg = ses_complaint_callback()["Messages"][0]
