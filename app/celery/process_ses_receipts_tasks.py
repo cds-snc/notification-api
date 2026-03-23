@@ -20,14 +20,6 @@ from app.notifications.notifications_ses_callback import (
 from celery.exceptions import Retry
 
 
-def _safe_get_notification_counts(service_id):
-    """Safely get notification counts for logging. Returns 'unavailable' if Redis is unreachable."""
-    try:
-        return annual_limit_client.get_all_notification_counts(service_id)
-    except Exception:
-        return "unavailable"
-
-
 class SESMailHeader(TypedDict):
     name: str
     value: str
@@ -246,7 +238,7 @@ def update_annual_limit_and_bounce_rate(
         if not did_we_seed:
             annual_limit_client.increment_email_failed(notification.service_id)
             current_app.logger.info(
-                f"Incremented email_failed count in Redis. Service: {notification.service_id} Notification: {notification.id} Current counts: {_safe_get_notification_counts(notification.service_id)}"
+                f"Incremented email_failed count in Redis. Service: {notification.service_id} Notification: {notification.id} Current counts: {annual_limit_client.get_all_notification_counts(notification.service_id)}"
             )
     else:
         current_app.logger.info(
@@ -258,7 +250,7 @@ def update_annual_limit_and_bounce_rate(
         if not did_we_seed:
             annual_limit_client.increment_email_delivered(notification.service_id)
             current_app.logger.info(
-                f"Incremented email_delivered count in Redis. Service: {notification.service_id} Notification: {notification.id} current counts: {_safe_get_notification_counts(notification.service_id)}"
+                f"Incremented email_delivered count in Redis. Service: {notification.service_id} Notification: {notification.id} current counts: {annual_limit_client.get_all_notification_counts(notification.service_id)}"
             )
 
     statsd_client.incr("callback.ses.{}".format(new_status))

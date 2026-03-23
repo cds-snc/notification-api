@@ -42,6 +42,7 @@ def test_process_pinpoint_results_delivered(
     sample_template, notify_db, notify_db_session, callback, expected_response, origination_phone_number, mocker
 ):
     mocker.patch("app.celery.process_pinpoint_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
+    mocker.patch("app.celery.process_pinpoint_receipts_tasks._safe_get_notification_counts", return_value={})
     mock_info_logger = mocker.patch("app.celery.process_pinpoint_receipts_tasks.current_app.logger.info")
     mock_callback_task = mocker.patch("app.celery.process_pinpoint_receipts_tasks._check_and_queue_callback_task")
     notification = create_sample_notification(
@@ -95,6 +96,7 @@ def test_process_pinpoint_results_succeeded(sample_template, notify_db, notify_d
 def test_process_pinpoint_results_missing_sms_data(notify_api, sample_template, notify_db, notify_db_session, mocker):
     mock_callback_task = mocker.patch("app.celery.process_pinpoint_receipts_tasks._check_and_queue_callback_task")
     mocker.patch("app.celery.process_pinpoint_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
+    mocker.patch("app.celery.process_pinpoint_receipts_tasks._safe_get_notification_counts", return_value={})
 
     notification = create_sample_notification(
         notify_db,
@@ -214,6 +216,7 @@ def test_process_pinpoint_results_failed(
     should_save_provider_response,
 ):
     mocker.patch("app.celery.process_pinpoint_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
+    mocker.patch("app.celery.process_pinpoint_receipts_tasks._safe_get_notification_counts", return_value={})
     mock_logger = mocker.patch("app.celery.process_pinpoint_receipts_tasks.current_app.logger.info")
     mock_warning_logger = mocker.patch("app.celery.process_pinpoint_receipts_tasks.current_app.logger.warning")
     mock_callback_task = mocker.patch("app.celery.process_pinpoint_receipts_tasks._check_and_queue_callback_task")
@@ -320,6 +323,7 @@ def test_process_pinpoint_results_calls_service_callback(sample_template, notify
         mocker.patch("app.statsd_client.timing_with_dates")
         mock_send_status = mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async")
         mocker.patch("app.celery.process_pinpoint_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
+        mocker.patch("app.celery.process_pinpoint_receipts_tasks._safe_get_notification_counts", return_value={})
 
         notification = create_sample_notification(
             notify_db,
@@ -375,6 +379,7 @@ class TestAnnualLimits:
         mocker.patch("app.annual_limit_client.increment_sms_delivered")
         mocker.patch("app.annual_limit_client.increment_sms_failed")
         mocker.patch("app.celery.process_pinpoint_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
+        mocker.patch("app.celery.process_pinpoint_receipts_tasks._safe_get_notification_counts", return_value={})
 
         notification = save_notification(
             create_notification(
@@ -406,6 +411,7 @@ class TestAnnualLimits:
         mocker.patch("app.annual_limit_client.increment_sms_delivered")
         mocker.patch("app.annual_limit_client.increment_sms_failed")
         mocker.patch("app.celery.process_pinpoint_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
+        mocker.patch("app.celery.process_pinpoint_receipts_tasks._safe_get_notification_counts", return_value={})
 
         notification = save_notification(
             create_notification(
