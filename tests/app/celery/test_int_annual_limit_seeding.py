@@ -1,7 +1,11 @@
 import uuid
 from datetime import datetime
+from os import getenv
+from urllib.parse import urlparse
 
+import pytest
 from freezegun import freeze_time
+from pytest_mock_resources import RedisConfig, create_redis_fixture
 from tests.app.db import (
     create_notification,
     create_service,
@@ -17,7 +21,16 @@ from app.celery.process_sns_receipts_tasks import process_sns_results
 from app.celery.reporting_tasks import create_nightly_notification_status_for_day
 
 
-def test_int_annual_limit_seeding_and_incrementation_flows_in_celery(sample_template, notify_api, mocker):
+@pytest.fixture(scope="session")
+def pmr_redis_config():
+    parsed_uri = urlparse(getenv("REDIS_URL"))
+    return RedisConfig(image="redis:6.2", host=parsed_uri.hostname, port="6380", ci_port="6380")
+
+
+redis = create_redis_fixture(scope="function")
+
+
+def test_int_annual_limit_seeding_and_incrementation_flows_in_celery(redis, sample_template, notify_api, mocker):
     """
     This integration-style test verifies the annual limit seeding and notification counting flows across multiple days, testing the flow
     between the process_sns_receipts task, which is responsible for seeded and incrementing notification counts in Redis, and the
