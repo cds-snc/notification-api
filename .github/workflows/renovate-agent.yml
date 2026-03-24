@@ -1,0 +1,166 @@
+name: Renovate Agent
+
+on:
+  schedule:
+    # Runs every Monday at 08:00 UTC
+    - cron: "0 8 * * 1"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run – find eligible package but do NOT open a PR"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+permissions:
+  contents: read
+
+jobs:
+  renovate-agent:
+    name: Run Renovate Agent
+    runs-on: ubuntu-latest
+
+    # PostgreSQL is required by the Python test suite
+    services:
+      postgres:
+        image: postgres:11.22-bullseye@sha256:c886a3236b3d11abc302e64309186c90a69b49e53ccff23fd8c8b057b5b4bce9
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_notification_api
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      # -----------------------------------------------------------------------
+      # 1. Generate GitHub App token (needed to create branches + PRs)
+      # -----------------------------------------------------------------------
+      - name: Generate GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ vars.RENOVATE_AGENT_APP_ID }}
+          private-key: ${{ secrets.RENOVATE_AGENT_PRIVATE_KEY }}
+
+      # -----------------------------------------------------------------------
+      # 2. Checkout + toolchain setup
+      # -----------------------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          ref: main
+          fetch-depth: 0
+
+      - name: Install libcurl (required by some Python test dependencies)
+        run: sudo apt-get update && sudo apt-get install -y libssl-dev libcurl4-openssl-dev
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@b64ffcaf5b410884ad320a9cfac8866006a109aa # v4.8.0
+        with:
+          python-version: "3.12"
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install Poetry
+        env:
+          POETRY_VERSION: "1.7.1"
+        run: pip install poetry==${POETRY_VERSION} && poetry --version
+
+      - name: Check poetry.lock aligns with pyproject.toml
+        run: poetry check --lock
+
+      - name: Install Python dependencies
+        run: poetry install --with test
+
+      # -----------------------------------------------------------------------
+      # 3. Find an eligible package upgrade
+      # -----------------------------------------------------------------------
+      - name: Find eligible Renovate package
+        id: find
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          poetry run python scripts/renovate_agent.py --find
+          if [ -f renovate-agent-plan.json ]; then
+            echo "package_found=true" >> "$GITHUB_OUTPUT"
+            # Export plan fields for downstream steps
+            pkg=$(python -c "import json; d=json.load(open('renovate-agent-plan.json')); print(d['package'])")
+            branch=$(python -c "import json; d=json.load(open('renovate-agent-plan.json')); print(d['branch'])")
+            echo "package=${pkg}" >> "$GITHUB_OUTPUT"
+            echo "branch=${branch}" >> "$GITHUB_OUTPUT"
+          else
+            echo "package_found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # -----------------------------------------------------------------------
+      # 4. Apply the dependency update (edit pyproject.toml + regenerate lockfile)
+      # -----------------------------------------------------------------------
+      - name: Apply dependency update
+        if: steps.find.outputs.package_found == 'true' && inputs.dry_run != 'true'
+        run: poetry run python scripts/renovate_agent.py --apply
+
+      # -----------------------------------------------------------------------
+      # 5. Commit the changes to a new branch and push
+      # -----------------------------------------------------------------------
+      - name: Create branch and commit changes
+        if: steps.find.outputs.package_found == 'true' && inputs.dry_run != 'true'
+        id: git-push
+        env:
+          BRANCH: ${{ steps.find.outputs.branch }}
+          PACKAGE: ${{ steps.find.outputs.package }}
+        run: |
+          git config user.email "${{ vars.RENOVATE_AGENT_APP_ID }}+renovate-agent[bot]@users.noreply.github.com"
+          git config user.name "renovate-agent[bot]"
+          git checkout -b "$BRANCH"
+          # Stage all changed dependency files
+          git add pyproject.toml poetry.lock tests_cypress/package.json tests_cypress/package-lock.json 2>/dev/null || true
+          git diff --cached --quiet && echo "No changes to commit – package may already be at target version." && exit 1
+          git commit -m "chore(deps): update ${PACKAGE} [renovate-agent]"
+          git push origin "$BRANCH"
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
+
+      # -----------------------------------------------------------------------
+      # 6. Run the full Python test suite on the updated branch
+      # -----------------------------------------------------------------------
+      - name: Run tests
+        if: >-
+          steps.find.outputs.package_found == 'true' &&
+          inputs.dry_run != 'true' &&
+          steps.git-push.outputs.pushed == 'true'
+        run: poetry run make test
+
+      # -----------------------------------------------------------------------
+      # 7. Open the PR (only when tests pass)
+      # -----------------------------------------------------------------------
+      - name: Create pull request
+        if: >-
+          steps.find.outputs.package_found == 'true' &&
+          inputs.dry_run != 'true' &&
+          steps.git-push.outputs.pushed == 'true' &&
+          success()
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: poetry run python scripts/renovate_agent.py --create-pr
+
+      # -----------------------------------------------------------------------
+      # 8. Clean up the remote branch when tests fail
+      # -----------------------------------------------------------------------
+      - name: Delete branch on test failure
+        if: >-
+          steps.find.outputs.package_found == 'true' &&
+          inputs.dry_run != 'true' &&
+          steps.git-push.outputs.pushed == 'true' &&
+          failure()
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: poetry run python scripts/renovate_agent.py --cleanup
