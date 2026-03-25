@@ -45,7 +45,7 @@ jobs:
       # -----------------------------------------------------------------------
       - name: Obtain a Notify PR Bot GitHub App Installation Access Token
         run: |
-          TOKEN="$(npx obtain-github-app-installation-access-token@1.1.0 ci ${{ secrets.PR_BOT_GITHUB_TOKEN }})"
+          TOKEN="$(npx --yes obtain-github-app-installation-access-token@1.1.0 ci ${{ secrets.PR_BOT_GITHUB_TOKEN }})"
           echo "::add-mask::$TOKEN"
           echo "GITHUB_TOKEN=$TOKEN" >> $GITHUB_ENV
 
