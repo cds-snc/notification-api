@@ -216,6 +216,7 @@ def test_process_pinpoint_results_failed(
     should_save_provider_response,
 ):
     mocker.patch("app.celery.process_pinpoint_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
+    mocker.patch("app.annual_limit_client.get_all_notification_counts", return_value={})
     mock_logger = mocker.patch("app.celery.process_pinpoint_receipts_tasks.current_app.logger.info")
     mock_warning_logger = mocker.patch("app.celery.process_pinpoint_receipts_tasks.current_app.logger.warning")
     mock_callback_task = mocker.patch("app.celery.process_pinpoint_receipts_tasks._check_and_queue_callback_task")
