@@ -233,8 +233,8 @@ _TABLE_ROW_RE = re.compile(
     re.IGNORECASE,
 )
 
-# Extract plain package name from "[name](url)" or just "name"
-_PKG_NAME_RE = re.compile(r"\[([^\]]+)\]|\*\*([^*]+)\*\*|`([^`]+)`|^([^\s(]+)")
+
+
 
 
 def _parse_package_name(cell: str) -> str:
