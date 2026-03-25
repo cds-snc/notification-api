@@ -123,7 +123,11 @@ jobs:
           git checkout -b "$BRANCH"
           # Stage all changed dependency files
           git add pyproject.toml poetry.lock tests_cypress/package.json tests_cypress/package-lock.json 2>/dev/null || true
-          git diff --cached --quiet && echo "No changes to commit – package may already be at target version." && exit 1
+          if git diff --cached --quiet; then
+            echo "No changes to commit – package may already be at target version."
+            echo "pushed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           git commit -m "chore(deps): update ${PACKAGE} [renovate-agent]"
           git push origin "$BRANCH"
           echo "pushed=true" >> "$GITHUB_OUTPUT"
