@@ -26,7 +26,12 @@ from notifications_utils.recipients import (
 
 from app import db, marshmallow, models
 from app.dao.permissions_dao import permission_dao
-from app.models import EMAIL_STATUS_FORMATTED, SMS_STATUS_FORMATTED, ServicePermission
+from app.models import (
+    EMAIL_STATUS_FORMATTED,
+    SMS_STATUS_FORMATTED,
+    UNSUBSCRIBE_CALLBACK_TYPE,
+    ServicePermission,
+)
 from app.utils import get_template_instance
 
 
@@ -280,8 +285,13 @@ class ServiceSchema(BaseSchema, UUIDsAsStringsMixin):
     sensitive_service = field_for(models.Service, "sensitive_service")
     email_annual_limit = field_for(models.Service, "email_annual_limit")
     sms_annual_limit = field_for(models.Service, "sms_annual_limit")
+    service_unsubscribe_callback_api = fields.Method(dump_only=True, serialize="get_unsubscribe_callback_api_ids")
 
     def get_letter_logo_filename(self, service):
+        return service.letter_branding and service.letter_branding.filename
+
+    def get_unsubscribe_callback_api_ids(self, service):
+        return [str(cb.id) for cb in service.service_callback_api if cb.callback_type == UNSUBSCRIBE_CALLBACK_TYPE]
         return service.letter_branding and service.letter_branding.filename
 
     def serialize_service_permissions(self, service):

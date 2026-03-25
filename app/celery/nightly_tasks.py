@@ -327,3 +327,55 @@ def letter_raise_alert_if_no_ack_file_for_zip():
 
     if len(ack_file_set - zip_file_set) > 0:
         current_app.logger.info("letter ack contains zip that is not for today: {}".format(ack_file_set - zip_file_set))
+
+
+@notify_celery.task(name="archive-unsubscribe-requests")
+@statsd(namespace="tasks")
+def archive_unsubscribe_requests():
+    """
+    Dispatches per-service archive tasks for both batched and old unbatched requests.
+    Scheduled nightly.
+    """
+    from app.dao.unsubscribe_request_dao import get_service_ids_with_unsubscribe_requests
+
+    for service_id in get_service_ids_with_unsubscribe_requests():
+        archive_batched_unsubscribe_requests.apply_async(
+            queue=QueueNames.REPORTING,
+            args=[service_id],
+        )
+        archive_old_unsubscribe_requests.apply_async(
+            queue=QueueNames.REPORTING,
+            args=[service_id],
+        )
+
+
+@notify_celery.task(name="archive-batched-unsubscribe-requests")
+@statsd(namespace="tasks")
+def archive_batched_unsubscribe_requests(service_id):
+    """Archives batched requests from reports created > 7 days ago."""
+    from app.dao.unsubscribe_request_dao import dao_archive_batched_unsubscribe_requests
+
+    start = datetime.now(pytz.UTC)
+    count_deleted = dao_archive_batched_unsubscribe_requests(service_id)
+    current_app.logger.info(
+        "archive-batched-unsubscribe-requests service: %s, count deleted: %s, duration: %s",
+        service_id,
+        count_deleted,
+        datetime.now(pytz.UTC) - start,
+    )
+
+
+@notify_celery.task(name="archive-old-unsubscribe-requests")
+@statsd(namespace="tasks")
+def archive_old_unsubscribe_requests(service_id):
+    """Archives unbatched requests older than 90 days."""
+    from app.dao.unsubscribe_request_dao import dao_archive_old_unsubscribe_requests
+
+    start = datetime.now(pytz.UTC)
+    count_deleted = dao_archive_old_unsubscribe_requests(service_id)
+    current_app.logger.info(
+        "archive-old-unsubscribe-requests service: %s, count deleted: %s, duration: %s",
+        service_id,
+        count_deleted,
+        datetime.now(pytz.UTC) - start,
+    )

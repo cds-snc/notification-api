@@ -1231,3 +1231,124 @@ def check_if_reply_to_address_already_in_use(service_id, email_address):
             },
             status_code=400,
         )
+
+
+# ---- Unsubscribe request report endpoints ----
+
+
+@service_blueprint.route("/<uuid:service_id>/unsubscribe-request-reports-summary", methods=["GET"])
+def get_unsubscribe_request_reports_summary(service_id):
+    from app.one_click_unsubscribe.rest import create_unsubscribe_request_reports_summary
+
+    return jsonify(create_unsubscribe_request_reports_summary(service_id))
+
+
+@service_blueprint.route("/<uuid:service_id>/unsubscribe-request-statistics", methods=["GET"])
+def get_unsubscribe_requests_statistics(service_id):
+    from app.dao.unsubscribe_request_dao import (
+        get_latest_unsubscribe_request_date_dao,
+        get_unsubscribe_requests_statistics_dao,
+    )
+
+    data = {}
+    if unsubscribe_statistics := get_unsubscribe_requests_statistics_dao(service_id):
+        data = {
+            "unsubscribe_requests_count": unsubscribe_statistics.unsubscribe_requests_count,
+            "datetime_of_latest_unsubscribe_request": (
+                unsubscribe_statistics.datetime_of_latest_unsubscribe_request.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+                if unsubscribe_statistics.datetime_of_latest_unsubscribe_request
+                else None
+            ),
+        }
+    elif latest_unsubscribe_request := get_latest_unsubscribe_request_date_dao(service_id):
+        data = {
+            "unsubscribe_requests_count": 0,
+            "datetime_of_latest_unsubscribe_request": (
+                latest_unsubscribe_request.datetime_of_latest_unsubscribe_request.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+                if latest_unsubscribe_request.datetime_of_latest_unsubscribe_request
+                else None
+            ),
+        }
+    return jsonify(data), 200
+
+
+@service_blueprint.route("/<uuid:service_id>/process-unsubscribe-request-report/<uuid:batch_id>", methods=["POST"])
+def process_unsubscribe_request_report(service_id, batch_id):
+    from app.dao.unsubscribe_request_dao import (
+        get_unsubscribe_request_report_by_id_dao,
+        update_unsubscribe_request_report_processed_by_date_dao,
+    )
+
+    if data := request.get_json():
+        report_has_been_processed = data["report_has_been_processed"]
+    else:
+        raise InvalidRequest(message={"marked_as_completed": "missing data for required field"}, status_code=400)
+    if report := get_unsubscribe_request_report_by_id_dao(batch_id):
+        update_unsubscribe_request_report_processed_by_date_dao(report, report_has_been_processed)
+    else:
+        raise InvalidRequest(message={"batch_id": f"No UnsubscribeRequestReport found for id:{batch_id}"}, status_code=400)
+    return "", 204
+
+
+@service_blueprint.route("/<uuid:service_id>/create-unsubscribe-request-report", methods=["POST"])
+def create_unsubscribe_request_report(service_id):
+    import uuid as _uuid
+
+    from app.dao.unsubscribe_request_dao import (
+        assign_unbatched_unsubscribe_requests_to_report_dao,
+        create_unsubscribe_request_reports_dao,
+    )
+    from app.models import UnsubscribeRequestReport
+
+    summary_data = request.get_json()
+    if summary_data:
+        unsubscribe_request_report = UnsubscribeRequestReport(
+            id=_uuid.uuid4(),
+            count=summary_data["count"],
+            earliest_timestamp=summary_data["earliest_timestamp"],
+            latest_timestamp=summary_data["latest_timestamp"],
+            service_id=service_id,
+        )
+        create_unsubscribe_request_reports_dao(unsubscribe_request_report)
+        assign_unbatched_unsubscribe_requests_to_report_dao(
+            report_id=unsubscribe_request_report.id,
+            service_id=unsubscribe_request_report.service_id,
+            earliest_timestamp=unsubscribe_request_report.earliest_timestamp,
+            latest_timestamp=unsubscribe_request_report.latest_timestamp,
+        )
+        return jsonify({"report_id": unsubscribe_request_report.id}), 201
+    else:
+        raise InvalidRequest(
+            message={"summary_data": "summary data needed to create an unsubscribe request report is missing"},
+            status_code=400,
+        )
+
+
+@service_blueprint.route("/<uuid:service_id>/unsubscribe-request-report/<uuid:batch_id>", methods=["GET"])
+def get_unsubscribe_request_report_for_download(service_id, batch_id):
+    from app.dao.unsubscribe_request_dao import (
+        get_unsubscribe_request_report_by_id_dao,
+        get_unsubscribe_requests_data_for_download_dao,
+    )
+
+    if report := get_unsubscribe_request_report_by_id_dao(batch_id):
+        data = {
+            "batch_id": str(report.id),
+            "earliest_timestamp": report.earliest_timestamp.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+            "latest_timestamp": report.latest_timestamp.strftime("%Y-%m-%dT%H:%M:%S.%fZ"),
+            "unsubscribe_requests": [
+                {
+                    "email_address": row.email_address,
+                    "template_name": row.template_name,
+                    "original_file_name": row.original_file_name,
+                    "template_sent_at": row.template_sent_at.strftime("%Y-%m-%dT%H:%M:%S.%fZ") if row.template_sent_at else None,
+                    "unsubscribe_request_received_at": row.unsubscribe_request_received_at.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+                    if row.unsubscribe_request_received_at
+                    else None,
+                }
+                for row in get_unsubscribe_requests_data_for_download_dao(service_id, report.id)
+            ],
+        }
+        return jsonify(data), 200
+    else:
+        raise InvalidRequest(message=f"No report available for {batch_id}", status_code=400)

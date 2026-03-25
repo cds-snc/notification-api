@@ -65,7 +65,8 @@ USER_AUTH_TYPE = [SMS_AUTH_TYPE, EMAIL_AUTH_TYPE, SECURITY_KEY_AUTH_TYPE]
 
 DELIVERY_STATUS_CALLBACK_TYPE = "delivery_status"
 COMPLAINT_CALLBACK_TYPE = "complaint"
-SERVICE_CALLBACK_TYPES = [DELIVERY_STATUS_CALLBACK_TYPE, COMPLAINT_CALLBACK_TYPE]
+UNSUBSCRIBE_CALLBACK_TYPE = "unsubscribe"
+SERVICE_CALLBACK_TYPES = [DELIVERY_STATUS_CALLBACK_TYPE, COMPLAINT_CALLBACK_TYPE, UNSUBSCRIBE_CALLBACK_TYPE]
 DEFAULT_SMS_ANNUAL_LIMIT = 100000
 DEFAULT_EMAIL_ANNUAL_LIMIT = 20000000
 
@@ -646,6 +647,7 @@ class Service(BaseModel, Versioned):
         fields.pop("safelist", None)
         fields.pop("permissions", None)
         fields.pop("service_callback_api", None)
+        fields.pop("service_unsubscribe_callback_api", None)
         fields.pop("service_data_retention", None)
         fields.pop("all_template_folders", None)
         fields.pop("users", None)
@@ -1162,6 +1164,7 @@ class TemplateBase(BaseModel):
     subject = db.Column(db.Text)
     postage = db.Column(db.String, nullable=True)
     text_direction_rtl = db.Column(db.Boolean, nullable=False, default=False)
+    has_unsubscribe_link = db.Column(db.Boolean, nullable=True, default=False)
     CheckConstraint(
         """
         CASE WHEN template_type = 'letter' THEN
@@ -1811,6 +1814,9 @@ class Notification(BaseModel):
     sms_message_encoding = db.Column(db.String(7), nullable=True)
     sms_origination_phone_number = db.Column(db.String(255), nullable=True)
 
+    # unsubscribe link; only populated when API caller provides a custom URL
+    unsubscribe_link = db.Column(db.String, nullable=True)
+
     CheckConstraint(
         """
         CASE WHEN notification_type = 'letter' THEN
@@ -1825,6 +1831,10 @@ class Notification(BaseModel):
         db.ForeignKeyConstraint(
             ["template_id", "template_version"],
             ["templates_history.id", "templates_history.version"],
+        ),
+        db.CheckConstraint(
+            "notification_type = 'email' OR unsubscribe_link is null",
+            name="ck_unsubscribe_link_is_null_if_notification_not_an_email",
         ),
         {},
     )
@@ -2056,6 +2066,30 @@ class Notification(BaseModel):
             ).earliest_delivery.strftime(DATETIME_FORMAT)
 
         return serialized
+
+    def _generate_unsubscribe_link(self, base_url):
+        from app.utils import url_with_token
+
+        return url_with_token(
+            self.to,
+            url=f"/unsubscribe/{str(self.id)}/",
+            config=current_app.config,
+            base_url=base_url,
+        )
+
+    def get_unsubscribe_link_for_headers(self, *, template_has_unsubscribe_link):
+        """Generates a URL on the API domain for RFC 8058 one-click unsubscribe."""
+        if self.unsubscribe_link:
+            return self.unsubscribe_link
+        if template_has_unsubscribe_link:
+            return self._generate_unsubscribe_link(current_app.config["API_HOST_NAME"])
+        return None
+
+    def get_unsubscribe_link_for_body(self, *, template_has_unsubscribe_link):
+        """Generates a URL on the admin domain for the confirmation page."""
+        if template_has_unsubscribe_link:
+            return self._generate_unsubscribe_link(current_app.config["ADMIN_BASE_URL"])
+        return None
 
 
 class NotificationHistory(BaseModel, HistoryModel):
@@ -2785,3 +2819,89 @@ class Report(BaseModel):
             "expires_at": self.expires_at.strftime(DATETIME_FORMAT) if self.expires_at else None,
             "url": self.url,
         }
+
+
+class UnsubscribeRequestReport(db.Model):
+    __tablename__ = "unsubscribe_request_report"
+
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    service_id = db.Column(UUID(as_uuid=True), db.ForeignKey("services.id"), nullable=False)
+    service = db.relationship("Service", backref=db.backref("unsubscribe_request_reports"))
+    created_at = db.Column(db.DateTime, nullable=True, default=datetime.datetime.utcnow)
+    earliest_timestamp = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
+    latest_timestamp = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
+    processed_by_service_at = db.Column(db.DateTime, nullable=True)
+    count = db.Column(db.BigInteger, nullable=False)
+
+    def serialize(self):
+        return {
+            "batch_id": str(self.id),
+            "count": self.count,
+            "created_at": self.created_at.strftime(DATETIME_FORMAT) if self.created_at else None,
+            "earliest_timestamp": self.earliest_timestamp.strftime(DATETIME_FORMAT),
+            "latest_timestamp": self.latest_timestamp.strftime(DATETIME_FORMAT),
+            "processed_by_service_at": (
+                self.processed_by_service_at.strftime(DATETIME_FORMAT) if self.processed_by_service_at else None
+            ),
+            "is_a_batched_report": True,
+            "will_be_archived_at": (
+                (self.created_at + datetime.timedelta(days=7)).strftime(DATETIME_FORMAT) if self.created_at else None
+            ),
+            "service_id": str(self.service_id),
+        }
+
+    @staticmethod
+    def serialize_unbatched_requests(unbatched_unsubscribe_requests):
+        return {
+            "batch_id": None,
+            "count": len(unbatched_unsubscribe_requests),
+            "created_at": None,
+            "earliest_timestamp": unbatched_unsubscribe_requests[-1].created_at.strftime(DATETIME_FORMAT),
+            "latest_timestamp": unbatched_unsubscribe_requests[0].created_at.strftime(DATETIME_FORMAT),
+            "processed_by_service_at": None,
+            "is_a_batched_report": False,
+            "will_be_archived_at": (unbatched_unsubscribe_requests[-1].created_at + datetime.timedelta(days=90)).strftime(
+                DATETIME_FORMAT
+            ),
+            "service_id": str(unbatched_unsubscribe_requests[0].service_id),
+        }
+
+
+class UnsubscribeRequest(db.Model):
+    __tablename__ = "unsubscribe_request"
+
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    # No strict FK to notifications - rows may have been moved to notification_history
+    notification_id = db.Column(UUID(as_uuid=True), nullable=False)
+    service_id = db.Column(UUID(as_uuid=True), db.ForeignKey("services.id"), nullable=False)
+    service = db.relationship("Service", backref=db.backref("unsubscribe_requests"))
+    template_id = db.Column(UUID(as_uuid=True), nullable=False)
+    template_version = db.Column(db.Integer, nullable=False)
+    email_address = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
+    unsubscribe_request_report_id = db.Column(UUID(as_uuid=True), db.ForeignKey("unsubscribe_request_report.id"), nullable=True)
+    unsubscribe_request_report = db.relationship("UnsubscribeRequestReport", backref=db.backref("unsubscribe_requests"))
+
+    __table_args__ = (
+        db.ForeignKeyConstraint(
+            ["template_id", "template_version"],
+            ["templates_history.id", "templates_history.version"],
+        ),
+    )
+
+    def serialize_for_history(self):
+        """Excludes email_address for privacy when archiving."""
+        return {column.key: getattr(self, column.key) for column in self.__table__.columns if column.key != "email_address"}
+
+
+class UnsubscribeRequestHistory(db.Model):
+    __tablename__ = "unsubscribe_request_history"
+
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    notification_id = db.Column(UUID(as_uuid=True), nullable=False)
+    service_id = db.Column(UUID(as_uuid=True), db.ForeignKey("services.id"), nullable=False)
+    template_id = db.Column(UUID(as_uuid=True), nullable=False)
+    template_version = db.Column(db.Integer, nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False)
+    unsubscribe_request_report_id = db.Column(UUID(as_uuid=True), nullable=True)
+    # note: no email_address column - stripped for privacy on archival

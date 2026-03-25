@@ -506,6 +506,11 @@ class Config(object):
             "schedule": crontab(hour=6, minute=40),  # 1:40 EST in UTC
             "options": {"queue": QueueNames.PERIODIC},
         },
+        "archive-unsubscribe-requests": {
+            "task": "archive-unsubscribe-requests",
+            "schedule": crontab(hour=5, minute=5),  # 00:05 EST in UTC
+            "options": {"queue": QueueNames.REPORTING},
+        },
         "send-daily-performance-platform-stats": {
             "task": "send-daily-performance-platform-stats",
             "schedule": crontab(hour=7, minute=0),  # 2:00 EST in UTC

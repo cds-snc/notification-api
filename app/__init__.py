@@ -58,6 +58,7 @@ signer_delivery_status = CryptoSigner()
 signer_bearer_token = CryptoSigner()
 signer_api_key = CryptoSigner()
 signer_inbound_sms = CryptoSigner()
+signer_unsubscribe_event = CryptoSigner()
 zendesk_client = ZendeskClient()
 statsd_client = StatsdClient()
 flask_redis = FlaskRedis()
@@ -131,6 +132,7 @@ def create_app(application, config=None):
     signer_bearer_token.init_app(application, secret_key=application.config["SECRET_KEY"], salt="bearer_token")
     signer_api_key.init_app(application, secret_key=application.config["SECRET_KEY"], salt="api_key")
     signer_inbound_sms.init_app(application, secret_key=application.config["SECRET_KEY"], salt="inbound_sms")
+    signer_unsubscribe_event.init_app(application, secret_key=application.config["SECRET_KEY"], salt="unsubscribe_event")
 
     performance_platform_client.init_app(application)
     document_download_client.init_app(application)
@@ -237,6 +239,10 @@ def register_blueprint(application):
     register_notify_blueprint(application, template_blueprint, requires_admin_auth)
 
     register_notify_blueprint(application, status_blueprint, requires_no_auth)
+
+    from app.one_click_unsubscribe.rest import one_click_unsubscribe_blueprint
+
+    register_notify_blueprint(application, one_click_unsubscribe_blueprint, requires_no_auth)
 
     register_notify_blueprint(application, notifications_blueprint, requires_auth)
 

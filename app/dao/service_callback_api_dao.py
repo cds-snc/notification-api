@@ -8,6 +8,7 @@ from app.dao.dao_utils import transactional, version_class
 from app.models import (
     COMPLAINT_CALLBACK_TYPE,
     DELIVERY_STATUS_CALLBACK_TYPE,
+    UNSUBSCRIBE_CALLBACK_TYPE,
     ServiceCallbackApi,
 )
 
@@ -88,6 +89,10 @@ def get_service_delivery_status_callback_api_for_service(service_id) -> ServiceC
 
 def get_service_complaint_callback_api_for_service(service_id) -> ServiceCallbackApi:
     return ServiceCallbackApi.query.filter_by(service_id=service_id, callback_type=COMPLAINT_CALLBACK_TYPE).first()
+
+
+def get_service_unsubscribe_callback_api_for_service(service_id) -> ServiceCallbackApi:
+    return ServiceCallbackApi.query.filter_by(service_id=service_id, callback_type=UNSUBSCRIBE_CALLBACK_TYPE).first()
 
 
 @transactional

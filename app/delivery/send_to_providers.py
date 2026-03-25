@@ -246,6 +246,16 @@ def get_from_address(friendly_from: str, email_from: str, sending_domain: str) -
     return f'"{friendly_from_mime}" <{unidecode(email_from)}@{unidecode(sending_domain)}>'
 
 
+def _get_unsubscribe_headers(unsubscribe_link):
+    """Returns RFC 8058 one-click unsubscribe headers if a link is present."""
+    if unsubscribe_link:
+        return {
+            "List-Unsubscribe": f"<{unsubscribe_link}>",
+            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+        }
+    return {}
+
+
 def send_email_to_provider(notification: Notification):
     current_app.logger.info(f"Sending email to provider for notification id {notification.id}")
     service = notification.service
@@ -318,6 +328,18 @@ def send_email_to_provider(notification: Notification):
 
         plain_text_email = PlainTextEmailTemplate(template_dict, values=personalisation_data)
 
+        # Build unsubscribe link (None for SMS/letter or templates without it enabled)
+        template_has_unsubscribe_link = bool(template_obj.has_unsubscribe_link)
+        unsubscribe_link_for_body = notification.get_unsubscribe_link_for_body(
+            template_has_unsubscribe_link=template_has_unsubscribe_link
+        )
+        unsubscribe_link_for_header = notification.get_unsubscribe_link_for_headers(
+            template_has_unsubscribe_link=template_has_unsubscribe_link
+        )
+        if unsubscribe_link_for_body:
+            html_email.unsubscribe_link = unsubscribe_link_for_body
+            plain_text_email.unsubscribe_link = unsubscribe_link_for_body
+
         if current_app.config["SCAN_FOR_PII"]:
             contains_pii(notification, str(plain_text_email))
 
@@ -350,6 +372,7 @@ def send_email_to_provider(notification: Notification):
                 html_body=str(html_email),
                 reply_to_address=validate_and_format_email_address(email_reply_to) if email_reply_to else None,
                 attachments=attachments,
+                extra_headers=_get_unsubscribe_headers(unsubscribe_link_for_header),
             )
             check_service_over_bounce_rate(service.id)
             bounce_rate_client.set_sliding_notifications(service.id, str(notification.id))

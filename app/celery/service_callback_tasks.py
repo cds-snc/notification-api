@@ -92,3 +92,26 @@ def _send_data_to_service_callback_api(self, service_id, data, service_callback_
                 current_app.logger.warning(
                     "Retry: {function_name} has retried the max num of times for callback url {service_callback_url} notification_id: {notification_id} service: {service_id}"
                 )
+
+
+@notify_celery.task(bind=True, name="send-unsubscribe-event", max_retries=5, default_retry_delay=300)
+@statsd(namespace="tasks")
+def send_unsubscribe_event_to_service(self, signed_unsubscribe_data, service_id):
+    from app import signer_unsubscribe_event
+
+    unsubscribe_data = signer_unsubscribe_event.verify(signed_unsubscribe_data)
+
+    data = {
+        "notification_id": unsubscribe_data["notification_id"],
+        "email_address": unsubscribe_data["email_address"],
+        "template_id": unsubscribe_data["template_id"],
+        "service_id": unsubscribe_data["service_id"],
+    }
+    _send_data_to_service_callback_api(
+        self,
+        service_id,
+        data,
+        unsubscribe_data["service_callback_api_url"],
+        unsubscribe_data["service_callback_api_bearer_token"],
+        "send_unsubscribe_event_to_service",
+    )

@@ -18,6 +18,7 @@ from app.dao.service_inbound_api_dao import (
 from app.errors import InvalidRequest, register_errors
 from app.models import (
     DELIVERY_STATUS_CALLBACK_TYPE,
+    UNSUBSCRIBE_CALLBACK_TYPE,
     ServiceCallbackApi,
     ServiceInboundApi,
 )
@@ -172,3 +173,53 @@ def handle_sql_error(e, table_name):
         return jsonify(result="error", message="No result found"), 404
     else:
         raise e
+
+
+# ---- Unsubscribe callback API routes ----
+
+
+@service_callback_blueprint.route("/unsubscribe-api", methods=["POST"])
+def create_service_unsubscribe_callback_api(service_id):
+    data = request.get_json()
+    validate(data, create_service_callback_api_schema)
+    data["service_id"] = service_id
+    data["callback_type"] = UNSUBSCRIBE_CALLBACK_TYPE
+    callback_api = ServiceCallbackApi(**data)
+    try:
+        save_service_callback_api(callback_api)
+    except SQLAlchemyError as e:
+        return handle_sql_error(e, "service_callback_api")
+    return jsonify(data=callback_api.serialize()), 201
+
+
+@service_callback_blueprint.route("/unsubscribe-api/<uuid:callback_api_id>", methods=["POST"])
+def update_service_unsubscribe_callback_api(service_id, callback_api_id):
+    data = request.get_json()
+    validate(data, update_service_callback_api_schema)
+    callback_api = get_service_callback_api(callback_api_id, service_id)
+    if not callback_api:
+        raise InvalidRequest("Service unsubscribe callback API not found", status_code=404)
+    reset_service_callback_api(
+        service_callback_api=callback_api,
+        updated_by_id=data["updated_by_id"],
+        url=data.get("url"),
+        bearer_token=data.get("bearer_token"),
+    )
+    return jsonify(data=callback_api.serialize()), 200
+
+
+@service_callback_blueprint.route("/unsubscribe-api/<uuid:callback_api_id>", methods=["GET"])
+def fetch_service_unsubscribe_callback_api(service_id, callback_api_id):
+    callback_api = get_service_callback_api(callback_api_id, service_id)
+    if not callback_api:
+        raise InvalidRequest("Service unsubscribe callback API not found", status_code=404)
+    return jsonify(data=callback_api.serialize()), 200
+
+
+@service_callback_blueprint.route("/unsubscribe-api/<uuid:callback_api_id>", methods=["DELETE"])
+def remove_service_unsubscribe_callback_api(service_id, callback_api_id):
+    callback_api = get_service_callback_api(callback_api_id, service_id)
+    if not callback_api:
+        raise InvalidRequest("Service unsubscribe callback API not found", status_code=404)
+    delete_service_callback_api(callback_api)
+    return "", 204

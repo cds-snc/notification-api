@@ -1,9 +1,10 @@
 from flask import current_app
 
-from app.celery.service_callback_tasks import send_delivery_status_to_service
+from app.celery.service_callback_tasks import send_delivery_status_to_service, send_unsubscribe_event_to_service
 from app.config import QueueNames
 from app.dao.service_callback_api_dao import (
     get_service_delivery_status_callback_api_for_service,
+    get_service_unsubscribe_callback_api_for_service,
 )
 
 
@@ -63,3 +64,32 @@ def create_complaint_callback_data(complaint, notification, service_callback_api
     }
 
     return signer_complaint.sign(data)
+
+
+def _check_and_queue_unsubscribe_callback_task(unsubscribe_data):
+    """
+    If the service has registered an unsubscribe webhook, queue a callback task.
+    unsubscribe_data is the dict created by get_unsubscribe_request_data() in the unsubscribe endpoint.
+    """
+    from app import signer_unsubscribe_event
+
+    service_id = str(unsubscribe_data["service_id"])
+    service_callback_api = get_service_unsubscribe_callback_api_for_service(service_id=service_id)
+    if not service_callback_api:
+        return
+    if service_callback_api.is_suspended:
+        current_app.logger.warning(
+            f"Unsubscribe callback API: {service_callback_api.id} for service: {service_id} is suspended. Skipping."
+        )
+        return
+
+    data = {
+        "notification_id": str(unsubscribe_data["notification_id"]),
+        "email_address": unsubscribe_data["email_address"],
+        "template_id": str(unsubscribe_data["template_id"]),
+        "service_id": service_id,
+        "service_callback_api_url": service_callback_api.url,
+        "service_callback_api_bearer_token": service_callback_api.bearer_token,
+    }
+    signed_data = signer_unsubscribe_event.sign(data)
+    send_unsubscribe_event_to_service.apply_async([signed_data, service_id], queue=QueueNames.CALLBACKS)
