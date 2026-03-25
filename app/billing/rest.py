@@ -1,7 +1,10 @@
+from datetime import date
+
 from flask import Blueprint, jsonify, request
 
 from app.billing.billing_schemas import (
     create_or_update_free_sms_fragment_limit_schema,
+    get_sms_cost_for_service_schema,
     serialize_ft_billing_remove_emails,
     serialize_ft_billing_yearly_totals,
 )
@@ -13,6 +16,7 @@ from app.dao.annual_billing_dao import (
 )
 from app.dao.date_util import get_current_financial_year_start_year
 from app.dao.fact_billing_dao import (
+    dao_fetch_sms_cost_for_service_in_range,
     fetch_billing_totals_for_year,
     fetch_monthly_billing_for_year,
 )
@@ -48,6 +52,32 @@ def get_yearly_billing_usage_summary_from_ft_billing(service_id):
     billing_data = fetch_billing_totals_for_year(service_id, year)
     data = serialize_ft_billing_yearly_totals(billing_data)
     return jsonify(data)
+
+
+@billing_blueprint.route("/sms-cost", methods=["GET"])
+def get_sms_cost_for_service(service_id):
+    data = {
+        "start_date": request.args.get("start_date"),
+        "end_date": request.args.get("end_date"),
+    }
+    validate(data, get_sms_cost_for_service_schema)
+
+    start_date = date.fromisoformat(data["start_date"])
+    end_date = date.fromisoformat(data["end_date"])
+
+    if start_date > end_date:
+        raise InvalidRequest("start_date must be before end_date", 400)
+
+    result = dao_fetch_sms_cost_for_service_in_range(service_id, start_date, end_date)
+
+    return jsonify(
+        {
+            "start_date": data["start_date"],
+            "end_date": data["end_date"],
+            "fragment_count": int(result.fragment_count),
+            "total_cost": float(result.total_cost),
+        }
+    ), 200
 
 
 @billing_blueprint.route("/free-sms-fragment-limit", methods=["GET"])

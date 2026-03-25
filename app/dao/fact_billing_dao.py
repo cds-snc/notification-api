@@ -32,6 +32,26 @@ from app.models import (
 from app.utils import get_local_timezone_midnight_in_utc
 
 
+def dao_fetch_sms_cost_for_service_in_range(service_id, start_date, end_date):
+    """Return the total SMS cost and fragment count for a service in the given date range (inclusive)."""
+    result = (
+        db.session.query(
+            func.coalesce(func.sum(FactBilling.billable_units * FactBilling.rate_multiplier), 0).label("fragment_count"),
+            func.coalesce(func.sum(FactBilling.billable_units * FactBilling.rate_multiplier * FactBilling.rate), 0).label(
+                "total_cost"
+            ),
+        )
+        .filter(
+            FactBilling.service_id == service_id,
+            FactBilling.bst_date >= start_date,
+            FactBilling.bst_date <= end_date,
+            FactBilling.notification_type == SMS_TYPE,
+        )
+        .one()
+    )
+    return result
+
+
 def fetch_sms_free_allowance_remainder(start_date):
     # ASSUMPTION: AnnualBilling has been populated for year.
     billing_year = get_financial_year_for_datetime(start_date)
