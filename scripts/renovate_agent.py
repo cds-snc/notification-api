@@ -401,7 +401,7 @@ def phase_find() -> None:
             )
 
     if not candidates:
-        print("\nNo eligible package upgrades found (age > 30 days AND confidence = high).")
+        print("\nNo eligible package upgrades found (age > 30 days AND confidence = high or very high).")
         print("Exiting successfully – nothing to do.")
         sys.exit(0)
 
