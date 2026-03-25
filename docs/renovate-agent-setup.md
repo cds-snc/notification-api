@@ -3,7 +3,7 @@
 The **renovate-agent** is a GitHub Actions workflow that automatically creates pull requests for
 dependency upgrades identified in open Renovate PRs.  It selects only packages where the
 [Mend merge-confidence](https://docs.renovatebot.com/merge-confidence/) data shows **age > 30 days**
-and **confidence = high**, ensuring only battle-tested upgrades are promoted.
+and **confidence = high or very high**, ensuring only battle-tested upgrades are promoted.
 
 ## How It Works
 
@@ -128,7 +128,7 @@ run.
 | Criterion | Rule |
 |---|---|
 | Age | The new package version must have been published **more than 30 days** ago (Mend merge-confidence badge). |
-| Confidence | Mend merge-confidence must report **"high"** for the `from → to` version pair. |
+| Confidence | Mend merge-confidence must report **"high"** or **"very high"** for the `from → to` version pair. |
 | Ecosystem | Only `pypi` (Poetry) and `npm` (`tests_cypress/package.json`) packages are supported. |
 | One PR | If a PR with label `renovate-agent` is already **open**, no new PR is created. |
 

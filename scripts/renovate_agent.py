@@ -4,10 +4,11 @@ Renovate Agent – automates dependency upgrades from open Renovate PRs.
 
 Usage
 -----
-    python scripts/renovate_agent.py --find        # discover eligible package, write plan
-    python scripts/renovate_agent.py --apply       # apply the update (edit files, regen lockfile)
-    python scripts/renovate_agent.py --create-pr   # push branch and open the PR on GitHub
-    python scripts/renovate_agent.py --cleanup     # delete the remote branch (on failure)
+    python scripts/renovate_agent.py --find             # discover eligible package, write plan
+    python scripts/renovate_agent.py --apply            # apply the update (edit files, regen lockfile)
+    python scripts/renovate_agent.py --create-pr        # push branch and open the PR on GitHub
+    python scripts/renovate_agent.py --cleanup          # delete the remote branch (on failure)
+    python scripts/renovate_agent.py --comment-failure  # post failure comment on source Renovate PR
 
 Environment variables required for --find / --create-pr / --cleanup
 --------------------------------------------------------------------
@@ -20,7 +21,7 @@ Environment variables required for --apply
 Eligibility criteria
 --------------------
     * Age   > 30 days  (from Renovate merge-confidence badge)
-    * Confidence == "high" (from Renovate merge-confidence badge)
+    * Confidence == "high" or "very high" (from Renovate merge-confidence badge)
 
 Selection order (deterministic)
 --------------------------------
@@ -109,6 +110,11 @@ def _gh_post(path: str, body: dict) -> dict:
     resp = requests.post(url, headers=_github_headers(), json=body, timeout=30)
     resp.raise_for_status()
     return resp.json()
+
+
+def _gh_comment(pr_number: int, comment: str) -> None:
+    """Post a comment on a GitHub issue/PR."""
+    _gh_post(f"/repos/{REPO}/issues/{pr_number}/comments", {"body": comment})
 
 
 def _gh_delete(path: str) -> None:
@@ -380,8 +386,8 @@ def phase_find() -> None:
             if age <= 30:
                 print(f"  → Skipped (age {age} ≤ 30 days)")
                 continue
-            if confidence.lower() != "high":
-                print(f"  → Skipped (confidence '{confidence}' ≠ 'high')")
+            if confidence.lower() not in ("high", "very high"):
+                print(f"  → Skipped (confidence '{confidence}' not 'high' or 'very high')")
                 continue
 
             candidates.append(
@@ -625,6 +631,42 @@ def phase_cleanup() -> None:
 
 
 # ---------------------------------------------------------------------------
+# Phase: --comment-failure
+# ---------------------------------------------------------------------------
+
+
+def phase_comment_failure(run_url: Optional[str] = None) -> None:
+    """Post a failure comment on the source Renovate PR so it is visible there."""
+    print("=== Phase: comment-failure ===")
+    if not PLAN_FILE.exists():
+        print(f"{PLAN_FILE} not found – no source PR to comment on.")
+        return
+    plan = json.loads(PLAN_FILE.read_text())
+    source_pr_number = plan.get("source_pr_number")
+    if not source_pr_number:
+        print("No source_pr_number in plan – nothing to comment on.")
+        return
+
+    package = plan.get("package", "unknown")
+    from_ver = plan.get("from_version", "?")
+    to_ver = plan.get("to_version", "?")
+    branch = plan.get("branch", "")
+
+    run_link = f"\n\nWorkflow run: {run_url}" if run_url else ""
+
+    comment = (
+        f"⚠️ **renovate-agent**: The automated upgrade of `{package}` "
+        f"`{from_ver}` → `{to_ver}` **failed the test suite**.\n\n"
+        f"The branch `{branch}` has been deleted. "
+        f"A human should review the failure and either fix the code or "
+        f"manually skip this upgrade.{run_link}"
+    )
+    print(f"Posting failure comment on PR #{source_pr_number} …")
+    _gh_comment(source_pr_number, comment)
+    print(f"✔ Comment posted on PR #{source_pr_number}.")
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
@@ -636,6 +678,8 @@ def main() -> None:
     group.add_argument("--apply", action="store_true", help="Apply the dependency update")
     group.add_argument("--create-pr", action="store_true", help="Open the GitHub PR")
     group.add_argument("--cleanup", action="store_true", help="Delete remote branch on failure")
+    group.add_argument("--comment-failure", action="store_true", help="Post failure comment on source Renovate PR")
+    parser.add_argument("--run-url", default=None, help="URL of the GitHub Actions run (included in failure comment)")
     args = parser.parse_args()
 
     if args.find:
@@ -646,6 +690,8 @@ def main() -> None:
         phase_create_pr()
     elif args.cleanup:
         phase_cleanup()
+    elif args.comment_failure:
+        phase_comment_failure(run_url=args.run_url)
 
 
 if __name__ == "__main__":
