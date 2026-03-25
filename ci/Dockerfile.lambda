@@ -25,8 +25,7 @@ COPY pyproject.toml poetry.lock README.md ${TASK_ROOT}/
 # Install Poetry dependencies first (including setuptools and wheel)
 RUN python -m venv ${APP_VENV} \
     && . ${APP_VENV}/bin/activate \
-    && poetry install \
-    && pip install awslambdaric
+    && poetry install
 
 # Now install NewRelic manually using the setuptools from Poetry
 RUN . ${APP_VENV}/bin/activate \

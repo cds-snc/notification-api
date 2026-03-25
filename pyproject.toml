@@ -21,6 +21,7 @@ aws-embedded-metrics = "1.0.8"
 aws-xray-sdk = "2.15.0"
 # PaaS
 awscli-cwlogs = "1.4.6"
+awslambdaric = "2.0.1"
 boto = "2.49.0"
 
 cachelib = "0.13.0"
@@ -46,7 +47,6 @@ gunicorn = "23.0.0"
 # Pinned dependencies
 idna = "3.11" # pinned to align with test moto dependency requirements (for <=2.9)
 iso8601 = "2.1.0"
-urllib3 = ">=2.6.3,<3" # Pinned this transitive dependency to resolve a number of high security vulnerabilities: https://github.com/cds-snc/notification-api/pull/2806
 # REVIEW: v2 is using sha512 instead of sha1 by default (in v1)
 itsdangerous = "2.2.0"
 jsonschema = "3.2.0"
@@ -57,11 +57,11 @@ more-itertools = "8.14.0"
 nanoid = "2.0.0"
 newrelic = "11.5.0"
 notifications-python-client = "6.4.1"
+notifications-utils = { git = "https://github.com/cds-snc/notifier-utils.git", tag = "53.2.20"}
 opentelemetry-instrumentation-celery = "0.55b1"
 opentelemetry-instrumentation-flask = "0.55b1"
 opentelemetry-instrumentation-redis = "0.55b1"
 opentelemetry-instrumentation-sqlalchemy = "0.55b1"
-notifications-utils = { git = "https://github.com/cds-snc/notifier-utils.git", tag = "53.2.20"}
 pre-commit = "^3.7.1"
 psycopg2-binary = "2.9.11"
 pwnedpasswords = "2.0.0"
@@ -78,6 +78,7 @@ types-psycopg2 = "^2.9.21.20250516"
 # rsa = "4.9  # awscli 1.22.38 depends on rsa<4.8
 typing-extensions = "4.15.0"
 unidecode = "1.4.0"
+urllib3 = ">=2.6.3,<3" # Pinned this transitive dependency to resolve a number of high security vulnerabilities: https://github.com/cds-snc/notification-api/pull/2806
 # Putting upgrade on hold due to new version introducing breaking changes
 Werkzeug = "3.0.6"
 
