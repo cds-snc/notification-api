@@ -105,14 +105,14 @@ jobs:
       # 4. Apply the dependency update (edit pyproject.toml + regenerate lockfile)
       # -----------------------------------------------------------------------
       - name: Apply dependency update
-        if: steps.find.outputs.package_found == 'true' && inputs.dry_run != 'true'
+        if: steps.find.outputs.package_found == 'true' && (github.event.inputs.dry_run || 'false') != 'true'
         run: poetry run python scripts/renovate_agent.py --apply
 
       # -----------------------------------------------------------------------
       # 5. Commit the changes to a new branch and push
       # -----------------------------------------------------------------------
       - name: Create branch and commit changes
-        if: steps.find.outputs.package_found == 'true' && inputs.dry_run != 'true'
+        if: steps.find.outputs.package_found == 'true' && (github.event.inputs.dry_run || 'false') != 'true'
         id: git-push
         env:
           BRANCH: ${{ steps.find.outputs.branch }}
