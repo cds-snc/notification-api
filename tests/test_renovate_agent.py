@@ -154,6 +154,41 @@ class TestUpdatePyprojectVersion:
         result = ra._update_pyproject_version(content, "requests", "2.0.0")
         assert result == content
 
+    def test_strips_caret_operator(self):
+        # ^ operator is intentionally removed to produce an exact pin
+        content = 'certifi = "^2024.0.0"\n'
+        result = ra._update_pyproject_version(content, "certifi", "2025.1.0")
+        assert result == 'certifi = "2025.1.0"\n'
+
+    def test_strips_range_operators(self):
+        # Multi-constraint ranges are collapsed to a single pinned version
+        content = 'urllib3 = ">=2.6.3,<3"\n'
+        result = ra._update_pyproject_version(content, "urllib3", "2.6.4")
+        assert result == 'urllib3 = "2.6.4"\n'
+
+    def test_strips_tilde_operator(self):
+        content = 'python = "~3.12.7"\n'
+        result = ra._update_pyproject_version(content, "python", "3.12.9")
+        assert result == 'python = "3.12.9"\n'
+
+    def test_toml_aware_strips_caret(self):
+        # With proper [tool.poetry.dependencies] section the TOML-aware path is used
+        content = '[tool.poetry.dependencies]\ncertifi = "^2024.0.0"\n'
+        result = ra._update_pyproject_version(content, "certifi", "2025.1.0")
+        assert result == '[tool.poetry.dependencies]\ncertifi = "2025.1.0"\n'
+
+    def test_toml_aware_dict_strips_caret(self):
+        content = '[tool.poetry.dependencies]\ncelery = {extras = ["sqs"], version = "^5.4.0"}\n'
+        result = ra._update_pyproject_version(content, "celery", "5.5.0")
+        assert 'version = "5.5.0"' in result
+        assert "^" not in result
+
+    def test_toml_aware_group_dependency(self):
+        # Packages in test/group sections are also found via TOML-aware path
+        content = '[tool.poetry.group.test.dependencies]\nruff = "^0.8.2"\n'
+        result = ra._update_pyproject_version(content, "ruff", "0.9.0")
+        assert result == '[tool.poetry.group.test.dependencies]\nruff = "0.9.0"\n'
+
 
 # ---------------------------------------------------------------------------
 # phase_comment_failure

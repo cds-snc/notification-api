@@ -38,6 +38,7 @@ import os
 import re
 import subprocess
 import sys
+import tomllib
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -430,18 +431,65 @@ def phase_find() -> None:
 # ---------------------------------------------------------------------------
 
 
+def _toml_dep_value(data: dict, package: str) -> "str | dict | None":
+    """
+    Return the raw TOML value for *package* across all Poetry dependency sections
+    (tool.poetry.dependencies and tool.poetry.group.*.dependencies).
+    """
+    pkg_lower = package.lower()
+    poetry = data.get("tool", {}).get("poetry", {})
+    sections: list[dict] = [poetry.get("dependencies", {})]
+    for group in poetry.get("group", {}).values():
+        sections.append(group.get("dependencies", {}))
+    for section in sections:
+        for key, val in section.items():
+            if key.lower() == pkg_lower:
+                return val
+    return None
+
+
 def _update_pyproject_version(content: str, package: str, new_version: str) -> str:
     """
-    Replace the pinned version of *package* in pyproject.toml content.
-    Handles:
-      - package = "X.Y.Z"
-      - package = {version = "X.Y.Z", extras = [...]}
-    Case-insensitive package name matching; anchored to line start to avoid
-    matching similarly-named packages (e.g. "marshmallow" vs "marshmallow-sqlalchemy").
+    Replace the version of *package* in pyproject.toml content, pinning to the
+    exact *new_version*.  Any existing constraint operators (^, ~, >=, <, etc.)
+    are intentionally stripped to produce an exact pin.
+
+    Uses tomllib for precise, value-targeted replacement when the package is
+    found under a [tool.poetry.*] dependency section.  Falls back to regex-only
+    for content that lacks that structure (e.g. test fixtures).
     """
     pkg_re = re.escape(package)
 
-    # Pattern 1: package = "version"  (simple string value, possibly with inline comment)
+    # --- TOML-aware path: locate exact current value for targeted replacement ---
+    try:
+        current = _toml_dep_value(tomllib.loads(content), package)
+    except Exception:
+        current = None
+
+    if isinstance(current, str):
+        # e.g. package = "^1.2.3"  or  package = ">=1,<2"
+        # Replace the exact quoted string; operators are stripped by using plain new_version.
+        new_content, n = re.subn(
+            rf'(?mi)^({pkg_re}\s*=\s*)"{re.escape(current)}"',
+            lambda m: str(m.group(1)) + f'"{new_version}"',
+            content,
+        )
+        if n > 0:
+            return new_content
+
+    if isinstance(current, dict) and "version" in current:
+        # e.g. package = {version = "^1.2.3", extras = [...]}
+        old_ver = current["version"]
+        new_content, n = re.subn(
+            rf'(?mi)^({pkg_re}\s*=\s*\{{[^}}]*version\s*=\s*)"{re.escape(old_ver)}"',
+            lambda m: str(m.group(1)) + f'"{new_version}"',
+            content,
+        )
+        if n > 0:
+            return new_content
+
+    # --- Regex-only fallback (simplified content without [tool.poetry.*] sections) ---
+    # Pattern 1: package = "version"  (simple string, any operator prefix)
     new_content, n = re.subn(
         rf'(?mi)^({pkg_re}\s*=\s*)"[^"]*"',
         lambda m: str(m.group(1)) + f'"{new_version}"',
