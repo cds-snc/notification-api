@@ -41,14 +41,13 @@ jobs:
 
     steps:
       # -----------------------------------------------------------------------
-      # 1. Generate GitHub App token (needed to create branches + PRs)
+      # 1. Generate a bot token (needed to create branches + PRs)
       # -----------------------------------------------------------------------
-      - name: Generate GitHub App token
-        id: app-token
-        uses: actions/create-github-app-token@v1
-        with:
-          app-id: ${{ vars.RENOVATE_AGENT_APP_ID }}
-          private-key: ${{ secrets.RENOVATE_AGENT_PRIVATE_KEY }}
+      - name: Obtain a Notify PR Bot GitHub App Installation Access Token
+        run: |
+          TOKEN="$(npx obtain-github-app-installation-access-token@1.1.0 ci ${{ secrets.PR_BOT_GITHUB_TOKEN }})"
+          echo "::add-mask::$TOKEN"
+          echo "GITHUB_TOKEN=$TOKEN" >> $GITHUB_ENV
 
       # -----------------------------------------------------------------------
       # 2. Checkout + toolchain setup
@@ -56,7 +55,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
-          token: ${{ steps.app-token.outputs.token }}
+          token: ${{ env.GITHUB_TOKEN }}
           ref: main
           fetch-depth: 0
 
@@ -87,8 +86,6 @@ jobs:
       # -----------------------------------------------------------------------
       - name: Find eligible Renovate package
         id: find
-        env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           poetry run python scripts/renovate_agent.py --find
           if [ -f renovate-agent-plan.json ]; then
@@ -121,8 +118,8 @@ jobs:
           BRANCH: ${{ steps.find.outputs.branch }}
           PACKAGE: ${{ steps.find.outputs.package }}
         run: |
-          git config user.email "${{ vars.RENOVATE_AGENT_APP_ID }}+renovate-agent[bot]@users.noreply.github.com"
-          git config user.name "renovate-agent[bot]"
+          git config user.email "notify-pr-bot[bot]@users.noreply.github.com"
+          git config user.name "notify-pr-bot[bot]"
           git checkout -b "$BRANCH"
           # Stage all changed dependency files
           git add pyproject.toml poetry.lock tests_cypress/package.json tests_cypress/package-lock.json 2>/dev/null || true
@@ -163,8 +160,6 @@ jobs:
           inputs.dry_run != 'true' &&
           steps.git-push.outputs.pushed == 'true' &&
           success()
-        env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         run: poetry run python scripts/renovate_agent.py --create-pr
 
       # -----------------------------------------------------------------------
@@ -176,8 +171,6 @@ jobs:
           inputs.dry_run != 'true' &&
           steps.git-push.outputs.pushed == 'true' &&
           failure()
-        env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         run: poetry run python scripts/renovate_agent.py --cleanup
 
       - name: Comment on source Renovate PR about test failure
@@ -186,8 +179,6 @@ jobs:
           inputs.dry_run != 'true' &&
           steps.git-push.outputs.pushed == 'true' &&
           failure()
-        env:
-          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           poetry run python scripts/renovate_agent.py --comment-failure \
             --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"

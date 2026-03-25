@@ -28,75 +28,12 @@ and **confidence = high or very high**, ensuring only battle-tested upgrades are
 | Requirement | Details |
 |---|---|
 | GitHub repository | `cds-snc/notification-api` (or your fork) |
-| GitHub App | Used to create branches, commits, and PRs with a dedicated identity |
+| `PR_BOT_GITHUB_TOKEN` secret | Already configured in the repository and shared with other workflows; no new GitHub App is required |
 | Repository label | `renovate-agent` must exist (see below) |
 
 ---
 
-## Step 1 – Create the GitHub App
-
-1. Go to **GitHub → Settings → Developer settings → GitHub Apps → New GitHub App**
-   (or your organisation's equivalent URL: `https://github.com/organizations/<org>/settings/apps/new`).
-
-2. Fill in the form:
-
-   | Field | Value |
-   |---|---|
-   | **App name** | `notification-api-renovate-agent` (must be globally unique) |
-   | **Homepage URL** | `https://github.com/cds-snc/notification-api` |
-   | **Webhook** | Uncheck "Active" – webhooks are not needed |
-
-3. Set the following **Repository permissions** (everything else can remain *No access*):
-
-   | Permission | Level |
-   |---|---|
-   | Contents | **Read & write** |
-   | Metadata | **Read-only** (required) |
-   | Pull requests | **Read & write** |
-
-4. Under **Where can this GitHub App be installed?**, choose **Only on this account**.
-
-5. Click **Create GitHub App**.
-
-6. On the resulting page note the **App ID** (a number, e.g. `123456`).
-
-7. Scroll to **Private keys** → **Generate a private key**.  A `.pem` file is downloaded
-   automatically – keep it secure.
-
----
-
-## Step 2 – Install the App on the Repository
-
-1. In the App settings page, click **Install App** in the left sidebar.
-2. Click **Install** next to your organisation / account.
-3. Choose **Only select repositories** → select `cds-snc/notification-api` (or your target repo).
-4. Click **Install**.
-
----
-
-## Step 3 – Add Repository Secrets and Variables
-
-In the target repository go to **Settings → Secrets and variables → Actions**.
-
-### Secrets (`Settings → Secrets → Actions → New repository secret`)
-
-| Name | Value |
-|---|---|
-| `RENOVATE_AGENT_PRIVATE_KEY` | Paste the **full contents** of the `.pem` file downloaded in Step 1, including the `-----BEGIN RSA PRIVATE KEY-----` header and footer lines. |
-
-### Variables (`Settings → Variables → Actions → New repository variable`)
-
-| Name | Value |
-|---|---|
-| `RENOVATE_AGENT_APP_ID` | The **App ID** from Step 1 (numeric, e.g. `123456`). |
-
-> **Why a variable for the App ID?**  App IDs are not sensitive – they appear in GitHub's public
-> API responses.  Storing them as variables (not secrets) keeps them visible in the Actions UI,
-> making troubleshooting easier.
-
----
-
-## Step 4 – Create the `renovate-agent` Label
+## Step 1 – Create the `renovate-agent` Label
 
 The workflow applies the label `renovate-agent` to PRs it creates, and also checks for this label
 to enforce the "one PR at a time" rule.  The label must exist in the repository before the first
@@ -111,7 +48,7 @@ run.
 
 ---
 
-## Step 5 – Verify the Workflow
+## Step 2 – Verify the Workflow
 
 1. Go to **Actions → Renovate Agent** in the repository.
 2. Click **Run workflow** → **Run workflow** (leave *Dry run* as `false`).
