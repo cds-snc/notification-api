@@ -20,7 +20,7 @@ services:
       - notify-network
 
   db:
-    image: postgres:11.22-bullseye@sha256:c886a3236b3d11abc302e64309186c90a69b49e53ccff23fd8c8b057b5b4bce9
+    image: postgres:16.11-bookworm@sha256:a2420e9555e2224583fe84d0bb3f0b967e69354ae3a0be55a9c14e251388c4eb
     volumes:
       - ./initdb:/docker-entrypoint-initdb.d
     restart: always
