@@ -82,7 +82,7 @@ def _github_headers() -> dict:
 
 def _gh_get(path: str, params: dict | None = None) -> list | dict:
     """Paginate through all pages of a GitHub list endpoint."""
-    url = f"{GITHUB_API}{path}"
+    url: str | None = f"{GITHUB_API}{path}"
     results: list = []
     while url:
         resp = requests.get(url, headers=_github_headers(), params=params, timeout=30)
@@ -98,8 +98,8 @@ def _gh_get(path: str, params: dict | None = None) -> list | dict:
         for part in link.split(","):
             part = part.strip()
             if 'rel="next"' in part:
-                next_url = re.search(r"<([^>]+)>", part)
-                next_url = next_url.group(1) if next_url else None
+                match = re.search(r"<([^>]+)>", part)
+                next_url = match.group(1) if match else None
         url = next_url
         params = None  # params already embedded in next_url
     return results
@@ -130,8 +130,7 @@ def _gh_delete(path: str) -> None:
 
 # Regex patterns to match mend.io badge URLs in Renovate PR bodies
 _AGE_BADGE_RE = re.compile(
-    r"https://developer\.mend\.io/api/mc/badges/age"
-    r"/(?P<eco>[^/]+)/(?P<pkg>[^/]+)/(?P<ver>[^?|\s]+)",
+    r"https://developer\.mend\.io/api/mc/badges/age" r"/(?P<eco>[^/]+)/(?P<pkg>[^/]+)/(?P<ver>[^?|\s]+)",
     re.IGNORECASE,
 )
 _CONF_BADGE_RE = re.compile(
@@ -232,9 +231,6 @@ _TABLE_ROW_RE = re.compile(
     r"(?P<conf_cell>[^|]+)\|",  # Confidence (badge image)
     re.IGNORECASE,
 )
-
-
-
 
 
 def _parse_package_name(cell: str) -> str:
@@ -448,7 +444,7 @@ def _update_pyproject_version(content: str, package: str, new_version: str) -> s
     # Pattern 1: package = "version"  (simple string value, possibly with inline comment)
     new_content, n = re.subn(
         rf'(?mi)^({pkg_re}\s*=\s*)"[^"]*"',
-        lambda m: f'{m.group(1)}"{new_version}"',
+        lambda m: str(m.group(1)) + f'"{new_version}"',
         content,
     )
     if n > 0:
@@ -457,7 +453,7 @@ def _update_pyproject_version(content: str, package: str, new_version: str) -> s
     # Pattern 2: package = {version = "X.Y.Z", ...}  (dict / extras format)
     new_content, n = re.subn(
         rf'(?mi)^({pkg_re}\s*=\s*\{{[^}}]*version\s*=\s*)"[^"]*"',
-        lambda m: f'{m.group(1)}"{new_version}"',
+        lambda m: str(m.group(1)) + f'"{new_version}"',
         content,
     )
     return new_content if n > 0 else content

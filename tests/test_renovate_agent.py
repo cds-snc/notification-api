@@ -16,7 +16,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
 import renovate_agent as ra  # noqa: E402  (import after sys.path edit)
 
-
 # ---------------------------------------------------------------------------
 # _parse_age_from_svg
 # ---------------------------------------------------------------------------
@@ -24,33 +23,33 @@ import renovate_agent as ra  # noqa: E402  (import after sys.path edit)
 
 class TestParseAgeFromSvg:
     def test_explicit_days_label(self):
-        svg = '<text>42 days</text>'
+        svg = "<text>42 days</text>"
         assert ra._parse_age_from_svg(svg) == 42
 
     def test_explicit_day_singular(self):
-        svg = '<text>1 day</text>'
+        svg = "<text>1 day</text>"
         assert ra._parse_age_from_svg(svg) == 1
 
     def test_short_form_d(self):
-        svg = '<tspan>90d</tspan>'
+        svg = "<tspan>90d</tspan>"
         assert ra._parse_age_from_svg(svg) == 90
 
     def test_fallback_anywhere_in_svg(self):
-        svg = 'some stuff 123 days more stuff'
+        svg = "some stuff 123 days more stuff"
         assert ra._parse_age_from_svg(svg) == 123
 
     def test_isolated_number_in_tspan(self):
         # Isolated integer in a <tspan> element is accepted as a day count
-        svg = '<tspan>55</tspan>'
+        svg = "<tspan>55</tspan>"
         assert ra._parse_age_from_svg(svg) == 55
 
     def test_isolated_number_out_of_range_ignored(self):
         # 0 is not a plausible day count
-        svg = '<tspan>0</tspan>'
+        svg = "<tspan>0</tspan>"
         assert ra._parse_age_from_svg(svg) is None
 
     def test_no_age_returns_none(self):
-        assert ra._parse_age_from_svg('<text>hello</text>') is None
+        assert ra._parse_age_from_svg("<text>hello</text>") is None
 
 
 # ---------------------------------------------------------------------------
@@ -64,19 +63,19 @@ class TestParseConfidenceFromSvg:
         ["very high", "high", "medium", "low", "neutral", "n/a"],
     )
     def test_known_levels(self, level):
-        svg = f'<text>{level}</text>'
+        svg = f"<text>{level}</text>"
         assert ra._parse_confidence_from_svg(svg) == level
 
     def test_case_insensitive(self):
-        svg = '<text>HIGH</text>'
+        svg = "<text>HIGH</text>"
         assert ra._parse_confidence_from_svg(svg) == "high"
 
     def test_fallback_search(self):
-        svg = 'merge confidence is very high for this package'
+        svg = "merge confidence is very high for this package"
         assert ra._parse_confidence_from_svg(svg) == "very high"
 
     def test_unknown_returns_none(self):
-        assert ra._parse_confidence_from_svg('<text>unknown level</text>') is None
+        assert ra._parse_confidence_from_svg("<text>unknown level</text>") is None
 
 
 # ---------------------------------------------------------------------------
