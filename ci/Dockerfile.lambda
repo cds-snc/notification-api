@@ -20,13 +20,13 @@ WORKDIR ${TASK_ROOT}
 RUN python -m venv ${POETRY_HOME} \
     && ${POETRY_HOME}/bin/pip3 install poetry==${POETRY_VERSION} virtualenv==20.30.0
 
-COPY pyproject.toml poetry.lock ${TASK_ROOT}/
+COPY pyproject.toml poetry.lock README.md ${TASK_ROOT}/
 
 # Install Poetry dependencies first (including setuptools and wheel)
 RUN python -m venv ${APP_VENV} \
     && . ${APP_VENV}/bin/activate \
     && poetry install \
-    && poetry add awslambdaric wheel
+    && pip install awslambdaric
 
 # Now install NewRelic manually using the setuptools from Poetry
 RUN . ${APP_VENV}/bin/activate \
