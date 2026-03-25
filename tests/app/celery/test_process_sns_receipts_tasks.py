@@ -148,7 +148,6 @@ def test_process_sns_results_failed(
     mocker.patch("app.celery.process_sns_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
     mock_logger = mocker.patch("app.celery.process_sns_receipts_tasks.current_app.logger.info")
     mock_warning_logger = mocker.patch("app.celery.process_sns_receipts_tasks.current_app.logger.warning")
-    mocker.patch("app.annual_limit_client.get_all_notification_counts", return_value={})
 
     notification = create_sample_notification(
         notify_db,
@@ -238,7 +237,6 @@ def test_process_sns_results_calls_service_callback(sample_template, notify_db_s
         mocker.patch("app.statsd_client.incr")
         mocker.patch("app.statsd_client.timing_with_dates")
         mocker.patch("app.celery.process_sns_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
-        mocker.patch("app.annual_limit_client.get_all_notification_counts", return_value={})
         send_mock = mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async")
         notification = create_sample_notification(
             notify_db,
@@ -272,7 +270,6 @@ class TestAnnualLimit:
         mocker.patch("app.annual_limit_client.increment_sms_delivered")
         mocker.patch("app.annual_limit_client.increment_sms_failed")
         mocker.patch("app.celery.process_sns_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
-        mocker.patch("app.annual_limit_client.get_all_notification_counts", return_value={})
 
         notification = save_notification(
             create_notification(
