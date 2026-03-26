@@ -3,7 +3,7 @@ from datetime import datetime
 from sqlalchemy import and_, desc, func, or_
 
 from app import db, redis_store
-from app.dao.dao_utils import autocommit
+from app.dao.dao_utils import transactional
 from app.models import (
     Job,
     Notification,
@@ -16,7 +16,7 @@ from app.models import (
 from app.utils import midnight_n_days_ago
 
 
-@autocommit
+@transactional
 def create_unsubscribe_request_dao(unsubscribe_data):
     db.session.add(UnsubscribeRequest(**unsubscribe_data))
 
@@ -114,18 +114,18 @@ def get_unbatched_unsubscribe_requests_dao(service_id):
     )
 
 
-@autocommit
+@transactional
 def create_unsubscribe_request_reports_dao(unsubscribe_request_report):
     db.session.add(unsubscribe_request_report)
 
 
-@autocommit
+@transactional
 def update_unsubscribe_request_report_processed_by_date_dao(report, report_has_been_processed):
     report.processed_by_service_at = datetime.utcnow() if report_has_been_processed else None
     db.session.add(report)
 
 
-@autocommit
+@transactional
 def assign_unbatched_unsubscribe_requests_to_report_dao(report_id, service_id, earliest_timestamp, latest_timestamp):
     """Updates unsubscribe_request_report_id on all un-batched requests within the timestamp range."""
     UnsubscribeRequest.query.filter(

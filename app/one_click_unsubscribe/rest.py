@@ -3,8 +3,7 @@ from itsdangerous import BadData
 from notifications_utils.url_safe_token import check_token
 
 from app import redis_store
-from app.dao.notification_history_dao import get_notification_history_by_id
-from app.dao.notifications_dao import get_notification_by_id
+from app.dao.notifications_dao import get_notification_by_id, get_notification_history_by_id
 from app.dao.unsubscribe_request_dao import (
     create_unsubscribe_request_dao,
     get_unbatched_unsubscribe_requests_dao,

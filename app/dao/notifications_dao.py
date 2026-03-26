@@ -354,6 +354,13 @@ def get_notification_by_id(notification_id, service_id=None, _raise=False) -> No
     return query.one() if _raise else query.first()
 
 
+def get_notification_history_by_id(notification_id, service_id=None):
+    filters = [NotificationHistory.id == notification_id]
+    if service_id:
+        filters.append(NotificationHistory.service_id == service_id)
+    return db.on_reader().query(NotificationHistory).filter(*filters).first()
+
+
 def get_notifications(filter_dict=None):
     return _filter_query(Notification.query, filter_dict=filter_dict)
 
