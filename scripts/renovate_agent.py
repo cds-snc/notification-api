@@ -273,7 +273,7 @@ def _png_decode_row(raw_row: bytes, prev: bytes, bpp: int) -> bytes:
     return bytes(row)
 
 
-def _sample_badge_png_color(svg: str, frac_x: float = 0.88, frac_y: float = 0.50) -> Optional[tuple[int, int, int]]:
+def _sample_badge_png_color(svg: str, frac_x: float = 0.93, frac_y: float = 0.50) -> Optional[tuple[int, int, int]]:
     """
     Extract the base64-encoded PNG from a mend.io SVG badge, decode it with
     proper filter reconstruction, and return the (R, G, B) colour at the given
@@ -305,8 +305,18 @@ def _sample_badge_png_color(svg: str, frac_x: float = 0.88, frac_y: float = 0.50
             offset += 12 + length
         if not idat or not width:
             return None
-        channels = {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}.get(color_type, 3)
+        # Only support standard PNG colour types with byte-aligned sample depths.
+        channel_map = {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}
+        channels = channel_map.get(color_type)
+        if channels is None:
+            return None
+        # Guard against sub-byte bit depths (1/2/4) which would make bpp == 0 and
+        # break filter reconstruction. For now, only handle 8- or 16-bit samples.
+        if bit_depth not in (8, 16):
+            return None
         bpp = channels * (bit_depth // 8)
+        if bpp <= 0:
+            return None
         stride = width * bpp
         raw = zlib.decompress(idat)
         row_len = 1 + stride
@@ -334,6 +344,9 @@ def _confidence_from_color(rgb: tuple[int, int, int]) -> Optional[str]:
     colours because the agent accepts *both* "high" and "very high".
     """
     r, g, b = rgb
+    # Near-white pixels indicate the sampler missed the coloured value area.
+    if r > 200 and g > 200 and b > 200:
+        return None
     if g > 100 and g > r * 1.5 and g > b * 2.5:
         return "high"  # green – represents "high" or "very high"
     if r > 150 and g > 80 and b < 80:
