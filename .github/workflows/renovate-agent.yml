@@ -1,6 +1,9 @@
 name: Renovate Agent
 
 on:
+  push:
+    branches:
+      - task/fix-renovate-agent
   schedule:
     # Runs every Monday at 08:00 UTC
     - cron: "0 8 * * 1"
