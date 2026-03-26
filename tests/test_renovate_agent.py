@@ -260,3 +260,74 @@ class TestConfidenceEligibility:
     def test_medium_is_not_eligible(self):
         confidence = "medium"
         assert confidence.lower() not in ("high", "very high")
+
+
+# ---------------------------------------------------------------------------
+# _confidence_from_color
+# ---------------------------------------------------------------------------
+
+
+class TestConfidenceFromColor:
+    def test_green_returns_high(self):
+        # mend.io "high/very high" badge colour sampled in CI
+        assert ra._confidence_from_color((48, 161, 22)) == "high"
+
+    def test_orange_returns_medium(self):
+        assert ra._confidence_from_color((200, 120, 30)) == "medium"
+
+    def test_red_returns_low(self):
+        assert ra._confidence_from_color((200, 60, 40)) == "low"
+
+    def test_grey_returns_neutral(self):
+        assert ra._confidence_from_color((150, 150, 150)) == "neutral"
+
+    def test_ambiguous_returns_none(self):
+        # pure blue is not a recognised badge colour
+        assert ra._confidence_from_color((0, 0, 200)) is None
+
+
+# ---------------------------------------------------------------------------
+# _sample_badge_png_color
+# ---------------------------------------------------------------------------
+
+
+class TestSampleBadgePngColor:
+    def _make_svg_with_png(self, rgb: tuple[int, int, int]) -> str:
+        """Build a minimal SVG wrapping a 10×4 solid-colour PNG."""
+        import base64
+        import struct
+        import zlib
+
+        r, g, b = rgb
+        width, height = 10, 4
+        # Build raw image: filter byte 0 + width*3 bytes per row
+        raw = b""
+        for _ in range(height):
+            raw += b"\x00" + bytes([r, g, b] * width)
+        compressed = zlib.compress(raw)
+
+        def chunk(ctype: bytes, data: bytes) -> bytes:
+            import binascii
+
+            n = struct.pack(">I", len(data))
+            crc = struct.pack(">I", binascii.crc32(ctype + data) & 0xFFFFFFFF)
+            return n + ctype + data + crc
+
+        ihdr = chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 2, 0, 0, 0))
+        idat = chunk(b"IDAT", compressed)
+        iend = chunk(b"IEND", b"")
+        png = b"\x89PNG\r\n\x1a\n" + ihdr + idat + iend
+        b64 = base64.b64encode(png).decode()
+        return f'<svg><image xlink:href="data:image/png;base64,{b64}"/></svg>'
+
+    def test_samples_correct_colour(self):
+        svg = self._make_svg_with_png((48, 161, 22))
+        rgb = ra._sample_badge_png_color(svg)
+        assert rgb == (48, 161, 22)
+
+    def test_returns_none_for_no_png(self):
+        assert ra._sample_badge_png_color("<svg></svg>") is None
+
+    def test_returns_none_for_invalid_base64(self):
+        svg = '<svg><image xlink:href="data:image/png;base64,!!!invalid!!!"/></svg>'
+        assert ra._sample_badge_png_color(svg) is None
