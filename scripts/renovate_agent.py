@@ -33,12 +33,15 @@ Plan file
 """
 
 import argparse
+import base64
 import json
 import os
 import re
+import struct
 import subprocess
 import sys
 import tomllib
+import zlib
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -197,24 +200,174 @@ def _parse_confidence_from_svg(svg: str) -> Optional[str]:
 
 
 def _fetch_age_days(eco: str, pkg: str, version: str) -> Optional[int]:
-    url = f"https://developer.mend.io/api/mc/badges/age/{eco}/{pkg}/{version}?slim=true"
-    svg = _fetch_svg(url)
-    if svg:
-        age = _parse_age_from_svg(svg)
-        if age is not None:
-            return age
-        print(f"  [warn] Could not parse age from badge for {pkg} {version}")
+    """
+    Return the age in days of *version* by querying the package registry directly.
+
+    Uses the PyPI JSON API for ``pypi`` ecosystem packages, and the npm registry
+    for ``npm`` ecosystem packages.  The mend.io SVG badge is intentionally NOT
+    used here: those badges embed a PNG image rather than SVG text, making text
+    extraction unreliable (the base64 payload can accidentally match day patterns).
+    """
+    try:
+        if eco.lower() in PYPI_ECOSYSTEMS:
+            resp = requests.get(
+                f"https://pypi.org/pypi/{pkg}/{version}/json",
+                timeout=15,
+                allow_redirects=True,
+            )
+            if resp.status_code == 200:
+                for release in resp.json().get("urls", []):
+                    upload = release.get("upload_time_iso_8601") or release.get("upload_time")
+                    if upload:
+                        dt = datetime.fromisoformat(upload.rstrip("Z")).replace(tzinfo=timezone.utc)
+                        return (datetime.now(timezone.utc) - dt).days
+        elif eco.lower() in NPM_ECOSYSTEMS:
+            # The per-version endpoint does not include publish timestamps;
+            # the full package document does via its top-level ``time`` map.
+            resp = requests.get(
+                f"https://registry.npmjs.org/{pkg}",
+                timeout=15,
+                allow_redirects=True,
+            )
+            if resp.status_code == 200:
+                release_time = resp.json().get("time", {}).get(version)
+                if release_time:
+                    dt = datetime.fromisoformat(release_time.rstrip("Z")).replace(tzinfo=timezone.utc)
+                    return (datetime.now(timezone.utc) - dt).days
+    except Exception as exc:
+        print(f"  [warn] Could not fetch age for {pkg} {version}: {exc}")
+    return None
+
+
+# ---------------------------------------------------------------------------
+# PNG pixel colour helpers – used to decode mend.io confidence badge images.
+# The mend.io badge API embeds a pre-rendered PNG inside an SVG wrapper;
+# there are no readable <text> elements.  We therefore decode a pixel from
+# the far-right of the badge (the value/colour area) and infer confidence.
+# ---------------------------------------------------------------------------
+
+
+def _png_decode_row(raw_row: bytes, prev: bytes, bpp: int) -> bytes:
+    """Apply the PNG prediction filter to a single raw scanline."""
+    ftype = raw_row[0]
+    row = bytearray(raw_row[1:])
+    if ftype == 1:  # Sub
+        for i in range(bpp, len(row)):
+            row[i] = (row[i] + row[i - bpp]) & 0xFF
+    elif ftype == 2:  # Up
+        for i in range(len(row)):
+            row[i] = (row[i] + prev[i]) & 0xFF
+    elif ftype == 3:  # Average
+        for i in range(len(row)):
+            a = row[i - bpp] if i >= bpp else 0
+            row[i] = (row[i] + (a + prev[i]) // 2) & 0xFF
+    elif ftype == 4:  # Paeth
+        for i in range(len(row)):
+            a = row[i - bpp] if i >= bpp else 0
+            b = prev[i]
+            c = prev[i - bpp] if i >= bpp else 0
+            p = a + b - c
+            pa, pb, pc = abs(p - a), abs(p - b), abs(p - c)
+            pr = a if (pa <= pb and pa <= pc) else (b if pb <= pc else c)
+            row[i] = (row[i] + pr) & 0xFF
+    return bytes(row)
+
+
+def _sample_badge_png_color(svg: str, frac_x: float = 0.88, frac_y: float = 0.50) -> Optional[tuple[int, int, int]]:
+    """
+    Extract the base64-encoded PNG from a mend.io SVG badge, decode it with
+    proper filter reconstruction, and return the (R, G, B) colour at the given
+    fractional position within the image.
+
+    Returns ``None`` if the PNG cannot be decoded.
+    """
+    m = re.search(r'xlink:href="data:image/png;base64,([^"]+)"', svg)
+    if not m:
+        return None
+    try:
+        png = base64.b64decode(m.group(1))
+        if png[:8] != b"\x89PNG\r\n\x1a\n":
+            return None
+        offset = 8
+        width = height = bit_depth = color_type = 0
+        idat = b""
+        while offset < len(png):
+            length = struct.unpack(">I", png[offset : offset + 4])[0]
+            ctype = png[offset + 4 : offset + 8]
+            data = png[offset + 8 : offset + 8 + length]
+            if ctype == b"IHDR":
+                width, height = struct.unpack(">II", data[:8])
+                bit_depth, color_type = data[8], data[9]
+            elif ctype == b"IDAT":
+                idat += data
+            elif ctype == b"IEND":
+                break
+            offset += 12 + length
+        if not idat or not width:
+            return None
+        channels = {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}.get(color_type, 3)
+        bpp = channels * (bit_depth // 8)
+        stride = width * bpp
+        raw = zlib.decompress(idat)
+        row_len = 1 + stride
+        prev = bytes(stride)
+        target_y = min(int(height * frac_y), height - 1)
+        row = prev
+        for i in range(target_y + 1):
+            row = _png_decode_row(raw[i * row_len : (i + 1) * row_len], prev, bpp)
+            prev = row
+        target_x = min(int(width * frac_x), width - 1)
+        px = target_x * bpp
+        if channels >= 3:
+            return (row[px], row[px + 1], row[px + 2])
+    except Exception:
+        pass
+    return None
+
+
+def _confidence_from_color(rgb: tuple[int, int, int]) -> Optional[str]:
+    """
+    Map an (R, G, B) badge colour to a merge confidence level.
+
+    mend.io uses green for high/very-high confidence, orange/yellow for medium,
+    red for low, and grey for neutral.  We only distinguish green vs. other
+    colours because the agent accepts *both* "high" and "very high".
+    """
+    r, g, b = rgb
+    if g > 100 and g > r * 1.5 and g > b * 2.5:
+        return "high"  # green – represents "high" or "very high"
+    if r > 150 and g > 80 and b < 80:
+        return "medium"  # orange/yellow
+    if r > 150 and g < 100:
+        return "low"  # red
+    if max(r, g, b) - min(r, g, b) < 40:
+        return "neutral"  # grey
     return None
 
 
 def _fetch_confidence(eco: str, pkg: str, from_ver: str, to_ver: str) -> Optional[str]:
+    """
+    Return the merge confidence level for a package update.
+
+    The mend.io badge API returns a PNG embedded inside an SVG wrapper (no
+    readable <text> nodes), so we fall back to sampling a pixel from the
+    rendered PNG and mapping the colour to a confidence level.
+    """
     url = f"https://developer.mend.io/api/mc/badges/confidence/{eco}/{pkg}/{from_ver}/{to_ver}?slim=true"
     svg = _fetch_svg(url)
-    if svg:
-        conf = _parse_confidence_from_svg(svg)
+    if not svg:
+        return None
+    # Primary path: text-based SVG (future-proof if mend.io ever switches format)
+    conf = _parse_confidence_from_svg(svg)
+    if conf is not None:
+        return conf
+    # Fallback: decode the embedded PNG and infer confidence from badge colour
+    rgb = _sample_badge_png_color(svg)
+    if rgb is not None:
+        conf = _confidence_from_color(rgb)
         if conf is not None:
             return conf
-        print(f"  [warn] Could not parse confidence from badge for {pkg} {from_ver}→{to_ver}")
+    print(f"  [warn] Could not parse confidence from badge for {pkg} {from_ver}\u2192{to_ver}")
     return None
 
 
