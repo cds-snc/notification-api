@@ -320,8 +320,8 @@ def _sample_badge_png_color(svg: str, frac_x: float = 0.88, frac_y: float = 0.50
         px = target_x * bpp
         if channels >= 3:
             return (row[px], row[px + 1], row[px + 2])
-    except Exception:
-        pass
+    except Exception as exc:
+        print(f"  [warn] Could not decode badge PNG: {type(exc).__name__}: {exc}", file=sys.stderr)
     return None
 
 
