@@ -750,9 +750,15 @@ def phase_apply() -> None:
 # ---------------------------------------------------------------------------
 
 
-def phase_create_pr() -> None:
-    """Create a GitHub PR from the pushed branch described in renovate-agent-plan.json."""
-    print("=== Phase: create-pr ===")
+def phase_create_pr(draft: bool = False) -> None:
+    """Create a GitHub PR from the pushed branch described in renovate-agent-plan.json.
+
+    When *draft* is True, the PR is created as a draft and the label
+    ``renovate-fix-needed`` is also applied.  This signals the agentic
+    fix-renovate-tests workflow to pick it up and repair the failing tests.
+    """
+    mode = "draft" if draft else "ready"
+    print(f"=== Phase: create-pr ({mode}) ===")
     if not PLAN_FILE.exists():
         sys.exit(f"{PLAN_FILE} not found. Run --find first.")
     plan = json.loads(PLAN_FILE.read_text())
@@ -769,9 +775,20 @@ def phase_create_pr() -> None:
 
     title = f"chore(deps): update {package} {from_ver} → {to_ver} [renovate-agent]"
 
+    draft_notice = (
+        """
+> [!WARNING]
+> **Tests failed on this branch.** A Copilot-powered agentic workflow is
+> working to fix the failures automatically.  This draft will be converted
+> to a ready-for-review PR once CI goes green.
+"""
+        if draft
+        else ""
+    )
+
     body = f"""\
 ## Renovate Agent – automated dependency upgrade
-
+{draft_notice}
 | Field | Value |
 |---|---|
 | **Package** | `{package}` |
@@ -805,18 +822,22 @@ Tests were run on the updated branch before this PR was opened.
             "body": body,
             "head": branch,
             "base": BASE_BRANCH,
+            "draft": draft,
         },
     )
     pr_number = pr_response["number"]
     pr_url = pr_response["html_url"]
-    print(f"✔ Created PR #{pr_number}: {pr_url}")
+    print(f"✔ Created {'draft ' if draft else ''}PR #{pr_number}: {pr_url}")
 
-    # Add label
+    # Always apply the renovate-agent label; also signal the fix workflow for drafts
+    labels: list[str] = [AGENT_LABEL]
+    if draft:
+        labels.append("renovate-fix-needed")
     _gh_post(
         f"/repos/{REPO}/issues/{pr_number}/labels",
-        {"labels": [AGENT_LABEL]},
+        {"labels": labels},
     )
-    print(f"✔ Added label '{AGENT_LABEL}' to PR #{pr_number}")
+    print(f"✔ Added label(s) {labels} to PR #{pr_number}")
 
 
 # ---------------------------------------------------------------------------
@@ -886,7 +907,12 @@ def main() -> None:
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--find", action="store_true", help="Discover eligible package")
     group.add_argument("--apply", action="store_true", help="Apply the dependency update")
-    group.add_argument("--create-pr", action="store_true", help="Open the GitHub PR")
+    group.add_argument("--create-pr", action="store_true", help="Open the GitHub PR (ready for review)")
+    group.add_argument(
+        "--create-draft-pr",
+        action="store_true",
+        help="Open a draft PR; also labels it 'renovate-fix-needed' to trigger the Copilot fix workflow",
+    )
     group.add_argument("--cleanup", action="store_true", help="Delete remote branch on failure")
     group.add_argument("--comment-failure", action="store_true", help="Post failure comment on source Renovate PR")
     parser.add_argument("--run-url", default=None, help="URL of the GitHub Actions run (included in failure comment)")
@@ -897,7 +923,9 @@ def main() -> None:
     elif args.apply:
         phase_apply()
     elif args.create_pr:
-        phase_create_pr()
+        phase_create_pr(draft=False)
+    elif args.create_draft_pr:
+        phase_create_pr(draft=True)
     elif args.cleanup:
         phase_cleanup()
     elif args.comment_failure:
