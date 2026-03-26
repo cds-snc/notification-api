@@ -305,8 +305,18 @@ def _sample_badge_png_color(svg: str, frac_x: float = 0.88, frac_y: float = 0.50
             offset += 12 + length
         if not idat or not width:
             return None
-        channels = {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}.get(color_type, 3)
+        # Only support standard PNG colour types with byte-aligned sample depths.
+        channel_map = {0: 1, 2: 3, 3: 1, 4: 2, 6: 4}
+        channels = channel_map.get(color_type)
+        if channels is None:
+            return None
+        # Guard against sub-byte bit depths (1/2/4) which would make bpp == 0 and
+        # break filter reconstruction. For now, only handle 8- or 16-bit samples.
+        if bit_depth not in (8, 16):
+            return None
         bpp = channels * (bit_depth // 8)
+        if bpp <= 0:
+            return None
         stride = width * bpp
         raw = zlib.decompress(idat)
         row_len = 1 + stride
