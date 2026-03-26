@@ -281,6 +281,13 @@ class TestConfidenceFromColor:
     def test_grey_returns_neutral(self):
         assert ra._confidence_from_color((150, 150, 150)) == "neutral"
 
+    def test_white_returns_none(self):
+        # White means the sampler missed the coloured value area – not "neutral"
+        assert ra._confidence_from_color((255, 255, 255)) is None
+
+    def test_near_white_returns_none(self):
+        assert ra._confidence_from_color((220, 220, 220)) is None
+
     def test_ambiguous_returns_none(self):
         # pure blue is not a recognised badge colour
         assert ra._confidence_from_color((0, 0, 200)) is None
