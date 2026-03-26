@@ -6,7 +6,7 @@ Create Date: 2026-03-24 00:00:00
 """
 from alembic import op
 
-revision = "0510_add_unsubscribe_callback_type"
+revision = "0510_unsubscribe_callback"
 down_revision = "0509_unsubscribe_requests"
 
 
