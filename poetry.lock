@@ -2775,8 +2775,8 @@ werkzeug = "3.0.6"
 [package.source]
 type = "git"
 url = "https://github.com/cds-snc/notifier-utils.git"
-reference = "53.2.20"
-resolved_reference = "89d159189a55c778a70127b168f2b1d645496377"
+reference = "feat/unsubscribe"
+resolved_reference = "60919660e73aa9d1294c01472db43d5ab42a5651"
 
 [[package]]
 name = "opentelemetry-api"
@@ -5094,4 +5094,4 @@ testing = ["coverage (>=5.0.3)", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.12.7"
-content-hash = "96481ab9cf1be29086aeffd34c84a8b52afaa3346c54809c8dd73b00172a9f5b"
+content-hash = "041a872f5fbea576a4424107004969f787e58d40ccb724bf336dbd40e6b709ee"
