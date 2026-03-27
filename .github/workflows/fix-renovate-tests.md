@@ -5,7 +5,6 @@ on:
     names: [renovate-fix-needed]
 
 permissions:
-  contents: write
   pull-requests: write
   actions: read
 
