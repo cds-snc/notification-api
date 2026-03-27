@@ -1,0 +1,54 @@
+name: Compile gh-aw lock file
+
+# One-shot workflow: installs gh-aw, compiles fix-renovate-tests.md,
+# and commits the resulting lock file back to the branch.
+# Run manually after changing fix-renovate-tests.md frontmatter.
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch containing fix-renovate-tests.md to compile"
+        required: true
+        default: "task/fixes"
+
+jobs:
+  compile:
+    name: Compile and commit lock file
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Obtain a Notify PR Bot GitHub App Installation Access Token
+        run: |
+          TOKEN="$(npx --yes obtain-github-app-installation-access-token@1.1.0 ci ${{ secrets.PR_BOT_GITHUB_TOKEN }})"
+          echo "::add-mask::$TOKEN"
+          echo "BOT_TOKEN=$TOKEN" >> $GITHUB_ENV
+
+      - name: Checkout branch
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          token: ${{ env.BOT_TOKEN }}
+          ref: ${{ github.event.inputs.branch }}
+          fetch-depth: 1
+
+      - name: Install gh-aw extension
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh extension install github/gh-aw
+
+      - name: Compile fix-renovate-tests.md
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh aw compile .github/workflows/fix-renovate-tests.md
+
+      - name: Commit and push lock file
+        run: |
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add .github/workflows/fix-renovate-tests.lock.yml
+          if git diff --cached --quiet; then
+            echo "Lock file unchanged — nothing to commit."
+          else
+            git commit -m "chore: recompile gh-aw lock file [skip changelog]"
+            git push
+          fi
