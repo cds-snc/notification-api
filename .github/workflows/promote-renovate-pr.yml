@@ -12,7 +12,7 @@ name: Promote Renovate Draft PR
 on:
   workflow_run:
     workflows:
-      - "Continuous Integration Testing"
+      - "Python tests"
       - "Continuous Integration Testing (prod feature flags)"
     types: [completed]
     branches:

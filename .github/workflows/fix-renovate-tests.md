@@ -24,7 +24,6 @@ safe-outputs:
     target: "*"
     title-prefix: "[renovate-agent]"
     labels: [renovate-fix-needed]
-    github-token-for-extra-empty-commit: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
     protected-files: blocked
   remove-labels:
     allowed: [renovate-fix-needed]
@@ -98,11 +97,11 @@ Use `cat`, `grep`, and `find` to explore the repository before editing.
 ### 5. Push your fixes
 
 After making all edits, push them to the PR branch using
-`push-to-pull-request-branch`. The `github-token-for-extra-empty-commit`
-is configured, so CI will trigger automatically on your push.
+`push-to-pull-request-branch`.
 
 Then remove the `renovate-fix-needed` label from the PR using `remove-labels`
-to signal that the fix has been applied.
+to signal that the fix has been applied. A separate workflow will detect the
+label removal and push an empty commit to re-trigger CI.
 
 ### 6. If no action is needed
 

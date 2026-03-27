@@ -1,0 +1,41 @@
+name: Re-trigger CI after Copilot fix
+
+# When the gh-aw agentic workflow (fix-renovate-tests) pushes a code fix, it
+# removes the "renovate-fix-needed" label to signal completion.  Because
+# pushes made by GitHub Actions use GITHUB_TOKEN (which cannot trigger other
+# workflow runs), this workflow fires on that label removal and pushes an
+# empty commit via the Notify PR Bot — whose pushes DO trigger CI.
+
+on:
+  pull_request:
+    types: [unlabeled]
+    branches:
+      - "renovate-agent/**"
+
+jobs:
+  retrigger:
+    name: Push empty commit to re-trigger CI
+    runs-on: ubuntu-latest
+    # Only act when the removed label is the agentic-workflow signal label
+    if: github.event.label.name == 'renovate-fix-needed'
+
+    steps:
+      - name: Obtain a Notify PR Bot GitHub App Installation Access Token
+        run: |
+          TOKEN="$(npx --yes obtain-github-app-installation-access-token@1.1.0 ci ${{ secrets.PR_BOT_GITHUB_TOKEN }})"
+          echo "::add-mask::$TOKEN"
+          echo "BOT_TOKEN=$TOKEN" >> $GITHUB_ENV
+
+      - name: Checkout PR branch
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          token: ${{ env.BOT_TOKEN }}
+          ref: ${{ github.head_ref }}
+          fetch-depth: 1
+
+      - name: Push empty commit to trigger CI
+        run: |
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "Notify PR Bot"
+          git commit --allow-empty -m "chore: trigger CI after Copilot fix [skip changelog]"
+          git push
