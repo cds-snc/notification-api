@@ -851,6 +851,29 @@ def test_should_not_count_pages_when_given_a_flag(sample_user, sample_template):
     assert pagination.items[0].id == notification.id
 
 
+def test_get_notifications_for_service_eagerly_loads_scheduled_notification(notify_db_session, sample_template):
+    """Regression test: scheduled_notification must be joinedloaded to avoid N+1 queries on v2/notifications."""
+    from sqlalchemy.orm.exc import DetachedInstanceError
+
+    notification = save_scheduled_notification(
+        create_notification(sample_template),
+        scheduled_for="2099-01-01 10:00",
+    )
+
+    items = get_notifications_for_service(notification.service_id).items
+    assert len(items) == 1
+
+    # Detach all objects from the session. Any access to a lazily-loaded
+    # relationship on a detached instance raises DetachedInstanceError.
+    notify_db_session.expunge_all()
+
+    # This must not raise — scheduled_notification should already be loaded.
+    try:
+        _ = items[0].scheduled_notification
+    except DetachedInstanceError:
+        pytest.fail("scheduled_notification was not eagerly loaded by get_notifications_for_service()")
+
+
 def test_get_notifications_created_by_api_or_csv_are_returned_correctly_excluding_test_key_notifications(
     notify_db,
     notify_db_session,
