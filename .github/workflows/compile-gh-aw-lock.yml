@@ -5,6 +5,9 @@ name: Compile gh-aw lock file
 # Run manually after changing fix-renovate-tests.md frontmatter.
 
 on:
+  push:
+    paths:
+      - ".github/workflows/fix-renovate-tests.md"
   workflow_dispatch:
     inputs:
       branch:
@@ -28,7 +31,7 @@ jobs:
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
           token: ${{ env.BOT_TOKEN }}
-          ref: ${{ github.event.inputs.branch }}
+          ref: ${{ github.event.inputs.branch || github.ref_name }}
           fetch-depth: 1
 
       - name: Install gh-aw extension
