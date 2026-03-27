@@ -865,7 +865,7 @@ def test_get_notifications_for_service_eagerly_loads_scheduled_notification(noti
 
     # Detach all objects from the session. Any access to a lazily-loaded
     # relationship on a detached instance raises DetachedInstanceError.
-    notify_db_session.expunge_all()
+    notify_db_session.session.expunge_all()
 
     # This must not raise — scheduled_notification should already be loaded.
     try:
