@@ -169,15 +169,15 @@ jobs:
         run: poetry run python scripts/renovate_agent.py --create-pr
 
       # -----------------------------------------------------------------------
-      # 8. Clean up the remote branch when tests fail
+      # 8. Open a draft PR when tests fail (Copilot will fix failures)
       # -----------------------------------------------------------------------
-      - name: Delete branch on test failure
+      - name: Create draft PR for Copilot to fix
         if: >-
           steps.find.outputs.package_found == 'true' &&
           inputs.dry_run != 'true' &&
           steps.git-push.outputs.pushed == 'true' &&
           failure()
-        run: poetry run python scripts/renovate_agent.py --cleanup
+        run: poetry run python scripts/renovate_agent.py --create-draft-pr
 
       - name: Comment on source Renovate PR about test failure
         if: >-

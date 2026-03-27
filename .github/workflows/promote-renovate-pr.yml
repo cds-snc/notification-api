@@ -1,0 +1,53 @@
+name: Promote Renovate Draft PR
+
+# When CI goes green on a renovate-agent branch, convert the draft PR to
+# ready-for-review.  This is the final step of the automated fix loop:
+#
+#   renovate-agent (tests fail)
+#     → creates draft PR + label "renovate-fix-needed"
+#       → fix-renovate-tests (Copilot fixes code, pushes, removes label)
+#         → CI re-runs → goes green
+#           → this workflow converts draft → ready
+
+on:
+  workflow_run:
+    workflows:
+      - "Continuous Integration Testing"
+      - "Continuous Integration Testing (prod feature flags)"
+    types: [completed]
+    branches:
+      - "renovate-agent/**"
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  promote:
+    name: Convert draft PR to ready-for-review
+    runs-on: ubuntu-latest
+    # Only act when CI passed
+    if: github.event.workflow_run.conclusion == 'success'
+    steps:
+      - name: Convert draft PR to ready-for-review
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+          REPO: ${{ github.repository }}
+        run: |
+          # Find the open draft PR on this branch
+          pr_number=$(gh pr list \
+            --repo "$REPO" \
+            --head "$BRANCH" \
+            --state open \
+            --json number,isDraft \
+            --jq '.[] | select(.isDraft == true) | .number')
+
+          if [ -z "$pr_number" ]; then
+            echo "No open draft PR found for branch '$BRANCH' – nothing to promote."
+            exit 0
+          fi
+
+          echo "Promoting draft PR #${pr_number} on branch '${BRANCH}' to ready-for-review…"
+          gh pr ready "$pr_number" --repo "$REPO"
+          echo "✔ PR #${pr_number} is now ready for review."
