@@ -829,15 +829,26 @@ Tests were run on the updated branch before this PR was opened.
     pr_url = pr_response["html_url"]
     print(f"✔ Created {'draft ' if draft else ''}PR #{pr_number}: {pr_url}")
 
-    # Always apply the renovate-agent label; also signal the fix workflow for drafts
-    labels: list[str] = [AGENT_LABEL]
-    if draft:
-        labels.append("renovate-fix-needed")
+    # Apply the renovate-agent label via the bot token.
+    # NOTE: "renovate-fix-needed" is intentionally NOT added here.
+    # It is applied in a separate workflow step using COPILOT_GITHUB_TOKEN
+    # (a real user's PAT) so that github.actor is a human with write access.
+    # gh-aw's pre_activation checks team membership of github.actor and
+    # rejects events triggered by GitHub App bots.
     _gh_post(
         f"/repos/{REPO}/issues/{pr_number}/labels",
-        {"labels": labels},
+        {"labels": [AGENT_LABEL]},
     )
-    print(f"✔ Added label(s) {labels} to PR #{pr_number}")
+    print(f"✔ Added label '{AGENT_LABEL}' to PR #{pr_number}")
+
+    if draft:
+        # Write the PR number to GITHUB_OUTPUT so the next workflow step can
+        # apply "renovate-fix-needed" under the COPILOT_GITHUB_TOKEN identity.
+        github_output = os.environ.get("GITHUB_OUTPUT")
+        if github_output:
+            with open(github_output, "a") as f:
+                f.write(f"draft_pr_number={pr_number}\n")
+        print(f"✔ Wrote draft_pr_number={pr_number} to GITHUB_OUTPUT")
 
 
 # ---------------------------------------------------------------------------

@@ -172,12 +172,31 @@ jobs:
       # 8. Open a draft PR when tests fail (Copilot will fix failures)
       # -----------------------------------------------------------------------
       - name: Create draft PR for Copilot to fix
+        id: create-draft-pr
         if: >-
           steps.find.outputs.package_found == 'true' &&
           inputs.dry_run != 'true' &&
           steps.git-push.outputs.pushed == 'true' &&
           failure()
         run: poetry run python scripts/renovate_agent.py --create-draft-pr
+
+      # Apply "renovate-fix-needed" using COPILOT_GITHUB_TOKEN (a real user's PAT)
+      # so github.actor is a human with write access.  gh-aw's pre_activation job
+      # checks team membership of github.actor and rejects GitHub App bot identities.
+      - name: Label draft PR to trigger Copilot fix loop
+        if: >-
+          steps.find.outputs.package_found == 'true' &&
+          inputs.dry_run != 'true' &&
+          steps.git-push.outputs.pushed == 'true' &&
+          failure() &&
+          steps.create-draft-pr.outputs.draft_pr_number != ''
+        env:
+          GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.create-draft-pr.outputs.draft_pr_number }}
+        run: |
+          gh api -X POST \
+            "/repos/${{ github.repository }}/issues/${PR_NUMBER}/labels" \
+            --field 'labels[]=renovate-fix-needed'
 
       - name: Comment on source Renovate PR about test failure
         if: >-
