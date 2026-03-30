@@ -837,19 +837,12 @@ Tests were run on the updated branch before this PR was opened.
     print(f"✔ Added label '{AGENT_LABEL}' to PR #{pr_number}")
 
     if draft:
-        # Assign the Copilot coding agent to fix the failing tests.
-        _gh_post(
-            f"/repos/{REPO}/issues/{pr_number}/assignees",
-            {"assignees": ["copilot"]},
-        )
-        print(f"✔ Assigned Copilot coding agent to PR #{pr_number}")
-
-        # Leave an instruction comment for Copilot.
+        # Trigger the Copilot coding agent via @copilot mention in a comment.
         _gh_post(
             f"/repos/{REPO}/issues/{pr_number}/comments",
             {
                 "body": (
-                    "## Copilot — please fix the failing tests\n\n"
+                    "@copilot please fix the failing tests.\n\n"
                     f"This PR updates `{package}` from `{from_ver}` to `{to_ver}`.\n"
                     "The CI tests are failing after the dependency upgrade.\n\n"
                     "**Instructions:**\n"
@@ -860,7 +853,7 @@ Tests were run on the updated branch before this PR was opened.
                 )
             },
         )
-        print(f"✔ Posted fix instructions comment on PR #{pr_number}")
+        print(f"✔ Posted @copilot fix instructions on PR #{pr_number}")
 
         # Write the PR number to GITHUB_OUTPUT so the workflow can
         # optionally apply "renovate-fix-needed" for the gh-aw fallback.
