@@ -1,0 +1,36 @@
+name: Test docker builds on pull request
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: Build ${{ matrix.target }} image
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: k8s
+            dockerfile: ci/Dockerfile
+          - target: lambda
+            dockerfile: ci/Dockerfile.lambda
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build ${{ matrix.target }} image
+        run: |
+          docker buildx build \
+            --build-arg GIT_SHA=${GITHUB_SHA::7} \
+            -f ${{ matrix.dockerfile }} \
+            .
