@@ -180,16 +180,17 @@ jobs:
           failure()
         run: poetry run python scripts/renovate_agent.py --create-draft-pr
 
-      # Apply "renovate-fix-needed" using COPILOT_GITHUB_TOKEN (a real user's PAT)
-      # so github.actor is a human with write access.  gh-aw's pre_activation job
-      # checks team membership of github.actor and rejects GitHub App bot identities.
-      - name: Label draft PR to trigger Copilot fix loop
+      # (Optional fallback) Apply "renovate-fix-needed" label via COPILOT_GITHUB_TOKEN
+      # to also trigger the gh-aw agentic workflow as a secondary fix path.
+      # Requires COPILOT_GITHUB_TOKEN (fine-grained PAT with Copilot permission).
+      - name: Label draft PR to trigger gh-aw fallback
         if: >-
           steps.find.outputs.package_found == 'true' &&
           inputs.dry_run != 'true' &&
           steps.git-push.outputs.pushed == 'true' &&
           failure() &&
-          steps.create-draft-pr.outputs.draft_pr_number != ''
+          steps.create-draft-pr.outputs.draft_pr_number != '' &&
+          secrets.COPILOT_GITHUB_TOKEN != ''
         env:
           GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
           PR_NUMBER: ${{ steps.create-draft-pr.outputs.draft_pr_number }}

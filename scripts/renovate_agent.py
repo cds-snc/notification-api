@@ -830,11 +830,6 @@ Tests were run on the updated branch before this PR was opened.
     print(f"✔ Created {'draft ' if draft else ''}PR #{pr_number}: {pr_url}")
 
     # Apply the renovate-agent label via the bot token.
-    # NOTE: "renovate-fix-needed" is intentionally NOT added here.
-    # It is applied in a separate workflow step using COPILOT_GITHUB_TOKEN
-    # (a real user's PAT) so that github.actor is a human with write access.
-    # gh-aw's pre_activation checks team membership of github.actor and
-    # rejects events triggered by GitHub App bots.
     _gh_post(
         f"/repos/{REPO}/issues/{pr_number}/labels",
         {"labels": [AGENT_LABEL]},
@@ -842,13 +837,38 @@ Tests were run on the updated branch before this PR was opened.
     print(f"✔ Added label '{AGENT_LABEL}' to PR #{pr_number}")
 
     if draft:
-        # Write the PR number to GITHUB_OUTPUT so the next workflow step can
-        # apply "renovate-fix-needed" under the COPILOT_GITHUB_TOKEN identity.
+        # Assign the Copilot coding agent to fix the failing tests.
+        _gh_post(
+            f"/repos/{REPO}/issues/{pr_number}/assignees",
+            {"assignees": ["copilot"]},
+        )
+        print(f"✔ Assigned Copilot coding agent to PR #{pr_number}")
+
+        # Leave an instruction comment for Copilot.
+        _gh_post(
+            f"/repos/{REPO}/issues/{pr_number}/comments",
+            {
+                "body": (
+                    "## Copilot — please fix the failing tests\n\n"
+                    f"This PR updates `{package}` from `{from_ver}` to `{to_ver}`.\n"
+                    "The CI tests are failing after the dependency upgrade.\n\n"
+                    "**Instructions:**\n"
+                    "1. Read the failing CI logs for this PR\n"
+                    "2. Identify which tests/code broke due to the dependency update\n"
+                    "3. Make the minimum targeted fixes to get tests passing\n"
+                    "4. Do NOT modify `pyproject.toml`, `poetry.lock`, or files under `.github/`\n"
+                )
+            },
+        )
+        print(f"✔ Posted fix instructions comment on PR #{pr_number}")
+
+        # Write the PR number to GITHUB_OUTPUT so the workflow can
+        # optionally apply "renovate-fix-needed" for the gh-aw fallback.
         github_output = os.environ.get("GITHUB_OUTPUT")
         if github_output:
             with open(github_output, "a") as f:
                 f.write(f"draft_pr_number={pr_number}\n")
-        print(f"✔ Wrote draft_pr_number={pr_number} to GITHUB_OUTPUT")
+            print(f"✔ Wrote draft_pr_number={pr_number} to GITHUB_OUTPUT")
 
 
 # ---------------------------------------------------------------------------
