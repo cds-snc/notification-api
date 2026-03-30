@@ -4,10 +4,11 @@ from uuid import UUID
 
 import pytest
 from freezegun import freeze_time
+from sqlalchemy import event
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm.exc import NoResultFound
 
-from app import redis_store
+from app import db, redis_store
 from app.dao.templates_dao import (
     dao_create_template,
     dao_get_all_templates_for_service,
@@ -20,7 +21,7 @@ from app.dao.templates_dao import (
     dao_update_template_reply_to,
 )
 from app.models import Template, TemplateHistory, TemplateRedacted
-from app.schemas import template_schema
+from app.schemas import reduced_template_schema, template_schema
 from tests.app.db import create_letter_contact, create_template
 
 
@@ -230,6 +231,39 @@ def test_get_all_templates_for_service(service_factory):
     assert Template.query.count() == 5
     assert len(dao_get_all_templates_for_service(service_1.id)) == 3
     assert len(dao_get_all_templates_for_service(service_2.id)) == 2
+
+
+def test_get_all_templates_for_service_eager_loads_redaction_for_serialization(sample_service):
+    service_id = sample_service.id
+
+    for i in range(5):
+        create_template(
+            service=sample_service,
+            template_name=f"Sample Template {i}",
+            template_type="sms",
+            content=f"Template content {i}",
+        )
+
+    db.session.remove()
+
+    matching_statements = []
+
+    # Make sure that individual lazy queries are not called after serializing the templates.
+    def before_cursor_execute(_conn, _cursor, statement, _parameters, _context, _executemany):
+        normalized_statement = " ".join(statement.split())
+        if "FROM template_redacted" in normalized_statement and "WHERE template_redacted.template_id =" in normalized_statement:
+            matching_statements.append(normalized_statement)
+
+    writer_engine = db.get_engine(bind="writer")
+    event.listen(writer_engine, "before_cursor_execute", before_cursor_execute)
+    try:
+        templates = dao_get_all_templates_for_service(service_id)
+        # Trigger serialization and potential lazy loading if there are any remaining
+        reduced_template_schema.dump(templates, many=True)
+    finally:
+        event.remove(writer_engine, "before_cursor_execute", before_cursor_execute)
+
+    assert matching_statements == []
 
 
 def test_get_all_templates_for_service_is_alphabetised(sample_service):
