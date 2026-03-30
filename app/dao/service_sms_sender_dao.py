@@ -14,18 +14,18 @@ def insert_service_sms_sender(service, sms_sender):
     db.session.add(new_sms_sender)
 
 
-def dao_get_service_sms_senders_by_id(service_id, service_sms_sender_id):
+def dao_get_service_sms_senders_by_id(service_id, service_sms_sender_id) -> ServiceSmsSender:
     return ServiceSmsSender.query.filter_by(id=service_sms_sender_id, service_id=service_id, archived=False).one()
 
 
-def dao_get_sms_senders_by_service_id(service_id):
+def dao_get_sms_senders_by_service_id(service_id) -> list[ServiceSmsSender]:
     return (
         ServiceSmsSender.query.filter_by(service_id=service_id, archived=False).order_by(desc(ServiceSmsSender.is_default)).all()
     )
 
 
 @transactional
-def dao_add_sms_sender_for_service(service_id, sms_sender, is_default, inbound_number_id=None):
+def dao_add_sms_sender_for_service(service_id, sms_sender, is_default, inbound_number_id=None) -> ServiceSmsSender:
     old_default = _get_existing_default(service_id=service_id)
     if is_default:
         _reset_old_default_to_false(old_default)
@@ -44,12 +44,12 @@ def dao_add_sms_sender_for_service(service_id, sms_sender, is_default, inbound_n
 
 
 @transactional
-def dao_update_service_sms_sender(service_id, service_sms_sender_id, is_default, sms_sender=None):
+def dao_update_service_sms_sender(service_id, service_sms_sender_id, is_default, sms_sender=None) -> ServiceSmsSender:
     old_default = _get_existing_default(service_id)
     if is_default:
         _reset_old_default_to_false(old_default)
     else:
-        if old_default.id == service_sms_sender_id:
+        if old_default and old_default.id == service_sms_sender_id:
             raise Exception("You must have at least one SMS sender as the default")
 
     sms_sender_to_update = ServiceSmsSender.query.get(service_sms_sender_id)
@@ -61,7 +61,7 @@ def dao_update_service_sms_sender(service_id, service_sms_sender_id, is_default,
 
 
 @transactional
-def update_existing_sms_sender_with_inbound_number(service_sms_sender, sms_sender, inbound_number_id):
+def update_existing_sms_sender_with_inbound_number(service_sms_sender, sms_sender, inbound_number_id) -> ServiceSmsSender:
     service_sms_sender.sms_sender = sms_sender
     service_sms_sender.inbound_number_id = inbound_number_id
     db.session.add(service_sms_sender)
@@ -69,7 +69,7 @@ def update_existing_sms_sender_with_inbound_number(service_sms_sender, sms_sende
 
 
 @transactional
-def archive_sms_sender(service_id, sms_sender_id):
+def archive_sms_sender(service_id, sms_sender_id) -> ServiceSmsSender:
     sms_sender_to_archive = ServiceSmsSender.query.filter_by(id=sms_sender_id, service_id=service_id).one()
 
     if sms_sender_to_archive.inbound_number_id:
@@ -83,7 +83,7 @@ def archive_sms_sender(service_id, sms_sender_id):
     return sms_sender_to_archive
 
 
-def _get_existing_default(service_id):
+def _get_existing_default(service_id) -> ServiceSmsSender | None:
     sms_senders = dao_get_sms_senders_by_service_id(service_id=service_id)
     if sms_senders:
         old_default = [x for x in sms_senders if x.is_default]

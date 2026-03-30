@@ -59,6 +59,7 @@ from app.models import (
     NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_VIRUS_SCAN_FAILED,
     PINPOINT_PROVIDER,
+    RCS_TYPE,
     SMS_TYPE,
     SNS_PROVIDER,
     BounceRateStatus,
@@ -148,6 +149,85 @@ def send_sms_to_provider(notification):
         # Record StatsD stats to compute SLOs
         statsd_client.timing_with_dates("sms.total-time", notification.sent_at, notification.created_at)
         statsd_key = f"sms.process_type-{template_dict['process_type']}"
+        statsd_client.timing_with_dates(statsd_key, notification.sent_at, notification.created_at)
+        statsd_client.incr(statsd_key)
+
+
+def send_rcs_to_provider(notification):
+    service = notification.service
+
+    if not service.active:
+        inactive_service_failure(notification=notification)
+        return
+
+    formatted_recipient = validate_and_format_phone_number(notification.to, international=notification.international)
+    sending_to_internal_test_number = formatted_recipient == current_app.config["INTERNAL_TEST_NUMBER"]
+    sending_to_dryrun_number = formatted_recipient == current_app.config["EXTERNAL_TEST_NUMBER"]
+
+    # If the notification was not sent already, the status should be created.
+    if notification.status == "created":
+        provider = provider_to_use(
+            RCS_TYPE,
+            notification.id,
+            notification.to,
+            notification.international,
+            notification.reply_to_text,
+            template_id=notification.template_id,
+        )
+
+        template_obj = dao_get_template_by_id(notification.template_id, notification.template_version)
+        template_dict = template_obj.__dict__
+        template_dict["process_type"] = template_obj.process_type
+
+        template = SMSMessageTemplate(
+            template_dict,
+            values=notification.personalisation,
+            prefix=service.name,
+            show_prefix=service.prefix_sms,
+        )
+
+        if is_blank(template):
+            empty_message_failure(notification=notification)
+            return
+
+        if service.research_mode or notification.key_type == KEY_TYPE_TEST or sending_to_internal_test_number:
+            current_app.logger.info(
+                f"notification {notification.id} is sending to INTERNAL_TEST_NUMBER, no external provider call."
+            )
+            notification.reference = str(create_uuid())
+            update_notification_to_sending(notification, provider)
+            # TODO: Change for send_rcs_response and set to sent
+            send_sms_response(provider.get_name(), notification.to, notification.reference)
+        else:
+            try:
+                reference = provider.send_rcs(
+                    to=formatted_recipient,
+                    content=str(template),
+                    sender=notification.reply_to_text,
+                    template_id=notification.template_id,
+                    service_id=notification.service_id,
+                )
+            except (PinpointConflictException, PinpointValidationException) as e:
+                raise e
+            except Exception as e:
+                notification.billable_units = template.fragment_count
+                dao_update_notification(notification)
+                # TODO: Make it specific to RCS please.
+                dao_toggle_sms_provider(provider.name)
+                raise e
+            else:
+                notification.reference = reference
+                notification.billable_units = template.fragment_count
+                if reference == "opted_out":
+                    update_notification_to_opted_out(notification, provider)
+                else:
+                    if sending_to_dryrun_number:
+                        send_sms_response(provider.get_name(), notification.to, reference)
+                    update_notification_to_sending(notification, provider)
+
+        # Record StatsD stats to compute SLOs
+        statsd_client.timing_with_dates("rcs.total-time", notification.sent_at, notification.created_at)
+        statsd_key = f"rcs.process_type-{template_dict['process_type']}"
         statsd_client.timing_with_dates(statsd_key, notification.sent_at, notification.created_at)
         statsd_client.incr(statsd_key)
 

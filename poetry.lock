@@ -153,6 +153,20 @@ yarl = ">=1.17.0,<2.0"
 speedups = ["Brotli (>=1.2)", "aiodns (>=3.3.0)", "backports.zstd", "brotlicffi (>=1.2)"]
 
 [[package]]
+name = "aiohttp-retry"
+version = "2.9.1"
+description = "Simple retry client for aiohttp"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "aiohttp_retry-2.9.1-py3-none-any.whl", hash = "sha256:66d2759d1921838256a05a3f80ad7e724936f083e35be5abb5e16eed6be6dc54"},
+    {file = "aiohttp_retry-2.9.1.tar.gz", hash = "sha256:8eb75e904ed4ee5c2ec242fefe85bf04240f685391c4879d8f541d6028ff01f1"},
+]
+
+[package.dependencies]
+aiohttp = "*"
+
+[[package]]
 name = "aiosignal"
 version = "1.4.0"
 description = "aiosignal: a list of registered asynchronous callbacks"
@@ -4497,6 +4511,23 @@ files = [
 ]
 
 [[package]]
+name = "twilio"
+version = "9.10.4"
+description = "Twilio API client and TwiML generator"
+optional = false
+python-versions = ">=3.7.0"
+files = [
+    {file = "twilio-9.10.4-py2.py3-none-any.whl", hash = "sha256:5e8414a88c009f40b2ab2a1f00232f5f459f724c7b4bdf25a935c7d7b297a8a3"},
+    {file = "twilio-9.10.4.tar.gz", hash = "sha256:2125e0027288903e7e8954ae6d5b1b593a205c28b3d72fa3fdd0b5f25825de04"},
+]
+
+[package.dependencies]
+aiohttp = ">=3.8.4"
+aiohttp-retry = ">=2.8.3"
+PyJWT = ">=2.0.0,<3.0.0"
+requests = ">=2.0.0"
+
+[[package]]
 name = "types-boto"
 version = "2.49.18.20241019"
 description = "Typing stubs for boto"
@@ -5106,4 +5137,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.12.7"
-content-hash = "b91ad4c7fe81ded3ff68dd2d55344cc1a597e22042feef8aafbfa6143be197c0"
+content-hash = "51b25fa9f7ba574edbd94b167a05aa663d52e326e2fa9a2f041d106d397abf3a"

@@ -145,6 +145,25 @@ post_sms_request = {
     "additionalProperties": False,
 }
 
+post_rcs_request = {
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "description": "POST rcs notification schema",
+    "type": "object",
+    "title": "POST v2/notifications/rcs",
+    "properties": {
+        "reference": {"type": "string"},
+        "phone_number": {"type": "string", "format": "phone_number"},
+        "template_id": uuid,
+        "personalisation": personalisation,
+        "scheduled_for": {
+            "type": ["string", "null"],
+            "format": "datetime_within_next_day",
+        },
+    },
+    "required": ["phone_number", "template_id"],
+    "additionalProperties": False,
+}
+
 sms_content = {
     "$schema": "http://json-schema.org/draft-04/schema#",
     "description": "content schema for SMS notification response schema",

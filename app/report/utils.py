@@ -7,7 +7,17 @@ from app import db
 from app.aws.s3 import stream_to_s3
 from app.config import QueueNames
 from app.dao.templates_dao import dao_get_template_by_id
-from app.models import EMAIL_STATUS_FORMATTED, KEY_TYPE_NORMAL, SMS_STATUS_FORMATTED, Job, Notification, Service, Template, User
+from app.models import (
+    EMAIL_STATUS_FORMATTED,
+    KEY_TYPE_NORMAL,
+    RCS_STATUS_FORMATTED,
+    SMS_STATUS_FORMATTED,
+    Job,
+    Notification,
+    Service,
+    Template,
+    User,
+)
 from app.notifications.process_notifications import persist_notification, send_notification_to_queue
 
 FR_TRANSLATIONS = {
@@ -22,6 +32,7 @@ FR_TRANSLATIONS = {
     "Sent Time": "Heure d’envoi",
     # notification types
     "email": "courriel",
+    "rcs": "rcs",
     "sms": "sms",
     # notification statuses
     "Failed": "Échec",
@@ -129,6 +140,8 @@ def build_notifications_query(service_id, notification_type, language, notificat
 
     email_status_cases = [(inner_query.c.status == k, translate(v)) for k, v in EMAIL_STATUS_FORMATTED.items()]
     sms_status_cases = [(inner_query.c.status == k, translate(v)) for k, v in SMS_STATUS_FORMATTED.items()]
+    rcs_status_cases = [(inner_query.c.status == k, translate(v)) for k, v in RCS_STATUS_FORMATTED.items()]
+
     # Add provider-failure logic
     if notification_type == "email":
         email_status_cases.append((inner_query.c.status == "provider-failure", translate(provider_failure_email)))
@@ -136,6 +149,10 @@ def build_notifications_query(service_id, notification_type, language, notificat
     elif notification_type == "sms":
         sms_status_cases.append((inner_query.c.status == "provider-failure", translate(provider_failure_sms)))
         status_expr = case(sms_status_cases, else_=inner_query.c.status)
+    elif notification_type == "rcs":
+        # REVIEW: we currently treat all provider failures for RCS as the same, but we should have the proper Twilio RCS failures.
+        rcs_status_cases.append((inner_query.c.status == "provider-failure", translate(provider_failure_sms)))
+        status_expr = case(rcs_status_cases, else_=inner_query.c.status)
     else:
         status_expr = inner_query.c.status
     if language == "fr":
@@ -148,6 +165,7 @@ def build_notifications_query(service_id, notification_type, language, notificat
         [
             (inner_query.c.notification_type == "email", translate("email")),
             (inner_query.c.notification_type == "sms", translate("sms")),
+            (inner_query.c.notification_type == "rcs", translate("rcs")),
         ],
         else_=inner_query.c.notification_type,
     ).label(translate("Type"))

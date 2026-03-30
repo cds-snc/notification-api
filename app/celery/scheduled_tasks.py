@@ -11,6 +11,9 @@ from app import (
     email_normal,
     email_priority,
     notify_celery,
+    rcs_bulk,
+    rcs_normal,
+    rcs_priority,
     sms_bulk,
     sms_normal,
     sms_priority,
@@ -20,6 +23,7 @@ from app.celery.tasks import (
     job_complete,
     process_job,
     save_emails,
+    save_rcss,
     save_smss,
     update_in_progress_jobs,
 )
@@ -277,6 +281,9 @@ def recover_expired_notifications():
     email_bulk.expire_inflights()
     email_normal.expire_inflights()
     email_priority.expire_inflights()
+    rcs_bulk.expire_inflights()
+    rcs_normal.expire_inflights()
+    rcs_priority.expire_inflights()
 
 
 @notify_celery.task(name="beat-inbox-email-normal")
@@ -385,3 +392,57 @@ def beat_inbox_sms_priority():
         save_smss.apply_async((None, list_of_sms_notifications, receipt_id_sms), queue=QueueNames.PRIORITY_DATABASE)
         current_app.logger.info(f"Batch saving with Priority: SMS receipt {receipt_id_sms} sent to in-flight.")
         receipt_id_sms, list_of_sms_notifications = sms_priority.poll()
+
+
+@notify_celery.task(name="beat-inbox-rcs-normal")
+@statsd(namespace="tasks")
+def beat_inbox_rcs_normal():
+    """
+    The function acts as a beat schedule to a list of notifications in the queue.
+    The post_api will push all the notifications of normal priority into the above list.
+    The heartbeat with check the list (list#1) until it is non-emtpy and move the notifications in a batch
+    to another list(list#2). The heartbeat will then call a job that saves list#2 to the DB
+    and actually sends the sms for each notification saved.
+    """
+    receipt_id_rcs, list_of_rcs_notifications = rcs_normal.poll()
+
+    while list_of_rcs_notifications:
+        save_rcss.apply_async((None, list_of_rcs_notifications, receipt_id_rcs), queue=QueueNames.NORMAL_DATABASE)
+        current_app.logger.info(f"Batch saving with Normal Priority: RCS receipt {receipt_id_rcs} sent to in-flight.")
+        receipt_id_rcs, list_of_rcs_notifications = rcs_normal.poll()
+
+
+@notify_celery.task(name="beat-inbox-rcs-bulk")
+@statsd(namespace="tasks")
+def beat_inbox_rcs_bulk():
+    """
+    The function acts as a beat schedule to a list of notifications in the queue.
+    The post_api will push all the notifications of bulk priority into the above list.
+    The heartbeat with check the list (list#1) until it is non-emtpy and move the notifications in a batch
+    to another list(list#2). The heartbeat will then call a job that saves list#2 to the DB
+    and actually sends the sms for each notification saved.
+    """
+    receipt_id_rcs, list_of_rcs_notifications = rcs_bulk.poll()
+
+    while list_of_rcs_notifications:
+        save_rcss.apply_async((None, list_of_rcs_notifications, receipt_id_rcs), queue=QueueNames.BULK_DATABASE)
+        current_app.logger.info(f"Batch saving with Bulk Priority: RCS receipt {receipt_id_rcs} sent to in-flight.")
+        receipt_id_rcs, list_of_rcs_notifications = rcs_bulk.poll()
+
+
+@notify_celery.task(name="beat-inbox-rcs-priority")
+@statsd(namespace="tasks")
+def beat_inbox_rcs_priority():
+    """
+    The function acts as a beat schedule to a list of notifications in the queue.
+    The post_api will push all the notifications of priority into the above list.
+    The heartbeat with check the list (list#1) until it is non-emtpy and move the notifications in a batch
+    to another list(list#2). The heartbeat will then call a job that saves list#2 to the DB
+    and actually sends the sms for each notification saved.
+    """
+    receipt_id_rcs, list_of_rcs_notifications = rcs_priority.poll()
+
+    while list_of_rcs_notifications:
+        save_rcss.apply_async((None, list_of_rcs_notifications, receipt_id_rcs), queue=QueueNames.PRIORITY_DATABASE)
+        current_app.logger.info(f"Batch saving with Priority: RCS receipt {receipt_id_rcs} sent to in-flight.")
+        receipt_id_rcs, list_of_rcs_notifications = rcs_priority.poll()

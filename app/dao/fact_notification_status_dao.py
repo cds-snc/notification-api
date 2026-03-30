@@ -22,6 +22,7 @@ from app.models import (
     NOTIFICATION_SENT,
     NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_TEMPORARY_FAILURE,
+    RCS_TYPE,
     SMS_TYPE,
     ApiKey,
     FactNotificationStatus,
@@ -53,7 +54,7 @@ def fetch_notification_status_for_day(process_day, service_ids=None):
     # query notifications for day
     # if no rows try notificationHistory
     for service_id in service_ids:
-        for notification_type in [EMAIL_TYPE, SMS_TYPE, LETTER_TYPE]:
+        for notification_type in [EMAIL_TYPE, RCS_TYPE, SMS_TYPE, LETTER_TYPE]:
             data_for_service_and_type = query_for_fact_status_data(
                 table=Notification,
                 start_date=start_date,
