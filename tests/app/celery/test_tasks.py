@@ -1536,6 +1536,54 @@ class TestSaveErrorHandling:
         mock_save_email.assert_called_with(queue="retry-tasks", exc=expected_error)
         mock_acknowldege.assert_called_once_with(receipt)
 
+    def test_save_smss_does_not_send_to_queue_on_persist_error(self, sample_template_with_placeholders, mocker):
+        """Regression test for GC-001: save_smss must not call send_notification_to_queue when
+        persist_notifications raises SQLAlchemyError and handle_batch_error_and_forward returns normally."""
+        notification1 = _notification_json(
+            sample_template_with_placeholders,
+            to="+1 650 253 2221",
+            personalisation={"name": "Jo"},
+        )
+        notification1["id"] = str(uuid.uuid4())
+        notification1["service_id"] = str(sample_template_with_placeholders.service.id)
+
+        mocker.patch("app.celery.tasks.persist_notifications", side_effect=SQLAlchemyError())
+        mocker.patch("app.celery.tasks.save_smss.retry")
+        mocker.patch("app.sms_normal.acknowledge")
+        mock_send_to_queue = mocker.patch("app.celery.tasks.send_notification_to_queue")
+
+        save_smss(
+            str(sample_template_with_placeholders.service.id),
+            [signer_notification.sign(notification1)],
+            uuid.uuid4(),
+        )
+
+        mock_send_to_queue.assert_not_called()
+
+    def test_save_emails_does_not_send_to_queue_on_persist_error(self, sample_email_template_with_placeholders, mocker):
+        """Regression test for GC-001: save_emails must not call send_notification_to_queue when
+        persist_notifications raises SQLAlchemyError and handle_batch_error_and_forward returns normally."""
+        notification1 = _notification_json(
+            sample_email_template_with_placeholders,
+            to="test1@gmail.com",
+            personalisation={"name": "Jo"},
+        )
+        notification1["id"] = str(uuid.uuid4())
+        notification1["service_id"] = str(sample_email_template_with_placeholders.service.id)
+
+        mocker.patch("app.celery.tasks.persist_notifications", side_effect=SQLAlchemyError())
+        mocker.patch("app.celery.tasks.save_emails.retry")
+        mocker.patch("app.email_normal.acknowledge")
+        mock_send_to_queue = mocker.patch("app.celery.tasks.send_notification_to_queue")
+
+        save_emails(
+            str(sample_email_template_with_placeholders.service.id),
+            [signer_notification.sign(notification1)],
+            uuid.uuid4(),
+        )
+
+        mock_send_to_queue.assert_not_called()
+
 
 class TestSaveEmails:
     @pytest.mark.parametrize("sender_id", [None, "996958a8-0c06-43be-a40e-56e4a2d1655c"])
