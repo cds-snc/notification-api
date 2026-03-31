@@ -123,6 +123,17 @@ class TestClassifyError:
         assert category == CeleryErrorCategory.TIMEOUT_CLIENT
         assert root_exc is exc  # Should return the original exception as root
 
+    def test_max_retry_error_by_class_name(self):
+        """MaxRetryError exceptions are classified as TIMEOUT_CLIENT."""
+
+        class MaxRetryError(Exception):
+            pass
+
+        exc = MaxRetryError("HTTPSConnectionPool: Max retries exceeded")
+        category, root_exc = classify_error(exc)
+        assert category == CeleryErrorCategory.TIMEOUT_CLIENT
+        assert root_exc is exc  # Should return the original exception as root
+
     def test_unknown_error(self):
         exc = Exception("Something completely unexpected")
         category, root_exc = classify_error(exc)

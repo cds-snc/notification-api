@@ -45,6 +45,7 @@ class CeleryErrorCategory(str, Enum):
 # Note: Order within the map does not matter; the deepest/root exception in the
 # chain takes precedence over wrapper exceptions.
 _EXCEPTION_CLASS_MAP: dict[str, CeleryErrorCategory] = {
+    "MaxRetryError": CeleryErrorCategory.TIMEOUT_CLIENT,
     "ProtocolError": CeleryErrorCategory.TIMEOUT_CLIENT,
     "TimeoutError": CeleryErrorCategory.TIMEOUT_CLIENT,
     "JobIncompleteError": CeleryErrorCategory.JOB_INCOMPLETE,
