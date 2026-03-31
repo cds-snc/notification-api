@@ -1,7 +1,5 @@
 from unittest.mock import MagicMock, patch
 
-from sqlalchemy.exc import IntegrityError
-
 from app.celery.celery import (
     classify_celery_task_failure,
     classify_celery_task_internal_error,
