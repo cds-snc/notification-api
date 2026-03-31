@@ -30,13 +30,6 @@ class TestClassifyError:
         assert category == CeleryErrorCategory.THROTTLING
         assert root_exc is exc  # Should return the original exception as root
 
-    def test_duplicate_record_integrity_error(self):
-        """SQLAlchemy IntegrityError is classified as duplicate."""
-        exc = IntegrityError("INSERT", {}, Exception("duplicate key value violates unique constraint"))
-        category, root_exc = classify_error(exc)
-        assert category == CeleryErrorCategory.DUPLICATE_RECORD
-        assert root_exc is exc  # Should return the original exception as root
-
     def test_chained_exception_finds_root_cause(self):
         """Walks __cause__ chain to find the root throttling error."""
 
@@ -62,24 +55,6 @@ class TestClassifyError:
         category, root_exc = classify_error(wrapper)
         assert category == CeleryErrorCategory.THROTTLING
         assert root_exc is root  # Should return the root exception
-
-    def test_duplicate_record_duplicate_key_value_violates_unique_constraint_message(self):
-        """Duplicate records caught by 'duplicate key value violates unique constraint' message."""
-        exc = Exception("duplicate key value violates unique constraint in database")
-        category, root_exc = classify_error(exc)
-        assert category == CeleryErrorCategory.DUPLICATE_RECORD
-        assert root_exc is exc  # Should return the original exception as root
-
-    def test_duplicate_record_unique_violation(self):
-        """PostgreSQL UniqueViolation exception is classified as duplicate."""
-
-        class UniqueViolation(Exception):
-            pass
-
-        exc = UniqueViolation("duplicate key value violates unique constraint")
-        category, root_exc = classify_error(exc)
-        assert category == CeleryErrorCategory.DUPLICATE_RECORD
-        assert root_exc is exc  # Should return the original exception as root
 
     def test_job_incomplete_error(self):
         """JobIncompleteError is classified correctly."""
@@ -164,9 +139,9 @@ class TestClassifyError:
     def test_classification_order_between_messages(self):
         """First match wins: message substrings take precedence over other message substrings."""
 
-        exc = Exception("This message contains 'Throttling' but also 'duplicate key value violates unique constraint'")
+        exc = Exception("This message contains 'Throttling' but also 'Worker exited prematurely'")
         category, root_exc = classify_error(exc)
-        assert category == CeleryErrorCategory.DUPLICATE_RECORD
+        assert category == CeleryErrorCategory.SHUTDOWN
         assert root_exc is exc  # Should return the original exception as root
 
     def test_prefers_deepest_exception_in_chain(self):

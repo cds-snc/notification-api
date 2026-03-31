@@ -16,9 +16,6 @@ from typing import Optional, Tuple
 class CeleryErrorCategory(str, Enum):
     """Categories of Celery errors for log metric differentiation."""
 
-    # Duplicate DB records in an idempotent system — generally safe to ignore
-    DUPLICATE_RECORD = "CELERY_KNOWN_ERROR::DUPLICATE_RECORD"
-
     # Incomplete jobs due to deploys or other interruptions — don't ignore too much though
     JOB_INCOMPLETE = "CELERY_KNOWN_ERROR::JOB_INCOMPLETE"
 
@@ -49,7 +46,6 @@ class CeleryErrorCategory(str, Enum):
 # chain takes precedence over wrapper exceptions.
 _EXCEPTION_CLASS_MAP: dict[str, CeleryErrorCategory] = {
     "TimeoutError": CeleryErrorCategory.TIMEOUT_CLIENT,
-    "UniqueViolation": CeleryErrorCategory.DUPLICATE_RECORD,
     "JobIncompleteError": CeleryErrorCategory.JOB_INCOMPLETE,
     "ThrottlingException": CeleryErrorCategory.THROTTLING,
     "TooManyRequestsException": CeleryErrorCategory.THROTTLING,
@@ -62,7 +58,6 @@ _EXCEPTION_CLASS_MAP: dict[str, CeleryErrorCategory] = {
 # Some errors don't have a specific exception class, but can be identified
 # by substrings in their message.
 _MESSAGE_SUBSTRING_MAP: dict[str, CeleryErrorCategory] = {
-    "duplicate key value violates unique constraint": CeleryErrorCategory.DUPLICATE_RECORD,
     "notifications not found for SES references": CeleryErrorCategory.NOTIFICATION_NOT_FOUND,
     "SIGKILL": CeleryErrorCategory.SHUTDOWN,
     "Worker exited prematurely": CeleryErrorCategory.SHUTDOWN,
