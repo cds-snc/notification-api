@@ -112,6 +112,17 @@ class TestClassifyError:
         assert category == CeleryErrorCategory.TIMEOUT_CLIENT
         assert root_exc is exc  # Should return the original exception as root
 
+    def test_protocol_error_by_class_name(self):
+        """ProtocolError exceptions are classified as TIMEOUT_CLIENT."""
+
+        class ProtocolError(Exception):
+            pass
+
+        exc = ProtocolError("Connection aborted")
+        category, root_exc = classify_error(exc)
+        assert category == CeleryErrorCategory.TIMEOUT_CLIENT
+        assert root_exc is exc  # Should return the original exception as root
+
     def test_unknown_error(self):
         exc = Exception("Something completely unexpected")
         category, root_exc = classify_error(exc)
