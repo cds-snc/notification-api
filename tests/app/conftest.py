@@ -3,11 +3,14 @@ import random
 import string
 import uuid
 from datetime import datetime, timedelta
+from os import getenv
+from urllib.parse import urlparse
 
 import pytest
 import pytz
 import requests_mock
 from flask import current_app, url_for
+from pytest_mock_resources import RedisConfig
 from sqlalchemy import asc
 from sqlalchemy.orm.session import make_transient
 
@@ -78,6 +81,12 @@ from tests.app.db import (
 def rmock():
     with requests_mock.mock() as rmock:
         yield rmock
+
+
+@pytest.fixture(scope="session")
+def pmr_redis_config():
+    parsed_uri = urlparse(getenv("REDIS_URL"))
+    return RedisConfig(image="redis:6.2", host=parsed_uri.hostname, port="6380", ci_port="6380")
 
 
 @pytest.fixture(scope="function")

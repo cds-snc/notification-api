@@ -1,24 +1,15 @@
 import time
 from contextlib import contextmanager
-from os import getenv
 from unittest import mock
-from urllib.parse import urlparse
 from uuid import uuid4
 
 import pytest
 from flask import Flask
-from pytest_mock_resources import RedisConfig, create_redis_fixture
+from pytest_mock_resources import create_redis_fixture
 
 from app import create_app, flask_redis, metrics_logger
 from app.config import Config, Test
 from app.queue import Buffer, MockQueue, RedisQueue, generate_element
-
-
-@pytest.fixture(scope="session")
-def pmr_redis_config():
-    parsed_uri = urlparse(getenv("REDIS_URL"))
-    return RedisConfig(image="redis:6.2", host=parsed_uri.hostname, port="6380", ci_port="6380")
-
 
 redis = create_redis_fixture(scope="function")
 REDIS_ELEMENTS_COUNT = 123
