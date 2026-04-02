@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-import os
 
 from dotenv import load_dotenv
 from environs import Env
