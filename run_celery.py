@@ -5,7 +5,6 @@ from dotenv import load_dotenv
 from environs import Env
 from flask import Flask
 
-environment = os.environ.get("NOTIFY_ENVIRONMENT")
 env = Env()
 ff_enable_otel = env.bool("FF_ENABLE_OTEL", default=False)
 
