@@ -265,16 +265,17 @@ class TestSingleEndpointSucceeds:
     def test_post_sms_notification_returns_201_if_allowed_to_send_int_sms(
         self,
         notify_api,
-        sample_service,
-        sample_template,
         client,
         mocker,
         mock_annual_limits,
     ):
+        service = create_service(service_permissions=[SMS_TYPE, INTERNATIONAL_SMS_TYPE])
+        template = create_template(service=service)
+
         mocker.patch("app.sms_normal_publish.publish")
 
-        data = {"phone_number": "+20-12-1234-1234", "template_id": sample_template.id}
-        auth_header = create_authorization_header(service_id=sample_service.id)
+        data = {"phone_number": "+20-12-1234-1234", "template_id": template.id}
+        auth_header = create_authorization_header(service_id=service.id)
 
         response = client.post(
             path="/v2/notifications/sms",
