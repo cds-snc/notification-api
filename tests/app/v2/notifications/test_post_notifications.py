@@ -237,7 +237,7 @@ class TestSingleEndpointSucceeds:
         mocker,
         mock_annual_limits,
     ):
-        service = create_service()
+        service = create_service(service_name="Control lane SMS service")
         template = create_template(service=service, template_type=SMS_TYPE, process_type="priority")
 
         mock_sms_normal_publish = mocker.patch("app.sms_normal_publish.publish")
