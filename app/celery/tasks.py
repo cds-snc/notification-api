@@ -725,6 +725,9 @@ def choose_sending_queue(process_type: str, notif_type: str, notifications_count
     the notifications will be sent to the bulk queue so they don't slow down
     notifications that are transactional in nature.
     """
+    if notif_type == SMS_TYPE and current_app.config.get("FF_SMS_CONTROL_LANE", False):
+        return QueueNames.SEND_SMS_MEDIUM
+
     large_csv_threshold = current_app.config["CSV_BULK_REDIRECT_THRESHOLD"]
     # Default to the pre-configured template's process type.
     queue: Optional[str] = process_type

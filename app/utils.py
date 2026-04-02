@@ -66,6 +66,9 @@ def get_template_instance(template, values):
 
 
 def get_delivery_queue_for_template(template):
+    if template.template_type == "sms" and current_app.config.get("FF_SMS_CONTROL_LANE", False):
+        return QueueNames.SEND_SMS_MEDIUM
+
     return QueueNames.DELIVERY_QUEUES[template.template_type][Priorities.to_lmh(template.process_type)]
 
 

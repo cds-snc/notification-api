@@ -230,6 +230,38 @@ class TestSingleEndpointSucceeds:
         assert mock_publish_args_unsigned["to"] == data["phone_number"]
         assert mock_publish_args_unsigned["id"] == resp_json["id"]
 
+    def test_post_sms_notification_uses_control_lane_queue_when_flag_enabled(
+        self,
+        notify_api,
+        client,
+        mocker,
+        mock_annual_limits,
+    ):
+        service = create_service()
+        template = create_template(service=service, template_type=SMS_TYPE, process_type="priority")
+
+        mock_sms_normal_publish = mocker.patch("app.sms_normal_publish.publish")
+        mock_sms_priority_publish = mocker.patch("app.sms_priority_publish.publish")
+        mock_sms_bulk_publish = mocker.patch("app.sms_bulk_publish.publish")
+
+        data = {
+            "phone_number": "+16502532222",
+            "template_id": str(template.id),
+        }
+        auth_header = create_authorization_header(service_id=template.service_id)
+
+        with set_config(notify_api, "FF_SMS_CONTROL_LANE", True):
+            response = client.post(
+                path="/v2/notifications/sms",
+                data=json.dumps(data),
+                headers=[("Content-Type", "application/json"), auth_header],
+            )
+
+        assert response.status_code == 201
+        mock_sms_normal_publish.assert_called_once()
+        mock_sms_priority_publish.assert_not_called()
+        mock_sms_bulk_publish.assert_not_called()
+
     def test_post_sms_notification_returns_201_if_allowed_to_send_int_sms(
         self,
         notify_api,

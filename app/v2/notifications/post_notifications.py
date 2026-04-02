@@ -408,6 +408,10 @@ def triage_notification_to_queues(notification_type: NotificationType, signed_no
 
     """
     if notification_type == SMS_TYPE:
+        if current_app.config.get("FF_SMS_CONTROL_LANE", False):
+            sms_normal_publish.publish(signed_notification_data)
+            return
+
         if template.process_type == PRIORITY:
             sms_priority_publish.publish(signed_notification_data)
         elif template.process_type == NORMAL:

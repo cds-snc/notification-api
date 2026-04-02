@@ -22,6 +22,7 @@ from app.utils import (
     update_dct_to_str,
 )
 from tests.app.db import create_template
+from tests.conftest import set_config
 
 
 # Naive date times are ambiguous and are treated different on Mac OS vs flavours of *nix
@@ -160,6 +161,13 @@ def test_get_limit_reset_time_et():
 def test_get_delivery_queue_for_template(sample_service, template_type, process_type, expected_queue):
     template = create_template(sample_service, process_type=process_type, template_type=template_type)
     assert get_delivery_queue_for_template(template) == expected_queue
+
+
+def test_get_delivery_queue_for_template_uses_sms_control_lane_when_flag_enabled(sample_service, notify_api):
+    template = create_template(sample_service, process_type="priority", template_type=SMS_TYPE)
+
+    with notify_api.app_context(), set_config(notify_api, "FF_SMS_CONTROL_LANE", True):
+        assert get_delivery_queue_for_template(template) == QueueNames.SEND_SMS_MEDIUM
 
 
 @pytest.mark.parametrize(
