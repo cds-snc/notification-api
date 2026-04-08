@@ -1,6 +1,9 @@
 name: Renovate Agent
 
 on:
+  push:
+    branches:
+      - task/fixes
   schedule:
     # Runs every Monday at 08:00 UTC
     - cron: "0 8 * * 1"
@@ -56,7 +59,6 @@ jobs:
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
           token: ${{ env.GITHUB_TOKEN }}
-          ref: main
           fetch-depth: 0
 
       - name: Install libcurl (required by some Python test dependencies)
@@ -167,15 +169,35 @@ jobs:
         run: poetry run python scripts/renovate_agent.py --create-pr
 
       # -----------------------------------------------------------------------
-      # 8. Clean up the remote branch when tests fail
+      # 8. Open a draft PR when tests fail (Copilot will fix failures)
       # -----------------------------------------------------------------------
-      - name: Delete branch on test failure
+      - name: Create draft PR for Copilot to fix
+        id: create-draft-pr
         if: >-
           steps.find.outputs.package_found == 'true' &&
           inputs.dry_run != 'true' &&
           steps.git-push.outputs.pushed == 'true' &&
           failure()
-        run: poetry run python scripts/renovate_agent.py --cleanup
+        run: poetry run python scripts/renovate_agent.py --create-draft-pr
+
+      # (Optional fallback) Apply "renovate-fix-needed" label via COPILOT_GITHUB_TOKEN
+      # to also trigger the gh-aw agentic workflow as a secondary fix path.
+      # Requires COPILOT_GITHUB_TOKEN (fine-grained PAT with Copilot permission).
+      - name: Label draft PR to trigger gh-aw fallback
+        if: >-
+          steps.find.outputs.package_found == 'true' &&
+          inputs.dry_run != 'true' &&
+          steps.git-push.outputs.pushed == 'true' &&
+          failure() &&
+          steps.create-draft-pr.outputs.draft_pr_number != '' &&
+          secrets.COPILOT_GITHUB_TOKEN != ''
+        env:
+          GH_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.create-draft-pr.outputs.draft_pr_number }}
+        run: |
+          gh api -X POST \
+            "/repos/${{ github.repository }}/issues/${PR_NUMBER}/labels" \
+            --field 'labels[]=renovate-fix-needed'
 
       - name: Comment on source Renovate PR about test failure
         if: >-

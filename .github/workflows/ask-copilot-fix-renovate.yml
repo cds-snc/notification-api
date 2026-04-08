@@ -1,0 +1,79 @@
+name: Ask Copilot to fix renovate-agent test failures
+
+# When CI fails on a renovate-agent/** branch, post an @copilot comment
+# on the draft PR asking it to read the logs and fix the code.
+# Includes a 3-attempt circuit breaker to avoid infinite loops.
+
+on:
+  workflow_run:
+    workflows:
+      - "Python tests"
+      - "Continuous Integration Testing (prod feature flags)"
+    types: [completed]
+    branches:
+      - "renovate-agent/**"
+
+permissions:
+  contents: read
+  pull-requests: write
+  actions: read
+
+jobs:
+  ask-copilot:
+    name: Post @copilot fix request
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'failure'
+    steps:
+      - name: Find draft PR and post @copilot comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
+          RUN_URL: ${{ github.event.workflow_run.html_url }}
+        run: |
+          # Find the open draft PR on this branch
+          pr_number=$(gh pr list \
+            --repo "$REPO" \
+            --head "$BRANCH" \
+            --state open \
+            --json number,isDraft \
+            --jq '.[] | select(.isDraft == true) | .number')
+
+          if [ -z "$pr_number" ]; then
+            echo "No open draft PR found for branch '$BRANCH' – skipping."
+            exit 0
+          fi
+
+          echo "Found draft PR #${pr_number} on branch '${BRANCH}'"
+
+          # Circuit breaker: count existing @copilot fix comments (max 3)
+          fix_count=$(gh pr view "$pr_number" \
+            --repo "$REPO" \
+            --json comments \
+            --jq '[.comments[] | select(.body | startswith("@copilot"))] | length')
+
+          echo "Previous @copilot comments: ${fix_count}"
+
+          if [ "$fix_count" -ge 3 ]; then
+            echo "Circuit breaker: max 3 @copilot attempts reached. Posting notice."
+            gh pr comment "$pr_number" --repo "$REPO" --body \
+              "⚠️ **Circuit breaker reached** — Copilot has been asked to fix tests 3 times and CI is still failing. Human review is required.
+
+          Failed run: ${RUN_URL}"
+            exit 0
+          fi
+
+          # Post @copilot comment with the failed run URL
+          gh pr comment "$pr_number" --repo "$REPO" --body \
+            "@copilot CI tests are still failing on this PR. Please fix them.
+
+          **Failed workflow run:** ${RUN_URL}
+
+          **Instructions:**
+          1. Read the CI failure logs from the run above
+          2. Identify which tests/code broke
+          3. Make the minimum targeted fixes to get tests passing
+          4. Do NOT modify \`pyproject.toml\`, \`poetry.lock\`, or files under \`.github/\`"
+
+          echo "✔ Posted @copilot fix request #$((fix_count + 1)) on PR #${pr_number}"
