@@ -38,6 +38,14 @@ def dao_fetch_sms_cost_for_service_in_range(service_id, start_date, end_date):
     FactBilling is populated by a nightly task, so it is always ~1 day behind.
     For the current day we fall back to the Notification table and use the
     carrier-reported costs (sms_total_carrier_fee + sms_total_message_price).
+
+    Minor edge case:
+    If this API is called at 00:15 EST and prior to `create_nightly_billing_for_day` completing, then
+    this endpoint could return inaccurate data.
+    
+    Future improvements could include:
+    1. Check if `ft_billing` has been populated for the requested date range and if not, fall back to the `notifications` table
+    2. Always use the `notifications` table for today and yesterday's data, and `ft_billing` for anything older
     """
     today = convert_utc_to_local_timezone(datetime.utcnow()).date()
 
