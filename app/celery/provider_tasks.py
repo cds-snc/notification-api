@@ -7,7 +7,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from app import notify_celery
 from app.celery.utils import CeleryParams
-from app.config import Config
+from app.config import Config, QueueNames
 from app.dao import notifications_dao
 from app.dao.notifications_dao import update_notification_status_by_id
 from app.delivery import send_to_providers
@@ -43,6 +43,11 @@ from celery import Task
 )
 @statsd(namespace="tasks")
 def deliver_throttled_sms(self, notification_id):
+    delivery_info = getattr(self.request, "delivery_info", {}) or {}
+    routing_key = delivery_info.get("routing_key")
+    if current_app.config.get("FF_SMS_CONTROL_LANE", False) and routing_key != QueueNames.RESEARCH_MODE:
+        deliver_sms_fair.apply_async([str(notification_id)], queue=QueueNames.SEND_SMS_FAIR)
+        return
     _deliver_sms(self, notification_id)
 
 
@@ -61,6 +66,23 @@ def deliver_throttled_sms(self, notification_id):
 )
 @statsd(namespace="tasks")
 def deliver_sms(self, notification_id):
+    delivery_info = getattr(self.request, "delivery_info", {}) or {}
+    routing_key = delivery_info.get("routing_key")
+    if current_app.config.get("FF_SMS_CONTROL_LANE", False) and routing_key != QueueNames.RESEARCH_MODE:
+        deliver_sms_fair.apply_async([str(notification_id)], queue=QueueNames.SEND_SMS_FAIR)
+        return
+    _deliver_sms(self, notification_id)
+
+
+@notify_celery.task(
+    bind=True,
+    name="deliver_sms_fair",
+    max_retries=48,
+    default_retry_delay=300,
+    rate_limit=Config.CELERY_DELIVER_SMS_RATE_LIMIT,
+)
+@statsd(namespace="tasks")
+def deliver_sms_fair(self, notification_id):
     _deliver_sms(self, notification_id)
 
 

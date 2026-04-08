@@ -92,4 +92,7 @@ cypress.env.json
 node_modules/
 tests_cypress/cypress/videos/
 .github/instructions/*
+.github/agents/**/*.agent.md
+.github/copilot-instructions.md
 .ruff_cache/
+.mypy_cache/

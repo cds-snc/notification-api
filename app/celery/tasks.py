@@ -726,7 +726,7 @@ def choose_sending_queue(process_type: str, notif_type: str, notifications_count
     notifications that are transactional in nature.
     """
     if notif_type == SMS_TYPE and current_app.config.get("FF_SMS_CONTROL_LANE", False):
-        return QueueNames.SEND_SMS_MEDIUM
+        return QueueNames.SEND_SMS_FAIR
 
     large_csv_threshold = current_app.config["CSV_BULK_REDIRECT_THRESHOLD"]
     # Default to the pre-configured template's process type.

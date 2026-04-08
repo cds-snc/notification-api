@@ -235,7 +235,13 @@ def choose_queue(notification, research_mode, queue=None) -> QueueNames:
     if research_mode or notification.key_type == KEY_TYPE_TEST:
         queue = QueueNames.RESEARCH_MODE
 
+    if queue == QueueNames.RESEARCH_MODE:
+        return queue
+
     if notification.notification_type == SMS_TYPE:
+        if current_app.config.get("FF_SMS_CONTROL_LANE", False):
+            queue = QueueNames.SEND_SMS_FAIR
+            return queue
         if notification.sends_with_custom_number():
             queue = QueueNames.SEND_THROTTLED_SMS
         if not queue:
@@ -252,9 +258,12 @@ def choose_queue(notification, research_mode, queue=None) -> QueueNames:
 
 def choose_deliver_task(notification):
     if notification.notification_type == SMS_TYPE:
-        deliver_task = provider_tasks.deliver_sms
-        if notification.sends_with_custom_number():
-            deliver_task = provider_tasks.deliver_throttled_sms
+        if current_app.config.get("FF_SMS_CONTROL_LANE", False) and notification.queue_name != QueueNames.RESEARCH_MODE:
+            deliver_task = provider_tasks.deliver_sms_fair
+        else:
+            deliver_task = provider_tasks.deliver_sms
+            if notification.sends_with_custom_number():
+                deliver_task = provider_tasks.deliver_throttled_sms
     if notification.notification_type == EMAIL_TYPE:
         deliver_task = provider_tasks.deliver_email
     if notification.notification_type == LETTER_TYPE:
@@ -268,12 +277,16 @@ def send_notification_to_queue(notification, research_mode, queue=None):
         queue = QueueNames.RESEARCH_MODE
 
     if notification.notification_type == SMS_TYPE:
-        deliver_task = provider_tasks.deliver_sms
-        if notification.sends_with_custom_number():
-            deliver_task = provider_tasks.deliver_throttled_sms
-            queue = QueueNames.SEND_THROTTLED_SMS
-        if not queue or queue == QueueNames.NORMAL:
-            queue = QueueNames.SEND_SMS_MEDIUM
+        if current_app.config.get("FF_SMS_CONTROL_LANE", False) and queue != QueueNames.RESEARCH_MODE:
+            deliver_task = provider_tasks.deliver_sms_fair
+            queue = QueueNames.SEND_SMS_FAIR
+        else:
+            deliver_task = provider_tasks.deliver_sms
+            if notification.sends_with_custom_number():
+                deliver_task = provider_tasks.deliver_throttled_sms
+                queue = QueueNames.SEND_THROTTLED_SMS
+            if not queue or queue == QueueNames.NORMAL:
+                queue = QueueNames.SEND_SMS_MEDIUM
     if notification.notification_type == EMAIL_TYPE:
         if not queue or queue == QueueNames.NORMAL:
             queue = QueueNames.SEND_EMAIL_MEDIUM

@@ -3,11 +3,18 @@ from unittest.mock import MagicMock, call
 import pytest
 from botocore.exceptions import ClientError
 from notifications_utils.recipients import InvalidEmailError
+from tests.conftest import set_config
 
 import app
 from app.celery import provider_tasks
-from app.celery.provider_tasks import deliver_email, deliver_sms, deliver_throttled_sms
+from app.celery.provider_tasks import (
+    deliver_email,
+    deliver_sms,
+    deliver_sms_fair,
+    deliver_throttled_sms,
+)
 from app.clients.email.aws_ses import AwsSesClientException
+from app.config import QueueNames
 from app.exceptions import (
     NotificationTechnicalFailureException,
     PinpointValidationException,
@@ -23,6 +30,7 @@ sms_methods = [
 def test_should_have_decorated_tasks_functions():
     assert deliver_sms.__wrapped__.__name__ == "deliver_sms"
     assert deliver_throttled_sms.__wrapped__.__name__ == "deliver_throttled_sms"
+    assert deliver_sms_fair.__wrapped__.__name__ == "deliver_sms_fair"
     assert deliver_email.__wrapped__.__name__ == "deliver_email"
 
 
@@ -37,6 +45,23 @@ def test_should_call_send_sms_to_provider_from_deliver_sms_task(
 
     sms_method(sample_notification.id)
     app.delivery.send_to_providers.send_sms_to_provider.assert_called_with(sample_notification)
+
+
+@pytest.mark.parametrize("sms_method", [deliver_sms, deliver_throttled_sms])
+def test_legacy_sms_tasks_delegate_to_fair_queue_when_control_lane_enabled(
+    sample_notification,
+    mocker,
+    notify_api,
+    sms_method,
+):
+    queue_to_fair = mocker.patch("app.celery.provider_tasks.deliver_sms_fair.apply_async")
+    send_sms_to_provider = mocker.patch("app.delivery.send_to_providers.send_sms_to_provider")
+
+    with set_config(notify_api, "FF_SMS_CONTROL_LANE", True):
+        sms_method(sample_notification.id)
+
+    queue_to_fair.assert_called_once_with([str(sample_notification.id)], queue=QueueNames.SEND_SMS_FAIR)
+    send_sms_to_provider.assert_not_called()
 
 
 @pytest.mark.parametrize("sms_method,sms_method_name", sms_methods)

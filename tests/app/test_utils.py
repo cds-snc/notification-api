@@ -167,7 +167,7 @@ def test_get_delivery_queue_for_template_uses_sms_control_lane_when_flag_enabled
     template = create_template(sample_service, process_type="priority", template_type=SMS_TYPE)
 
     with notify_api.app_context(), set_config(notify_api, "FF_SMS_CONTROL_LANE", True):
-        assert get_delivery_queue_for_template(template) == QueueNames.SEND_SMS_MEDIUM
+        assert get_delivery_queue_for_template(template) == QueueNames.SEND_SMS_FAIR
 
 
 @pytest.mark.parametrize(

@@ -1028,7 +1028,7 @@ class TestProcessRows:
         assert expected_queue == notification.get("queue")
 
     @pytest.mark.parametrize("template_process_type", [PRIORITY, BULK])
-    def test_should_route_sms_job_to_medium_queue_when_sms_control_lane_enabled(
+    def test_should_route_sms_job_to_fair_queue_when_sms_control_lane_enabled(
         self,
         notify_api,
         sample_job,
@@ -1063,7 +1063,7 @@ class TestProcessRows:
         args = mock_save_sms.method_calls[0].args
         signed_notification = [i for i in args[0]][1][0]
         notification = signer_notification.verify(signed_notification)
-        assert QueueNames.SEND_SMS_MEDIUM == notification.get("queue")
+        assert QueueNames.SEND_SMS_FAIR == notification.get("queue")
 
     def test_should_not_save_sms_if_restricted_service_and_invalid_number(self, notify_db_session, mocker):
         user = create_user(mobile_number="6502532222")

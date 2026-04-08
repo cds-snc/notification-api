@@ -83,6 +83,9 @@ class QueueNames(object):
     # we have a limit to send per second and hence, needs to be throttled.
     SEND_THROTTLED_SMS = "send-throttled-sms-tasks"
 
+    # Single AWS fair queue used by the SMS control lane when FF_SMS_CONTROL_LANE is enabled.
+    SEND_SMS_FAIR = "send-sms-fair"
+
     # Queues for sending all emails.
     SEND_EMAIL_HIGH = "send-email-high"
     SEND_EMAIL_MEDIUM = "send-email-medium"
@@ -139,6 +142,7 @@ class QueueNames(object):
             QueueNames.SEND_SMS_MEDIUM,
             QueueNames.SEND_SMS_LOW,
             QueueNames.SEND_THROTTLED_SMS,
+            QueueNames.SEND_SMS_FAIR,
             QueueNames.SEND_EMAIL_HIGH,
             QueueNames.SEND_EMAIL_MEDIUM,
             QueueNames.SEND_EMAIL_LOW,
