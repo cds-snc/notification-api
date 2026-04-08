@@ -10,20 +10,10 @@ environment = os.environ.get("NOTIFY_ENVIRONMENT")
 
 # Ensure these are always defined so other code can rely on them.
 os.environ.setdefault("FF_ENABLE_OTEL", os.getenv("FF_ENABLE_OTEL", "False"))
-os.environ.setdefault("ENABLE_NEW_RELIC", os.getenv("ENABLE_NEW_RELIC", "False"))
-os.environ.setdefault("NEW_RELIC_CONFIG_FILE", os.getenv("NEW_RELIC_CONFIG_FILE", "newrelic.ini"))
 
 env = Env()
 
 ff_enable_otel = env.bool("FF_ENABLE_OTEL", default=False)
-enable_newrelic = env.bool("ENABLE_NEW_RELIC", default=False) and not ff_enable_otel
-
-print("enable_newrelic =", enable_newrelic)
-
-if enable_newrelic:
-    import newrelic.agent
-
-    newrelic.agent.initialize(environment=environment)  # noqa: E402
 
 default_worker_class = "gevent_otel_worker.OTelAwareGeventWorker" if ff_enable_otel else "gevent"
 
@@ -61,9 +51,7 @@ if on_aws:
     # will not be able to finish processing the request. This can lead to
     # 502 errors being returned to the client.
     #
-    # Also, some libraries such as NewRelic might need some time to finish
-    # initialization before the worker can start processing requests. The
-    # timeout values should consider these factors.
+    # The timeout values should consider initialization time for libraries.
     #
     # Gunicorn config:
     # https://docs.gunicorn.org/en/stable/settings.html#graceful-timeout
