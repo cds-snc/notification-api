@@ -74,8 +74,8 @@ def get_sms_cost_for_service(service_id):
         {
             "start_date": data["start_date"],
             "end_date": data["end_date"],
-            "fragment_count": int(result.fragment_count),
-            "total_cost": float(result.total_cost),
+            "fragment_count": int(result["fragment_count"]),
+            "total_cost": float(result["total_cost"]),
         }
     ), 200
 
