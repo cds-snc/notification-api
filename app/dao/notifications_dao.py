@@ -410,13 +410,14 @@ def get_notifications_for_service(
         # this field is not used and it can contain a lot of data
         query = query.options(defer("_personalisation"))
 
-    if format_for_csv:
-        # do an explicit join on the template, job, and created_by tables so that we won't
-        # do a separate query for each notification to get the template, job, and created_by
-        # when the csv data is being generated
-        query = query.options(
-            joinedload(Notification.template), joinedload(Notification.job), joinedload(Notification.created_by)
-        )
+    # Eager-load all relationships accessed during serialization to avoid N+1 queries.
+    # This applies equally to CSV and non-CSV paths.
+    query = query.options(
+        joinedload(Notification.template),
+        joinedload(Notification.job),
+        joinedload(Notification.created_by),
+        joinedload(Notification.api_key),
+    )
 
     return query.order_by(desc(Notification.created_at)).paginate(page=page, per_page=page_size, count=count_pages)
 

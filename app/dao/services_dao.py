@@ -98,7 +98,18 @@ def dao_fetch_live_services_data(filter_heartbeats=None):
         .subquery()
     )
 
-    this_year_ft_billing = FactBilling.query.subquery()
+    this_year_ft_billing = (
+        db.session.query(
+            FactBilling.service_id,
+            FactBilling.notification_type,
+            FactBilling.notifications_sent,
+        )
+        .filter(
+            FactBilling.bst_date >= year_start_date,
+            FactBilling.bst_date < year_end_date,
+        )
+        .subquery()
+    )
 
     data = (
         db.session.query(
@@ -114,32 +125,38 @@ def dao_fetch_live_services_data(filter_heartbeats=None):
             Service.volume_sms.label("sms_volume_intent"),
             Service.volume_email.label("email_volume_intent"),
             Service.volume_letter.label("letter_volume_intent"),
-            case(
-                [
-                    (
-                        this_year_ft_billing.c.notification_type == "email",
-                        func.sum(this_year_ft_billing.c.notifications_sent),
-                    )
-                ],
-                else_=0,
+            func.sum(
+                case(
+                    [
+                        (
+                            this_year_ft_billing.c.notification_type == "email",
+                            this_year_ft_billing.c.notifications_sent,
+                        )
+                    ],
+                    else_=0,
+                )
             ).label("email_totals"),
-            case(
-                [
-                    (
-                        this_year_ft_billing.c.notification_type == "sms",
-                        func.sum(this_year_ft_billing.c.notifications_sent),
-                    )
-                ],
-                else_=0,
+            func.sum(
+                case(
+                    [
+                        (
+                            this_year_ft_billing.c.notification_type == "sms",
+                            this_year_ft_billing.c.notifications_sent,
+                        )
+                    ],
+                    else_=0,
+                )
             ).label("sms_totals"),
-            case(
-                [
-                    (
-                        this_year_ft_billing.c.notification_type == "letter",
-                        func.sum(this_year_ft_billing.c.notifications_sent),
-                    )
-                ],
-                else_=0,
+            func.sum(
+                case(
+                    [
+                        (
+                            this_year_ft_billing.c.notification_type == "letter",
+                            this_year_ft_billing.c.notifications_sent,
+                        )
+                    ],
+                    else_=0,
+                )
             ).label("letter_totals"),
             AnnualBilling.free_sms_fragment_limit,
         )
@@ -174,7 +191,6 @@ def dao_fetch_live_services_data(filter_heartbeats=None):
             Service.volume_sms,
             Service.volume_email,
             Service.volume_letter,
-            this_year_ft_billing.c.notification_type,
             AnnualBilling.free_sms_fragment_limit,
         )
         .order_by(asc(Service.go_live_at))
@@ -182,18 +198,7 @@ def dao_fetch_live_services_data(filter_heartbeats=None):
 
     if filter_heartbeats:
         data = data.filter(Service.id != current_app.config["NOTIFY_SERVICE_ID"])
-    data = data.all()
-    results = []
-    for row in data:
-        existing_service = next((x for x in results if x["service_id"] == row.service_id), None)
-
-        if existing_service is not None:
-            existing_service["email_totals"] += row.email_totals
-            existing_service["sms_totals"] += row.sms_totals
-            existing_service["letter_totals"] += row.letter_totals
-        else:
-            results.append(row._asdict())
-    return results
+    return [row._asdict() for row in data.all()]
 
 
 def dao_fetch_service_by_id(service_id, only_active=False, use_cache=False) -> Service:

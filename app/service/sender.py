@@ -17,9 +17,9 @@ def send_notification_to_service_users(service_id, template_id, personalisation=
     personalisation = personalisation or {}
     include_user_fields = include_user_fields or []
     template = dao_get_template_by_id(template_id)
-    service = dao_fetch_service_by_id(service_id)
-    active_users = dao_fetch_active_users_for_service(service.id)
+    active_users = dao_fetch_active_users_for_service(service_id)
     notify_service = dao_fetch_service_by_id(current_app.config["NOTIFY_SERVICE_ID"])
+    reply_to_text = notify_service.get_default_reply_to_email_address()
 
     for user in active_users:
         personalisation = _add_user_fields(user, personalisation, include_user_fields)
@@ -32,7 +32,7 @@ def send_notification_to_service_users(service_id, template_id, personalisation=
             notification_type=template.template_type,
             api_key_id=None,
             key_type=KEY_TYPE_NORMAL,
-            reply_to_text=notify_service.get_default_reply_to_email_address(),
+            reply_to_text=reply_to_text,
         )
         send_notification_to_queue(notification, False, queue=QueueNames.NOTIFY)
 
