@@ -2766,8 +2766,8 @@ werkzeug = "3.0.6"
 [package.source]
 type = "git"
 url = "https://github.com/cds-snc/notifier-utils.git"
-reference = "fix/normalize-newlines"
-resolved_reference = "b2de0e87e329d1e0fea04ce06c78ed7330ccb7df"
+reference = "53.2.21"
+resolved_reference = "27ef4ac659bef7a1d3fd09ea44f45d23d8b17e2b"
 
 [[package]]
 name = "opentelemetry-api"
@@ -5053,4 +5053,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.12.7"
-content-hash = "8f5b7b0694b1573c24e12080b5d18b3767eee0965d1bb6a7f9b643f55bd6fe50"
+content-hash = "26b11482c58d4eb693d13a7870a3985b0a61f21a8dff742d4325890441f4a8ec"
