@@ -28,18 +28,7 @@ if not ff_enable_otel:
     patch_all()
 
 is_lambda = os.environ.get("AWS_LAMBDA_RUNTIME_API") is not None
-enable_newrelic = env.bool("ENABLE_NEW_RELIC", default=False) and not ff_enable_otel
-
 print("is_lambda =", is_lambda)
-print("enable_newrelic =", enable_newrelic)
-
-if is_lambda and enable_newrelic:
-    import newrelic.agent
-
-    # Initialize New Relic early, before creating the Flask app
-    print("Lambda detected, and New Relic enabled - initializing New Relic agent")
-    environment = os.getenv("NOTIFY_ENVIRONMENT", "dev")
-    newrelic.agent.initialize("newrelic.ini", environment=environment)
 
 application = Flask("api")
 application.wsgi_app = ProxyFix(application.wsgi_app)  # type: ignore
@@ -50,12 +39,6 @@ if not ff_enable_otel:
     # Configure X-Ray after app creation
     xray_recorder.configure(service="Notify-API", context=NotifyContext())
     XRayMiddleware(app, xray_recorder)
-
-# It's annoying that we have to do this here, but order matters
-# so we need to check if is lambda twice.
-if is_lambda and enable_newrelic:
-    # Wrap the Flask app with New Relic's WSGI wrapper
-    app = newrelic.agent.WSGIApplicationWrapper(app)
 
 apig_wsgi_handler = make_lambda_handler(
     app, binary_support=True, non_binary_content_type_prefixes=["application/yaml", "application/json"]
