@@ -175,13 +175,13 @@ def test_get_live_services_data(sample_user, admin_request):
     template2 = create_template(service=service, template_type="email")
     dao_add_service_to_organisation(service=service, organisation_id=org.id)
     create_ft_billing(
-        utc_date="2019-04-20",
+        utc_date="2026-04-20",
         notification_type="sms",
         template=template,
         service=service,
     )
     create_ft_billing(
-        utc_date="2019-04-20",
+        utc_date="2026-04-20",
         notification_type="email",
         template=template2,
         service=service,
