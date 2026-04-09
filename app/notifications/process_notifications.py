@@ -240,15 +240,11 @@ def choose_queue(notification, research_mode, queue=None) -> QueueNames:
     if research_mode or notification.key_type == KEY_TYPE_TEST:
         queue = QueueNames.RESEARCH_MODE
 
-    if queue == QueueNames.RESEARCH_MODE:
-        return queue
-
     if notification.notification_type == SMS_TYPE:
-        if current_app.config.get("FF_SMS_CONTROL_LANE", False):
-            queue = QueueNames.SEND_SMS_FAIR
-            return queue
-        if notification.sends_with_custom_number():
+        if notification.sends_with_custom_number() and not current_app.config.get("FF_SMS_CONTROL_LANE", False):
             queue = QueueNames.SEND_THROTTLED_SMS
+        elif current_app.config.get("FF_SMS_CONTROL_LANE", False) and queue != QueueNames.RESEARCH_MODE:
+            queue = QueueNames.SEND_SMS_FAIR
         if not queue:
             queue = QueueNames.SEND_SMS_MEDIUM
     if notification.notification_type == EMAIL_TYPE:
