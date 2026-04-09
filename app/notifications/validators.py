@@ -192,7 +192,7 @@ def check_email_annual_limit(service: Service, requested_emails=0):
                 f"Service {service.id} reached 80% of their annual email limit of {service.email_annual_limit} messages. Sending annual limit usage warning email."
             )
             send_near_annual_limit_warning_email(
-                service, "email", int(emails_sent_today + emails_sent_this_fiscal), current_fiscal_year + 1
+                service, "email", int(emails_sent_today + emails_sent_this_fiscal + requested_emails), current_fiscal_year + 1
             )
 
         return
@@ -250,7 +250,7 @@ def check_sms_annual_limit(service: Service, requested_sms=0):
                 f"Service {service.id} reached 80% of their annual SMS limit of {service.sms_annual_limit} messages. Sending annual limit usage warning email."
             )
             send_near_annual_limit_warning_email(
-                service, "sms", int(sms_sent_today + sms_sent_this_fiscal), current_fiscal_year + 1
+                service, "sms", int(sms_sent_today + sms_sent_this_fiscal + requested_sms), current_fiscal_year + 1
             )
 
         return
