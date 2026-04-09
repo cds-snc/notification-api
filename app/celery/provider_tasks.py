@@ -46,7 +46,11 @@ def deliver_throttled_sms(self, notification_id):
     delivery_info = getattr(self.request, "delivery_info", {}) or {}
     routing_key = delivery_info.get("routing_key")
     if current_app.config.get("FF_SMS_CONTROL_LANE", False) and routing_key != QueueNames.RESEARCH_MODE:
-        deliver_sms_fair.apply_async([str(notification_id)], queue=QueueNames.SEND_SMS_FAIR)
+        deliver_sms_fair.apply_async(
+            [str(notification_id)],
+            queue=QueueNames.SEND_SMS_FAIR,
+            MessageGroupId=_get_sms_fair_message_group_id(notification_id),
+        )
         return
     _deliver_sms(self, notification_id)
 
@@ -69,7 +73,11 @@ def deliver_sms(self, notification_id):
     delivery_info = getattr(self.request, "delivery_info", {}) or {}
     routing_key = delivery_info.get("routing_key")
     if current_app.config.get("FF_SMS_CONTROL_LANE", False) and routing_key != QueueNames.RESEARCH_MODE:
-        deliver_sms_fair.apply_async([str(notification_id)], queue=QueueNames.SEND_SMS_FAIR)
+        deliver_sms_fair.apply_async(
+            [str(notification_id)],
+            queue=QueueNames.SEND_SMS_FAIR,
+            MessageGroupId=_get_sms_fair_message_group_id(notification_id),
+        )
         return
     _deliver_sms(self, notification_id)
 
@@ -84,6 +92,17 @@ def deliver_sms(self, notification_id):
 @statsd(namespace="tasks")
 def deliver_sms_fair(self, notification_id):
     _deliver_sms(self, notification_id)
+
+
+def _get_sms_fair_message_group_id(notification_id) -> str:
+    try:
+        notification = notifications_dao.get_notification_by_id(notification_id)
+        if notification and notification.service_id:
+            return str(notification.service_id)
+    except Exception:
+        pass
+
+    return str(notification_id)
 
 
 SCAN_RETRY_BACKOFF = 10

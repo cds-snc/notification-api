@@ -587,6 +587,29 @@ class TestSendNotificationQueue:
         assert Notification.query.count() == 0
         assert NotificationHistory.query.count() == 0
 
+    def test_send_notification_to_queue_adds_message_group_id_for_sms_fair_queue(
+        self,
+        notify_api,
+        mocker,
+    ):
+        mocked = mocker.patch("app.celery.provider_tasks.deliver_sms_fair.apply_async")
+        notification = Notification(
+            id=uuid.uuid4(),
+            service_id=uuid.uuid4(),
+            key_type="normal",
+            notification_type="sms",
+            created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
+        )
+
+        with set_config(notify_api, "FF_SMS_CONTROL_LANE", True):
+            send_notification_to_queue(notification=notification, research_mode=False)
+
+        mocked.assert_called_once_with(
+            [str(notification.id)],
+            queue=QueueNames.SEND_SMS_FAIR,
+            MessageGroupId=str(notification.service_id),
+        )
+
 
 class TestSimulatedRecipient:
     @pytest.mark.parametrize(
@@ -1068,6 +1091,42 @@ class TestDBSaveAndSendNotification:
 
         assert Notification.query.count() == 0
         assert NotificationHistory.query.count() == 0
+
+    def test_db_save_and_send_notification_adds_message_group_id_for_sms_fair_queue(
+        self,
+        notify_api,
+        sample_template,
+        sample_api_key,
+        sample_job,
+        mocker,
+    ):
+        mocked = mocker.patch("app.celery.provider_tasks.deliver_sms_fair.apply_async")
+        notification = Notification(
+            id=uuid.uuid4(),
+            template_id=sample_template.id,
+            template_version=sample_template.version,
+            service=sample_template.service,
+            personalisation={},
+            notification_type="sms",
+            api_key_id=sample_api_key.id,
+            key_type=sample_api_key.key_type,
+            job_id=sample_job.id,
+            job_row_number=100,
+            reference="ref",
+            reply_to_text=sample_template.service.get_default_sms_sender(),
+            to="+16502532222",
+            created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
+            queue_name=QueueNames.SEND_SMS_FAIR,
+        )
+
+        with set_config(notify_api, "FF_SMS_CONTROL_LANE", True):
+            db_save_and_send_notification(notification=notification)
+
+        mocked.assert_called_once_with(
+            [str(notification.id)],
+            queue=QueueNames.SEND_SMS_FAIR,
+            MessageGroupId=str(notification.service_id),
+        )
 
     @pytest.mark.parametrize(
         ("process_type, expected_retry_period"),

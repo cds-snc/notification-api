@@ -219,9 +219,14 @@ def db_save_and_send_notification(notification: Notification):
 
     deliver_task = choose_deliver_task(notification)
     try:
+        apply_async_kwargs = {"queue": notification.queue_name}
+        if notification.queue_name == QueueNames.SEND_SMS_FAIR:
+            message_group_id = notification.service_id or notification.id
+            apply_async_kwargs["MessageGroupId"] = str(message_group_id)
+
         deliver_task.apply_async(
             [str(notification.id)],
-            queue=notification.queue_name,
+            **apply_async_kwargs,
         )
     except Exception:
         dao_delete_notifications_by_id(notification.id)
@@ -297,7 +302,12 @@ def send_notification_to_queue(notification, research_mode, queue=None):
         deliver_task = create_letters_pdf
 
     try:
-        deliver_task.apply_async([str(notification.id)], queue=queue)
+        apply_async_kwargs = {"queue": queue}
+        if queue == QueueNames.SEND_SMS_FAIR:
+            message_group_id = notification.service_id or notification.id
+            apply_async_kwargs["MessageGroupId"] = str(message_group_id)
+
+        deliver_task.apply_async([str(notification.id)], **apply_async_kwargs)
     except Exception:
         dao_delete_notifications_by_id(notification.id)
         raise

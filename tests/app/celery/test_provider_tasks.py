@@ -3,7 +3,6 @@ from unittest.mock import MagicMock, call
 import pytest
 from botocore.exceptions import ClientError
 from notifications_utils.recipients import InvalidEmailError
-from tests.conftest import set_config
 
 import app
 from app.celery import provider_tasks
@@ -55,12 +54,24 @@ def test_legacy_sms_tasks_delegate_to_fair_queue_when_control_lane_enabled(
     sms_method,
 ):
     queue_to_fair = mocker.patch("app.celery.provider_tasks.deliver_sms_fair.apply_async")
+    mocker.patch(
+        "app.celery.provider_tasks._get_sms_fair_message_group_id",
+        return_value=str(sample_notification.service_id),
+    )
     send_sms_to_provider = mocker.patch("app.delivery.send_to_providers.send_sms_to_provider")
 
-    with set_config(notify_api, "FF_SMS_CONTROL_LANE", True):
+    previous_flag = notify_api.config.get("FF_SMS_CONTROL_LANE", False)
+    notify_api.config["FF_SMS_CONTROL_LANE"] = True
+    try:
         sms_method(sample_notification.id)
+    finally:
+        notify_api.config["FF_SMS_CONTROL_LANE"] = previous_flag
 
-    queue_to_fair.assert_called_once_with([str(sample_notification.id)], queue=QueueNames.SEND_SMS_FAIR)
+    queue_to_fair.assert_called_once_with(
+        [str(sample_notification.id)],
+        queue=QueueNames.SEND_SMS_FAIR,
+        MessageGroupId=str(sample_notification.service_id),
+    )
     send_sms_to_provider.assert_not_called()
 
 
