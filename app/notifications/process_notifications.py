@@ -274,6 +274,8 @@ def choose_deliver_task(notification):
 
 
 def send_notification_to_queue(notification, research_mode, queue=None):
+    deliver_task = None
+
     if research_mode or notification.key_type == KEY_TYPE_TEST:
         queue = QueueNames.RESEARCH_MODE
 
@@ -288,14 +290,17 @@ def send_notification_to_queue(notification, research_mode, queue=None):
                 queue = QueueNames.SEND_THROTTLED_SMS
             if not queue or queue == QueueNames.NORMAL:
                 queue = QueueNames.SEND_SMS_MEDIUM
-    if notification.notification_type == EMAIL_TYPE:
+    elif notification.notification_type == EMAIL_TYPE:
         if not queue or queue == QueueNames.NORMAL:
             queue = QueueNames.SEND_EMAIL_MEDIUM
         deliver_task = provider_tasks.deliver_email
-    if notification.notification_type == LETTER_TYPE:
+    elif notification.notification_type == LETTER_TYPE:
         if not queue or queue == QueueNames.NORMAL:
             queue = QueueNames.CREATE_LETTERS_PDF
         deliver_task = create_letters_pdf
+
+    if deliver_task is None:
+        raise ValueError(f"Unsupported notification type for queue dispatch: {notification.notification_type}")
 
     try:
         apply_async_kwargs = {"queue": queue}

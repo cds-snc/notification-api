@@ -99,8 +99,12 @@ def _get_sms_fair_message_group_id(notification_id) -> str:
         notification = notifications_dao.get_notification_by_id(notification_id)
         if notification and notification.service_id:
             return str(notification.service_id)
-    except Exception:
-        pass
+    except Exception as e:
+        current_app.logger.warning(
+            "Failed to resolve service_id for fair queue MessageGroupId on notification %s: %s",
+            notification_id,
+            repr(e),
+        )
 
     return str(notification_id)
 
