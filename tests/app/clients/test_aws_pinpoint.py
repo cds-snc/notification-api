@@ -258,8 +258,9 @@ def test_send_sms_uses_dedicated_number_when_flag_enabled(notify_api, mocker):
 
 @pytest.mark.serial
 @pytest.mark.parametrize("sender", [None])
-def test_send_sms_to_us_number_successful_returns_aws_pinpoint_response(notify_api, mocker, sender):
+def test_send_sms_to_us_number_uses_pinpoint_when_flag_enabled(notify_api, mocker, sender):
     dedicated_mock = mocker.patch.object(aws_pinpoint_client, "_dedicated_client", create=True)
+    default_mock = mocker.patch.object(aws_pinpoint_client, "_client", create=True)
     mocker.patch.object(aws_pinpoint_client, "statsd_client", create=True)
 
     to = "7185555555"  # New York City Area Code
@@ -283,3 +284,6 @@ def test_send_sms_to_us_number_successful_returns_aws_pinpoint_response(notify_a
         MessageType="TRANSACTIONAL",
         ConfigurationSetName="config_set_name",
     )
+
+    # Default client NOT used
+    default_mock.send_text_message.assert_not_called()
