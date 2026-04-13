@@ -254,3 +254,32 @@ def test_send_sms_uses_dedicated_number_when_flag_enabled(notify_api, mocker):
 
     # Default client NOT used
     default_mock.send_text_message.assert_not_called()
+
+
+@pytest.mark.serial
+@pytest.mark.parametrize("sender", [None])
+def test_send_sms_to_us_number_successful_returns_aws_pinpoint_response(notify_api, mocker, sender):
+    dedicated_mock = mocker.patch.object(aws_pinpoint_client, "_dedicated_client", create=True)
+    mocker.patch.object(aws_pinpoint_client, "statsd_client", create=True)
+
+    to = "7185555555"  # New York City Area Code
+    content = reference = "foo"
+    us_toll_free_number = "+18449521252"
+
+    with set_config_values(
+        notify_api,
+        {
+            "AWS_US_TOLL_FREE_NUMBER": us_toll_free_number,
+            "AWS_PINPOINT_CONFIGURATION_SET_NAME": "config_set_name",
+            "FF_USE_PINPOINT_FOR_US": True,
+        },
+    ):
+        aws_pinpoint_client.send_sms(to, content, reference, sender=sender)
+
+    dedicated_mock.send_text_message.assert_called_once_with(
+        DestinationPhoneNumber=f"+1{to}",
+        OriginationIdentity=us_toll_free_number,
+        MessageBody=content,
+        MessageType="TRANSACTIONAL",
+        ConfigurationSetName="config_set_name",
+    )

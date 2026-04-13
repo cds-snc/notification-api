@@ -425,9 +425,10 @@ def provider_to_use(
     using_sc_pool_template = template_id is not None and str(template_id) in current_app.config["AWS_PINPOINT_SC_TEMPLATE_IDS"]
     zone_1_outside_canada = recipient_outside_canada and not international
     use_pinpoint_for_dedicated = current_app.config.get("FF_USE_PINPOINT_FOR_DEDICATED", False)
+    use_pinpoint_for_us = current_app.config.get("FF_USE_PINPOINT_FOR_US", False)
     do_not_use_pinpoint = (
         (has_dedicated_number and not use_pinpoint_for_dedicated)
-        or sending_to_us_number
+        or (sending_to_us_number and not use_pinpoint_for_us)
         or cannot_determine_recipient_country
         or zone_1_outside_canada
         or not current_app.config["AWS_PINPOINT_SC_POOL_ID"]
