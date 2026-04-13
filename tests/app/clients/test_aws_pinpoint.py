@@ -257,8 +257,7 @@ def test_send_sms_uses_dedicated_number_when_flag_enabled(notify_api, mocker):
 
 
 @pytest.mark.serial
-@pytest.mark.parametrize("sender", [None])
-def test_send_sms_to_us_number_uses_pinpoint_when_flag_enabled(notify_api, mocker, sender):
+def test_send_sms_to_us_number_uses_pinpoint_when_flag_enabled(notify_api, mocker):
     dedicated_mock = mocker.patch.object(aws_pinpoint_client, "_dedicated_client", create=True)
     default_mock = mocker.patch.object(aws_pinpoint_client, "_client", create=True)
     mocker.patch.object(aws_pinpoint_client, "statsd_client", create=True)
@@ -275,7 +274,7 @@ def test_send_sms_to_us_number_uses_pinpoint_when_flag_enabled(notify_api, mocke
             "FF_USE_PINPOINT_FOR_US": True,
         },
     ):
-        aws_pinpoint_client.send_sms(to, content, reference, sender=sender)
+        aws_pinpoint_client.send_sms(to, content, reference)
 
     dedicated_mock.send_text_message.assert_called_once_with(
         DestinationPhoneNumber=f"+1{to}",
