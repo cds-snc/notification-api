@@ -1043,11 +1043,11 @@ def test_update_service_annual_limits(
     assert getattr(sample_service, limit_field) == limit_value
     if limit_field == "sms_annual_limit":
         assert redis_delete.call_args_list == [
-            call(f"annual-limit:{sample_service.id}:status", ["near_sms_limit", "near_email_limit"]),
+            call(f"annual-limit:{sample_service.id}:status", ["near_sms_limit", "over_sms_limit"]),
         ]
     if limit_field == "email_annual_limit":
         assert redis_delete.call_args_list == [
-            call(f"annual-limit:{sample_service.id}:status", ["over_email_limit", "near_email_limit"]),
+            call(f"annual-limit:{sample_service.id}:status", ["near_email_limit", "over_email_limit"]),
         ]
 
 
