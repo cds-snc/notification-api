@@ -137,8 +137,8 @@ service_blueprint = Blueprint("service", __name__)
 
 register_errors(service_blueprint)
 
-ANNUAL_LIMIT_SMS_OVER_NEAR_STATUS_FIELDS = ["near_sms_limit", "near_email_limit"]
-ANNUAL_LIMIT_EMAIL_OVER_NEAR_STATUS_FIELDS = ["over_email_limit", "near_email_limit"]
+ANNUAL_LIMIT_SMS_OVER_NEAR_STATUS_FIELDS = ["near_sms_limit", "over_sms_limit"]
+ANNUAL_LIMIT_EMAIL_OVER_NEAR_STATUS_FIELDS = ["near_email_limit", "over_email_limit"]
 
 
 @service_blueprint.errorhandler(IntegrityError)
@@ -327,7 +327,10 @@ def update_service(service_id):
     if sms_annual_limit_changed:
         _warn_service_users_about_annual_limit_change(service, SMS_TYPE)
         # TODO: abstract this in the annual_limits_client
-        redis_store.delete_hash_fields(f"annual-limit:{service_id}:status", ANNUAL_LIMIT_SMS_OVER_NEAR_STATUS_FIELDS)
+        fields_to_clear = list(ANNUAL_LIMIT_SMS_OVER_NEAR_STATUS_FIELDS)
+        if current_app.config.get("FF_USE_BILLABLE_UNITS"):
+            fields_to_clear += ["near_sms_billable_units_limit", "over_sms_billable_units_limit"]
+        redis_store.delete_hash_fields(f"annual-limit:{service_id}:status", fields_to_clear)
     if email_annual_limit_changed:
         _warn_service_users_about_annual_limit_change(service, EMAIL_TYPE)
         # TODO: abstract this in the annual_limits_client
