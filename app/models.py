@@ -66,6 +66,7 @@ USER_AUTH_TYPE = [SMS_AUTH_TYPE, EMAIL_AUTH_TYPE, SECURITY_KEY_AUTH_TYPE]
 DELIVERY_STATUS_CALLBACK_TYPE = "delivery_status"
 COMPLAINT_CALLBACK_TYPE = "complaint"
 SERVICE_CALLBACK_TYPES = [DELIVERY_STATUS_CALLBACK_TYPE, COMPLAINT_CALLBACK_TYPE]
+DEFAULT_SMS_DAILY_LIMIT = 1500
 DEFAULT_SMS_ANNUAL_LIMIT = 100000
 DEFAULT_EMAIL_ANNUAL_LIMIT = 20000000
 
@@ -657,7 +658,7 @@ class Service(BaseModel, Versioned):
         fields.pop("letter_logo_filename", None)
         fields.pop("letter_contact_block", None)
         fields.pop("email_branding", None)
-        fields["sms_daily_limit"] = fields.get("sms_daily_limit", 100)
+        fields["sms_daily_limit"] = fields.get("sms_daily_limit", DEFAULT_SMS_DAILY_LIMIT)
         fields["email_annual_limit"] = fields.get("email_annual_limit", DEFAULT_EMAIL_ANNUAL_LIMIT)
         fields["sms_annual_limit"] = fields.get("sms_annual_limit", DEFAULT_SMS_ANNUAL_LIMIT)
 
