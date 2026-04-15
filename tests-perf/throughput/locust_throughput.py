@@ -34,7 +34,6 @@ Saturation indicators to watch in the Locust charts:
 
 from locust import HttpUser, LoadTestShape, constant, events, task
 
-
 # ---------------------------------------------------------------------------
 # CLI flags — all optional, sensible defaults work out of the box
 # ---------------------------------------------------------------------------

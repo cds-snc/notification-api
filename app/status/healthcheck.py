@@ -70,7 +70,7 @@ def benchmark():
 
     try:
         target_ms = int(raw_delay_ms)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError):git
         return jsonify(status="error", message="delay_ms must be an integer"), 400
 
     if target_ms < 0:
