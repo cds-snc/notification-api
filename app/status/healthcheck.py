@@ -1,3 +1,4 @@
+import hmac
 import random
 import time
 from datetime import datetime, timezone
@@ -57,6 +58,11 @@ def benchmark():
                         Actual sleep is randomised within ±20% of this value.
     """
     if not current_app.config.get("FF_BENCHMARK_ENDPOINT"):
+        return jsonify(status="not found"), 404
+
+    waf_secret = current_app.config.get("WAF_SECRET")
+    incoming = request.headers.get("waf-secret", "")
+    if not waf_secret or not hmac.compare_digest(incoming, waf_secret):
         return jsonify(status="not found"), 404
 
     target_ms = int(request.args.get("delay_ms", 100))
