@@ -66,6 +66,22 @@ def benchmark():
         return jsonify(status="not found"), 404
 
     target_ms = int(request.args.get("delay_ms", 100))
+    max_delay_ms = 10000
+    raw_delay_ms = request.args.get("delay_ms", "100")
+
+    try:
+        target_ms = int(raw_delay_ms)
+    except (TypeError, ValueError):
+        return jsonify(status="error", message="delay_ms must be an integer"), 400
+
+    if target_ms < 0:
+        return jsonify(status="error", message="delay_ms must be non-negative"), 400
+
+    if target_ms > max_delay_ms:
+        return (
+            jsonify(status="error", message=f"delay_ms must be less than or equal to {max_delay_ms}"),
+            400,
+        )
     jitter_ms = target_ms * 0.2
     actual_ms = random.uniform(target_ms - jitter_ms, target_ms + jitter_ms)
     time.sleep(actual_ms / 1000)
