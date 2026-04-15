@@ -798,6 +798,85 @@ class TestAnnualLimitValidators:
         check_sms_annual_limit(service, 4)
         mock_send_email.assert_not_called()
 
+    def test_check_sms_annual_limit_only_sends_reached_email_when_near_and_reached_in_same_send(
+        self,
+        notify_api,
+        notify_db,
+        notify_db_session,
+        mocker,
+    ):
+        """When a single send crosses both the 80% near-limit threshold and reaches the annual limit,
+        only the 'reached limit' email should be sent, not the 'near limit' warning.
+        e.g. service has limit of 5 SMS parts, sends 1 message that is 5 parts.
+        """
+        mocker.patch("app.redis_store.set_hash_value")
+        mocker.patch("app.redis_store.get", return_value=0)
+        mocker.patch(
+            "app.notifications.validators.get_annual_limit_notifications_v2",
+            return_value={
+                "total_sms_fiscal_year_to_yesterday": 0,
+                "total_sms_billable_units_fiscal_year_to_yesterday": 0,
+            },
+        )
+        mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
+        mocker.patch("app.notifications.validators.fetch_todays_requested_sms_billable_units_count", return_value=0)
+        mocker.patch("app.annual_limit_client.check_has_over_limit_been_sent", return_value=False)
+        mocker.patch("app.annual_limit_client.check_has_warning_been_sent", return_value=False)
+        mock_set_over = mocker.patch("app.annual_limit_client.set_over_sms_limit")
+        mock_set_near = mocker.patch("app.annual_limit_client.set_nearing_sms_limit")
+        mock_send_reached = mocker.patch("app.notifications.validators.send_annual_limit_reached_email")
+        mock_send_near = mocker.patch("app.notifications.validators.send_near_annual_limit_warning_email")
+
+        service = create_sample_service(notify_db, notify_db_session, sms_annual_limit=5)
+
+        # Send 5 parts at once — crosses 80% AND reaches limit
+        check_sms_annual_limit(service, 5)
+
+        # Reached limit email should be sent
+        mock_set_over.assert_called_once_with(service.id)
+        mock_send_reached.assert_called_once()
+
+        # Near limit email should NOT be sent
+        mock_set_near.assert_not_called()
+        mock_send_near.assert_not_called()
+
+    def test_check_email_annual_limit_only_sends_reached_email_when_near_and_reached_in_same_send(
+        self,
+        notify_api,
+        notify_db,
+        notify_db_session,
+        mocker,
+    ):
+        """When a single send crosses both the 80% near-limit threshold and reaches the annual limit,
+        only the 'reached limit' email should be sent, not the 'near limit' warning.
+        """
+        mocker.patch("app.redis_store.set_hash_value")
+        mocker.patch("app.redis_store.get", return_value=0)
+        mocker.patch(
+            "app.notifications.validators.get_annual_limit_notifications_v2",
+            return_value={"total_email_fiscal_year_to_yesterday": 0},
+        )
+        mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=0)
+        mocker.patch("app.annual_limit_client.check_has_over_limit_been_sent", return_value=False)
+        mocker.patch("app.annual_limit_client.check_has_warning_been_sent", return_value=False)
+        mock_set_over = mocker.patch("app.annual_limit_client.set_over_email_limit")
+        mock_set_near = mocker.patch("app.annual_limit_client.set_nearing_email_limit")
+        mock_send_reached = mocker.patch("app.notifications.validators.send_annual_limit_reached_email")
+        mock_send_near = mocker.patch("app.notifications.validators.send_near_annual_limit_warning_email")
+
+        service = create_sample_service(notify_db, notify_db_session, email_annual_limit=5)
+
+        # Send 5 emails at once — crosses 80% AND reaches limit
+        check_email_annual_limit(service, 5)
+
+        # Reached limit email should be sent
+        mock_set_over.assert_called_once_with(service.id)
+        mock_send_reached.assert_called_once()
+
+        # Near limit email should NOT be sent
+        mock_set_near.assert_not_called()
+        mock_send_near.assert_not_called()
+
 
 # TODO: Remove feature flag checks after FF_USE_BILLABLE_UNITS go live
 class TestBillableUnitsInValidators:
