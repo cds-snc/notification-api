@@ -114,3 +114,33 @@ def test_benchmark_respects_delay_ms_param(client, notify_db_session):
     assert response.status_code == 200
     body = json.loads(response.get_data(as_text=True))
     assert body["simulated_delay_ms"] == 0.0
+
+
+def test_benchmark_returns_400_for_non_integer_delay(client, notify_db_session):
+    with client.application.app_context():
+        client.application.config["FF_BENCHMARK_ENDPOINT"] = True
+        client.application.config["WAF_SECRET"] = WAF_SECRET
+    response = client.get("/_status/benchmark?delay_ms=abc", headers=WAF_HEADER)
+    assert response.status_code == 400
+    body = json.loads(response.get_data(as_text=True))
+    assert body["status"] == "error"
+
+
+def test_benchmark_returns_400_for_negative_delay(client, notify_db_session):
+    with client.application.app_context():
+        client.application.config["FF_BENCHMARK_ENDPOINT"] = True
+        client.application.config["WAF_SECRET"] = WAF_SECRET
+    response = client.get("/_status/benchmark?delay_ms=-1", headers=WAF_HEADER)
+    assert response.status_code == 400
+    body = json.loads(response.get_data(as_text=True))
+    assert body["status"] == "error"
+
+
+def test_benchmark_returns_400_for_delay_exceeding_maximum(client, notify_db_session):
+    with client.application.app_context():
+        client.application.config["FF_BENCHMARK_ENDPOINT"] = True
+        client.application.config["WAF_SECRET"] = WAF_SECRET
+    response = client.get("/_status/benchmark?delay_ms=10001", headers=WAF_HEADER)
+    assert response.status_code == 400
+    body = json.loads(response.get_data(as_text=True))
+    assert body["status"] == "error"

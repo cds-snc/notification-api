@@ -65,7 +65,6 @@ def benchmark():
     if not waf_secret or not hmac.compare_digest(incoming, waf_secret):
         return jsonify(status="not found"), 404
 
-    target_ms = int(request.args.get("delay_ms", 100))
     max_delay_ms = 10000
     raw_delay_ms = request.args.get("delay_ms", "100")
 
