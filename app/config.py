@@ -659,6 +659,7 @@ class Config(object):
     FF_ANNUAL_LIMIT = env.bool("FF_ANNUAL_LIMIT", False)
     FF_PT_SERVICE_SKIP_FRESHDESK = env.bool("FF_PT_SERVICE_SKIP_FRESHDESK", False)
     FF_USE_BILLABLE_UNITS = env.bool("FF_USE_BILLABLE_UNITS", False)
+    FF_BENCHMARK_ENDPOINT = env.bool("FF_BENCHMARK_ENDPOINT", False)
 
     # SRE Tools auth keys
     SRE_USER_NAME = "SRE_CLIENT_USER"

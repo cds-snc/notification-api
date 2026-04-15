@@ -1,6 +1,8 @@
+import random
+import time
 from datetime import datetime, timezone
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request
 
 from app import db, version
 from app.dao.organisation_dao import dao_count_organsations_with_live_services
@@ -42,3 +44,24 @@ def get_db_version():
     query = "SELECT version_num FROM alembic_version"
     full_name = db.session.execute(query).fetchone()[0]
     return full_name
+
+
+@status.route("/_status/benchmark", methods=["GET"])
+def benchmark():
+    """Simulates a DB call with a configurable sleep for throughput testing.
+
+    Requires the FF_BENCHMARK_ENDPOINT feature flag to be enabled.
+
+    Query params:
+        delay_ms (int): target sleep duration in milliseconds (default: 100).
+                        Actual sleep is randomised within ±20% of this value.
+    """
+    if not current_app.config.get("FF_BENCHMARK_ENDPOINT"):
+        return jsonify(status="not found"), 404
+
+    target_ms = int(request.args.get("delay_ms", 100))
+    jitter_ms = target_ms * 0.2
+    actual_ms = random.uniform(target_ms - jitter_ms, target_ms + jitter_ms)
+    time.sleep(actual_ms / 1000)
+
+    return jsonify(status="ok", simulated_delay_ms=round(actual_ms, 2)), 200
