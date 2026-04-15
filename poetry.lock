@@ -1198,17 +1198,17 @@ testing = ["hatch", "pre-commit", "pytest", "tox"]
 
 [[package]]
 name = "fido2"
-version = "1.2.0"
+version = "2.2.0"
 description = "FIDO2/WebAuthn library for implementing clients and servers."
 optional = false
-python-versions = "<4.0,>=3.8"
+python-versions = "<4,>=3.10"
 files = [
-    {file = "fido2-1.2.0-py3-none-any.whl", hash = "sha256:f7c8ee62e359aa980a45773f9493965bb29ede1b237a9218169dbfe60c80e130"},
-    {file = "fido2-1.2.0.tar.gz", hash = "sha256:e39f95920122d64283fda5e5581d95a206e704fa42846bfa4662f86aa0d3333b"},
+    {file = "fido2-2.2.0-py3-none-any.whl", hash = "sha256:3587ccf0af7b71b5dd73f17e1dbec9f0fd157292f9163f02e7778f46d0d25fe5"},
+    {file = "fido2-2.2.0.tar.gz", hash = "sha256:0d8122e690096ad82afde42ac9d6433a4eeffda64084f36341ea02546b181dd1"},
 ]
 
 [package.dependencies]
-cryptography = ">=2.6,<35 || >35,<45"
+cryptography = ">=2.6,<35 || >35,<49"
 
 [package.extras]
 pcsc = ["pyscard (>=1.9,<3)"]
@@ -5053,4 +5053,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.12.7"
-content-hash = "26b11482c58d4eb693d13a7870a3985b0a61f21a8dff742d4325890441f4a8ec"
+content-hash = "cbffa1ea2f597103efb2e1b089ed3944b2836a92b32182cd04667fe07aaedc16"

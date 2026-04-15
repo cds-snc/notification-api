@@ -1,12 +1,8 @@
-import base64
 import json
 import uuid
 from datetime import datetime, timedelta
 
 import pwnedpasswords
-from fido2 import cbor
-from fido2.webauthn import AuthenticatorData
-from fido2.webauthn import CollectedClientData as ClientData
 from flask import Blueprint, abort, current_app, jsonify, request
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
@@ -16,7 +12,6 @@ from app.clients.freshdesk import Freshdesk
 from app.clients.salesforce.salesforce_engagement import ENGAGEMENT_STAGE_ACTIVATION
 from app.config import Config, QueueNames
 from app.dao.fido2_key_dao import (
-    _ensure_bytes,
     create_fido2_session,
     decode_and_register,
     delete_fido2_key,
@@ -797,12 +792,12 @@ def list_fido2_keys_user(user_id):
 def create_fido2_keys_user(user_id):
     user = get_user_and_accounts(user_id)
     data = request.get_json()
-    cbor_data = cbor.decode(base64.b64decode(data["payload"]))
     validate(data, fido2_key_schema)
 
     id = uuid.uuid4()
-    key = decode_and_register(cbor_data, get_fido2_session(user_id))
-    save_fido2_key(Fido2Key(id=id, user_id=user_id, name=cbor_data["name"], key=key))
+    # data["credential"] is the standard WebAuthn RegistrationResponse JSON
+    key = decode_and_register(data["credential"], get_fido2_session(user_id))
+    save_fido2_key(Fido2Key(id=id, user_id=user_id, name=data["name"], key=key))
     _update_alert(user, changes={"security_key_created": None})
     return jsonify({"id": id})
 
@@ -825,10 +820,8 @@ def fido2_keys_user_register(user_id):
     )
     create_fido2_session(user_id, state)
 
-    # In fido2 1.x, register_begin returns a PublicKeyCredentialCreationOptions object
-    # We can encode it directly as CBOR - the object itself is CBOR-serializable
-    registration_payload = base64.b64encode(cbor.encode(registration_data)).decode("utf8")
-    return jsonify({"data": registration_payload})
+    # fido2 v2: CredentialCreationOptions serializes to a JSON-compatible dict
+    return jsonify({"data": dict(registration_data)})
 
 
 @user_blueprint.route("/<uuid:user_id>/fido2_keys/authenticate", methods=["POST"])
@@ -848,18 +841,8 @@ def fido2_keys_user_authenticate(user_id):
         create_fido2_session(user_id, state)
         current_app.logger.info("FIDO2 session created successfully")
 
-        # In fido2 1.x, authenticate_begin returns a CredentialRequestOptions object
-        # We need to encode it directly as CBOR - the object itself is CBOR-serializable
-        current_app.logger.info(f"Authentication challenge type: {type(request_options)}")
-
-        # The request_options object can be CBOR encoded directly in fido2 1.x
-        cbor_encoded = cbor.encode(request_options)
-        current_app.logger.info(f"CBOR encoded length: {len(cbor_encoded)}")
-
-        # Base64 encode for transmission
-        auth_payload = base64.b64encode(cbor_encoded).decode("utf8")
-
-        return jsonify({"data": auth_payload})
+        # fido2 v2: CredentialRequestOptions serializes to a JSON-compatible dict
+        return jsonify({"data": dict(request_options)})
     except Exception as e:
         current_app.logger.exception(f"Error in FIDO2 authentication for user {user_id}: {str(e)}")
         return jsonify({"error": "An internal error has occurred"}), 500
@@ -873,20 +856,11 @@ def fido2_keys_user_validate(user_id):
         credentials = [deserialize_fido2_key(k.key) for k in keys]
 
         data = request.get_json()
-        cbor_data = cbor.decode(base64.b64decode(data["payload"]))
-
-        credential_id = _ensure_bytes(cbor_data["credentialId"])
-        client_data = ClientData(_ensure_bytes(cbor_data["clientDataJSON"]))
-        auth_data = AuthenticatorData(_ensure_bytes(cbor_data["authenticatorData"]))
-        signature = _ensure_bytes(cbor_data["signature"])
-
+        # data["credential"] is the standard WebAuthn AuthenticationResponse JSON
         Config.FIDO2_SERVER.authenticate_complete(
             get_fido2_session(user_id),
             credentials,
-            credential_id,
-            client_data,
-            auth_data,
-            signature,
+            data["credential"],
         )
 
         user_to_verify = get_user_by_id(user_id=user_id)

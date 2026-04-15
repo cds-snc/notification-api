@@ -1,11 +1,9 @@
-import base64
 import json
 from datetime import datetime
 from unittest import mock
 from uuid import UUID
 
 import pytest
-from fido2 import cbor
 from flask import current_app, url_for
 from freezegun import freeze_time
 
@@ -1544,9 +1542,18 @@ def test_create_fido2_keys_for_a_user(client, sample_service, mocker, account_ch
 
     create_fido2_session(sample_user.id, "ABCD")
 
-    data = {"name": "sample key one", "key": "abcd"}
-    data = cbor.encode(data)
-    data = {"payload": base64.b64encode(data).decode("utf-8")}
+    # Standard WebAuthn RegistrationResponse JSON format
+    data = {
+        "name": "sample key one",
+        "credential": {
+            "rawId": "dGVzdA",
+            "response": {
+                "clientDataJSON": "dGVzdA",
+                "attestationObject": "dGVzdA",
+            },
+            "type": "public-key",
+        },
+    }
 
     mocker.patch("app.user.rest.decode_and_register", return_value="abcd")
     mocker.patch("app.user.rest.persist_notification")
@@ -1599,10 +1606,10 @@ def test_start_fido2_registration(client, sample_service):
     )
     assert response.status_code == 200
     data = json.loads(response.get_data())
-    data = base64.b64decode(data["data"])
-    data = cbor.decode(data)
-    assert data["publicKey"]["rp"]["id"] == "localhost"
-    assert data["publicKey"]["user"]["id"] == sample_user.id.bytes
+    # fido2 v2: response is JSON with a nested publicKey object
+    public_key = data["data"]["publicKey"]
+    assert public_key["rp"]["id"] == "localhost"
+    assert public_key["user"]["id"]  # base64url-encoded user ID
 
 
 def test_start_fido2_authentication(client, sample_service, mocker):
@@ -1613,11 +1620,12 @@ def test_start_fido2_authentication(client, sample_service, mocker):
     mock_cred.credential_id = b"test_cred_id"
     mocker.patch("app.user.rest.deserialize_fido2_key", return_value=mock_cred)
 
-    # Mock the FIDO2 server to avoid internal errors and control the output
+    # Mock the FIDO2 server to return a dict-like object.
+    # In fido2 v2, authenticate_begin returns (CredentialRequestOptions, state)
+    # dict() on the options object produces a JSON-compatible dict.
     mock_server = mocker.patch("app.user.rest.Config.FIDO2_SERVER")
-    # Return a dict that mimics the options object.
-    # Note: The real code returns an object, but cbor.encode handles dicts too.
-    mock_server.authenticate_begin.return_value = ({"rpId": "localhost"}, "state")
+    mock_options = {"publicKey": {"rpId": "localhost"}}
+    mock_server.authenticate_begin.return_value = (mock_options, "state")
 
     key = Fido2Key(name="sample key", key="abcd", user_id=sample_user.id)
     save_fido2_key(key)
@@ -1628,9 +1636,8 @@ def test_start_fido2_authentication(client, sample_service, mocker):
     )
     assert response.status_code == 200
     data = json.loads(response.get_data())
-    data = base64.b64decode(data["data"])
-    data = cbor.decode(data)
-    assert data["rpId"] == "localhost"
+    # fido2 v2: response is JSON directly
+    assert data["data"]["publicKey"]["rpId"] == "localhost"
 
 
 def test_list_login_events_for_a_user(client, sample_service):
