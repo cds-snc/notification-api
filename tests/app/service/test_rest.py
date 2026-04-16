@@ -1806,7 +1806,11 @@ def test_get_notifications_for_service_gets_data_from_correct_timeframe(
             )
 
     resp = admin_request.get(
-        "service.get_all_notifications_for_service", service_id=email_template.service_id, limit_days=7, page_size=1
+        "service.get_all_notifications_for_service",
+        service_id=email_template.service_id,
+        limit_days=7,
+        page_size=1,
+        count_pages=True,
     )
     assert resp["total"] == expected_count_of_notifications  #
 

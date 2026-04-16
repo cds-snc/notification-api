@@ -606,7 +606,10 @@ def get_all_notifications_for_service(service_id):
     include_from_test_key = data.get("include_from_test_key", False)
     include_one_off = data.get("include_one_off", True)
 
-    count_pages = data.get("count_pages", True)
+    # Performance: Default to False to avoid expensive COUNT(*) queries on large result sets.
+    # The pagination UI works fine without total count - it just shows "Next page" when available.
+    # Clients can explicitly request count_pages=true if they need the total.
+    count_pages = data.get("count_pages", False)
     format_for_csv = data.get("format_for_csv", False)
 
     pagination = notifications_dao.get_notifications_for_service(
