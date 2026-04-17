@@ -2,6 +2,7 @@ from datetime import timedelta
 
 from flask import current_app
 from sqlalchemy import desc
+from sqlalchemy.orm import joinedload
 
 from app import db
 from app.dao.dao_utils import transactional
@@ -15,7 +16,11 @@ def save_complaint(complaint):
 
 
 def fetch_paginated_complaints(page=1):
-    return Complaint.query.order_by(desc(Complaint.created_at)).paginate(page=page, per_page=current_app.config["PAGE_SIZE"])
+    return (
+        Complaint.query.options(joinedload(Complaint.service))
+        .order_by(desc(Complaint.created_at))
+        .paginate(page=page, per_page=current_app.config["PAGE_SIZE"])
+    )
 
 
 def fetch_complaints_by_service(service_id):

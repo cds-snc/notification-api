@@ -398,7 +398,6 @@ def _stats_for_days_facts_with_billable_units(service_id, start_time, by_templat
             FactNotificationStatus.service_id == service_id,
             FactNotificationStatus.bst_date >= start_time,
             FactNotificationStatus.key_type != KEY_TYPE_TEST,
-            FactNotificationStatus.notification_type == SMS_TYPE,
         )
         .group_by(
             FactNotificationStatus.notification_type,
@@ -417,13 +416,12 @@ def _stats_for_today_with_billable_units(service_id, start_time, by_template=Fal
             Notification.status,
             *([Notification.template_id] if by_template else []),
             *([func.count().label("count")]),
-            *([func.sum(Notification.billable_units).label("billable_units")]),
+            *([func.coalesce(func.sum(Notification.billable_units), 0).label("billable_units")]),
         )
         .filter(
             Notification.created_at >= start_time,
             Notification.service_id == service_id,
             Notification.key_type != KEY_TYPE_TEST,
-            Notification.notification_type == SMS_TYPE,
         )
         .group_by(
             Notification.notification_type,

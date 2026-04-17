@@ -264,22 +264,22 @@ wrapt = "*"
 
 [[package]]
 name = "awscli"
-version = "1.33.35"
+version = "1.44.55"
 description = "Universal Command Line Environment for AWS."
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.9"
 files = [
-    {file = "awscli-1.33.35-py3-none-any.whl", hash = "sha256:7773cf3eea08665c01b8979fb8eac841466c8c52cd956adb2cf458c1c72a4f12"},
-    {file = "awscli-1.33.35.tar.gz", hash = "sha256:6587976c6e272f24570a86c016af004ef42f5f25052ff2ec2599bb85623f679b"},
+    {file = "awscli-1.44.55-py3-none-any.whl", hash = "sha256:e674ddfa8999213eb09003bcebf8ce215c14f5ab99b8ce8bcc1a87aa96839f8c"},
+    {file = "awscli-1.44.55.tar.gz", hash = "sha256:bac2914ce13bc40283ce80f00faaf28587854ee9fb855dc883ce70cfc427e93b"},
 ]
 
 [package.dependencies]
-botocore = "1.34.153"
+botocore = "1.42.65"
 colorama = ">=0.2.5,<0.4.7"
-docutils = ">=0.10,<0.17"
+docutils = ">=0.18.1,<=0.19"
 PyYAML = ">=3.10,<6.1"
 rsa = ">=3.1.2,<4.8"
-s3transfer = ">=0.10.0,<0.11.0"
+s3transfer = ">=0.16.0,<0.17.0"
 
 [[package]]
 name = "awscli-cwlogs"
@@ -386,21 +386,20 @@ files = [
 
 [[package]]
 name = "bleach"
-version = "6.1.0"
+version = "6.3.0"
 description = "An easy safelist-based HTML-sanitizing tool."
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.10"
 files = [
-    {file = "bleach-6.1.0-py3-none-any.whl", hash = "sha256:3225f354cfc436b9789c66c4ee030194bee0568fbf9cbdad3bc8b5c26c5f12b6"},
-    {file = "bleach-6.1.0.tar.gz", hash = "sha256:0a31f1837963c41d46bbf1331b8778e1308ea0791db03cc4e7357b97cf42a8fe"},
+    {file = "bleach-6.3.0-py3-none-any.whl", hash = "sha256:fe10ec77c93ddf3d13a73b035abaac7a9f5e436513864ccdad516693213c65d6"},
+    {file = "bleach-6.3.0.tar.gz", hash = "sha256:6f3b91b1c0a02bb9a78b5a454c92506aa0fdf197e1d5e114d2e00c6f64306d22"},
 ]
 
 [package.dependencies]
-six = ">=1.9.0"
 webencodings = "*"
 
 [package.extras]
-css = ["tinycss2 (>=1.1.0,<1.3)"]
+css = ["tinycss2 (>=1.1.0,<1.5)"]
 
 [[package]]
 name = "blinker"
@@ -426,32 +425,32 @@ files = [
 
 [[package]]
 name = "boto3"
-version = "1.34.153"
+version = "1.42.65"
 description = "The AWS SDK for Python"
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.9"
 files = [
-    {file = "boto3-1.34.153-py3-none-any.whl", hash = "sha256:ff9af9206fb235605cb65922f9090fe60f78ea89b4adc463f8f6391b30a3df03"},
-    {file = "boto3-1.34.153.tar.gz", hash = "sha256:db9f2ac64582d847003a71720cd28dfffff61e2882e5d3db8e0c1fe1902ebb5b"},
+    {file = "boto3-1.42.65-py3-none-any.whl", hash = "sha256:cc7f2e0aec6c68ee5b10232cf3e01326acf6100bc785a770385b61a0474b31f4"},
+    {file = "boto3-1.42.65.tar.gz", hash = "sha256:c740af6bdaebcc1a00f3827a5729050bf6fc820ee148bf7d06f28db11c80e2a1"},
 ]
 
 [package.dependencies]
-botocore = ">=1.34.153,<1.35.0"
+botocore = ">=1.42.65,<1.43.0"
 jmespath = ">=0.7.1,<2.0.0"
-s3transfer = ">=0.10.0,<0.11.0"
+s3transfer = ">=0.16.0,<0.17.0"
 
 [package.extras]
 crt = ["botocore[crt] (>=1.21.0,<2.0a0)"]
 
 [[package]]
 name = "botocore"
-version = "1.34.153"
+version = "1.42.65"
 description = "Low-level, data-driven core of boto 3."
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.9"
 files = [
-    {file = "botocore-1.34.153-py3-none-any.whl", hash = "sha256:9fc2ad40be8c103ab9bfcb48b97b117d299d0b3a542cdd30134ee2935bee827a"},
-    {file = "botocore-1.34.153.tar.gz", hash = "sha256:1634a00f996cfff67f0fd4d0ddc436bc3318b2202dfd82ad0bc11c7169694092"},
+    {file = "botocore-1.42.65-py3-none-any.whl", hash = "sha256:0283c332ce00cbd1b894e86b7bed89dd624a5ca3a4ee62ec4db3898d16652e98"},
+    {file = "botocore-1.42.65.tar.gz", hash = "sha256:7d52c148df07f70c375eeda58f99b439c7c7836c25df74cccfba3bb6e12444d2"},
 ]
 
 [package.dependencies]
@@ -460,7 +459,7 @@ python-dateutil = ">=2.1,<3.0.0"
 urllib3 = {version = ">=1.25.4,<2.2.0 || >2.2.0,<3", markers = "python_version >= \"3.10\""}
 
 [package.extras]
-crt = ["awscrt (==0.20.11)"]
+crt = ["awscrt (==0.31.2)"]
 
 [[package]]
 name = "brotli"
@@ -1153,13 +1152,13 @@ files = [
 
 [[package]]
 name = "docutils"
-version = "0.16"
+version = "0.19"
 description = "Docutils -- Python Documentation Utilities"
 optional = false
-python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
+python-versions = ">=3.7"
 files = [
-    {file = "docutils-0.16-py2.py3-none-any.whl", hash = "sha256:0c5b78adfbf7762415433f5515cd5c9e762339e23369dbe8000d84a4bf4ab3af"},
-    {file = "docutils-0.16.tar.gz", hash = "sha256:c2de3a60e9e7d07be26b7f2b00ca0309c207e06c100f9cc2a94931fc75a478fc"},
+    {file = "docutils-0.19-py3-none-any.whl", hash = "sha256:5e1de4d849fee02c63b040a4a3fd567f4ab104defd8a5511fbbc24a8a017efbc"},
+    {file = "docutils-0.19.tar.gz", hash = "sha256:33995a6753c30b7f577febfc2c50411fec6aac7f7ffeb7c4cfe5991072dcf9e6"},
 ]
 
 [[package]]
@@ -2704,43 +2703,6 @@ extra = ["lxml (>=4.6)", "pydot (>=1.4.2)", "pygraphviz (>=1.9)", "sympy (>=1.10
 test = ["codecov (>=2.1)", "pytest (>=7.2)", "pytest-cov (>=4.0)"]
 
 [[package]]
-name = "newrelic"
-version = "11.0.0"
-description = "New Relic Python Agent"
-optional = false
-python-versions = ">=3.8"
-files = [
-    {file = "newrelic-11.0.0-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:a8d2e4dd14a07c18976112ae06512d9c306cea29ed28a86a985f85ddeb2d531c"},
-    {file = "newrelic-11.0.0-cp310-cp310-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:6a75441bc2d3a2462fb6e1bd249b161883b8f26bb89b0a4c85cce082013827f3"},
-    {file = "newrelic-11.0.0-cp310-cp310-musllinux_1_2_aarch64.whl", hash = "sha256:f527edd175b591d220d5c1f79ddaf45def2a0dc7c61d889d96a8c45655166968"},
-    {file = "newrelic-11.0.0-cp310-cp310-musllinux_1_2_x86_64.whl", hash = "sha256:c88af2362743da139d597253c0b2e7252c6693c804cf236163aa9879f09c938d"},
-    {file = "newrelic-11.0.0-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:f8ff5e4304d7cf1f668b498bf84e8639ae7f55bb88cb83e3f0f950c02d401d46"},
-    {file = "newrelic-11.0.0-cp311-cp311-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:24d516aba469dccb410b0ba8585694be65e40b17383f4a14a834713a316cc77b"},
-    {file = "newrelic-11.0.0-cp311-cp311-musllinux_1_2_aarch64.whl", hash = "sha256:cd7ea98c575206062c45662a67dab9ab849cdbe1ec85af77a464a5c38e1ce345"},
-    {file = "newrelic-11.0.0-cp311-cp311-musllinux_1_2_x86_64.whl", hash = "sha256:a9da74aa99aaec48f73a0cf758e1fc14a39805fcca33057abddf0130f8d2b149"},
-    {file = "newrelic-11.0.0-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:b42fe1c4c9e35a9fdf4c264faa1e92f6918d0014c31dad69fede2798bc4482bb"},
-    {file = "newrelic-11.0.0-cp312-cp312-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:927b150eefd9843a5abfc407a9eeac02f4119a842ea0597cd30e33c4b1d5bc61"},
-    {file = "newrelic-11.0.0-cp312-cp312-musllinux_1_2_aarch64.whl", hash = "sha256:a1ca9deba4f44e13eab9eb9866757135a88544b33d971e0929c6884821286bb5"},
-    {file = "newrelic-11.0.0-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:ee444805ea0df9bcd3bb62873e16f8c5fe3848e0169fc90f8f74b611a51ae2d0"},
-    {file = "newrelic-11.0.0-cp313-cp313-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:a060dd3918e19e629c9e0e5c16b8c97c4ea1989c7fc12e1845abec2b688e80f2"},
-    {file = "newrelic-11.0.0-cp313-cp313-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:3a5bbdc9c1062d8178dd47aaf26bda8c1ebc2700ed82927973ac005cdd1668a8"},
-    {file = "newrelic-11.0.0-cp313-cp313-musllinux_1_2_aarch64.whl", hash = "sha256:c27e089768c8883d4df35f5f1f406ec475ff5053f1463082e01115b25881e4a6"},
-    {file = "newrelic-11.0.0-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:eb16e55ac25781812bfde1e7e4c181857f9578957919106e049e1a784b333942"},
-    {file = "newrelic-11.0.0-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:f0499267e59934fe3df4de00335619d71344e9ac585c28a654a13e68d34a5c8c"},
-    {file = "newrelic-11.0.0-cp38-cp38-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:765ba1fb3fe139c3ece956a9ab6e69519b88b886b6a97cd637fb3d75bdb4c6d3"},
-    {file = "newrelic-11.0.0-cp38-cp38-musllinux_1_2_aarch64.whl", hash = "sha256:94413632777d261a61aacabc5d3771b482155f58cf59524205bd2969daec888d"},
-    {file = "newrelic-11.0.0-cp38-cp38-musllinux_1_2_x86_64.whl", hash = "sha256:577a8aa37c1f3ea2bc82298f27056fd5e32a917933748374de998e09a4baeb4d"},
-    {file = "newrelic-11.0.0-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:acf814050a7dc3d8631d9bde2a9af67c08a80f7e8fc6374e3488276f58ad1f12"},
-    {file = "newrelic-11.0.0-cp39-cp39-manylinux_2_5_x86_64.manylinux1_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:17eb9301ef6761e2e541b57d1a36b8514cc44d5be26564942a8822b1d7bebb17"},
-    {file = "newrelic-11.0.0-cp39-cp39-musllinux_1_2_aarch64.whl", hash = "sha256:e4c755d0e8a0e95c9e424fe3820c1e6720b71c3bfac763d826dbd70bf0cd29ac"},
-    {file = "newrelic-11.0.0-cp39-cp39-musllinux_1_2_x86_64.whl", hash = "sha256:56794a746560a64fdcd49ca0ced7da941a13db6a60da33f971aa7a9ad488c2ef"},
-    {file = "newrelic-11.0.0.tar.gz", hash = "sha256:3419599597dfcb5c7dd78dd46d12097d20c72b19cc1c89218783804976d0931e"},
-]
-
-[package.extras]
-infinite-tracing = ["grpcio", "protobuf"]
-
-[[package]]
 name = "nodeenv"
 version = "1.10.0"
 description = "Node.js virtual environment builder"
@@ -2768,7 +2730,7 @@ requests = ">=2.0.0"
 
 [[package]]
 name = "notifications-utils"
-version = "53.2.19"
+version = "53.2.21"
 description = "Shared python code for Notification - Provides logging utils etc."
 optional = false
 python-versions = "~3.12.7"
@@ -2776,9 +2738,9 @@ files = []
 develop = false
 
 [package.dependencies]
-awscli = "1.33.35"
-bleach = "6.1.0"
-boto3 = "1.34.153"
+awscli = "1.44.55"
+bleach = "6.3.0"
+boto3 = "1.42.65"
 cachetools = "4.2.4"
 certifi = "^2024.0.0"
 cryptography = "^43.0.0"
@@ -2804,8 +2766,8 @@ werkzeug = "3.0.6"
 [package.source]
 type = "git"
 url = "https://github.com/cds-snc/notifier-utils.git"
-reference = "53.2.19"
-resolved_reference = "bfc95b0616a530bf7e220f882d6657d9e1220dfb"
+reference = "53.2.21"
+resolved_reference = "27ef4ac659bef7a1d3fd09ea44f45d23d8b17e2b"
 
 [[package]]
 name = "opentelemetry-api"
@@ -4238,20 +4200,20 @@ files = [
 
 [[package]]
 name = "s3transfer"
-version = "0.10.4"
+version = "0.16.0"
 description = "An Amazon S3 Transfer Manager"
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.9"
 files = [
-    {file = "s3transfer-0.10.4-py3-none-any.whl", hash = "sha256:244a76a24355363a68164241438de1b72f8781664920260c48465896b712a41e"},
-    {file = "s3transfer-0.10.4.tar.gz", hash = "sha256:29edc09801743c21eb5ecbc617a152df41d3c287f67b615f73e5f750583666a7"},
+    {file = "s3transfer-0.16.0-py3-none-any.whl", hash = "sha256:18e25d66fed509e3868dc1572b3f427ff947dd2c56f844a5bf09481ad3f3b2fe"},
+    {file = "s3transfer-0.16.0.tar.gz", hash = "sha256:8e990f13268025792229cd52fa10cb7163744bf56e719e0b9cb925ab79abf920"},
 ]
 
 [package.dependencies]
-botocore = ">=1.33.2,<2.0a.0"
+botocore = ">=1.37.4,<2.0a.0"
 
 [package.extras]
-crt = ["botocore[crt] (>=1.33.2,<2.0a.0)"]
+crt = ["botocore[crt] (>=1.37.4,<2.0a.0)"]
 
 [[package]]
 name = "setuptools"
@@ -5091,4 +5053,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.12.7"
-content-hash = "f9b572aa25c22440eb2ba58183e75f5d4f1dd5ffe2bf61378bf0fa97fdb09497"
+content-hash = "26b11482c58d4eb693d13a7870a3985b0a61f21a8dff742d4325890441f4a8ec"
