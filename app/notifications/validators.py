@@ -186,13 +186,18 @@ def check_email_annual_limit(service: Service, requested_emails=0):
             send_annual_limit_reached_email(service, "email", current_fiscal_year + 1)
 
         # Will this send put annual usage within 80% of the limit?
-        if is_near_annual_limit and not annual_limit_client.check_has_warning_been_sent(service.id, EMAIL_TYPE):
+        # Send the warning email if the current send does not also put them at their limit
+        if (
+            is_near_annual_limit
+            and not annual_limit_client.check_has_warning_been_sent(service.id, EMAIL_TYPE)
+            and not send_reaches_annual_limit
+        ):
             annual_limit_client.set_nearing_email_limit(service.id)
             current_app.logger.info(
                 f"Service {service.id} reached 80% of their annual email limit of {service.email_annual_limit} messages. Sending annual limit usage warning email."
             )
             send_near_annual_limit_warning_email(
-                service, "email", int(emails_sent_today + emails_sent_this_fiscal), current_fiscal_year + 1
+                service, "email", int(emails_sent_today + emails_sent_this_fiscal + requested_emails), current_fiscal_year + 1
             )
 
         return
@@ -243,14 +248,20 @@ def check_sms_annual_limit(service: Service, requested_sms=0):
             )
             send_annual_limit_reached_email(service, "sms", current_fiscal_year + 1)
 
-        # Will this send put annual usage within 80% of the limit?
-        if is_near_annual_limit and not annual_limit_client.check_has_warning_been_sent(service.id, SMS_TYPE):
+        # Will this send put annual usage within 80%?
+        # Send the warning email if the current send does not also put them at their limit
+        # Larger multi-part SMS could technically do this, but it is an unlikely edge case.
+        if (
+            is_near_annual_limit
+            and not annual_limit_client.check_has_warning_been_sent(service.id, SMS_TYPE)
+            and not send_reaches_annual_limit
+        ):
             annual_limit_client.set_nearing_sms_limit(service.id)
             current_app.logger.info(
                 f"Service {service.id} reached 80% of their annual SMS limit of {service.sms_annual_limit} messages. Sending annual limit usage warning email."
             )
             send_near_annual_limit_warning_email(
-                service, "sms", int(sms_sent_today + sms_sent_this_fiscal), current_fiscal_year + 1
+                service, "sms", int(sms_sent_today + sms_sent_this_fiscal + requested_sms), current_fiscal_year + 1
             )
 
         return

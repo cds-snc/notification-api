@@ -403,6 +403,7 @@ def get_notifications_for_service(
 
     query = Notification.query.filter(*filters)
     query = _filter_query(query, filter_dict)
+    query = query.options(joinedload(Notification.scheduled_notification))
     if personalisation:
         query = query.options(joinedload("template"))
     else:
