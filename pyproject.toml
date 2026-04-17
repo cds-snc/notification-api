@@ -28,7 +28,7 @@ celery = {extras = ["sqs"], version = "5.4.0"}
 
 # Pinned dependencies
 certifi = "^2024.0.0" # pinned for security reasons: https://github.com/cds-snc/notification-api/security/dependabot/119
-cffi = "1.17.1"
+cffi = "2.0.0"
 click-datetime = "0.2"
 docopt = "0.6.2"
 environs = "9.5.0"       # pyup: <9.3.3 # marshmallow v3 throws errors"
@@ -60,7 +60,7 @@ opentelemetry-instrumentation-celery = "0.55b1"
 opentelemetry-instrumentation-flask = "0.55b1"
 opentelemetry-instrumentation-redis = "0.55b1"
 opentelemetry-instrumentation-sqlalchemy = "0.55b1"
-notifications-utils = { git = "https://github.com/cds-snc/notifier-utils.git", tag = "53.2.21"}
+notifications-utils = { git = "https://github.com/cds-snc/notifier-utils.git", branch = "renovate/pypi-cryptography-vulnerability"}
 pre-commit = "^3.7.1"
 psycopg2-binary = "2.9.11"
 pwnedpasswords = "2.0.0"
