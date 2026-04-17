@@ -662,6 +662,8 @@ class Config(object):
     FF_ANNUAL_LIMIT = env.bool("FF_ANNUAL_LIMIT", False)
     FF_PT_SERVICE_SKIP_FRESHDESK = env.bool("FF_PT_SERVICE_SKIP_FRESHDESK", False)
     FF_USE_BILLABLE_UNITS = env.bool("FF_USE_BILLABLE_UNITS", False)
+    FF_BENCHMARK_ENDPOINT = env.bool("FF_BENCHMARK_ENDPOINT", False)
+    WAF_SECRET = os.getenv("WAF_SECRET")
 
     # SRE Tools auth keys
     SRE_USER_NAME = "SRE_CLIENT_USER"
@@ -725,6 +727,7 @@ class Development(Config):
     CACHE_CLEAR_CLIENT_SECRET = os.getenv("CACHE_CLEAR_CLIENT_SECRET", "dev-notify-cache-client-secret")
     CYPRESS_AUTH_CLIENT_SECRET = os.getenv("CYPRESS_AUTH_CLIENT_SECRET", "dev-notify-cypress-secret-key")
     CYPRESS_USER_PW_SECRET = os.getenv("CYPRESS_USER_PW_SECRET", "dev-notify-cypress-secret-key")
+    WAF_SECRET = os.getenv("WAF_SECRET", "dev-waf-secret")
 
     NOTIFY_ENVIRONMENT = "development"
     NOTIFICATION_QUEUE_PREFIX = os.getenv("NOTIFICATION_QUEUE_PREFIX", "notification-canada-ca")
