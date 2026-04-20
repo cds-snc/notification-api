@@ -256,6 +256,18 @@ def _get_unsubscribe_headers(unsubscribe_link):
     return {}
 
 
+def _validate_unsubscribe_url(url, notification_id):
+    """Validates that the unsubscribe URL uses http or https. Returns the URL if valid, None otherwise."""
+    if not url:
+        return None
+    if not url.lower().startswith(("http://", "https://")):
+        current_app.logger.warning(
+            f"Notification {notification_id} has an invalid unsubscribe_url (not http/https): {url!r}. Header will not be added."
+        )
+        return None
+    return url
+
+
 def send_email_to_provider(notification: Notification):
     current_app.logger.info(f"Sending email to provider for notification id {notification.id}")
     service = notification.service
@@ -336,7 +348,8 @@ def send_email_to_provider(notification: Notification):
         # URL for the RFC 8058 List-Unsubscribe header only (no Notify-hosted page or body link).
         unsubscribe_link_for_header = None
         if getattr(template_obj, "use_custom_unsubscribe_url", False) and personalisation_data:
-            unsubscribe_link_for_header = personalisation_data.get("unsubscribe_url") or personalisation_data.get("unsub_url")
+            raw_url = personalisation_data.get("unsubscribe_url") or personalisation_data.get("unsub_url")
+            unsubscribe_link_for_header = _validate_unsubscribe_url(raw_url, notification.id)
 
         current_app.logger.info(
             f"Trying to update notification id {notification.id} with service research {service.research_mode} or key type {notification.key_type}"

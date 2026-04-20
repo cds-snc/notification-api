@@ -16,6 +16,7 @@ from app.dao import notifications_dao, provider_details_dao
 from app.dao.provider_details_dao import (
     dao_switch_sms_provider_to_provider_with_identifier,
 )
+from app.dao.templates_dao import dao_update_template
 from app.delivery import send_to_providers
 from app.exceptions import (
     DocumentDownloadException,
@@ -321,8 +322,6 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
 def test_send_email_adds_one_click_unsubscribe_headers_when_use_custom_unsubscribe_url_enabled(
     sample_service, mocker, personalisation_key, unsubscribe_url
 ):
-    from app.dao.templates_dao import dao_update_template
-
     template = create_template(
         sample_service,
         template_type="email",
@@ -379,6 +378,49 @@ def test_send_email_does_not_add_unsubscribe_headers_when_use_custom_unsubscribe
 
     send_mock.assert_called_once()
     assert send_mock.call_args[1]["extra_headers"] == {}
+
+
+@pytest.mark.parametrize(
+    "bad_url",
+    [
+        "ftp://example.com/unsub",
+        "file:///etc/passwd",
+        "javascript:alert(1)",
+        "//example.com/unsub",
+        "example.com/unsub",
+        "",
+    ],
+)
+def test_send_email_does_not_add_unsubscribe_headers_for_invalid_url_scheme(sample_service, mocker, bad_url):
+    template = create_template(
+        sample_service,
+        template_type="email",
+        subject="Hello",
+        content="Body with ((unsubscribe_url))",
+    )
+    template.use_custom_unsubscribe_url = True
+    dao_update_template(template)
+
+    db_notification = save_notification(
+        create_notification(
+            template=template,
+            to_field="user@example.com",
+            personalisation={"unsubscribe_url": bad_url},
+        )
+    )
+
+    send_mock = mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+    mocker.patch("app.delivery.send_to_providers.statsd_client")
+    mocker.patch("app.delivery.send_to_providers.bounce_rate_client")
+    logger_mock = mocker.patch("app.delivery.send_to_providers.current_app.logger.warning")
+
+    send_to_providers.send_email_to_provider(db_notification)
+
+    send_mock.assert_called_once()
+    assert send_mock.call_args[1]["extra_headers"] == {}
+    if bad_url:
+        logger_mock.assert_called_once()
+        assert "invalid unsubscribe_url" in logger_mock.call_args[0][0]
 
 
 @pytest.mark.skip(reason="the validator can throw a 500 causing us to fail all tests")
