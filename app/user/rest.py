@@ -852,15 +852,29 @@ def fido2_keys_user_authenticate(user_id):
 def fido2_keys_user_validate(user_id):
     try:
         current_app.logger.info(f"Starting FIDO2 validation for user {user_id}")
+
+        # Validate request data BEFORE consuming the session
+        data = request.get_json()
+        if not isinstance(data, dict):
+            current_app.logger.warning(f"FIDO2 validation failed for user {user_id}: invalid or missing JSON body")
+            return jsonify({"error": "Invalid request format"}), 400
+
+        credential = data.get("credential")
+        if credential is None:
+            current_app.logger.warning(f"FIDO2 validation failed for user {user_id}: missing credential field")
+            return jsonify({"error": "Invalid request format"}), 400
+
         keys = list_fido2_keys(user_id)
         credentials = [deserialize_fido2_key(k.key) for k in keys]
 
-        data = request.get_json()
-        # data["credential"] is the standard WebAuthn AuthenticationResponse JSON
+        # Only fetch (and consume) the session after validating the request
+        session_state = get_fido2_session(user_id)
+
+        # credential is the standard WebAuthn AuthenticationResponse JSON
         Config.FIDO2_SERVER.authenticate_complete(
-            get_fido2_session(user_id),
+            session_state,
             credentials,
-            data["credential"],
+            credential,
         )
 
         user_to_verify = get_user_by_id(user_id=user_id)
