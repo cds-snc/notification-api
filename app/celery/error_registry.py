@@ -42,8 +42,9 @@ class CeleryErrorCategory(str, Enum):
 
 
 # Map exception class names (or substrings in the message) to categories.
-# Note: Order within the map does not matter; the deepest/root exception in the
-# chain takes precedence over wrapper exceptions.
+# Note: The deepest/root exception in the chain takes precedence over wrapper
+# exceptions, and within each map the insertion order defines which category
+# wins when multiple patterns match the same exception class name or message.
 _EXCEPTION_CLASS_MAP: dict[str, CeleryErrorCategory] = {
     "MaxRetryError": CeleryErrorCategory.TIMEOUT_CLIENT,
     "ProtocolError": CeleryErrorCategory.TIMEOUT_CLIENT,
