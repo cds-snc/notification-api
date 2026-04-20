@@ -419,6 +419,7 @@ class TemplateSchema(BaseTemplateSchema):
     created_at = FlexibleDateTime()
     updated_at = FlexibleDateTime()
     text_direction_rtl = field_for(models.Template, "text_direction_rtl")
+    use_custom_unsubscribe_url = field_for(models.Template, "use_custom_unsubscribe_url")
 
     def get_is_precompiled_letter(self, template):
         return template.is_precompiled_letter

@@ -1163,6 +1163,7 @@ class TemplateBase(BaseModel):
     subject = db.Column(db.Text)
     postage = db.Column(db.String, nullable=True)
     text_direction_rtl = db.Column(db.Boolean, nullable=False, default=False)
+    use_custom_unsubscribe_url = db.Column(db.Boolean, nullable=True, default=False)
     CheckConstraint(
         """
         CASE WHEN template_type = 'letter' THEN
