@@ -292,6 +292,7 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
         html_body=ANY,
         reply_to_address=None,
         attachments=[],
+        extra_headers={},
     )
 
     assert "<!DOCTYPE html" in app.aws_ses_client.send_email.call_args[1]["html_body"]
@@ -338,6 +339,7 @@ def test_should_send_personalised_template_with_html_enabled(sample_email_templa
         html_body=ANY,
         reply_to_address=None,
         attachments=[],
+        extra_headers={},
     )
 
     assert "<!DOCTYPE html" in app.aws_ses_client.send_email.call_args[1]["html_body"]
@@ -383,6 +385,7 @@ def test_should_respect_custom_sending_domains(sample_service, mocker, sample_em
         html_body=ANY,
         reply_to_address=None,
         attachments=[],
+        extra_headers={},
     )
 
 
@@ -627,6 +630,7 @@ def test_send_email_should_use_service_reply_to_email(sample_service, sample_ema
         html_body=ANY,
         reply_to_address="foo@bar.com",
         attachments=[],
+        extra_headers={},
     )
 
 
@@ -651,6 +655,7 @@ def test_send_email_should_use_default_service_reply_to_email_when_two_are_set(s
         html_body=ANY,
         reply_to_address="foo@bar.com",
         attachments=[],
+        extra_headers={},
     )
 
 
@@ -675,6 +680,7 @@ def test_send_email_should_use_non_default_service_reply_to_email_when_it_is_set
         html_body=ANY,
         reply_to_address="foo_two@bar.com",
         attachments=[],
+        extra_headers={},
     )
 
 
@@ -958,6 +964,7 @@ def test_send_email_to_provider_uses_reply_to_from_notification(sample_email_tem
         html_body=ANY,
         reply_to_address="test@test.com",
         attachments=[],
+        extra_headers={},
     )
 
 
@@ -996,6 +1003,7 @@ def test_send_email_to_provider_should_format_reply_to_email_address(sample_emai
         html_body=ANY,
         reply_to_address="test@test.com",
         attachments=[],
+        extra_headers={},
     )
 
 
@@ -1025,6 +1033,7 @@ def test_send_email_to_provider_should_format_email_address(sample_email_notific
         html_body=ANY,
         reply_to_address=ANY,
         attachments=[],
+        extra_headers={},
     )
 
 
@@ -1198,6 +1207,7 @@ def test_notification_document_with_pdf_attachment(
         html_body=ANY,
         reply_to_address=ANY,
         attachments=attachments,
+        extra_headers=ANY,
     )
     if not filename_attribute_present:
         assert "http://foo.bar/url" in send_mock.call_args[1]["html_body"]
