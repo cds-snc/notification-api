@@ -871,8 +871,25 @@ def fido2_keys_user_validate(user_id):
 
         current_app.logger.info(f"FIDO2 validation successful for user {user_id}")
         return jsonify({"status": "OK"})
+    except KeyError as e:
+        # Missing required field in request
+        current_app.logger.warning(f"FIDO2 validation failed for user {user_id}: missing field {e}")
+        return jsonify({"error": "Invalid request format"}), 400
+
+    except NoResultFound:
+        # Session expired or not found - could indicate replay attack or timeout
+        current_app.logger.warning(f"FIDO2 validation failed for user {user_id}: session not found")
+        return jsonify({"error": "Authentication session expired"}), 400
+
+    except ValueError as e:
+        # FIDO2 library validation failures (wrong challenge, signature, etc.)
+        # This is the expected error for invalid/forged credentials
+        current_app.logger.warning(f"FIDO2 validation failed for user {user_id}: {str(e)}")
+        return jsonify({"error": "Security key validation failed"}), 401
+
     except Exception as e:
-        current_app.logger.exception(f"Error in FIDO2 validation for user {user_id}: {str(e)}")
+        # Unexpected errors - these should be investigated
+        current_app.logger.exception(f"Unexpected error in FIDO2 validation for user {user_id}: {str(e)}")
         return jsonify({"error": "An internal error occurred"}), 500
 
 

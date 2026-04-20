@@ -6,6 +6,7 @@ from uuid import UUID
 import pytest
 from flask import current_app, url_for
 from freezegun import freeze_time
+from sqlalchemy.orm.exc import NoResultFound
 
 from app import db
 from app.clients.salesforce.salesforce_engagement import ENGAGEMENT_STAGE_ACTIVATION
@@ -1638,6 +1639,101 @@ def test_start_fido2_authentication(client, sample_service, mocker):
     data = json.loads(response.get_data())
     # fido2 v2: response is JSON directly
     assert data["data"]["publicKey"]["rpId"] == "localhost"
+
+
+def test_fido2_validate_returns_400_when_credential_missing(client, sample_service, mocker):
+    """Test that missing credential field returns 400 Bad Request."""
+    sample_user = sample_service.users[0]
+    auth_header = create_authorization_header()
+
+    key = Fido2Key(name="sample key", key="abcd", user_id=sample_user.id)
+    save_fido2_key(key)
+
+    mock_cred = mocker.Mock()
+    mocker.patch("app.user.rest.deserialize_fido2_key", return_value=mock_cred)
+    mocker.patch("app.user.rest.get_fido2_session", return_value={"challenge": "test"})
+
+    # Missing 'credential' key in request body
+    response = client.post(
+        url_for("user.fido2_keys_user_validate", user_id=sample_user.id),
+        data=json.dumps({}),
+        headers=[("Content-Type", "application/json"), auth_header],
+    )
+
+    assert response.status_code == 400
+    assert json.loads(response.get_data(as_text=True))["error"] == "Invalid request format"
+
+
+def test_fido2_validate_returns_400_when_session_expired(client, sample_service, mocker):
+    """Test that expired/missing session returns 400 Bad Request."""
+    sample_user = sample_service.users[0]
+    auth_header = create_authorization_header()
+
+    key = Fido2Key(name="sample key", key="abcd", user_id=sample_user.id)
+    save_fido2_key(key)
+
+    mock_cred = mocker.Mock()
+    mocker.patch("app.user.rest.deserialize_fido2_key", return_value=mock_cred)
+    mocker.patch("app.user.rest.get_fido2_session", side_effect=NoResultFound())
+
+    response = client.post(
+        url_for("user.fido2_keys_user_validate", user_id=sample_user.id),
+        data=json.dumps({"credential": {"id": "test"}}),
+        headers=[("Content-Type", "application/json"), auth_header],
+    )
+
+    assert response.status_code == 400
+    assert json.loads(response.get_data(as_text=True))["error"] == "Authentication session expired"
+
+
+def test_fido2_validate_returns_401_when_validation_fails(client, sample_service, mocker):
+    """Test that FIDO2 validation failure returns 401 Unauthorized."""
+    sample_user = sample_service.users[0]
+    auth_header = create_authorization_header()
+
+    key = Fido2Key(name="sample key", key="abcd", user_id=sample_user.id)
+    save_fido2_key(key)
+
+    mock_cred = mocker.Mock()
+    mocker.patch("app.user.rest.deserialize_fido2_key", return_value=mock_cred)
+    mocker.patch("app.user.rest.get_fido2_session", return_value={"challenge": "test"})
+
+    mock_server = mocker.patch("app.user.rest.Config.FIDO2_SERVER")
+    mock_server.authenticate_complete.side_effect = ValueError("Wrong challenge in response.")
+
+    response = client.post(
+        url_for("user.fido2_keys_user_validate", user_id=sample_user.id),
+        data=json.dumps({"credential": {"id": "test"}}),
+        headers=[("Content-Type", "application/json"), auth_header],
+    )
+
+    assert response.status_code == 401
+    assert json.loads(response.get_data(as_text=True))["error"] == "Security key validation failed"
+
+
+def test_fido2_validate_returns_500_on_unexpected_error(client, sample_service, mocker):
+    """Test that unexpected errors return 500 Internal Server Error."""
+    sample_user = sample_service.users[0]
+    auth_header = create_authorization_header()
+
+    key = Fido2Key(name="sample key", key="abcd", user_id=sample_user.id)
+    save_fido2_key(key)
+
+    mock_cred = mocker.Mock()
+    mocker.patch("app.user.rest.deserialize_fido2_key", return_value=mock_cred)
+    mocker.patch("app.user.rest.get_fido2_session", return_value={"challenge": "test"})
+
+    mock_server = mocker.patch("app.user.rest.Config.FIDO2_SERVER")
+    mock_server.authenticate_complete.side_effect = RuntimeError("Unexpected database error")
+
+    response = client.post(
+        url_for("user.fido2_keys_user_validate", user_id=sample_user.id),
+        data=json.dumps({"credential": {"id": "test"}}),
+        headers=[("Content-Type", "application/json"), auth_header],
+    )
+
+    assert response.status_code == 500
+    assert json.loads(response.get_data(as_text=True))["error"] == "An internal error occurred"
 
 
 def test_list_login_events_for_a_user(client, sample_service):
