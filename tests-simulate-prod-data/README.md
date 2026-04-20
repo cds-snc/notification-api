@@ -8,10 +8,8 @@ Generate non-PII, production-like data in a staging database for performance tes
 |---|---|---|
 | Organisation | 1 | `test-simulate-prod-data-org` |
 | Service | 1 | `test-simulate-prod-data-service` with prod-like limits (10M SMS, 25M email annual) |
-| Users | 5 | `test-simulate-prod-data-user-{1..5}@staging-simulate.local`, all active with full permissions |
-| API Key | 1 | `normal` type key for the service |
+| Users | 5 | `test-simulate-prod-data-user-{1..5}@staging-simulate.local`, blocked (no login), full permissions |
 | Reply-to address | 1 | Default reply-to for the service |
-| Service callback | 1 | `delivery_status` callback |
 | Template folders | 5 | 1 high-volume folder + 4 regular folders |
 | Templates | ~2,020 | 2,000 in the high-volume folder (mix of email/sms, with 3-5 `{{variables}}`), ~5 each in others |
 | Templates history | ~2,020 | Matching version 1 entries for all templates |
@@ -26,7 +24,7 @@ All data is spread across the configurable date range (default: fiscal year Apr 
 ## Prerequisites
 
 ```bash
-pip install -r requirements.txt
+make install
 ```
 
 ## Configuration
@@ -34,7 +32,7 @@ pip install -r requirements.txt
 Copy the example env file and edit as needed:
 
 ```bash
-cp .env.example .env
+make setup
 ```
 
 **Required:** `SQLALCHEMY_DATABASE_URI` — the PostgreSQL connection string for the target database.
@@ -60,23 +58,29 @@ All other values have sensible defaults. See [.env.example](.env.example) for th
 
 ```bash
 cd tests-simulate-prod-data
-python generate.py
+make generate
 ```
 
 #### Useful flags
 
 ```bash
 # Skip the 14M notification_history rows (fast — just creates service/users/templates/jobs)
-python generate.py --skip-notifications
+make generate-quick
 
 # Skip aggregate tables (ft_notification_status, ft_billing)
-python generate.py --skip-aggregates
+make generate-no-aggregates
 ```
 
 ### Cleanup (delete all generated data)
 
 ```bash
-python generate.py --cleanup-only
+make cleanup
+```
+
+### Full setup + generate (install, create .env, generate data)
+
+```bash
+make all
 ```
 
 This finds all entities with the `test-simulate-prod-data` prefix and deletes them in the correct FK order.
