@@ -311,6 +311,76 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
     assert call(statsd_key) in statsd_mock.incr.call_args_list
 
 
+@pytest.mark.parametrize(
+    "personalisation_key, unsubscribe_url",
+    [
+        ("unsubscribe_url", "https://example.com/unsubscribe/abc123"),
+        ("unsub_url", "https://example.com/unsub/abc123"),
+    ],
+)
+def test_send_email_adds_one_click_unsubscribe_headers_when_use_custom_unsubscribe_url_enabled(
+    sample_service, mocker, personalisation_key, unsubscribe_url
+):
+    from app.dao.templates_dao import dao_update_template
+
+    template = create_template(
+        sample_service,
+        template_type="email",
+        subject="Hello",
+        content=f"Body with (({personalisation_key}))",
+    )
+    template.use_custom_unsubscribe_url = True
+    dao_update_template(template)
+
+    db_notification = save_notification(
+        create_notification(
+            template=template,
+            to_field="user@example.com",
+            personalisation={personalisation_key: unsubscribe_url},
+        )
+    )
+
+    send_mock = mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+    mocker.patch("app.delivery.send_to_providers.statsd_client")
+    mocker.patch("app.delivery.send_to_providers.bounce_rate_client")
+
+    send_to_providers.send_email_to_provider(db_notification)
+
+    send_mock.assert_called_once()
+    call_kwargs = send_mock.call_args[1]
+    assert call_kwargs["extra_headers"] == {
+        "List-Unsubscribe": f"<{unsubscribe_url}>",
+        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    }
+
+
+def test_send_email_does_not_add_unsubscribe_headers_when_use_custom_unsubscribe_url_disabled(sample_service, mocker):
+    template = create_template(
+        sample_service,
+        template_type="email",
+        subject="Hello",
+        content="Body with ((unsubscribe_url))",
+    )
+    # use_custom_unsubscribe_url defaults to False — no DB update needed
+
+    db_notification = save_notification(
+        create_notification(
+            template=template,
+            to_field="user@example.com",
+            personalisation={"unsubscribe_url": "https://example.com/unsub"},
+        )
+    )
+
+    send_mock = mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+    mocker.patch("app.delivery.send_to_providers.statsd_client")
+    mocker.patch("app.delivery.send_to_providers.bounce_rate_client")
+
+    send_to_providers.send_email_to_provider(db_notification)
+
+    send_mock.assert_called_once()
+    assert send_mock.call_args[1]["extra_headers"] == {}
+
+
 @pytest.mark.skip(reason="the validator can throw a 500 causing us to fail all tests")
 def test_should_send_personalised_template_with_html_enabled(sample_email_template_with_advanced_html, mocker, notify_api):
     db_notification = save_notification(
