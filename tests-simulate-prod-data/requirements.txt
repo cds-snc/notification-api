@@ -1,0 +1,5 @@
+click
+python-dateutil
+python-dotenv
+sqlalchemy
+psycopg2-binary
