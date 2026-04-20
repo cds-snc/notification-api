@@ -7,4 +7,4 @@ set -e
 
 echo "Start celery fair SMS worker (PLACEHOLDER), concurrency: ${CELERY_CONCURRENCY-4}"
 
-celery -A run_celery.notify_celery worker --pidfile="/tmp/celery.pid" --loglevel=INFO --concurrency="${CELERY_CONCURRENCY-4}" -Q send-sms-fair
+celery -A run_celery.notify_celery worker --pidfile="/tmp/celery.pid" --loglevel=INFO --concurrency=1 -Q send-sms-fair
