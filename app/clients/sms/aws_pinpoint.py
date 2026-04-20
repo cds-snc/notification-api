@@ -48,7 +48,18 @@ class AwsPinpointClient(SmsClient):
                 send_with_dedicated_phone_number = self._send_with_dedicated_phone_number(sender) and self.current_app.config.get(
                     "FF_USE_PINPOINT_FOR_DEDICATED", False
                 )
-                if send_with_dedicated_phone_number:
+                # If the number is US based, we must use a US Toll Free number to send the message
+                if phonenumbers.region_code_for_number(match.number) == "US" and self.current_app.config.get(
+                    "FF_USE_PINPOINT_FOR_US", False
+                ):
+                    response = self._dedicated_client.send_text_message(
+                        DestinationPhoneNumber=destinationNumber,
+                        OriginationIdentity=self.current_app.config["AWS_US_TOLL_FREE_NUMBER"],
+                        MessageBody=content,
+                        MessageType=messageType,
+                        ConfigurationSetName=self.current_app.config["AWS_PINPOINT_CONFIGURATION_SET_NAME"],
+                    )
+                elif send_with_dedicated_phone_number:
                     dryrun = destinationNumber == self.current_app.config["EXTERNAL_TEST_NUMBER"]
                     response = self._dedicated_client.send_text_message(
                         DestinationPhoneNumber=destinationNumber,
@@ -63,17 +74,6 @@ class AwsPinpointClient(SmsClient):
                             f"SMS with message id {response.get('MessageId')} is sending to EXTERNAL_TEST_NUMBER using dedicated sender. "
                             f"Boto call made to AWS, but not send on."
                         )
-                # If the number is US based, we must use a US Toll Free number to send the message
-                elif phonenumbers.region_code_for_number(match.number) == "US" and self.current_app.config.get(
-                    "FF_USE_PINPOINT_FOR_US", False
-                ):
-                    response = self._dedicated_client.send_text_message(
-                        DestinationPhoneNumber=destinationNumber,
-                        OriginationIdentity=self.current_app.config["AWS_US_TOLL_FREE_NUMBER"],
-                        MessageBody=content,
-                        MessageType=messageType,
-                        ConfigurationSetName=self.current_app.config["AWS_PINPOINT_CONFIGURATION_SET_NAME"],
-                    )
                 # For international numbers we send with an AWS number for the corresponding country, using our default sender id.
                 # Note that Canada does not currently support sender ids.
                 elif phonenumbers.region_code_for_number(match.number) != "CA":
