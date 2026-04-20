@@ -28,7 +28,6 @@ class Config:
 
     # Users
     NUM_USERS = int(os.environ.get("NUM_USERS", "5"))
-    USER_PASSWORD = os.environ.get("USER_PASSWORD", f"{PREFIX}-password-1!")
 
     # Template folders
     NUM_TEMPLATE_FOLDERS = int(os.environ.get("NUM_TEMPLATE_FOLDERS", "5"))
@@ -94,6 +93,12 @@ class Config:
             errors.append("NUM_TEMPLATE_FOLDERS must be at least 1.")
         if cls.BATCH_SIZE < 1:
             errors.append("BATCH_SIZE must be at least 1.")
+        if cls.NUM_EMAILS_FAILED > cls.NUM_EMAILS_TOTAL:
+            errors.append(
+                f"NUM_EMAILS_FAILED ({cls.NUM_EMAILS_FAILED:,}) must be <= NUM_EMAILS_TOTAL ({cls.NUM_EMAILS_TOTAL:,})."
+            )
+        if cls.NUM_SMS_FAILED > cls.NUM_SMS_TOTAL:
+            errors.append(f"NUM_SMS_FAILED ({cls.NUM_SMS_FAILED:,}) must be <= NUM_SMS_TOTAL ({cls.NUM_SMS_TOTAL:,}).")
 
         if errors:
             print("\n" + "=" * 60)

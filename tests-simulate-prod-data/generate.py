@@ -2,8 +2,8 @@
 test-simulate-prod-data: Generate non-PII production-like data in a staging database.
 
 Usage:
-    python generate.py          # populate data
-    python generate.py --cleanup  # remove all test-simulate-prod-data entities
+    python generate.py               # populate data
+    python generate.py --cleanup-only  # remove all test-simulate-prod-data entities
 
 Requires SQLALCHEMY_DATABASE_URI env var (or .env file).
 """
@@ -531,7 +531,6 @@ def create_jobs(session, service_id, email_template_ids, sms_template_ids, creat
 
 
 def _build_notification_batch(
-    batch_idx,
     batch_size,
     service_id,
     template_ids,
@@ -548,7 +547,13 @@ def _build_notification_batch(
     type_jobs = [j for j in job_ids if j["type"] == notification_type] if job_ids else []
 
     for _ in range(batch_size):
-        is_failed = num_failed_remaining > 0 and (random.random() < (num_failed_remaining / max(num_remaining, 1)))
+        # Force remaining failures into the last rows to guarantee exact totals
+        if num_failed_remaining >= num_remaining:
+            is_failed = True
+        elif num_failed_remaining > 0:
+            is_failed = random.random() < (num_failed_remaining / max(num_remaining, 1))
+        else:
+            is_failed = False
         status = "permanent-failure" if is_failed else "delivered"
         if is_failed:
             num_failed_remaining -= 1
@@ -605,13 +610,12 @@ def insert_notification_history(session, service_id, email_template_ids, sms_tem
         for batch_idx in range(num_batches):
             batch_size = min(Config.BATCH_SIZE, remaining)
             rows, failed_remaining, remaining = _build_notification_batch(
-                batch_idx,
                 batch_size,
                 service_id,
                 template_ids,
                 ntype,
                 failed_remaining,
-                remaining + batch_size,  # add back since we subtract in func
+                remaining,
                 job_ids,
                 api_key_id,
                 start_date,
@@ -636,18 +640,23 @@ def insert_notification_history(session, service_id, email_template_ids, sms_tem
                     rows,
                 )
 
-            remaining -= batch_size
-
             if (batch_idx + 1) % 10 == 0 or batch_idx == num_batches - 1:
                 pct = ((batch_idx + 1) / num_batches) * 100
                 print(f"    ... batch {batch_idx+1}/{num_batches} ({pct:.1f}%)")
-                session.flush()
+                session.commit()
+
+
+def _distribute_over_days(total, num_days, day_index):
+    """Distribute total evenly across days, spreading the remainder across the first days."""
+    base = total // num_days
+    remainder = total % num_days
+    return base + (1 if day_index < remainder else 0)
 
 
 def populate_ft_notification_status(session, service_id, email_template_ids, sms_template_ids):
     """Aggregate notification_history data into ft_notification_status for dashboards."""
-    start_date = Config.date_start_parsed()
-    end_date = Config.date_end_parsed()
+    start_date = datetime.combine(Config.date_start_parsed(), datetime.min.time())
+    end_date = datetime.combine(Config.date_end_parsed(), datetime.min.time())
     dates = list(rrule.rrule(freq=rrule.DAILY, dtstart=start_date, until=end_date))
 
     total_email_delivered = Config.NUM_EMAILS_TOTAL - Config.NUM_EMAILS_FAILED
@@ -661,7 +670,7 @@ def populate_ft_notification_status(session, service_id, email_template_ids, sms
     print(f"\n  Populating ft_notification_status over {num_days} days...")
 
     rows = []
-    for d in dates:
+    for day_index, d in enumerate(dates):
         bst_date = d.date()
         for ntype, template_ids, delivered_total, failed_total in [
             (NOTIFICATION_TYPE_EMAIL, email_template_ids, total_email_delivered, total_email_failed),
@@ -670,8 +679,8 @@ def populate_ft_notification_status(session, service_id, email_template_ids, sms
             if not template_ids:
                 continue
             tmpl_id = random.choice(template_ids)
-            daily_delivered = max(1, delivered_total // num_days)
-            daily_failed = max(0, failed_total // num_days)
+            daily_delivered = _distribute_over_days(delivered_total, num_days, day_index)
+            daily_failed = _distribute_over_days(failed_total, num_days, day_index)
 
             if daily_delivered > 0:
                 rows.append(
@@ -736,15 +745,15 @@ def populate_ft_notification_status(session, service_id, email_template_ids, sms
 
 def populate_ft_billing(session, service_id, email_template_ids, sms_template_ids):
     """Populate ft_billing aggregate table."""
-    start_date = Config.date_start_parsed()
-    end_date = Config.date_end_parsed()
+    start_date = datetime.combine(Config.date_start_parsed(), datetime.min.time())
+    end_date = datetime.combine(Config.date_end_parsed(), datetime.min.time())
     dates = list(rrule.rrule(freq=rrule.DAILY, dtstart=start_date, until=end_date))
     num_days = len(dates)
 
     print(f"\n  Populating ft_billing over {num_days} days...")
 
     rows = []
-    for d in dates:
+    for day_index, d in enumerate(dates):
         bst_date = d.date()
         for ntype, template_ids, total, provider in [
             (NOTIFICATION_TYPE_EMAIL, email_template_ids, Config.NUM_EMAILS_TOTAL, "ses"),
@@ -753,7 +762,7 @@ def populate_ft_billing(session, service_id, email_template_ids, sms_template_id
             if not template_ids:
                 continue
             tmpl_id = random.choice(template_ids)
-            daily_sent = max(1, total // num_days)
+            daily_sent = _distribute_over_days(total, num_days, day_index)
             rate = 0.0 if ntype == NOTIFICATION_TYPE_EMAIL else 0.02
 
             rows.append(
@@ -819,8 +828,18 @@ def cleanup(session):
     print(f"CLEANUP: Removing all '{PREFIX}' data...")
     print(f"{'='*60}\n")
 
+    # Build name patterns for services and orgs (configured names may not include PREFIX)
+    service_names = {f"{PREFIX}%"}
+    org_names = {f"{PREFIX}%"}
+    if Config.SERVICE_NAME and not Config.SERVICE_NAME.startswith(PREFIX):
+        service_names.add(Config.SERVICE_NAME)
+    if Config.ORGANISATION_NAME and not Config.ORGANISATION_NAME.startswith(PREFIX):
+        org_names.add(Config.ORGANISATION_NAME)
+
     # Find the service(s)
-    result = session.execute(text("SELECT id FROM services WHERE name LIKE :pattern"), {"pattern": f"{PREFIX}%"})
+    clauses = " OR ".join(f"name LIKE :p{i}" for i in range(len(service_names)))
+    params = {f"p{i}": n for i, n in enumerate(service_names)}
+    result = session.execute(text(f"SELECT id FROM services WHERE {clauses}"), params)
     service_ids = [str(row[0]) for row in result]
 
     if not service_ids:
@@ -908,7 +927,8 @@ def cleanup(session):
 
     # Organisation
     print("  Deleting organisation...")
-    session.execute(text("DELETE FROM organisation WHERE name LIKE :pattern"), {"pattern": f"{PREFIX}%"})
+    for org_name in org_names:
+        session.execute(text("DELETE FROM organisation WHERE name LIKE :pattern"), {"pattern": org_name})
 
     session.commit()
     print("\nCleanup complete.")
@@ -995,13 +1015,15 @@ def main(cleanup_only, skip_notifications, skip_aggregates):
             )
 
             # Flush before notifications so FKs are available
-            session.flush()
+            session.commit()
+            print("\n  Setup objects committed.\n")
 
             # 11. Jobs
             print("[11/12] Creating jobs...")
             job_ids = create_jobs(session, service_id, email_template_ids, sms_template_ids, users[0]["id"], api_key_id)
 
-            session.flush()
+            session.commit()
+            print("  Jobs committed.\n")
 
             # 12. Notifications
             if not skip_notifications:
@@ -1018,7 +1040,7 @@ def main(cleanup_only, skip_notifications, skip_aggregates):
             else:
                 print("\n[Bonus] Skipping aggregates (--skip-aggregates)")
 
-            print("\nCommitting all data...")
+            print("\nFinal commit...")
             session.commit()
             print("\n" + "=" * 60)
             print("SUCCESS: All data generated.")
