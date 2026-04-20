@@ -99,6 +99,14 @@ class Config:
             )
         if cls.NUM_SMS_FAILED > cls.NUM_SMS_TOTAL:
             errors.append(f"NUM_SMS_FAILED ({cls.NUM_SMS_FAILED:,}) must be <= NUM_SMS_TOTAL ({cls.NUM_SMS_TOTAL:,}).")
+        if cls.SERVICE_NAME and not cls.SERVICE_NAME.startswith(PREFIX):
+            errors.append(
+                f"SERVICE_NAME ('{cls.SERVICE_NAME}') must start with prefix '{PREFIX}' to prevent accidental deletion of real data."
+            )
+        if cls.ORGANISATION_NAME and not cls.ORGANISATION_NAME.startswith(PREFIX):
+            errors.append(
+                f"ORGANISATION_NAME ('{cls.ORGANISATION_NAME}') must start with prefix '{PREFIX}' to prevent accidental deletion of real data."
+            )
 
         if errors:
             print("\n" + "=" * 60)

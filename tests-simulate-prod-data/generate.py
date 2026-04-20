@@ -259,23 +259,14 @@ def grant_service_permissions(session, service_id):
 
 
 def create_api_key(session, service_id, creator_id):
-    key_id = _uuid()
-    print(f"  Creating API key ({key_id})...")
-    session.execute(
-        text("""
-        INSERT INTO api_keys (id, name, secret, service_id, key_type, created_by_id, created_at, version)
-        VALUES (:id, :name, :secret, :sid, 'normal', :created_by, :now, 1)
-    """),
-        {
-            "id": str(key_id),
-            "name": f"{PREFIX}-api-key",
-            "secret": str(_uuid()),  # NOT a signed secret; API key record exists for FK integrity only
-            "sid": str(service_id),
-            "created_by": str(creator_id),
-            "now": datetime.now(timezone.utc),
-        },
-    )
-    return key_id
+    """Skip API key creation — the secret column requires app-level signing (SECRET_KEY).
+
+    Inserting a raw UUID would produce a record that can never authenticate and
+    would cause BadSignature errors if the app ever reads it.  Jobs and
+    notification_history allow NULL api_key_id, so we simply omit the record.
+    """
+    print("  Skipping API key creation (secret requires app signing config).")
+    return None
 
 
 def create_reply_to(session, service_id):
@@ -504,7 +495,7 @@ def create_jobs(session, service_id, email_template_ids, sms_template_ids, creat
                 "finished": created + timedelta(minutes=random.randint(5, 60)),
                 "created": created,
                 "created_by": str(creator_id),
-                "api_key": str(api_key_id),
+                "api_key": str(api_key_id) if api_key_id else None,
             },
         )
         job_ids.append({"id": jid, "template_id": tmpl_id, "type": ntype, "created_at": created})
@@ -562,7 +553,7 @@ def _build_notification_batch(
                 "key_type": "normal",
                 "billable_units": 1,
                 "international": False,
-                "api_key_id": str(api_key_id),
+                "api_key_id": str(api_key_id) if api_key_id else None,
                 "job_id": str(job["id"]) if job else None,
                 "job_row_number": random.randint(0, Config.JOB_NOTIFICATION_COUNT - 1) if job else None,
                 "client_reference": PREFIX,
@@ -828,6 +819,7 @@ def cleanup(session):
             raise click.ClickException(
                 f"Refusing cleanup: ORGANISATION_NAME '{Config.ORGANISATION_NAME}' does not start with required prefix '{PREFIX}'."
             )
+        org_names.add(Config.ORGANISATION_NAME)
 
     # Find the service(s)
     clauses = " OR ".join(f"name LIKE :p{i}" for i in range(len(service_names)))
