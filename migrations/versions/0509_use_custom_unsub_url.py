@@ -13,9 +13,9 @@ down_revision = "0508_update_daily_sms_limit"
 
 
 def upgrade():
-    op.add_column("templates", sa.Column("use_custom_unsubscribe_url", sa.Boolean(), nullable=True, server_default="false"))
+    op.add_column("templates", sa.Column("use_custom_unsubscribe_url", sa.Boolean(), nullable=False, server_default=sa.false()))
     op.add_column(
-        "templates_history", sa.Column("use_custom_unsubscribe_url", sa.Boolean(), nullable=True, server_default="false")
+        "templates_history", sa.Column("use_custom_unsubscribe_url", sa.Boolean(), nullable=False, server_default=sa.false())
     )
 
 
