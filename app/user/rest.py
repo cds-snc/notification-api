@@ -837,12 +837,30 @@ def fido2_keys_user_authenticate(user_id):
 
         credentials = [deserialize_fido2_key(k.key) for k in keys]
 
+        # Log credential info at INFO level for debugging
+        from fido2.utils import websafe_encode
+
+        for i, cred in enumerate(credentials):
+            current_app.logger.info(f"Credential {i}: type={type(cred).__name__}")
+            if hasattr(cred, "credential_id"):
+                cred_id_b64 = websafe_encode(cred.credential_id)
+                current_app.logger.info(f"Credential {i} ID from DB: {cred_id_b64}")
+
         request_options, state = Config.FIDO2_SERVER.authenticate_begin(credentials)
         create_fido2_session(user_id, state)
         current_app.logger.info("FIDO2 session created successfully")
 
+        # Log the allowCredentials being sent to browser
+        response_dict = dict(request_options)
+        if "publicKey" in response_dict and "allowCredentials" in response_dict["publicKey"]:
+            allow_creds = response_dict["publicKey"]["allowCredentials"]
+            current_app.logger.info(f"Sending {len(allow_creds)} allowCredentials to browser")
+            for i, ac in enumerate(allow_creds):
+                cred_id = ac.get("id", "MISSING")
+                current_app.logger.info(f"allowCredentials[{i}] ID sent to browser: {cred_id}")
+
         # fido2 v2: CredentialRequestOptions serializes to a JSON-compatible dict
-        return jsonify({"data": dict(request_options)})
+        return jsonify({"data": response_dict})
     except Exception as e:
         current_app.logger.exception(f"Error in FIDO2 authentication for user {user_id}: {str(e)}")
         return jsonify({"error": "An internal error has occurred"}), 500
