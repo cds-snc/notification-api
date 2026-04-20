@@ -127,7 +127,7 @@ def create_users(session):
                                password_changed_at, state, auth_type, created_at, blocked,
                                platform_admin, failed_login_count, password_expired)
             VALUES (:id, :name, :email, :password, :mobile,
-                    :now, 'active', 'email_auth', :now, false,
+                    :now, 'active', 'email_auth', :now, true,
                     false, 0, false)
         """),
             {
@@ -269,7 +269,7 @@ def create_api_key(session, service_id, creator_id):
         {
             "id": str(key_id),
             "name": f"{PREFIX}-api-key",
-            "secret": str(_uuid()),  # not a real signed secret; for data volume simulation only
+            "secret": str(_uuid()),  # NOT a signed secret; API key record exists for FK integrity only
             "sid": str(service_id),
             "created_by": str(creator_id),
             "now": datetime.now(timezone.utc),
@@ -297,24 +297,9 @@ def create_reply_to(session, service_id):
 
 
 def create_callback(session, service_id, creator_id):
-    cb_id = _uuid()
-    print(f"  Creating service callback ({cb_id})...")
-    session.execute(
-        text("""
-        INSERT INTO service_callback_api (id, service_id, url, callback_type, bearer_token,
-                                          created_at, updated_by_id, version)
-        VALUES (:id, :sid, :url, 'delivery_status', :bearer, :now, :updated_by, 1)
-    """),
-        {
-            "id": str(cb_id),
-            "sid": str(service_id),
-            "url": f"https://{PREFIX}.example.com/callback",
-            "bearer": "simulated-bearer-token",
-            "now": datetime.now(timezone.utc),
-            "updated_by": str(creator_id),
-        },
-    )
-    return cb_id
+    """Skip callback creation — bearer_token requires app-level signing (SECRET_KEY)."""
+    print("  Skipping service callback (bearer_token requires app signing config).")
+    return None
 
 
 def create_template_folders(session, service_id):
@@ -828,13 +813,21 @@ def cleanup(session):
     print(f"CLEANUP: Removing all '{PREFIX}' data...")
     print(f"{'='*60}\n")
 
-    # Build name patterns for services and orgs (configured names may not include PREFIX)
+    # Build name patterns for services and orgs. Cleanup is limited to
+    # namespaced test data — configured names must start with the test prefix.
     service_names = {f"{PREFIX}%"}
     org_names = {f"{PREFIX}%"}
-    if Config.SERVICE_NAME and not Config.SERVICE_NAME.startswith(PREFIX):
+    if Config.SERVICE_NAME:
+        if not Config.SERVICE_NAME.startswith(PREFIX):
+            raise click.ClickException(
+                f"Refusing cleanup: SERVICE_NAME '{Config.SERVICE_NAME}' does not start with required prefix '{PREFIX}'."
+            )
         service_names.add(Config.SERVICE_NAME)
-    if Config.ORGANISATION_NAME and not Config.ORGANISATION_NAME.startswith(PREFIX):
-        org_names.add(Config.ORGANISATION_NAME)
+    if Config.ORGANISATION_NAME:
+        if not Config.ORGANISATION_NAME.startswith(PREFIX):
+            raise click.ClickException(
+                f"Refusing cleanup: ORGANISATION_NAME '{Config.ORGANISATION_NAME}' does not start with required prefix '{PREFIX}'."
+            )
 
     # Find the service(s)
     clauses = " OR ".join(f"name LIKE :p{i}" for i in range(len(service_names)))
