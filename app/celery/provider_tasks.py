@@ -61,7 +61,14 @@ def deliver_throttled_sms(self, notification_id):
 )
 @statsd(namespace="tasks")
 def deliver_sms(self, notification_id):
-    _deliver_sms(self, notification_id)
+    # If the FF_SMS_RATELIMIT flag is on, the deliver_sms task will be called with a rate limit,
+    # and it will call a new task _deliver_sms_with_rate_limit which will not have a rate limit
+    # but will use an SQS message group id based on the priority of the message to ensure messages
+    # with the same priority are sent in order.
+    if Config.FF_SMS_RATELIMIT:
+        _deliver_sms_with_rate_limit(self, notification_id, None)
+    else:
+        _deliver_sms(self, notification_id)
 
 
 SCAN_RETRY_BACKOFF = 10
@@ -111,6 +118,42 @@ def _deliver_sms(self, notification_id):
         if not notification:
             raise NoResultFound()
         send_to_providers.send_sms_to_provider(notification)
+    except InvalidUrlException:
+        current_app.logger.error(f"Cannot send notification {notification_id}, got an invalid direct file url.")
+        update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
+        _check_and_queue_callback_task(notification)
+    except (PinpointConflictException, PinpointValidationException) as e:
+        # As this is due to Pinpoint errors, we are NOT retrying the notification
+        # We are only warning on the error, and not logging an error
+        current_app.logger.warning("SMS delivery failed for notification_id {} Pinpoint error: {}".format(notification.id, e))
+        # PinpointConflictException reasons: https://botocore.amazonaws.com/v1/documentation/api/latest/reference/services/pinpoint-sms-voice-v2/client/exceptions/ConflictException.html
+        # PinpointValidationException reasons: https://botocore.amazonaws.com/v1/documentation/api/latest/reference/services/pinpoint-sms-voice-v2/client/exceptions/ValidationException.html
+        update_notification_status_by_id(
+            notification_id, NOTIFICATION_PROVIDER_FAILURE, feedback_reason=e.original_exception.response.get("Reason", "")
+        )
+        _check_and_queue_callback_task(notification)
+    except Exception:
+        try:
+            current_app.logger.exception("SMS notification delivery for id: {} failed".format(notification_id))
+            self.retry(**CeleryParams.retry(None if notification is None else notification.template.process_type))
+        except self.MaxRetriesExceededError:
+            message = (
+                "RETRY FAILED: Max retries reached. The task send_sms_to_provider failed for notification {}. "
+                "Notification has been updated to technical-failure".format(notification_id)
+            )
+            update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)
+            _check_and_queue_callback_task(notification)
+            raise NotificationTechnicalFailureException(message)
+
+
+def _deliver_sms_with_rate_limit(self, notification_id, priority):
+    try:
+        current_app.logger.info("Start sending SMS for notification id: {}".format(notification_id))
+        notification = notifications_dao.get_notification_by_id(notification_id)
+        if not notification:
+            raise NoResultFound()
+        # call a new sending celery task with the priority, which will be used for the message group id in SQS, 
+        # to ensure messages with the same priority are sent in order
     except InvalidUrlException:
         current_app.logger.error(f"Cannot send notification {notification_id}, got an invalid direct file url.")
         update_notification_status_by_id(notification_id, NOTIFICATION_TECHNICAL_FAILURE)

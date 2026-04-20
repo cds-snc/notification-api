@@ -650,16 +650,18 @@ class Config(object):
     BR_CRITICAL_PERCENTAGE = 0.1
 
     # Feature flags for bounce rate
+    FF_ANNUAL_LIMIT = env.bool("FF_ANNUAL_LIMIT", False)
+    FF_BENCHMARK_ENDPOINT = env.bool("FF_BENCHMARK_ENDPOINT", False)
     # Timestamp in epoch milliseconds to seed the bounce rate. We will seed data for (24, the below config) included.
     FF_BOUNCE_RATE_SEED_EPOCH_MS = os.getenv("FF_BOUNCE_RATE_SEED_EPOCH_MS", False)
     # Feature flag to enable custom retry policies such as lowering retry period for certain priority lanes.
     FF_CELERY_CUSTOM_TASK_PARAMS = env.bool("FF_CELERY_CUSTOM_TASK_PARAMS", True)
     FF_CLOUDWATCH_METRICS_ENABLED = env.bool("FF_CLOUDWATCH_METRICS_ENABLED", False)
-    FF_SALESFORCE_CONTACT = env.bool("FF_SALESFORCE_CONTACT", False)
-    FF_ANNUAL_LIMIT = env.bool("FF_ANNUAL_LIMIT", False)
     FF_PT_SERVICE_SKIP_FRESHDESK = env.bool("FF_PT_SERVICE_SKIP_FRESHDESK", False)
+    FF_SALESFORCE_CONTACT = env.bool("FF_SALESFORCE_CONTACT", False)
+    FF_SMS_RATELIMIT = env.bool("FF_SMS_RATELIMIT", False)
     FF_USE_BILLABLE_UNITS = env.bool("FF_USE_BILLABLE_UNITS", False)
-    FF_BENCHMARK_ENDPOINT = env.bool("FF_BENCHMARK_ENDPOINT", False)
+
     WAF_SECRET = os.getenv("WAF_SECRET")
 
     # SRE Tools auth keys
