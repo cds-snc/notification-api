@@ -3,7 +3,7 @@ from datetime import date
 
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=True)
 
 PREFIX = "test-simulate-prod-data"
 
@@ -47,6 +47,16 @@ class Config:
     # Notifications — SMS
     NUM_SMS_TOTAL = int(os.environ.get("NUM_SMS_TOTAL", "9000000"))
     NUM_SMS_FAILED = int(os.environ.get("NUM_SMS_FAILED", "90000"))
+
+    # Live notifications (recent notifications in the notifications table, last 7 days)
+    NUM_LIVE_NOTIFICATIONS = int(os.environ.get("NUM_LIVE_NOTIFICATIONS", "1000000"))
+
+    # Quick 100K preset (smaller volumes for fast testing)
+    NUM_EMAILS_TOTAL_QUICK_100K = 95500
+    NUM_EMAILS_FAILED_QUICK_100K = 500
+    NUM_SMS_TOTAL_QUICK_100K = 90000
+    NUM_SMS_FAILED_QUICK_100K = 10000
+    NUM_LIVE_NOTIFICATIONS_QUICK_100K = 10000
 
     # Jobs
     NUM_JOBS = int(os.environ.get("NUM_JOBS", "200"))
@@ -138,6 +148,7 @@ class Config:
         print(f"  NUM_EMAILS_FAILED       : {cls.NUM_EMAILS_FAILED:,}")
         print(f"  NUM_SMS_TOTAL           : {cls.NUM_SMS_TOTAL:,}")
         print(f"  NUM_SMS_FAILED          : {cls.NUM_SMS_FAILED:,}")
+        print(f"  NUM_LIVE_NOTIFICATIONS  : {cls.NUM_LIVE_NOTIFICATIONS:,}")
         print(f"  NUM_JOBS                : {cls.NUM_JOBS}")
         print(f"  BATCH_SIZE              : {cls.BATCH_SIZE:,}")
         print(f"  ORGANISATION_NAME       : {cls.ORGANISATION_NAME}")

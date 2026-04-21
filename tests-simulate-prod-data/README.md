@@ -8,14 +8,15 @@ Generate non-PII, production-like data in a staging database for performance tes
 |---|---|---|
 | Organisation | 1 | `test-simulate-prod-data-org` |
 | Service | 1 | `test-simulate-prod-data-service` with prod-like limits (10M SMS, 25M email annual) |
-| Users | 5 | `test-simulate-prod-data-user-{1..5}@staging-simulate.local`, blocked (no login), full permissions |
+| Users | 5 | `test-simulate-prod-data-user-{1..5}@staging-simulate.local`, blocked (no login), full permissions including folder access |
 | Reply-to address | 1 | Default reply-to for the service |
-| Template folders | 5 | 1 high-volume folder + 4 regular folders |
+| Template folders | 5 | 1 high-volume folder + 4 regular folders (all users have access to all folders) |
 | Templates | ~2,020 | 2,000 in the high-volume folder (mix of email/sms, with 3-5 `{{variables}}`), ~5 each in others |
 | Templates history | ~2,020 | Matching version 1 entries for all templates |
 | Jobs | 200 | Simulated bulk send jobs (status: finished) |
 | Notification history (email) | 5,000,000 | 4,950,000 delivered + 50,000 permanent-failure |
 | Notification history (SMS) | 9,000,000 | 8,910,000 delivered + 90,000 permanent-failure |
+| Live notifications | 1,000,000 | Recent notifications in the `notifications` table (last 7 days, mix of statuses) |
 | ft_notification_status | ~1,460 rows | Daily aggregates for the fiscal year |
 | ft_billing | ~730 rows | Daily billing aggregates for the fiscal year |
 
@@ -50,6 +51,7 @@ All other values have sensible defaults. See [.env.example](.env.example) for th
 | `NUM_EMAILS_FAILED` | `50000` | Email notifications with permanent-failure status |
 | `NUM_SMS_TOTAL` | `9000000` | Total SMS notifications to generate |
 | `NUM_SMS_FAILED` | `90000` | SMS notifications with permanent-failure status |
+| `NUM_LIVE_NOTIFICATIONS` | `1000000` | Recent notifications in the live `notifications` table |
 | `BATCH_SIZE` | `10000` | Rows per batch insert (tune for your DB) |
 
 ## Usage
@@ -67,8 +69,15 @@ make generate
 # Skip the 14M notification_history rows (fast — just creates service/users/templates/jobs)
 make generate-quick
 
+# Generate all data with ~185K notifications (fast, for testing the full flow)
+# Uses preset: 95.5K emails + 90K SMS + 10K live notifications
+make generate-quick-100000
+
 # Skip aggregate tables (ft_notification_status, ft_billing)
 make generate-no-aggregates
+
+# Generate only notifications and aggregates (requires existing setup objects from previous run)
+make generate-notifications-and-aggregates
 ```
 
 ### Cleanup (delete all generated data)

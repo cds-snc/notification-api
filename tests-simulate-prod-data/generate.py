@@ -8,6 +8,7 @@ Usage:
 Requires SQLALCHEMY_DATABASE_URI env var (or .env file).
 """
 
+import io
 import math
 import random
 import uuid
@@ -18,6 +19,12 @@ from dateutil import rrule
 from sim_config import PREFIX, Config
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
+
+
+def _timestamp():
+    """Return current timestamp for logging."""
+    return datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -94,7 +101,45 @@ def _template_subject(num_vars, chosen_vars):
 
 def get_engine():
     Config.validate()
-    return create_engine(Config.SQLALCHEMY_DATABASE_URI, echo=False)
+    return create_engine(
+        Config.SQLALCHEMY_DATABASE_URI,
+        echo=False,
+    )
+
+
+def _copy_rows(session, table_name, columns, rows):
+    """Use PostgreSQL COPY FROM STDIN for fastest possible bulk insert.
+
+    COPY bypasses the SQL parser and streams data directly into the table,
+    making it 5-10x faster than even multi-row INSERT VALUES.
+    """
+    if not rows:
+        return
+
+    buf = io.StringIO()
+    for row in rows:
+        values = []
+        for col in columns:
+            val = row[col]
+            if val is None:
+                values.append("\\N")
+            elif isinstance(val, bool):
+                values.append("t" if val else "f")
+            elif isinstance(val, datetime):
+                values.append(val.isoformat())
+            else:
+                values.append(str(val))
+        buf.write("\t".join(values) + "\n")
+
+    buf.seek(0)
+
+    col_list = ", ".join(f'"{c}"' for c in columns)
+    copy_sql = f"COPY {table_name} ({col_list}) FROM STDIN"
+
+    raw_conn = session.connection().connection
+    cursor = raw_conn.cursor()
+    cursor.copy_expert(copy_sql, buf)
+    cursor.close()
 
 
 # ---------------------------------------------------------------------------
@@ -256,6 +301,20 @@ def grant_service_permissions(session, service_id):
         """),
             {"sid": str(service_id), "perm": perm, "now": datetime.now(timezone.utc)},
         )
+
+
+def grant_folder_permissions(session, users, service_id, folder_ids):
+    """Grant all users access to all template folders."""
+    print(f"  Granting folder permissions to {len(users)} users for {len(folder_ids)} folders...")
+    for u in users:
+        for fid in folder_ids:
+            session.execute(
+                text("""
+                INSERT INTO user_folder_permissions (user_id, template_folder_id, service_id)
+                VALUES (:uid, :fid, :sid)
+            """),
+                {"uid": str(u["id"]), "fid": str(fid), "sid": str(service_id)},
+            )
 
 
 def create_api_key(session, service_id, creator_id):
@@ -564,9 +623,28 @@ def _build_notification_batch(
 
 
 def insert_notification_history(session, service_id, email_template_ids, sms_template_ids, job_ids, api_key_id):
-    """Bulk-insert notification_history rows."""
+    """Bulk-insert notification_history rows using PostgreSQL COPY."""
     start_date = Config.date_start_parsed()
     end_date = Config.date_end_parsed()
+
+    nh_columns = [
+        "id",
+        "service_id",
+        "template_id",
+        "template_version",
+        "notification_type",
+        "created_at",
+        "sent_at",
+        "updated_at",
+        "notification_status",
+        "key_type",
+        "billable_units",
+        "international",
+        "api_key_id",
+        "job_id",
+        "job_row_number",
+        "client_reference",
+    ]
 
     for ntype, template_ids, total, failed_count in [
         (NOTIFICATION_TYPE_EMAIL, email_template_ids, Config.NUM_EMAILS_TOTAL, Config.NUM_EMAILS_FAILED),
@@ -578,7 +656,7 @@ def insert_notification_history(session, service_id, email_template_ids, sms_tem
 
         num_batches = math.ceil(total / Config.BATCH_SIZE)
         print(f"\n  Inserting {total:,} {ntype} notification_history rows ({failed_count:,} permanent-failure)...")
-        print(f"    Batches: {num_batches} x {Config.BATCH_SIZE:,}")
+        print(f"    Batches: {num_batches} x {Config.BATCH_SIZE:,} (using COPY)")
 
         remaining = total
         failed_remaining = failed_count
@@ -598,28 +676,122 @@ def insert_notification_history(session, service_id, email_template_ids, sms_tem
                 end_date,
             )
 
-            # Use raw SQL multi-row insert for maximum speed
             if rows:
-                session.execute(
-                    text("""
-                    INSERT INTO notification_history
-                        (id, service_id, template_id, template_version,
-                         notification_type, created_at, sent_at, updated_at, notification_status, key_type,
-                         billable_units, international, api_key_id, job_id, job_row_number,
-                         client_reference)
-                    VALUES
-                        (:id, :service_id, :template_id, :template_version,
-                         :notification_type, :created_at, :sent_at, :updated_at, :notification_status, :key_type,
-                         :billable_units, :international, :api_key_id, :job_id, :job_row_number,
-                         :client_reference)
-                """),
-                    rows,
-                )
+                _copy_rows(session, "notification_history", nh_columns, rows)
 
             if (batch_idx + 1) % 10 == 0 or batch_idx == num_batches - 1:
                 pct = ((batch_idx + 1) / num_batches) * 100
-                print(f"    ... batch {batch_idx+1}/{num_batches} ({pct:.1f}%)")
+                print(f"    ... batch {batch_idx+1}/{num_batches} ({pct:.1f}%) [{_timestamp()}]")
                 session.commit()
+
+
+def insert_live_notifications(session, service_id, email_template_ids, sms_template_ids, job_ids, api_key_id, total_count):
+    """Insert recent notifications into the live notifications table (last 7 days).
+
+    The notifications table holds recent/active notifications, while notification_history holds the archive.
+    """
+    start_date = datetime.now(timezone.utc) - timedelta(days=7)
+    end_date = datetime.now(timezone.utc)
+
+    # Distribute across email and SMS proportionally
+    total_emails = int(total_count * 0.4)  # 40% email
+    total_sms = total_count - total_emails  # 60% SMS
+
+    print(f"\n  Inserting {total_count:,} live notifications into 'notifications' table (last 7 days)...")
+    print(
+        f"    Split: {total_emails:,} email ({total_emails/total_count*100:.0f}%) + {total_sms:,} SMS ({total_sms/total_count*100:.0f}%)"
+    )
+    print("    Status distribution: ~2% created, ~3% sending, ~5% pending, ~85% delivered, ~5% permanent-failure")
+
+    notif_columns = [
+        "id",
+        "to",
+        "normalised_to",
+        "service_id",
+        "template_id",
+        "template_version",
+        "notification_type",
+        "created_at",
+        "sent_at",
+        "updated_at",
+        "notification_status",
+        "key_type",
+        "billable_units",
+        "international",
+        "api_key_id",
+        "job_id",
+        "job_row_number",
+        "client_reference",
+    ]
+
+    for ntype, template_ids, total in [
+        (NOTIFICATION_TYPE_EMAIL, email_template_ids, total_emails),
+        (NOTIFICATION_TYPE_SMS, sms_template_ids, total_sms),
+    ]:
+        if not template_ids or total == 0:
+            continue
+
+        type_jobs = [j for j in job_ids if j["type"] == ntype] if job_ids else []
+        rows = []
+
+        print(f"\n    Generating {total:,} {ntype} notifications... (using COPY)")
+
+        for i in range(total):
+            tmpl_id = random.choice(template_ids)
+            created = _random_date(start_date.date(), end_date.date())
+            job = random.choice(type_jobs) if type_jobs and random.random() < 0.7 else None
+
+            # Mix of statuses for live table (more realistic)
+            status_roll = random.random()
+            if status_roll < 0.02:
+                status = "created"
+            elif status_roll < 0.05:
+                status = "sending"
+            elif status_roll < 0.10:
+                status = "pending"
+            elif status_roll < 0.95:
+                status = "delivered"
+            else:
+                status = "permanent-failure"
+
+            to_address = f"test-{i}@{FAKE_EMAIL_DOMAIN}" if ntype == NOTIFICATION_TYPE_EMAIL else FAKE_PHONE
+
+            rows.append(
+                {
+                    "id": str(_uuid()),
+                    "to": to_address,
+                    "normalised_to": to_address.lower() if ntype == NOTIFICATION_TYPE_EMAIL else FAKE_PHONE,
+                    "service_id": str(service_id),
+                    "template_id": str(tmpl_id),
+                    "template_version": 1,
+                    "notification_type": ntype,
+                    "created_at": created,
+                    "sent_at": created + timedelta(seconds=random.randint(1, 30)) if status != "created" else None,
+                    "updated_at": created + timedelta(seconds=random.randint(31, 120)),
+                    "notification_status": status,
+                    "key_type": "normal",
+                    "billable_units": 1,
+                    "international": False,
+                    "api_key_id": str(api_key_id) if api_key_id else None,
+                    "job_id": str(job["id"]) if job else None,
+                    "job_row_number": random.randint(0, Config.JOB_NOTIFICATION_COUNT - 1) if job else None,
+                    "client_reference": PREFIX,
+                }
+            )
+
+            if len(rows) >= Config.BATCH_SIZE:
+                _copy_rows(session, "notifications", notif_columns, rows)
+                if (i + 1) % Config.BATCH_SIZE == 0 or i + 1 == total:
+                    pct = ((i + 1) / total) * 100
+                    print(f"      ... {i+1:,}/{total:,} ({pct:.1f}%) [{_timestamp()}]")
+                session.commit()
+                rows = []
+
+        if rows:
+            _copy_rows(session, "notifications", notif_columns, rows)
+            session.commit()
+
+    print(f"\n  ✓ Live notifications table populated ({total_count:,} rows).")
 
 
 def _distribute_over_days(total, num_days, day_index):
@@ -643,7 +815,20 @@ def populate_ft_notification_status(session, service_id, email_template_ids, sms
     num_days = len(dates)
     null_job_id = "00000000-0000-0000-0000-000000000000"
 
-    print(f"\n  Populating ft_notification_status over {num_days} days...")
+    ft_columns = [
+        "bst_date",
+        "template_id",
+        "service_id",
+        "job_id",
+        "notification_type",
+        "key_type",
+        "notification_status",
+        "notification_count",
+        "billable_units",
+        "created_at",
+    ]
+
+    print(f"\n  Populating ft_notification_status over {num_days} days... (using COPY)")
 
     rows = []
     for day_index, d in enumerate(dates):
@@ -690,32 +875,13 @@ def populate_ft_notification_status(session, service_id, email_template_ids, sms
                 )
 
         if len(rows) >= 5000:
-            session.execute(
-                text("""
-                INSERT INTO ft_notification_status
-                    (bst_date, template_id, service_id, job_id, notification_type, key_type,
-                     notification_status, notification_count, billable_units, created_at)
-                VALUES
-                    (:bst_date, :template_id, :service_id, :job_id, :notification_type, :key_type,
-                     :notification_status, :notification_count, :billable_units, :created_at)
-            """),
-                rows,
-            )
+            _copy_rows(session, "ft_notification_status", ft_columns, rows)
             rows = []
 
     if rows:
-        session.execute(
-            text("""
-            INSERT INTO ft_notification_status
-                (bst_date, template_id, service_id, job_id, notification_type, key_type,
-                 notification_status, notification_count, billable_units, created_at)
-            VALUES
-                (:bst_date, :template_id, :service_id, :job_id, :notification_type, :key_type,
-                 :notification_status, :notification_count, :billable_units, :created_at)
-        """),
-            rows,
-        )
+        _copy_rows(session, "ft_notification_status", ft_columns, rows)
 
+    session.commit()
     print("  ft_notification_status populated.")
 
 
@@ -726,7 +892,23 @@ def populate_ft_billing(session, service_id, email_template_ids, sms_template_id
     dates = list(rrule.rrule(freq=rrule.DAILY, dtstart=start_date, until=end_date))
     num_days = len(dates)
 
-    print(f"\n  Populating ft_billing over {num_days} days...")
+    billing_columns = [
+        "bst_date",
+        "template_id",
+        "service_id",
+        "notification_type",
+        "provider",
+        "rate_multiplier",
+        "international",
+        "rate",
+        "postage",
+        "sms_sending_vehicle",
+        "billable_units",
+        "notifications_sent",
+        "created_at",
+    ]
+
+    print(f"\n  Populating ft_billing over {num_days} days... (using COPY)")
 
     rows = []
     for day_index, d in enumerate(dates):
@@ -760,36 +942,13 @@ def populate_ft_billing(session, service_id, email_template_ids, sms_template_id
             )
 
         if len(rows) >= 5000:
-            session.execute(
-                text("""
-                INSERT INTO ft_billing
-                    (bst_date, template_id, service_id, notification_type, provider,
-                     rate_multiplier, international, rate, postage, sms_sending_vehicle,
-                     billable_units, notifications_sent, created_at)
-                VALUES
-                    (:bst_date, :template_id, :service_id, :notification_type, :provider,
-                     :rate_multiplier, :international, :rate, :postage, :sms_sending_vehicle,
-                     :billable_units, :notifications_sent, :created_at)
-            """),
-                rows,
-            )
+            _copy_rows(session, "ft_billing", billing_columns, rows)
             rows = []
 
     if rows:
-        session.execute(
-            text("""
-            INSERT INTO ft_billing
-                (bst_date, template_id, service_id, notification_type, provider,
-                 rate_multiplier, international, rate, postage, sms_sending_vehicle,
-                 billable_units, notifications_sent, created_at)
-            VALUES
-                (:bst_date, :template_id, :service_id, :notification_type, :provider,
-                 :rate_multiplier, :international, :rate, :postage, :sms_sending_vehicle,
-                 :billable_units, :notifications_sent, :created_at)
-        """),
-            rows,
-        )
+        _copy_rows(session, "ft_billing", billing_columns, rows)
 
+    session.commit()
     print("  ft_billing populated.")
 
 
@@ -801,7 +960,7 @@ def populate_ft_billing(session, service_id, email_template_ids, sms_template_id
 def cleanup(session):
     """Remove all test-simulate-prod-data entities."""
     print(f"\n{'='*60}")
-    print(f"CLEANUP: Removing all '{PREFIX}' data...")
+    print(f"CLEANUP: Removing all '{PREFIX}' data... [{_timestamp()}]")
     print(f"{'='*60}\n")
 
     # Build name patterns for services and orgs. Cleanup is limited to
@@ -872,6 +1031,17 @@ def cleanup(session):
             print("    Deleting templates...")
             session.execute(text("DELETE FROM templates WHERE service_id = :sid"), {"sid": sid})
 
+            # user_folder_permissions (before template_folder due to FK constraint)
+            print("    Deleting user_folder_permissions...")
+            session.execute(
+                text("""
+                DELETE FROM user_folder_permissions WHERE template_folder_id IN (
+                    SELECT id FROM template_folder WHERE service_id = :sid
+                )
+            """),
+                {"sid": sid},
+            )
+
             # template_folder
             print("    Deleting template_folder...")
             session.execute(text("DELETE FROM template_folder WHERE service_id = :sid"), {"sid": sid})
@@ -916,7 +1086,7 @@ def cleanup(session):
         session.execute(text("DELETE FROM organisation WHERE name LIKE :pattern"), {"pattern": org_name})
 
     session.commit()
-    print("\nCleanup complete.")
+    print(f"\nCleanup complete. [{_timestamp()}]")
 
 
 # ---------------------------------------------------------------------------
@@ -932,8 +1102,29 @@ def cleanup(session):
     "--skip-notifications", is_flag=True, default=False, help="Skip notification_history generation (for testing setup)"
 )
 @click.option("--skip-aggregates", is_flag=True, default=False, help="Skip ft_notification_status and ft_billing generation")
-def main(cleanup_only, skip_notifications, skip_aggregates):
+@click.option(
+    "--only-notifications-and-aggregates",
+    is_flag=True,
+    default=False,
+    help="Skip setup objects, only generate notification_history, ft_notification_status, and ft_billing",
+)
+@click.option(
+    "--quick-100000",
+    is_flag=True,
+    default=False,
+    help="Use quick 100K preset (~185K notifications total for fast testing)",
+)
+def main(cleanup_only, skip_notifications, skip_aggregates, only_notifications_and_aggregates, quick_100000):
     """Generate production-like data for staging performance testing."""
+
+    # Apply quick-100000 preset if requested
+    if quick_100000:
+        Config.NUM_EMAILS_TOTAL = Config.NUM_EMAILS_TOTAL_QUICK_100K
+        Config.NUM_EMAILS_FAILED = Config.NUM_EMAILS_FAILED_QUICK_100K
+        Config.NUM_SMS_TOTAL = Config.NUM_SMS_TOTAL_QUICK_100K
+        Config.NUM_SMS_FAILED = Config.NUM_SMS_FAILED_QUICK_100K
+        Config.NUM_LIVE_NOTIFICATIONS = Config.NUM_LIVE_NOTIFICATIONS_QUICK_100K
+
     engine = get_engine()
 
     with Session(engine) as session:
@@ -942,7 +1133,7 @@ def main(cleanup_only, skip_notifications, skip_aggregates):
             return
 
         print(f"\n{'='*60}")
-        print("GENERATE: Production-like data simulation")
+        print(f"GENERATE: Production-like data simulation [{_timestamp()}]")
         print(f"{'='*60}")
         print(f"  Prefix:       {PREFIX}")
         print(f"  Date range:   {Config.DATE_START} to {Config.DATE_END}")
@@ -956,12 +1147,97 @@ def main(cleanup_only, skip_notifications, skip_aggregates):
         print(f"{'='*60}\n")
 
         try:
+            if only_notifications_and_aggregates:
+                # Only generate notifications and aggregates for existing setup objects
+                print("\n" + "=" * 60)
+                print("MODE: Generating only notifications and aggregates")
+                print("=" * 60 + "\n")
+
+                # Find existing service
+                result = session.execute(text("SELECT id FROM services WHERE name = :name"), {"name": Config.SERVICE_NAME})
+                row = result.fetchone()
+                if not row:
+                    raise click.ClickException(
+                        f"Service '{Config.SERVICE_NAME}' not found. Run without --only-notifications-and-aggregates first to create setup objects."
+                    )
+                service_id = row[0]
+
+                # Find existing templates
+                result = session.execute(
+                    text("SELECT id, template_type FROM templates WHERE service_id = :sid ORDER BY created_at"),
+                    {"sid": str(service_id)},
+                )
+                all_template_ids = []
+                email_template_ids = []
+                sms_template_ids = []
+                for row in result:
+                    tid = row[0]
+                    ttype = row[1]
+                    all_template_ids.append(tid)
+                    if ttype == NOTIFICATION_TYPE_EMAIL:
+                        email_template_ids.append(tid)
+                    else:
+                        sms_template_ids.append(tid)
+
+                if not all_template_ids:
+                    raise click.ClickException(
+                        f"No templates found for service '{Config.SERVICE_NAME}'. Run without --only-notifications-and-aggregates first."
+                    )
+
+                print(f"  Found service: {service_id}")
+                print(
+                    f"  Found {len(all_template_ids)} templates (email: {len(email_template_ids)}, sms: {len(sms_template_ids)})"
+                )
+
+                # Find existing jobs
+                result = session.execute(
+                    text("SELECT id, template_id, created_at FROM jobs WHERE service_id = :sid ORDER BY created_at"),
+                    {"sid": str(service_id)},
+                )
+                job_ids = []
+                for row in result:
+                    # Determine type from template
+                    result2 = session.execute(text("SELECT template_type FROM templates WHERE id = :tid"), {"tid": str(row[1])})
+                    ttype_row = result2.fetchone()
+                    job_ids.append(
+                        {
+                            "id": row[0],
+                            "template_id": row[1],
+                            "type": ttype_row[0] if ttype_row else "email",
+                            "created_at": row[2],
+                        }
+                    )
+
+                print(f"  Found {len(job_ids)} jobs\\n")
+
+                # Generate notifications
+                print("Inserting notification_history...")
+                insert_notification_history(session, service_id, email_template_ids, sms_template_ids, job_ids, None)
+
+                print("\nInserting live notifications...")
+                insert_live_notifications(
+                    session, service_id, email_template_ids, sms_template_ids, job_ids, None, Config.NUM_LIVE_NOTIFICATIONS
+                )
+
+                # Generate aggregates
+                print("\\n[Bonus] Populating aggregate tables...")
+                populate_ft_notification_status(session, service_id, email_template_ids, sms_template_ids)
+                populate_ft_billing(session, service_id, email_template_ids, sms_template_ids)
+
+                print("\\nFinal commit...")
+                session.commit()
+                print("\\n" + "=" * 60)
+                print("SUCCESS: Notifications and aggregates generated.")
+                print(f"  Service ID: {service_id}")
+                print("=" * 60)
+                return
+
             # 1. Organisation
-            print("[1/12] Creating organisation...")
+            print(f"[1/12] Creating organisation... [{_timestamp()}]")
             org_id = create_organisation(session)
 
             # 2. Users
-            print("[2/12] Creating users...")
+            print(f"[2/12] Creating users... [{_timestamp()}]")
             users = create_users(session)
 
             # 3. Service
@@ -993,6 +1269,10 @@ def main(cleanup_only, skip_notifications, skip_aggregates):
             print("[9/12] Creating template folders...")
             folder_ids, folder_names = create_template_folders(session, service_id)
 
+            # 9b. Grant folder permissions
+            print("[9b/12] Granting folder permissions...")
+            grant_folder_permissions(session, users, service_id, folder_ids)
+
             # 10. Templates
             print("[10/12] Creating templates...")
             all_template_ids, email_template_ids, sms_template_ids = create_templates(
@@ -1012,26 +1292,38 @@ def main(cleanup_only, skip_notifications, skip_aggregates):
 
             # 12. Notifications
             if not skip_notifications:
-                print("[12/12] Inserting notification_history...")
+                print(f"[12/12] Inserting notification_history... [{_timestamp()}]")
                 insert_notification_history(session, service_id, email_template_ids, sms_template_ids, job_ids, api_key_id)
+                print(f"\n[12b/12] Inserting live notifications... [{_timestamp()}]")
+                insert_live_notifications(
+                    session, service_id, email_template_ids, sms_template_ids, job_ids, api_key_id, Config.NUM_LIVE_NOTIFICATIONS
+                )
             else:
                 print("[12/12] Skipping notification_history (--skip-notifications)")
 
             # Aggregate tables
             if not skip_aggregates:
-                print("\n[Bonus] Populating aggregate tables...")
+                print(f"\n[Bonus] Populating aggregate tables... [{_timestamp()}]")
                 populate_ft_notification_status(session, service_id, email_template_ids, sms_template_ids)
                 populate_ft_billing(session, service_id, email_template_ids, sms_template_ids)
             else:
                 print("\n[Bonus] Skipping aggregates (--skip-aggregates)")
 
-            print("\nFinal commit...")
+            print(f"\nFinal commit... [{_timestamp()}]")
             session.commit()
             print("\n" + "=" * 60)
-            print("SUCCESS: All data generated.")
+            print(f"SUCCESS: All data generated. [{_timestamp()}]")
             print(f"  Service ID: {service_id}")
             print(f"  Service Name: {Config.SERVICE_NAME}")
             print(f"  Organisation ID: {org_id}")
+            if not skip_notifications:
+                print("\n  Notification Summary:")
+                print(f"    notification_history: {Config.NUM_EMAILS_TOTAL + Config.NUM_SMS_TOTAL:,} rows")
+                print(f"      - Email: {Config.NUM_EMAILS_TOTAL:,} ({Config.NUM_EMAILS_FAILED:,} failed)")
+                print(f"      - SMS: {Config.NUM_SMS_TOTAL:,} ({Config.NUM_SMS_FAILED:,} failed)")
+                print(f"    notifications (live): {Config.NUM_LIVE_NOTIFICATIONS:,} rows (last 7 days)")
+                print(f"      - Email: {int(Config.NUM_LIVE_NOTIFICATIONS * 0.4):,} (40%)")
+                print(f"      - SMS: {int(Config.NUM_LIVE_NOTIFICATIONS * 0.6):,} (60%)")
             print("=" * 60)
 
         except Exception as e:
