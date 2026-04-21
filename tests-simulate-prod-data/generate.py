@@ -352,6 +352,106 @@ def create_callback(session, service_id, creator_id):
     return None
 
 
+def create_annual_billing(session, service_id):
+    """Create annual_billing record for the current fiscal year."""
+    # Canadian fiscal year starts April 1
+    now = datetime.now(timezone.utc)
+    fiscal_year_start = now.year if now.month >= 4 else now.year - 1
+    billing_id = _uuid()
+    print(f"  Creating annual_billing for fiscal year {fiscal_year_start} ({billing_id})...")
+    session.execute(
+        text("""
+        INSERT INTO annual_billing (id, service_id, financial_year_start, free_sms_fragment_limit, created_at)
+        VALUES (:id, :sid, :year, :limit, :now)
+    """),
+        {
+            "id": str(billing_id),
+            "sid": str(service_id),
+            "year": fiscal_year_start,
+            "limit": Config.SERVICE_SMS_ANNUAL_LIMIT,
+            "now": datetime.now(timezone.utc),
+        },
+    )
+    return billing_id
+
+
+def create_sms_sender(session, service_id):
+    """Create a default SMS sender for the service."""
+    sender_id = _uuid()
+    print(f"  Creating default SMS sender ({sender_id})...")
+    session.execute(
+        text("""
+        INSERT INTO service_sms_senders (id, sms_sender, service_id, is_default, created_at)
+        VALUES (:id, :sender, :sid, true, :now)
+    """),
+        {
+            "id": str(sender_id),
+            "sid": str(service_id),
+            "sender": "NOTIFY",
+            "now": datetime.now(timezone.utc),
+        },
+    )
+    return sender_id
+
+
+def link_existing_user(session, service_id, folder_ids):
+    """Link an existing real user to the service so they can access it from the frontend."""
+    email = Config.LINK_EXISTING_USER_EMAIL
+    if not email:
+        return
+
+    result = session.execute(text("SELECT id FROM users WHERE email_address = :email"), {"email": email})
+    row = result.fetchone()
+    if not row:
+        print(f"  WARNING: User '{email}' not found in database — skipping link.")
+        return
+
+    user_id = str(row[0])
+    print(f"  Linking existing user '{email}' ({user_id}) to service...")
+
+    # user_to_service
+    session.execute(
+        text("INSERT INTO user_to_service (user_id, service_id) VALUES (:uid, :sid)"),
+        {"uid": user_id, "sid": str(service_id)},
+    )
+
+    # Grant permissions
+    permissions = [
+        "manage_users",
+        "manage_templates",
+        "manage_settings",
+        "send_texts",
+        "send_emails",
+        "send_letters",
+        "manage_api_keys",
+        "view_activity",
+    ]
+    for perm in permissions:
+        session.execute(
+            text("""
+            INSERT INTO permissions (id, service_id, user_id, permission, created_at)
+            VALUES (:id, :sid, :uid, :perm, :now)
+        """),
+            {
+                "id": str(_uuid()),
+                "sid": str(service_id),
+                "uid": user_id,
+                "perm": perm,
+                "now": datetime.now(timezone.utc),
+            },
+        )
+
+    # Grant folder permissions
+    for fid in folder_ids:
+        session.execute(
+            text("""
+            INSERT INTO user_folder_permissions (user_id, template_folder_id, service_id)
+            VALUES (:uid, :fid, :sid)
+        """),
+            {"uid": user_id, "fid": str(fid), "sid": str(service_id)},
+        )
+
+
 def create_template_folders(session, service_id):
     folder_ids = []
     folder_names = []
@@ -679,10 +779,9 @@ def insert_notification_history(session, service_id, email_template_ids, sms_tem
             if rows:
                 _copy_rows(session, "notification_history", nh_columns, rows)
 
-            if (batch_idx + 1) % 10 == 0 or batch_idx == num_batches - 1:
-                pct = ((batch_idx + 1) / num_batches) * 100
-                print(f"    ... batch {batch_idx+1}/{num_batches} ({pct:.1f}%) [{_timestamp()}]")
-                session.commit()
+            session.commit()
+            pct = ((batch_idx + 1) / num_batches) * 100
+            print(f"    ... batch {batch_idx+1}/{num_batches} ({pct:.1f}%) [{_timestamp()}]")
 
 
 def insert_live_notifications(session, service_id, email_template_ids, sms_template_ids, job_ids, api_key_id, total_count):
@@ -781,15 +880,15 @@ def insert_live_notifications(session, service_id, email_template_ids, sms_templ
 
             if len(rows) >= Config.BATCH_SIZE:
                 _copy_rows(session, "notifications", notif_columns, rows)
-                if (i + 1) % Config.BATCH_SIZE == 0 or i + 1 == total:
-                    pct = ((i + 1) / total) * 100
-                    print(f"      ... {i+1:,}/{total:,} ({pct:.1f}%) [{_timestamp()}]")
                 session.commit()
+                pct = ((i + 1) / total) * 100
+                print(f"      ... {i+1:,}/{total:,} ({pct:.1f}%) [{_timestamp()}]")
                 rows = []
 
         if rows:
             _copy_rows(session, "notifications", notif_columns, rows)
             session.commit()
+            print(f"      ... {total:,}/{total:,} (100.0%) [{_timestamp()}]")
 
     print(f"\n  ✓ Live notifications table populated ({total_count:,} rows).")
 
@@ -1054,6 +1153,14 @@ def cleanup(session):
             print("    Deleting service_email_reply_to...")
             session.execute(text("DELETE FROM service_email_reply_to WHERE service_id = :sid"), {"sid": sid})
 
+            # annual_billing
+            print("    Deleting annual_billing...")
+            session.execute(text("DELETE FROM annual_billing WHERE service_id = :sid"), {"sid": sid})
+
+            # service_sms_senders
+            print("    Deleting service_sms_senders...")
+            session.execute(text("DELETE FROM service_sms_senders WHERE service_id = :sid"), {"sid": sid})
+
             # api_keys
             print("    Deleting api_keys...")
             session.execute(text("DELETE FROM api_keys WHERE service_id = :sid"), {"sid": sid})
@@ -1265,6 +1372,10 @@ def main(cleanup_only, skip_notifications, skip_aggregates, only_notifications_a
             create_reply_to(session, service_id)
             create_callback(session, service_id, users[0]["id"])
 
+            # 8b. Annual billing and SMS sender
+            create_annual_billing(session, service_id)
+            create_sms_sender(session, service_id)
+
             # 9. Template folders
             print("[9/12] Creating template folders...")
             folder_ids, folder_names = create_template_folders(session, service_id)
@@ -1272,6 +1383,9 @@ def main(cleanup_only, skip_notifications, skip_aggregates, only_notifications_a
             # 9b. Grant folder permissions
             print("[9b/12] Granting folder permissions...")
             grant_folder_permissions(session, users, service_id, folder_ids)
+
+            # 9c. Link existing user (optional — set LINK_EXISTING_USER_EMAIL in .env)
+            link_existing_user(session, service_id, folder_ids)
 
             # 10. Templates
             print("[10/12] Creating templates...")

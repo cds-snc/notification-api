@@ -68,6 +68,9 @@ class Config:
     # Organisation
     ORGANISATION_NAME = os.environ.get("ORGANISATION_NAME", f"{PREFIX}-org")
 
+    # Link an existing real user (by email) to the generated service for frontend access
+    LINK_EXISTING_USER_EMAIL = os.environ.get("LINK_EXISTING_USER_EMAIL", "")
+
     @classmethod
     def date_start_parsed(cls):
         return date.fromisoformat(cls.DATE_START)
@@ -152,4 +155,5 @@ class Config:
         print(f"  NUM_JOBS                : {cls.NUM_JOBS}")
         print(f"  BATCH_SIZE              : {cls.BATCH_SIZE:,}")
         print(f"  ORGANISATION_NAME       : {cls.ORGANISATION_NAME}")
+        print(f"  LINK_EXISTING_USER_EMAIL: {cls.LINK_EXISTING_USER_EMAIL or '(not set)'}")
         print("-" * 60 + "\n")
