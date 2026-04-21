@@ -257,118 +257,122 @@ def send_email_to_provider(notification: Notification):
         inactive_service_failure(notification=notification)
         return
 
-    # If the notification was not sent already, the status should be created.
-    if notification.status == "created":
-        provider = provider_to_use(EMAIL_TYPE, notification.id)
+    # Only process notifications with status 'created' to guarantee idempotency of this
+    # function. If the status is not 'created', it means the notification has already
+    # been processed and sent to a provider, so we should not attempt to send it again.
+    if notification.status != "created":
+        return
 
-        # Extract any file objects from the personalization
-        file_keys = [k for k, v in (notification.personalisation or {}).items() if isinstance(v, dict) and "document" in v]
-        attachments = []
+    provider = provider_to_use(EMAIL_TYPE, notification.id)
 
-        personalisation_data = notification.personalisation.copy()
+    # Extract any file objects from the personalization
+    file_keys = [k for k, v in (notification.personalisation or {}).items() if isinstance(v, dict) and "document" in v]
+    attachments = []
 
-        for key in file_keys:
-            check_file_url(personalisation_data[key]["document"], notification.id)
-            sending_method = personalisation_data[key]["document"].get("sending_method")
-            direct_file_url = personalisation_data[key]["document"]["direct_file_url"]
-            filename = personalisation_data[key]["document"].get("filename")
-            mime_type = personalisation_data[key]["document"].get("mime_type")
-            document_id = personalisation_data[key]["document"]["id"]
-            current_app.logger.info(
-                f"Calling document_download_client.check_scan_verdict() for document_id: {document_id} and notification_id: {notification.id}"
-            )
-            scan_verdict_response = document_download_client.check_scan_verdict(service.id, document_id, sending_method)
-            check_for_malware_errors(scan_verdict_response.status_code, notification)
-            current_app.logger.info(f"scan_verdict for document_id {document_id} is {scan_verdict_response.json()}")
-            if sending_method == "attach":
-                try:
-                    retries = Retry(total=5)
-                    http = PoolManager(retries=retries)
+    personalisation_data = notification.personalisation.copy()
 
-                    response = http.request("GET", url=direct_file_url)
-                    attachments.append(
-                        {
-                            "name": filename,
-                            "data": response.data,
-                            "mime_type": mime_type,
-                        }
-                    )
-                except Exception as e:
-                    current_app.logger.error(f"Could not download and attach {direct_file_url}\nException: {e}")
-                    del personalisation_data[key]
-
-            else:
-                personalisation_data[key] = personalisation_data[key]["document"]["url"]
-
-        template_obj = dao_get_template_by_id(notification.template_id, notification.template_version)
-        template_dict = template_obj.__dict__
-        template_dict["process_type"] = template_obj.process_type
-
-        # Local Jinja support - Add USE_LOCAL_JINJA_TEMPLATES=True to .env
-        # Add a folder to the project root called 'jinja_templates'
-        # with a copy of 'email_template.jinja2' from notification-utils repo
-        debug_template_path = (
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            if os.environ.get("USE_LOCAL_JINJA_TEMPLATES") == "True"
-            else None
-        )
-        html_email = HTMLEmailTemplate(
-            template_dict,
-            values=personalisation_data,
-            jinja_path=debug_template_path,
-            allow_html=is_service_allowed_html(service),
-            **get_html_email_options(service),
-        )
-
-        plain_text_email = PlainTextEmailTemplate(template_dict, values=personalisation_data)
-
-        if current_app.config["SCAN_FOR_PII"]:
-            contains_pii(notification, str(plain_text_email))
-
+    for key in file_keys:
+        check_file_url(personalisation_data[key]["document"], notification.id)
+        sending_method = personalisation_data[key]["document"].get("sending_method")
+        direct_file_url = personalisation_data[key]["document"]["direct_file_url"]
+        filename = personalisation_data[key]["document"].get("filename")
+        mime_type = personalisation_data[key]["document"].get("mime_type")
+        document_id = personalisation_data[key]["document"]["id"]
         current_app.logger.info(
-            f"Trying to update notification id {notification.id} with service research {service.research_mode} or key type {notification.key_type}"
+            f"Calling document_download_client.check_scan_verdict() for document_id: {document_id} and notification_id: {notification.id}"
         )
-        if service.research_mode or notification.key_type == KEY_TYPE_TEST:
-            notification.reference = send_email_response(notification.to)
-            update_notification_to_sending(notification, provider)
-        elif notification.to == Config.INTERNAL_TEST_EMAIL_ADDRESS:
-            current_app.logger.info(f"notification {notification.id} sending to internal test email address. Not sending to AWS")
-            notification.reference = send_email_response(notification.to)
-            update_notification_to_sending(notification, provider)
+        scan_verdict_response = document_download_client.check_scan_verdict(service.id, document_id, sending_method)
+        check_for_malware_errors(scan_verdict_response.status_code, notification)
+        current_app.logger.info(f"scan_verdict for document_id {document_id} is {scan_verdict_response.json()}")
+        if sending_method == "attach":
+            try:
+                retries = Retry(total=5)
+                http = PoolManager(retries=retries)
+
+                response = http.request("GET", url=direct_file_url)
+                attachments.append(
+                    {
+                        "name": filename,
+                        "data": response.data,
+                        "mime_type": mime_type,
+                    }
+                )
+            except Exception as e:
+                current_app.logger.error(f"Could not download and attach {direct_file_url}\nException: {e}")
+                del personalisation_data[key]
+
         else:
-            if service.sending_domain is None or service.sending_domain.strip() == "":
-                sending_domain = current_app.config["NOTIFY_EMAIL_DOMAIN"]
-            else:
-                sending_domain = service.sending_domain
+            personalisation_data[key] = personalisation_data[key]["document"]["url"]
 
-            from_address = get_from_address(
-                friendly_from=service.name, email_from=service.email_from, sending_domain=sending_domain
-            )
-            email_reply_to = notification.reply_to_text
+    template_obj = dao_get_template_by_id(notification.template_id, notification.template_version)
+    template_dict = template_obj.__dict__
+    template_dict["process_type"] = template_obj.process_type
 
-            reference = provider.send_email(
-                from_address,
-                validate_and_format_email_address(notification.to),
-                plain_text_email.subject,
-                body=str(plain_text_email),
-                html_body=str(html_email),
-                reply_to_address=validate_and_format_email_address(email_reply_to) if email_reply_to else None,
-                attachments=attachments,
-            )
-            check_service_over_bounce_rate(service.id)
-            bounce_rate_client.set_sliding_notifications(service.id, str(notification.id))
-            current_app.logger.info(f"Setting total notifications for service {service.id} in REDIS")
-            current_app.logger.info(f"Notification id {notification.id} HAS BEEN SENT")
-            notification.reference = reference
-            update_notification_to_sending(notification, provider)
-        current_app.logger.info(f"Notification id {notification.id} status in sending")
+    # Local Jinja support - Add USE_LOCAL_JINJA_TEMPLATES=True to .env
+    # Add a folder to the project root called 'jinja_templates'
+    # with a copy of 'email_template.jinja2' from notification-utils repo
+    debug_template_path = (
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if os.environ.get("USE_LOCAL_JINJA_TEMPLATES") == "True"
+        else None
+    )
+    html_email = HTMLEmailTemplate(
+        template_dict,
+        values=personalisation_data,
+        jinja_path=debug_template_path,
+        allow_html=is_service_allowed_html(service),
+        **get_html_email_options(service),
+    )
 
-        # Record StatsD stats to compute SLOs
-        statsd_client.timing_with_dates("email.total-time", notification.sent_at, notification.created_at)
-        attachments_category = "with-attachments" if attachments else "no-attachments"
-        statsd_key = f"email.{attachments_category}.process_type-{template_dict['process_type']}"
-        statsd_client.timing_with_dates(statsd_key, notification.sent_at, notification.created_at)
-        statsd_client.incr(statsd_key)
+    plain_text_email = PlainTextEmailTemplate(template_dict, values=personalisation_data)
+
+    if current_app.config["SCAN_FOR_PII"]:
+        contains_pii(notification, str(plain_text_email))
+
+    current_app.logger.info(
+        f"Trying to update notification id {notification.id} with service research {service.research_mode} or key type {notification.key_type}"
+    )
+    if service.research_mode or notification.key_type == KEY_TYPE_TEST:
+        notification.reference = send_email_response(notification.to)
+        update_notification_to_sending(notification, provider)
+    elif notification.to == Config.INTERNAL_TEST_EMAIL_ADDRESS:
+        current_app.logger.info(f"notification {notification.id} sending to internal test email address. Not sending to AWS")
+        notification.reference = send_email_response(notification.to)
+        update_notification_to_sending(notification, provider)
+    else:
+        if service.sending_domain is None or service.sending_domain.strip() == "":
+            sending_domain = current_app.config["NOTIFY_EMAIL_DOMAIN"]
+        else:
+            sending_domain = service.sending_domain
+
+        from_address = get_from_address(
+            friendly_from=service.name, email_from=service.email_from, sending_domain=sending_domain
+        )
+        email_reply_to = notification.reply_to_text
+
+        reference = provider.send_email(
+            from_address,
+            validate_and_format_email_address(notification.to),
+            plain_text_email.subject,
+            body=str(plain_text_email),
+            html_body=str(html_email),
+            reply_to_address=validate_and_format_email_address(email_reply_to) if email_reply_to else None,
+            attachments=attachments,
+        )
+        check_service_over_bounce_rate(service.id)
+        bounce_rate_client.set_sliding_notifications(service.id, str(notification.id))
+        current_app.logger.info(f"Setting total notifications for service {service.id} in REDIS")
+        current_app.logger.info(f"Notification id {notification.id} HAS BEEN SENT")
+        notification.reference = reference
+        update_notification_to_sending(notification, provider)
+    current_app.logger.info(f"Notification id {notification.id} status in sending")
+
+    # Record StatsD stats to compute SLOs
+    statsd_client.timing_with_dates("email.total-time", notification.sent_at, notification.created_at)
+    attachments_category = "with-attachments" if attachments else "no-attachments"
+    statsd_key = f"email.{attachments_category}.process_type-{template_dict['process_type']}"
+    statsd_client.timing_with_dates(statsd_key, notification.sent_at, notification.created_at)
+    statsd_client.incr(statsd_key)
 
 
 def update_notification_to_sending(notification, provider):
