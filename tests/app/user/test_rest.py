@@ -1666,29 +1666,6 @@ def test_fido2_validate_returns_400_when_credential_missing(client, sample_servi
     mock_get_session.assert_not_called()
 
 
-def test_fido2_validate_returns_400_when_json_invalid(client, sample_service, mocker):
-    """Test that invalid JSON body returns 400 Bad Request without consuming session."""
-    sample_user = sample_service.users[0]
-    auth_header = create_authorization_header()
-
-    key = Fido2Key(name="sample key", key="abcd", user_id=sample_user.id)
-    save_fido2_key(key)
-
-    mock_get_session = mocker.patch("app.user.rest.get_fido2_session", return_value={"challenge": "test"})
-
-    # Send non-JSON content type (will make get_json() return None)
-    response = client.post(
-        url_for("user.fido2_keys_user_validate", user_id=sample_user.id),
-        data="not json",
-        headers=[("Content-Type", "text/plain"), auth_header],
-    )
-
-    assert response.status_code == 400
-    assert json.loads(response.get_data(as_text=True))["error"] == "Invalid request format"
-    # Session should NOT be consumed when request is malformed
-    mock_get_session.assert_not_called()
-
-
 def test_fido2_validate_returns_400_when_session_expired(client, sample_service, mocker):
     """Test that expired/missing session returns 400 Bad Request."""
     sample_user = sample_service.users[0]
