@@ -83,6 +83,10 @@ class QueueNames(object):
     # we have a limit to send per second and hence, needs to be throttled.
     SEND_THROTTLED_SMS = "send-throttled-sms-tasks"
 
+    # Fair queue for sending SMS, used to rate limit sending SMS from Notify to
+    # our SMS provider to avoid hitting downstream rate limits.
+    SEND_SMS_FAIR = "send-sms-fair-tasks"
+
     # Queues for sending all emails.
     SEND_EMAIL_HIGH = "send-email-high"
     SEND_EMAIL_MEDIUM = "send-email-medium"
@@ -139,6 +143,7 @@ class QueueNames(object):
             QueueNames.SEND_SMS_MEDIUM,
             QueueNames.SEND_SMS_LOW,
             QueueNames.SEND_THROTTLED_SMS,
+            QueueNames.SEND_SMS_FAIR,
             QueueNames.SEND_EMAIL_HIGH,
             QueueNames.SEND_EMAIL_MEDIUM,
             QueueNames.SEND_EMAIL_LOW,
@@ -580,6 +585,7 @@ class Config(object):
     }
     CELERY_QUEUES: List[Any] = []
     CELERY_DELIVER_SMS_RATE_LIMIT = os.getenv("CELERY_DELIVER_SMS_RATE_LIMIT", "1/s")
+    CELERY_DELIVER_SMS_RATE_LIMIT_PER_MINUTE = os.getenv("CELERY_DELIVER_SMS_RATE_LIMIT_PER_MINUTE", "1000/m")
     AWS_SEND_SMS_BOTO_CALL_LATENCY = os.getenv("AWS_SEND_SMS_BOTO_CALL_LATENCY", 0.06)  # average delay in production
 
     CONTACT_FORM_EMAIL_ADDRESS = os.getenv("CONTACT_FORM_EMAIL_ADDRESS", "helpdesk@cds-snc.ca")
