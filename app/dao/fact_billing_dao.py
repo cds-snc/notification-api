@@ -32,6 +32,78 @@ from app.models import (
 from app.utils import get_local_timezone_midnight_in_utc
 
 
+def dao_fetch_sms_cost_for_service_in_range(service_id, start_date, end_date):
+    """Return the total SMS cost and fragment count for a service in the given date range (inclusive).
+
+    FactBilling is populated by a nightly task, so it is always ~1 day behind.
+    For the current day we fall back to the Notification table and use the
+    carrier-reported costs (sms_total_carrier_fee + sms_total_message_price).
+
+    Minor edge case:
+    If this API is called at 00:15 EST and prior to `create_nightly_billing_for_day` completing, then
+    this endpoint could return inaccurate data.
+
+    Future improvements could include:
+    1. Check if `ft_billing` has been populated for the requested date range and if not, fall back to the `notifications` table
+    2. Always use the `notifications` table for today and yesterday's data, and `ft_billing` for anything older
+    """
+    today = convert_utc_to_local_timezone(datetime.utcnow()).date()
+
+    fragment_count = 0
+    total_cost = Decimal(0)
+
+    # Historical data from FactBilling (up to yesterday)
+    if start_date < today:
+        fact_end = min(end_date, today - timedelta(days=1))
+        fact_result = (
+            db.session.query(
+                func.coalesce(func.sum(FactBilling.billable_units), 0).label("fragment_count"),
+                func.coalesce(func.sum(FactBilling.billable_units * FactBilling.rate_multiplier * FactBilling.rate), 0).label(
+                    "total_cost"
+                ),
+            )
+            .filter(
+                FactBilling.service_id == service_id,
+                FactBilling.bst_date >= start_date,
+                FactBilling.bst_date <= fact_end,
+                FactBilling.notification_type == SMS_TYPE,
+            )
+            .one()
+        )
+        fragment_count += int(fact_result.fragment_count)
+        total_cost += Decimal(str(fact_result.total_cost))
+
+    # Current-day data from Notification table
+    if start_date <= today and end_date >= today:
+        today_start = convert_local_timezone_to_utc(datetime.combine(today, time.min))
+        today_end = convert_local_timezone_to_utc(datetime.combine(today + timedelta(days=1), time.min))
+        notif_result = (
+            db.session.query(
+                func.coalesce(func.sum(Notification.billable_units), 0).label("fragment_count"),
+                func.coalesce(
+                    func.sum(
+                        func.coalesce(Notification.sms_total_carrier_fee, 0)
+                        + func.coalesce(Notification.sms_total_message_price, 0)
+                    ),
+                    0,
+                ).label("total_cost"),
+            )
+            .filter(
+                Notification.service_id == service_id,
+                Notification.created_at >= today_start,
+                Notification.created_at < today_end,
+                Notification.notification_type == SMS_TYPE,
+                Notification.status.in_(NOTIFICATION_STATUS_TYPES_BILLABLE),
+                Notification.key_type != KEY_TYPE_TEST,
+            )
+            .one()
+        )
+        fragment_count += int(notif_result.fragment_count)
+        total_cost += Decimal(str(notif_result.total_cost))
+
+    return {"fragment_count": fragment_count, "total_cost": total_cost}
+
+
 def fetch_sms_free_allowance_remainder(start_date):
     # ASSUMPTION: AnnualBilling has been populated for year.
     billing_year = get_financial_year_for_datetime(start_date)
