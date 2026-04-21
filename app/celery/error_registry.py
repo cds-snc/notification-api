@@ -16,9 +16,6 @@ from typing import Optional, Tuple
 class CeleryErrorCategory(str, Enum):
     """Categories of Celery errors for log metric differentiation."""
 
-    # Duplicate DB records in an idempotent system — generally safe to ignore
-    DUPLICATE_RECORD = "CELERY_KNOWN_ERROR::DUPLICATE_RECORD"
-
     # Incomplete jobs due to deploys or other interruptions — don't ignore too much though
     JOB_INCOMPLETE = "CELERY_KNOWN_ERROR::JOB_INCOMPLETE"
 
@@ -34,18 +31,24 @@ class CeleryErrorCategory(str, Enum):
     # Transient AWS errors — expected under load, retry will handle them
     THROTTLING = "CELERY_KNOWN_ERROR::THROTTLING"
 
+    # Clients that timed out
+    TIMEOUT_CLIENT = "CELERY_KNOWN_ERROR::TIMEOUT_CLIENT"
+
     # Notifications that timed out
-    TIMEOUT = "CELERY_KNOWN_ERROR::TIMEOUT"
+    TIMEOUT_NOTIFICATION = "CELERY_KNOWN_ERROR::TIMEOUT_NOTIFICATION"
 
     # Unknown / unclassified — these should trigger sensitive alarms
     UNKNOWN = "CELERY_UNKNOWN_ERROR"
 
 
 # Map exception class names (or substrings in the message) to categories.
-# Note: Order within the map does not matter; the deepest/root exception in the
-# chain takes precedence over wrapper exceptions.
+# Note: The deepest/root exception in the chain takes precedence over wrapper
+# exceptions, and within each map the insertion order defines which category
+# wins when multiple patterns match the same exception class name or message.
 _EXCEPTION_CLASS_MAP: dict[str, CeleryErrorCategory] = {
-    "UniqueViolation": CeleryErrorCategory.DUPLICATE_RECORD,
+    "MaxRetryError": CeleryErrorCategory.TIMEOUT_CLIENT,
+    "ProtocolError": CeleryErrorCategory.TIMEOUT_CLIENT,
+    "TimeoutError": CeleryErrorCategory.TIMEOUT_CLIENT,
     "JobIncompleteError": CeleryErrorCategory.JOB_INCOMPLETE,
     "ThrottlingException": CeleryErrorCategory.THROTTLING,
     "TooManyRequestsException": CeleryErrorCategory.THROTTLING,
@@ -58,7 +61,6 @@ _EXCEPTION_CLASS_MAP: dict[str, CeleryErrorCategory] = {
 # Some errors don't have a specific exception class, but can be identified
 # by substrings in their message.
 _MESSAGE_SUBSTRING_MAP: dict[str, CeleryErrorCategory] = {
-    "duplicate key value violates unique constraint": CeleryErrorCategory.DUPLICATE_RECORD,
     "notifications not found for SES references": CeleryErrorCategory.NOTIFICATION_NOT_FOUND,
     "SIGKILL": CeleryErrorCategory.SHUTDOWN,
     "Worker exited prematurely": CeleryErrorCategory.SHUTDOWN,
@@ -67,7 +69,7 @@ _MESSAGE_SUBSTRING_MAP: dict[str, CeleryErrorCategory] = {
     "Retry in ": CeleryErrorCategory.TASK_RETRY,
     "Throttling": CeleryErrorCategory.THROTTLING,
     "Too Many Requests": CeleryErrorCategory.THROTTLING,
-    "notifications have been updated to technical-failure because they have timed out": CeleryErrorCategory.TIMEOUT,
+    "notifications have been updated to technical-failure because they have timed out": CeleryErrorCategory.TIMEOUT_NOTIFICATION,
 }
 
 
