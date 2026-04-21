@@ -66,7 +66,7 @@ def get_sms_cost_for_service(service_id):
     end_date = date.fromisoformat(data["end_date"])
 
     if start_date > end_date:
-        raise InvalidRequest("start_date must be before end_date", 400)
+        raise InvalidRequest("start_date must on or before end_date", 400)
 
     result = dao_fetch_sms_cost_for_service_in_range(service_id, start_date, end_date)
 

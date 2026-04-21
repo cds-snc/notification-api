@@ -74,7 +74,7 @@ def dao_fetch_sms_cost_for_service_in_range(service_id, start_date, end_date):
         total_cost += Decimal(str(fact_result.total_cost))
 
     # Current-day data from Notification table
-    if end_date >= today:
+    if start_date <= today and end_date >= today:
         today_start = convert_local_timezone_to_utc(datetime.combine(today, time.min))
         today_end = convert_local_timezone_to_utc(datetime.combine(today + timedelta(days=1), time.min))
         notif_result = (

@@ -382,7 +382,7 @@ class TestGetSmsCostForService:
         assert json_resp["start_date"] == "2024-06-01"
         assert json_resp["end_date"] == "2024-06-30"
         assert json_resp["fragment_count"] == 15
-        assert json_resp["total_cost"] == 15 * 0.0162
+        assert json_resp["total_cost"] == pytest.approx(15 * 0.0162)
 
     def test_get_sms_cost_for_service_returns_zero_when_no_data(self, client, sample_service):
         response = client.get(
