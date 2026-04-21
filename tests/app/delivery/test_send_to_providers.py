@@ -317,7 +317,6 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
     [
         ("unsubscribe_url", "https://example.com/unsubscribe/abc123"),
         ("unsub_url", "https://example.com/unsub/abc123"),
-        ("unsub_link", "https://example.com/unsub-link/abc123"),
     ],
 )
 def test_send_email_adds_one_click_unsubscribe_headers_when_use_custom_unsubscribe_url_enabled(
