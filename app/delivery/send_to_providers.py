@@ -344,11 +344,15 @@ def send_email_to_provider(notification: Notification):
             contains_pii(notification, str(plain_text_email))
 
         # Service-managed one-click unsubscribe: if the template has use_custom_unsubscribe_url
-        # enabled and the personalisation contains ((unsubscribe_url)) or ((unsub_url)), use that
-        # URL for the RFC 8058 List-Unsubscribe header only (no Notify-hosted page or body link).
+        # enabled and the personalisation contains ((unsubscribe_url)), ((unsub_url)), or ((unsub_link)),
+        # use that URL for the RFC 8058 List-Unsubscribe header only (no Notify-hosted page or body link).
         unsubscribe_link_for_header = None
         if getattr(template_obj, "use_custom_unsubscribe_url", False) and personalisation_data:
-            raw_url = personalisation_data.get("unsubscribe_url") or personalisation_data.get("unsub_url")
+            raw_url = (
+                personalisation_data.get("unsubscribe_url")
+                or personalisation_data.get("unsub_url")
+                or personalisation_data.get("unsub_link")
+            )
             unsubscribe_link_for_header = _validate_unsubscribe_url(raw_url, notification.id)
 
         current_app.logger.info(
