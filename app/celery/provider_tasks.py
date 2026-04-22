@@ -80,7 +80,6 @@ def deliver_sms_rate_limited(self, notification_id: str, parts_count: int):
         current_app.logger.warning(
             f"Rate limit hit for notification {notification_id} with {parts_count} parts. Retrying after {seconds_to_wait} seconds."
         )
-        # self.retry(countdown=seconds_to_wait, exc=Exception("Rate limit hit, retrying..."))
         deliver_sms_rate_limited.apply_async(queue=QueueNames.SEND_SMS_FAIR, args=[notification_id, parts_count], countdown=seconds_to_wait)
         raise Ignore()
 
