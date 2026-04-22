@@ -3,6 +3,7 @@ import os
 import re
 from datetime import datetime
 from typing import Any, Dict, Optional
+from urllib.parse import urlparse
 from uuid import UUID
 
 import phonenumbers
@@ -257,12 +258,23 @@ def _get_unsubscribe_headers(unsubscribe_link):
 
 
 def _validate_unsubscribe_url(url, notification_id):
-    """Validates that the unsubscribe URL uses http or https. Returns the URL if valid, None otherwise."""
+    """Validates that the unsubscribe URL is a well-formed https URL with a proper hostname.
+    Reuses the same criteria as the existing https_url JSON Schema definition in the project
+    (scheme must be https, host must look like a real domain with at least one dot).
+    Returns the URL if valid, None otherwise.
+    """
     if not url:
         return None
-    if not url.lower().startswith(("http://", "https://")):
+    try:
+        parsed = urlparse(url)
+        if parsed.scheme != "https":
+            raise ValueError("scheme must be https")
+        if not parsed.hostname or "." not in parsed.hostname:
+            raise ValueError("hostname must be a valid domain")
+    except Exception:
         current_app.logger.warning(
-            f"Notification {notification_id} has an invalid unsubscribe_url (not http/https): {url!r}. Header will not be added."
+            f"Notification {notification_id} has an invalid unsubscribe_url "
+            f"(must be a valid https URL with a proper domain): {url!r}. Header will not be added."
         )
         return None
     return url
