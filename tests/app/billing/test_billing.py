@@ -353,6 +353,62 @@ def test_get_yearly_billing_usage_summary_from_ft_billing(client, notify_db_sess
     assert json_response[2]["letter_total"] == 0
 
 
+class TestGetSmsCostForService:
+    def test_get_sms_cost_for_service(self, client, notify_db_session):
+        service = create_service()
+        template = create_template(service=service, template_type="sms")
+        create_ft_billing(
+            utc_date="2024-06-01",
+            service=service,
+            template=template,
+            notification_type="sms",
+            billable_unit=10,
+            rate=0.0162,
+        )
+        create_ft_billing(
+            utc_date="2024-06-15",
+            service=service,
+            template=template,
+            notification_type="sms",
+            billable_unit=5,
+            rate=0.0162,
+        )
+        response = client.get(
+            "/service/{}/billing/sms-cost?start_date=2024-06-01&end_date=2024-06-30".format(service.id),
+            headers=[create_authorization_header()],
+        )
+        assert response.status_code == 200
+        json_resp = json.loads(response.get_data(as_text=True))
+        assert json_resp["start_date"] == "2024-06-01"
+        assert json_resp["end_date"] == "2024-06-30"
+        assert json_resp["fragment_count"] == 15
+        assert json_resp["total_cost"] == pytest.approx(15 * 0.0162)
+
+    def test_get_sms_cost_for_service_returns_zero_when_no_data(self, client, sample_service):
+        response = client.get(
+            "/service/{}/billing/sms-cost?start_date=2024-01-01&end_date=2024-01-31".format(sample_service.id),
+            headers=[create_authorization_header()],
+        )
+        assert response.status_code == 200
+        json_resp = json.loads(response.get_data(as_text=True))
+        assert json_resp["fragment_count"] == 0
+        assert json_resp["total_cost"] == 0
+
+    def test_get_sms_cost_for_service_returns_400_if_missing_dates(self, client, sample_service):
+        response = client.get(
+            "/service/{}/billing/sms-cost".format(sample_service.id),
+            headers=[create_authorization_header()],
+        )
+        assert response.status_code == 400
+
+    def test_get_sms_cost_for_service_returns_400_if_start_after_end(self, client, sample_service):
+        response = client.get(
+            "/service/{}/billing/sms-cost?start_date=2024-06-30&end_date=2024-06-01".format(sample_service.id),
+            headers=[create_authorization_header()],
+        )
+        assert response.status_code == 400
+
+
 def test_get_yearly_usage_by_monthly_from_ft_billing_all_cases(client, notify_db_session):
     service = set_up_data_for_all_cases()
     response = client.get(
