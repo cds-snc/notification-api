@@ -19,14 +19,17 @@ class CeleryErrorCategory(str, Enum):
     # Incomplete jobs due to deploys or other interruptions — don't ignore too much though
     JOB_INCOMPLETE = "CELERY_KNOWN_ERROR::JOB_INCOMPLETE"
 
+    # Metrics related errors — these are expected to be noisy but should be monitored in case of spikes
+    METRICS = "CELERY_KNOWN_ERROR::METRICS"
+
     # Notification not found for SES references — safe to ignore, but should be investigated if it spikes
     NOTIFICATION_NOT_FOUND = "CELERY_KNOWN_ERROR::NOTIFICATION_NOT_FOUND"
 
-    # Celery retry mechanism -- these errors are normal and used by Celery to retry a task
-    TASK_RETRY = "CELERY_KNOWN_ERROR::TASK_RETRY"
-
     # Shutdown related errors — expected during deploys, safe to ignore
     SHUTDOWN = "CELERY_KNOWN_ERROR::SHUTDOWN"
+
+    # Celery retry mechanism -- these errors are normal and used by Celery to retry a task
+    TASK_RETRY = "CELERY_KNOWN_ERROR::TASK_RETRY"
 
     # Transient AWS errors — expected under load, retry will handle them
     THROTTLING = "CELERY_KNOWN_ERROR::THROTTLING"
@@ -70,6 +73,7 @@ _MESSAGE_SUBSTRING_MAP: dict[str, CeleryErrorCategory] = {
     "Throttling": CeleryErrorCategory.THROTTLING,
     "Too Many Requests": CeleryErrorCategory.THROTTLING,
     "notifications have been updated to technical-failure because they have timed out": CeleryErrorCategory.TIMEOUT_NOTIFICATION,
+    "Failed to export span batch code": CeleryErrorCategory.METRICS,
 }
 
 
