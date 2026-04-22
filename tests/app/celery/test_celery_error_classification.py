@@ -99,6 +99,13 @@ class TestClassifyError:
         assert category == CeleryErrorCategory.TIMEOUT_NOTIFICATION
         assert root_exc is exc  # Should return the original exception as root
 
+    def test_metrics_error_by_message(self):
+        """Metrics export errors are classified as METRICS."""
+        exc = Exception("Failed to export span batch code: service unavailable")
+        category, root_exc = classify_error(exc)
+        assert category == CeleryErrorCategory.METRICS
+        assert root_exc is exc  # Should return the original exception as root
+
     def test_timeout_client_error_by_class_name(self):
         """TimeoutError exceptions are classified as TIMEOUT_CLIENT."""
 
