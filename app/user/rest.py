@@ -1,12 +1,8 @@
-import base64
 import json
 import uuid
 from datetime import datetime, timedelta
 
 import pwnedpasswords
-from fido2 import cbor
-from fido2.webauthn import AuthenticatorData
-from fido2.webauthn import CollectedClientData as ClientData
 from flask import Blueprint, abort, current_app, jsonify, request
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
@@ -16,7 +12,6 @@ from app.clients.freshdesk import Freshdesk
 from app.clients.salesforce.salesforce_engagement import ENGAGEMENT_STAGE_ACTIVATION
 from app.config import Config, QueueNames
 from app.dao.fido2_key_dao import (
-    _ensure_bytes,
     create_fido2_session,
     decode_and_register,
     delete_fido2_key,
@@ -797,12 +792,12 @@ def list_fido2_keys_user(user_id):
 def create_fido2_keys_user(user_id):
     user = get_user_and_accounts(user_id)
     data = request.get_json()
-    cbor_data = cbor.decode(base64.b64decode(data["payload"]))
     validate(data, fido2_key_schema)
 
     id = uuid.uuid4()
-    key = decode_and_register(cbor_data, get_fido2_session(user_id))
-    save_fido2_key(Fido2Key(id=id, user_id=user_id, name=cbor_data["name"], key=key))
+    # data["credential"] is the standard WebAuthn RegistrationResponse JSON
+    key = decode_and_register(data["credential"], get_fido2_session(user_id))
+    save_fido2_key(Fido2Key(id=id, user_id=user_id, name=data["name"], key=key))
     _update_alert(user, changes={"security_key_created": None})
     return jsonify({"id": id})
 
@@ -825,10 +820,8 @@ def fido2_keys_user_register(user_id):
     )
     create_fido2_session(user_id, state)
 
-    # In fido2 1.x, register_begin returns a PublicKeyCredentialCreationOptions object
-    # We can encode it directly as CBOR - the object itself is CBOR-serializable
-    registration_payload = base64.b64encode(cbor.encode(registration_data)).decode("utf8")
-    return jsonify({"data": registration_payload})
+    # fido2 v2: CredentialCreationOptions serializes to a JSON-compatible dict
+    return jsonify({"data": dict(registration_data)})
 
 
 @user_blueprint.route("/<uuid:user_id>/fido2_keys/authenticate", methods=["POST"])
@@ -844,22 +837,30 @@ def fido2_keys_user_authenticate(user_id):
 
         credentials = [deserialize_fido2_key(k.key) for k in keys]
 
+        # Log credential info at INFO level for debugging
+        from fido2.utils import websafe_encode
+
+        for i, cred in enumerate(credentials):
+            current_app.logger.info(f"Credential {i}: type={type(cred).__name__}")
+            if hasattr(cred, "credential_id"):
+                cred_id_b64 = websafe_encode(cred.credential_id)
+                current_app.logger.info(f"Credential {i} ID from DB: {cred_id_b64}")
+
         request_options, state = Config.FIDO2_SERVER.authenticate_begin(credentials)
         create_fido2_session(user_id, state)
         current_app.logger.info("FIDO2 session created successfully")
 
-        # In fido2 1.x, authenticate_begin returns a CredentialRequestOptions object
-        # We need to encode it directly as CBOR - the object itself is CBOR-serializable
-        current_app.logger.info(f"Authentication challenge type: {type(request_options)}")
+        # Log the allowCredentials being sent to browser
+        response_dict = dict(request_options)
+        if "publicKey" in response_dict and "allowCredentials" in response_dict["publicKey"]:
+            allow_creds = response_dict["publicKey"]["allowCredentials"]
+            current_app.logger.info(f"Sending {len(allow_creds)} allowCredentials to browser")
+            for i, ac in enumerate(allow_creds):
+                cred_id = ac.get("id", "MISSING")
+                current_app.logger.info(f"allowCredentials[{i}] ID sent to browser: {cred_id}")
 
-        # The request_options object can be CBOR encoded directly in fido2 1.x
-        cbor_encoded = cbor.encode(request_options)
-        current_app.logger.info(f"CBOR encoded length: {len(cbor_encoded)}")
-
-        # Base64 encode for transmission
-        auth_payload = base64.b64encode(cbor_encoded).decode("utf8")
-
-        return jsonify({"data": auth_payload})
+        # fido2 v2: CredentialRequestOptions serializes to a JSON-compatible dict
+        return jsonify({"data": response_dict})
     except Exception as e:
         current_app.logger.exception(f"Error in FIDO2 authentication for user {user_id}: {str(e)}")
         return jsonify({"error": "An internal error has occurred"}), 500
@@ -869,24 +870,29 @@ def fido2_keys_user_authenticate(user_id):
 def fido2_keys_user_validate(user_id):
     try:
         current_app.logger.info(f"Starting FIDO2 validation for user {user_id}")
+
+        # Validate request data BEFORE consuming the session
+        data = request.get_json()
+        if not isinstance(data, dict):
+            current_app.logger.warning(f"FIDO2 validation failed for user {user_id}: invalid or missing JSON body")
+            return jsonify({"error": "Invalid request format"}), 400
+
+        credential = data.get("credential")
+        if credential is None:
+            current_app.logger.warning(f"FIDO2 validation failed for user {user_id}: missing credential field")
+            return jsonify({"error": "Invalid request format"}), 400
+
         keys = list_fido2_keys(user_id)
         credentials = [deserialize_fido2_key(k.key) for k in keys]
 
-        data = request.get_json()
-        cbor_data = cbor.decode(base64.b64decode(data["payload"]))
+        # Only fetch (and consume) the session after validating the request
+        session_state = get_fido2_session(user_id)
 
-        credential_id = _ensure_bytes(cbor_data["credentialId"])
-        client_data = ClientData(_ensure_bytes(cbor_data["clientDataJSON"]))
-        auth_data = AuthenticatorData(_ensure_bytes(cbor_data["authenticatorData"]))
-        signature = _ensure_bytes(cbor_data["signature"])
-
+        # credential is the standard WebAuthn AuthenticationResponse JSON
         Config.FIDO2_SERVER.authenticate_complete(
-            get_fido2_session(user_id),
+            session_state,
             credentials,
-            credential_id,
-            client_data,
-            auth_data,
-            signature,
+            credential,
         )
 
         user_to_verify = get_user_by_id(user_id=user_id)
@@ -897,8 +903,25 @@ def fido2_keys_user_validate(user_id):
 
         current_app.logger.info(f"FIDO2 validation successful for user {user_id}")
         return jsonify({"status": "OK"})
+    except KeyError as e:
+        # Missing required field in request
+        current_app.logger.warning(f"FIDO2 validation failed for user {user_id}: missing field {e}")
+        return jsonify({"error": "Invalid request format"}), 400
+
+    except NoResultFound:
+        # Session expired or not found - could indicate replay attack or timeout
+        current_app.logger.warning(f"FIDO2 validation failed for user {user_id}: session not found")
+        return jsonify({"error": "Authentication session expired"}), 400
+
+    except ValueError as e:
+        # FIDO2 library validation failures (wrong challenge, signature, etc.)
+        # This is the expected error for invalid/forged credentials
+        current_app.logger.warning(f"FIDO2 validation failed for user {user_id}: {str(e)}")
+        return jsonify({"error": "Security key validation failed"}), 401
+
     except Exception as e:
-        current_app.logger.exception(f"Error in FIDO2 validation for user {user_id}: {str(e)}")
+        # Unexpected errors - these should be investigated
+        current_app.logger.exception(f"Unexpected error in FIDO2 validation for user {user_id}: {str(e)}")
         return jsonify({"error": "An internal error occurred"}), 500
 
 

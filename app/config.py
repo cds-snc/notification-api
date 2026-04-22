@@ -278,6 +278,9 @@ class Config(object):
     FF_USE_PINPOINT_FOR_DEDICATED = env.bool(
         "FF_USE_PINPOINT_FOR_DEDICATED", False
     )  # Feature flag to control whether to use Pinpoint for sending messages from long dedicated numbers
+    FF_USE_PINPOINT_FOR_US = env.bool(
+        "FF_USE_PINPOINT_FOR_US", False
+    )  # Feature flag to control whether to use Pinpoint for sending messages to US numbers
     AWS_US_TOLL_FREE_NUMBER = os.getenv("AWS_US_TOLL_FREE_NUMBER")
     CSV_UPLOAD_BUCKET_NAME = os.getenv("CSV_UPLOAD_BUCKET_NAME", "notification-alpha-canada-ca-csv-upload")
     ASSET_DOMAIN = os.getenv("ASSET_DOMAIN", "assets.notification.canada.ca")

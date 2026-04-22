@@ -16,6 +16,7 @@ from app.dao import notifications_dao, provider_details_dao
 from app.dao.provider_details_dao import (
     dao_switch_sms_provider_to_provider_with_identifier,
 )
+from app.dao.templates_dao import dao_update_template
 from app.delivery import send_to_providers
 from app.exceptions import (
     DocumentDownloadException,
@@ -121,6 +122,18 @@ class TestProviderToUse:
         ):
             provider = send_to_providers.provider_to_use("sms", "1234", "+17065551234")
         assert provider.name == "sns"
+
+    def test_should_use_pinpoint_for_sms_if_sending_to_the_US_and_flag_enabled(self, restore_provider_details, notify_api):
+        with set_config_values(
+            notify_api,
+            {
+                "AWS_PINPOINT_SC_POOL_ID": "sc_pool_id",
+                "AWS_PINPOINT_DEFAULT_POOL_ID": "default_pool_id",
+                "FF_USE_PINPOINT_FOR_US": True,
+            },
+        ):
+            provider = send_to_providers.provider_to_use("sms", "1234", "+17065551234")
+        assert provider.name == "pinpoint"
 
     @pytest.mark.serial
     def test_should_use_pinpoint_for_sms_if_sending_outside_zone_1(self, restore_provider_details, notify_api):
@@ -292,6 +305,7 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
         html_body=ANY,
         reply_to_address=None,
         attachments=[],
+        extra_headers={},
     )
 
     assert "<!DOCTYPE html" in app.aws_ses_client.send_email.call_args[1]["html_body"]
@@ -308,6 +322,119 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
     assert call("email.total-time", notification.sent_at, notification.created_at) in statsd_timing_calls
     assert call(statsd_key, notification.sent_at, notification.created_at) in statsd_timing_calls
     assert call(statsd_key) in statsd_mock.incr.call_args_list
+
+
+@pytest.mark.parametrize(
+    "personalisation_key, unsubscribe_url",
+    [
+        ("unsubscribe_url", "https://example.com/unsubscribe/abc123"),
+        ("unsub_url", "https://example.com/unsub/abc123"),
+    ],
+)
+def test_send_email_adds_one_click_unsubscribe_headers_when_use_custom_unsubscribe_url_enabled(
+    sample_service, mocker, personalisation_key, unsubscribe_url
+):
+    template = create_template(
+        sample_service,
+        template_type="email",
+        subject="Hello",
+        content=f"Body with (({personalisation_key}))",
+    )
+    template.use_custom_unsubscribe_url = True
+    dao_update_template(template)
+
+    db_notification = save_notification(
+        create_notification(
+            template=template,
+            to_field="user@example.com",
+            personalisation={personalisation_key: unsubscribe_url},
+        )
+    )
+
+    send_mock = mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+    mocker.patch("app.delivery.send_to_providers.statsd_client")
+    mocker.patch("app.delivery.send_to_providers.bounce_rate_client")
+
+    send_to_providers.send_email_to_provider(db_notification)
+
+    send_mock.assert_called_once()
+    call_kwargs = send_mock.call_args[1]
+    assert call_kwargs["extra_headers"] == {
+        "List-Unsubscribe": f"<{unsubscribe_url}>",
+        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    }
+
+
+def test_send_email_does_not_add_unsubscribe_headers_when_use_custom_unsubscribe_url_disabled(sample_service, mocker):
+    template = create_template(
+        sample_service,
+        template_type="email",
+        subject="Hello",
+        content="Body with ((unsubscribe_url))",
+    )
+    # use_custom_unsubscribe_url defaults to False — no DB update needed
+
+    db_notification = save_notification(
+        create_notification(
+            template=template,
+            to_field="user@example.com",
+            personalisation={"unsubscribe_url": "https://example.com/unsub"},
+        )
+    )
+
+    send_mock = mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+    mocker.patch("app.delivery.send_to_providers.statsd_client")
+    mocker.patch("app.delivery.send_to_providers.bounce_rate_client")
+
+    send_to_providers.send_email_to_provider(db_notification)
+
+    send_mock.assert_called_once()
+    assert send_mock.call_args[1]["extra_headers"] == {}
+
+
+@pytest.mark.parametrize(
+    "bad_url",
+    [
+        "ftp://example.com/unsub",
+        "file:///etc/passwd",
+        "javascript:alert(1)",
+        "//example.com/unsub",
+        "example.com/unsub",
+        "http://example.com/unsub",  # http is not allowed, only https
+        "https://hi",  # no dot in hostname
+        "",
+    ],
+)
+def test_send_email_does_not_add_unsubscribe_headers_for_invalid_url_scheme(sample_service, mocker, bad_url):
+    template = create_template(
+        sample_service,
+        template_type="email",
+        subject="Hello",
+        content="Body with ((unsubscribe_url))",
+    )
+    template.use_custom_unsubscribe_url = True
+    dao_update_template(template)
+
+    db_notification = save_notification(
+        create_notification(
+            template=template,
+            to_field="user@example.com",
+            personalisation={"unsubscribe_url": bad_url},
+        )
+    )
+
+    send_mock = mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+    mocker.patch("app.delivery.send_to_providers.statsd_client")
+    mocker.patch("app.delivery.send_to_providers.bounce_rate_client")
+    logger_mock = mocker.patch("app.delivery.send_to_providers.current_app.logger.warning")
+
+    send_to_providers.send_email_to_provider(db_notification)
+
+    send_mock.assert_called_once()
+    assert send_mock.call_args[1]["extra_headers"] == {}
+    if bad_url:
+        logger_mock.assert_called_once()
+        assert "invalid unsubscribe_url" in logger_mock.call_args[0][0]
 
 
 @pytest.mark.skip(reason="the validator can throw a 500 causing us to fail all tests")
@@ -338,6 +465,7 @@ def test_should_send_personalised_template_with_html_enabled(sample_email_templa
         html_body=ANY,
         reply_to_address=None,
         attachments=[],
+        extra_headers={},
     )
 
     assert "<!DOCTYPE html" in app.aws_ses_client.send_email.call_args[1]["html_body"]
@@ -383,6 +511,7 @@ def test_should_respect_custom_sending_domains(sample_service, mocker, sample_em
         html_body=ANY,
         reply_to_address=None,
         attachments=[],
+        extra_headers={},
     )
 
 
@@ -627,6 +756,7 @@ def test_send_email_should_use_service_reply_to_email(sample_service, sample_ema
         html_body=ANY,
         reply_to_address="foo@bar.com",
         attachments=[],
+        extra_headers={},
     )
 
 
@@ -651,6 +781,7 @@ def test_send_email_should_use_default_service_reply_to_email_when_two_are_set(s
         html_body=ANY,
         reply_to_address="foo@bar.com",
         attachments=[],
+        extra_headers={},
     )
 
 
@@ -675,6 +806,7 @@ def test_send_email_should_use_non_default_service_reply_to_email_when_it_is_set
         html_body=ANY,
         reply_to_address="foo_two@bar.com",
         attachments=[],
+        extra_headers={},
     )
 
 
@@ -958,6 +1090,7 @@ def test_send_email_to_provider_uses_reply_to_from_notification(sample_email_tem
         html_body=ANY,
         reply_to_address="test@test.com",
         attachments=[],
+        extra_headers={},
     )
 
 
@@ -996,6 +1129,7 @@ def test_send_email_to_provider_should_format_reply_to_email_address(sample_emai
         html_body=ANY,
         reply_to_address="test@test.com",
         attachments=[],
+        extra_headers={},
     )
 
 
@@ -1025,6 +1159,7 @@ def test_send_email_to_provider_should_format_email_address(sample_email_notific
         html_body=ANY,
         reply_to_address=ANY,
         attachments=[],
+        extra_headers={},
     )
 
 
@@ -1198,6 +1333,7 @@ def test_notification_document_with_pdf_attachment(
         html_body=ANY,
         reply_to_address=ANY,
         attachments=attachments,
+        extra_headers=ANY,
     )
     if not filename_attribute_present:
         assert "http://foo.bar/url" in send_mock.call_args[1]["html_body"]
