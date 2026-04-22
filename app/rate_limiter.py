@@ -6,6 +6,7 @@ This module provides rate limiting for SMS parts delivery. It enforces a cap
 on the number of SMS parts (fragments) that can be sent per minute.
 """
 
+import math
 from abc import ABC, abstractmethod
 from collections import deque
 from time import time
@@ -25,7 +26,7 @@ class RateLimiter(ABC):
     @abstractmethod
     def acquire_lease(self, parts_count: int) -> Tuple[bool, int]:
         """
-        Attempt to acquire capacity for the given number of SMS parts.
+        Attempt to acquire a lease for the given number of SMS parts.
 
         Args:
             parts_count (int): Number of SMS parts (fragments) to send.
@@ -40,7 +41,7 @@ class RateLimiter(ABC):
     @abstractmethod
     def reset_limiter(self):
         """
-        Reset the rate limiter state.
+        Reset the rate limiter.
         """
         pass
 
@@ -50,7 +51,7 @@ class RateLimiter(ABC):
         Get the current parts count in the active window.
 
         Returns:
-            int: Number of parts consumed in the current window.
+            int: Number of parts used in the current window.
         """
         pass
 
@@ -64,10 +65,12 @@ class InMemoryRateLimiter(RateLimiter):
 
     Algorithm:
     - Maintains a deque of (timestamp, parts_count) tuples.
+    - Keeps a running total (current_usage) updated on append/popleft.
     - On each acquire_lease(), removes entries older than 60 seconds.
-    - Sums remaining parts and checks if adding new parts exceeds the cap.
-    - If capacity available, records the entry and returns (True, 0).
-    - If capacity exhausted, calculates seconds until oldest entry expires.
+    - Checks if current_usage + new_parts exceeds the cap.
+    - If capacity available, records the entry and updates running total.
+    - If capacity exhausted, calculates when enough entries will have expired
+      to accommodate the new request.
     """
 
     WINDOW_SIZE_SECONDS = 60
@@ -82,6 +85,7 @@ class InMemoryRateLimiter(RateLimiter):
         """
         self.cap_per_minute = cap_per_minute
         self.window: deque = deque()  # Stores (timestamp, parts_count) tuples
+        self.current_usage: int = 0  # Running total of parts in the current window
 
     def acquire_lease(self, parts_count: int) -> Tuple[bool, int]:
         """
@@ -94,63 +98,75 @@ class InMemoryRateLimiter(RateLimiter):
             Tuple[bool, int]:
                 - (True, 0) if parts can be sent immediately.
                 - (False, seconds_remaining) if rate limit exhausted;
-                  seconds_remaining is the time until the oldest window entry expires.
+                  seconds_remaining is the time until enough entries expire to
+                  accommodate the requested parts.
         """
         if parts_count <= 0:
             raise ValueError("parts_count must be positive")
 
         now = time()
-        cutoff_time = now - self.WINDOW_SIZE_SECONDS
+        window_start = now - self.WINDOW_SIZE_SECONDS
 
-        # Remove entries older than the 60-second window
-        while self.window and self.window[0][0] < cutoff_time:
-            self.window.popleft()
-
-        # Sum parts in the current window
-        current_usage = sum(parts for _, parts in self.window)
+        # Remove entries older than the 60-second window and update running total
+        while self.window and self.window[0][0] < window_start:
+            _, old_parts = self.window.popleft()
+            self.current_usage -= old_parts
 
         # Check if adding new parts exceeds the cap
-        if current_usage + parts_count <= self.cap_per_minute:
-            # Capacity available: record the entry
+        if self.current_usage + parts_count <= self.cap_per_minute:
+            # Enough parts available: record the entry and update running total
             self.window.append((now, parts_count))
+            self.current_usage += parts_count
             current_app.logger.info(
-                f"SMS rate limiter: acquired {parts_count} parts. "
-                f"Window usage: {current_usage + parts_count}/{self.cap_per_minute}"
+                f"SMS rate limiter: acquired {parts_count} parts. " f"Window usage: {self.current_usage}/{self.cap_per_minute}"
             )
             return True, 0
 
-        # Capacity exhausted: calculate retry delay
-        if self.window:
-            oldest_timestamp = self.window[0][0]
-            seconds_until_oldest_expires = self.WINDOW_SIZE_SECONDS - (now - oldest_timestamp)
-            # Ensure at least 1 second to avoid busy-loop retries
-            seconds_to_wait = max(1, int(seconds_until_oldest_expires) + 1)
+        # Not enough capacity: calculate when enough parts will be available for the new request
+        remaining_parts_needed = self.current_usage + parts_count - self.cap_per_minute
+        parts_freed = 0
+        last_timestamp_to_wait_for = None
+
+        # Iterate through window entries (oldest first) to find when we'll have enough space
+        for timestamp, parts in self.window:
+            parts_freed += parts
+            last_timestamp_to_wait_for = timestamp
+            if parts_freed >= remaining_parts_needed:
+                # This entry needs to expire to free enough space
+                break
+
+        # Calculate seconds to wait for the last entry to expire
+        if last_timestamp_to_wait_for is not None:
+            seconds_until_expires = self.WINDOW_SIZE_SECONDS - (now - last_timestamp_to_wait_for)
+            seconds_to_wait = max(1, math.ceil(seconds_until_expires))
         else:
-            # Edge case: window is empty but cap is exceeded (shouldn't happen)
+            # Fallback (shouldn't reach here)
             seconds_to_wait = 1
 
         current_app.logger.warning(
             f"SMS rate limiter: capacity exhausted. Requested {parts_count} parts "
-            f"but only {self.cap_per_minute - current_usage} available in current window. "
+            f"but only {self.cap_per_minute - self.current_usage} available in current window. "
             f"Will retry in {seconds_to_wait} seconds."
         )
         return False, seconds_to_wait
 
     def reset_limiter(self):
-        """Reset the rate limiter (clears all entries)."""
+        """Reset the rate limiter (clears all entries and running total)."""
         self.window.clear()
+        self.current_usage = 0
         current_app.logger.info("SMS rate limiter: reset (window cleared)")
 
     def get_current_usage(self) -> int:
         """Get the current parts count in the active 60-second window."""
         now = time()
-        cutoff_time = now - self.WINDOW_SIZE_SECONDS
+        window_start = now - self.WINDOW_SIZE_SECONDS
 
-        # Remove stale entries first
-        while self.window and self.window[0][0] < cutoff_time:
-            self.window.popleft()
+        # Remove expired entries and update running total
+        while self.window and self.window[0][0] < window_start:
+            _, old_parts = self.window.popleft()
+            self.current_usage -= old_parts
 
-        return sum(parts for _, parts in self.window)
+        return self.current_usage
 
 
 # ============================================================================
