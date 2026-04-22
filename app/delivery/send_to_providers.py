@@ -3,6 +3,7 @@ import os
 import re
 from datetime import datetime
 from typing import Any, Dict, Optional
+from urllib.parse import urlparse
 from uuid import UUID
 
 import phonenumbers
@@ -250,6 +251,39 @@ def get_from_address(friendly_from: str, email_from: str, sending_domain: str) -
     return f'"{friendly_from_mime}" <{unidecode(email_from)}@{unidecode(sending_domain)}>'
 
 
+def _get_unsubscribe_headers(unsubscribe_link):
+    """Returns RFC 8058 one-click unsubscribe headers if a link is present."""
+    if unsubscribe_link:
+        return {
+            "List-Unsubscribe": f"<{unsubscribe_link}>",
+            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+        }
+    return {}
+
+
+def _validate_unsubscribe_url(url, notification_id):
+    """Validates that the unsubscribe URL is a well-formed https URL with a proper hostname.
+    Reuses the same criteria as the existing https_url JSON Schema definition in the project
+    (scheme must be https, host must look like a real domain with at least one dot).
+    Returns the URL if valid, None otherwise.
+    """
+    if not url:
+        return None
+    try:
+        parsed = urlparse(url)
+        if parsed.scheme != "https":
+            raise ValueError("scheme must be https")
+        if not parsed.hostname or "." not in parsed.hostname:
+            raise ValueError("hostname must be a valid domain")
+    except Exception:
+        current_app.logger.warning(
+            f"Notification {notification_id} has an invalid unsubscribe_url "
+            f"(must be a valid https URL with a proper domain): {url!r}. Header will not be added."
+        )
+        return None
+    return url
+
+
 def send_email_to_provider(notification: Notification):
     current_app.logger.info(f"Sending email to provider for notification id {notification.id}")
     service = notification.service
@@ -329,6 +363,14 @@ def send_email_to_provider(notification: Notification):
     if current_app.config["SCAN_FOR_PII"]:
         contains_pii(notification, str(plain_text_email))
 
+    # Service-managed one-click unsubscribe: if the template has use_custom_unsubscribe_url
+    # enabled and the personalisation contains ((unsubscribe_url)) or ((unsub_url)), use that
+    # URL for the RFC 8058 List-Unsubscribe header only (no Notify-hosted page or body link).
+    unsubscribe_link_for_header = None
+    if getattr(template_obj, "use_custom_unsubscribe_url", False) and personalisation_data:
+        raw_url = personalisation_data.get("unsubscribe_url") or personalisation_data.get("unsub_url")
+        unsubscribe_link_for_header = _validate_unsubscribe_url(raw_url, notification.id)
+
     current_app.logger.info(
         f"Trying to update notification id {notification.id} with service research {service.research_mode} or key type {notification.key_type}"
     )
@@ -358,6 +400,7 @@ def send_email_to_provider(notification: Notification):
             html_body=str(html_email),
             reply_to_address=validate_and_format_email_address(email_reply_to) if email_reply_to else None,
             attachments=attachments,
+            extra_headers=_get_unsubscribe_headers(unsubscribe_link_for_header),
         )
         check_service_over_bounce_rate(service.id)
         bounce_rate_client.set_sliding_notifications(service.id, str(notification.id))
@@ -433,9 +476,10 @@ def provider_to_use(
     using_sc_pool_template = template_id is not None and str(template_id) in current_app.config["AWS_PINPOINT_SC_TEMPLATE_IDS"]
     zone_1_outside_canada = recipient_outside_canada and not international
     use_pinpoint_for_dedicated = current_app.config.get("FF_USE_PINPOINT_FOR_DEDICATED", False)
+    use_pinpoint_for_us = current_app.config.get("FF_USE_PINPOINT_FOR_US", False)
     do_not_use_pinpoint = (
         (has_dedicated_number and not use_pinpoint_for_dedicated)
-        or sending_to_us_number
+        or (sending_to_us_number and not use_pinpoint_for_us)
         or cannot_determine_recipient_country
         or zone_1_outside_canada
         or not current_app.config["AWS_PINPOINT_SC_POOL_ID"]
