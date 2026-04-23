@@ -30,8 +30,13 @@ def _timestamp():
 # Helpers
 # ---------------------------------------------------------------------------
 
-FAKE_EMAIL_DOMAIN = "staging-simulate.local"
-FAKE_PHONE = "+16135550199"
+FAKE_USER_EMAIL_DOMAIN = "staging-simulate.local"
+SIMULATE_EMAILS = [
+    "simulate-delivered@notification.canada.ca",
+    "simulate-delivered-2@notification.canada.ca",
+    "simulate-delivered-3@notification.canada.ca",
+]
+FAKE_PHONE = "+16132532222"
 
 VARIABLE_NAMES = [
     "first_name",
@@ -164,7 +169,7 @@ def create_users(session):
     users = []
     for i in range(1, Config.NUM_USERS + 1):
         user_id = _uuid()
-        email = f"{PREFIX}-user-{i}@{FAKE_EMAIL_DOMAIN}"
+        email = f"{PREFIX}-user-{i}@{FAKE_USER_EMAIL_DOMAIN}"
         print(f"  Creating user {i}/{Config.NUM_USERS}: {email} ({user_id})...")
         session.execute(
             text("""
@@ -339,7 +344,7 @@ def create_reply_to(session, service_id):
         {
             "id": str(reply_id),
             "sid": str(service_id),
-            "email": f"reply-{PREFIX}@{FAKE_EMAIL_DOMAIN}",
+            "email": "simulate-delivered@notification.canada.ca",
             "now": datetime.now(timezone.utc),
         },
     )
@@ -848,7 +853,7 @@ def insert_live_notifications(session, service_id, email_template_ids, sms_templ
             else:
                 status = "permanent-failure"
 
-            to_address = f"test-{i}@{FAKE_EMAIL_DOMAIN}" if ntype == NOTIFICATION_TYPE_EMAIL else FAKE_PHONE
+            to_address = random.choice(SIMULATE_EMAILS) if ntype == NOTIFICATION_TYPE_EMAIL else FAKE_PHONE
 
             rows.append(
                 {
