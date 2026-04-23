@@ -18,6 +18,10 @@ def make_task(app):
         abstract = True
         start = None
 
+        @property
+        def message_group_id(self):
+            return self.request.get("notify_message_group_id")
+
         def on_success(self, retval, task_id, args, kwargs):
             elapsed_time = time.time() - self.start
             app.logger.info("{task_name} took {time}s".format(task_name=self.name, time="{0:.4f}".format(elapsed_time)))
@@ -32,6 +36,13 @@ def make_task(app):
 
 
 class NotifyCelery(Celery):
+    def send_task(self, name, args=None, kwargs=None, **options):
+        options["headers"] = options.get("headers") or {}
+        message_group_id = options.get("MessageGroupId")
+        if message_group_id:
+            options["headers"]["notify_message_group_id"] = message_group_id
+        return super().send_task(name, args, kwargs, **options)
+
     def init_app(self, app):
         super().__init__(
             app.import_name,

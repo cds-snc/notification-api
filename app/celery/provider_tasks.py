@@ -1,6 +1,5 @@
 from typing import Optional
 
-from celery.exceptions import Ignore
 from flask import current_app
 from notifications_utils.recipients import InvalidEmailError
 from notifications_utils.statsd_decorators import statsd
@@ -28,6 +27,7 @@ from app.models import (
 from app.notifications.callbacks import _check_and_queue_callback_task
 from app.rate_limiter import get_rate_limiter
 from celery import Task
+from celery.exceptions import Ignore
 
 
 # Celery rate limits are per worker instance and not a global rate limit.
@@ -72,7 +72,7 @@ def deliver_sms(self, notification_id):
     default_retry_delay=300,
 )
 @statsd(namespace="tasks")
-def deliver_sms_rate_limited(self, notification_id: str, priority_queue: str, parts_count: int):
+def deliver_sms_rate_limited(self, notification_id: str, parts_count: int):
     acquired, seconds_to_wait = get_rate_limiter().acquire_lease(parts_count)
     if acquired:
         _deliver_sms(self, notification_id)
@@ -80,7 +80,7 @@ def deliver_sms_rate_limited(self, notification_id: str, priority_queue: str, pa
         current_app.logger.warning(
             f"Rate limit hit for notification {notification_id} with {parts_count} parts. Retrying after {seconds_to_wait} seconds."
         )
-        deliver_sms_rate_limited.apply_async(queue=priority_queue, args=[notification_id, priority_queue, parts_count], countdown=seconds_to_wait)
+        deliver_sms_rate_limited.apply_async(queue=QueueNames.SEND_SMS_FAIR, args=[notification_id, priority_queue, parts_count], countdown=seconds_to_wait, MessageGroupId=self.message_group_id)
         raise Ignore()
 
 
