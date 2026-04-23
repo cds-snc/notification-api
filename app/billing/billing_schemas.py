@@ -1,16 +1,5 @@
 from datetime import datetime
 
-get_sms_cost_for_service_schema = {
-    "$schema": "http://json-schema.org/draft-04/schema#",
-    "description": "GET schema for retrieving SMS cost for a service in a date range",
-    "type": "object",
-    "properties": {
-        "start_date": {"type": "string", "format": "date"},
-        "end_date": {"type": "string", "format": "date"},
-    },
-    "required": ["start_date", "end_date"],
-}
-
 create_or_update_free_sms_fragment_limit_schema = {
     "$schema": "http://json-schema.org/draft-04/schema#",
     "description": "POST annual billing schema",
