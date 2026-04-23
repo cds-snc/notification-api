@@ -800,7 +800,7 @@ def insert_live_notifications(session, service_id, email_template_ids, sms_templ
     print(
         f"    Split: {total_emails:,} email ({total_emails/total_count*100:.0f}%) + {total_sms:,} SMS ({total_sms/total_count*100:.0f}%)"
     )
-    print("    Status distribution: ~2% created, ~3% sending, ~5% pending, ~85% delivered, ~5% permanent-failure")
+    print("    Status distribution: ~95% delivered, ~5% permanent-failure (terminal statuses only)")
 
     notif_columns = [
         "id",
@@ -840,15 +840,10 @@ def insert_live_notifications(session, service_id, email_template_ids, sms_templ
             created = _random_date(start_date.date(), end_date.date())
             job = random.choice(type_jobs) if type_jobs and random.random() < 0.7 else None
 
-            # Mix of statuses for live table (more realistic)
+            # Only use terminal statuses to avoid Celery tasks (timeout_notifications,
+            # replay_created_notifications) picking up fake rows and raising errors.
             status_roll = random.random()
-            if status_roll < 0.02:
-                status = "created"
-            elif status_roll < 0.05:
-                status = "sending"
-            elif status_roll < 0.10:
-                status = "pending"
-            elif status_roll < 0.95:
+            if status_roll < 0.95:
                 status = "delivered"
             else:
                 status = "permanent-failure"
