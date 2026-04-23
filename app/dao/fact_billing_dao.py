@@ -104,6 +104,87 @@ def dao_fetch_sms_cost_for_service_in_range(service_id, start_date, end_date):
     return {"fragment_count": fragment_count, "total_cost": total_cost}
 
 
+def dao_fetch_sms_cost_for_all_services_in_range(start_date, end_date):
+    """Return the total SMS cost and fragment count for ALL services in the given date range (inclusive).
+
+    Returns a dictionary keyed by service_id with fragment_count and total_cost for each service.
+
+    Uses the same logic as dao_fetch_sms_cost_for_service_in_range:
+    - FactBilling for historical data (up to yesterday)
+    - Notification table for current day data (with carrier-reported costs)
+
+    This is a bulk operation suitable for fetching costs for many services efficiently.
+    """
+    today = convert_utc_to_local_timezone(datetime.utcnow()).date()
+
+    sms_cost_by_service = {}
+
+    # Historical data from FactBilling (up to yesterday)
+    if start_date < today:
+        fact_end = min(end_date, today - timedelta(days=1))
+        fact_results = (
+            db.session.query(
+                FactBilling.service_id,
+                func.coalesce(func.sum(FactBilling.billable_units), 0).label("fragment_count"),
+                func.coalesce(func.sum(FactBilling.billable_units * FactBilling.rate_multiplier * FactBilling.rate), 0).label(
+                    "total_cost"
+                ),
+            )
+            .filter(
+                FactBilling.bst_date >= start_date,
+                FactBilling.bst_date <= fact_end,
+                FactBilling.notification_type == SMS_TYPE,
+            )
+            .group_by(FactBilling.service_id)
+            .all()
+        )
+        for row in fact_results:
+            sms_cost_by_service[row.service_id] = {
+                "fragment_count": int(row.fragment_count),
+                "total_cost": Decimal(str(row.total_cost)),
+            }
+
+    # Current-day data from Notification table
+    if start_date <= today and end_date >= today:
+        today_start = convert_local_timezone_to_utc(datetime.combine(today, time.min))
+        today_end = convert_local_timezone_to_utc(datetime.combine(today + timedelta(days=1), time.min))
+        notif_results = (
+            db.session.query(
+                Notification.service_id,
+                func.coalesce(func.sum(Notification.billable_units), 0).label("fragment_count"),
+                func.coalesce(
+                    func.sum(
+                        func.coalesce(Notification.sms_total_carrier_fee, 0)
+                        + func.coalesce(Notification.sms_total_message_price, 0)
+                    ),
+                    0,
+                ).label("total_cost"),
+            )
+            .filter(
+                Notification.created_at >= today_start,
+                Notification.created_at < today_end,
+                Notification.notification_type == SMS_TYPE,
+                Notification.status.in_(NOTIFICATION_STATUS_TYPES_BILLABLE),
+                Notification.key_type != KEY_TYPE_TEST,
+            )
+            .group_by(Notification.service_id)
+            .all()
+        )
+        for row in notif_results:
+            if row.service_id in sms_cost_by_service:
+                # Add today's data to historical data
+                sms_cost_by_service[row.service_id]["fragment_count"] += int(row.fragment_count)
+                sms_cost_by_service[row.service_id]["total_cost"] += Decimal(str(row.total_cost))
+            else:
+                # Initialize with today's data
+                sms_cost_by_service[row.service_id] = {
+                    "fragment_count": int(row.fragment_count),
+                    "total_cost": Decimal(str(row.total_cost)),
+                }
+
+    return sms_cost_by_service
+
+
 def fetch_sms_free_allowance_remainder(start_date):
     # ASSUMPTION: AnnualBilling has been populated for year.
     billing_year = get_financial_year_for_datetime(start_date)
