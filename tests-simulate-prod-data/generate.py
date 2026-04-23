@@ -694,9 +694,20 @@ def _build_notification_batch(
             is_failed = random.random() < (num_failed_remaining / max(num_remaining, 1))
         else:
             is_failed = False
-        status = "permanent-failure" if is_failed else "delivered"
+
         if is_failed:
+            # Realistic failure status distribution
+            fail_roll = random.random()
+            if fail_roll < 0.80:
+                status = "permanent-failure"
+            elif fail_roll < 0.95:
+                status = "temporary-failure"
+            else:
+                status = "technical-failure"
             num_failed_remaining -= 1
+        else:
+            # Realistic success status distribution
+            status = "delivered" if random.random() < 0.97 else "sent"
         num_remaining -= 1
 
         tmpl_id = random.choice(template_ids)
