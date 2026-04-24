@@ -65,6 +65,7 @@ def deliver_throttled_sms(self, notification_id):
 def deliver_sms(self, notification_id):
     _deliver_sms(self, notification_id)
 
+
 @notify_celery.task(
     bind=True,
     name="deliver_sms_rate_limited",
@@ -80,7 +81,12 @@ def deliver_sms_rate_limited(self, notification_id: str, parts_count: int):
         current_app.logger.warning(
             f"Rate limit hit for notification {notification_id} with {parts_count} parts. Retrying after {seconds_to_wait} seconds."
         )
-        deliver_sms_rate_limited.apply_async(queue=QueueNames.SEND_SMS_FAIR, args=[notification_id, priority_queue, parts_count], countdown=seconds_to_wait, MessageGroupId=self.message_group_id)
+        deliver_sms_rate_limited.apply_async(
+            queue=QueueNames.SEND_SMS_FAIR,
+            args=[notification_id, parts_count],
+            countdown=seconds_to_wait,
+            MessageGroupId=self.message_group_id,
+        )
         raise Ignore()
 
 
