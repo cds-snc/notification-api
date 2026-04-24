@@ -31,6 +31,9 @@ def _timestamp():
 # ---------------------------------------------------------------------------
 
 FAKE_USER_EMAIL_DOMAIN = "staging-simulate.local"
+# These must match the simulated recipient addresses in app/config.py
+# (SIMULATED_EMAIL_ADDRESSES / SIMULATED_SMS_NUMBERS) so that the
+# notification-api recognises them and skips real delivery.
 SIMULATE_EMAILS = [
     "simulate-delivered@notification.canada.ca",
     "simulate-delivered-2@notification.canada.ca",
@@ -344,7 +347,7 @@ def create_reply_to(session, service_id):
         {
             "id": str(reply_id),
             "sid": str(service_id),
-            "email": "simulate-delivered@notification.canada.ca",
+            "email": SIMULATE_EMAILS[0],
             "now": datetime.now(timezone.utc),
         },
     )
@@ -675,7 +678,7 @@ def _build_notification_batch(
     service_id,
     template_ids,
     notification_type,
-    num_failed_remaining,
+    failures_remaining,
     num_remaining,
     job_ids,
     api_key_id,
@@ -688,10 +691,10 @@ def _build_notification_batch(
 
     for _ in range(batch_size):
         # Force remaining failures into the last rows to guarantee exact totals
-        if num_failed_remaining >= num_remaining:
+        if failures_remaining >= num_remaining:
             is_failed = True
-        elif num_failed_remaining > 0:
-            is_failed = random.random() < (num_failed_remaining / max(num_remaining, 1))
+        elif failures_remaining > 0:
+            is_failed = random.random() < (failures_remaining / max(num_remaining, 1))
         else:
             is_failed = False
 
@@ -704,7 +707,7 @@ def _build_notification_batch(
                 status = "temporary-failure"
             else:
                 status = "technical-failure"
-            num_failed_remaining -= 1
+            failures_remaining -= 1
         else:
             # Realistic success status distribution
             status = "delivered" if random.random() < 0.97 else "sent"
@@ -735,7 +738,7 @@ def _build_notification_batch(
             }
         )
 
-    return rows, num_failed_remaining, num_remaining
+    return rows, failures_remaining, num_remaining
 
 
 def insert_notification_history(session, service_id, email_template_ids, sms_template_ids, job_ids, api_key_id):
@@ -762,7 +765,7 @@ def insert_notification_history(session, service_id, email_template_ids, sms_tem
         "client_reference",
     ]
 
-    for ntype, template_ids, total, failed_count in [
+    for ntype, template_ids, total, total_failures in [
         (NOTIFICATION_TYPE_EMAIL, email_template_ids, Config.NUM_EMAILS_TOTAL, Config.NUM_EMAILS_FAILED),
         (NOTIFICATION_TYPE_SMS, sms_template_ids, Config.NUM_SMS_TOTAL, Config.NUM_SMS_FAILED),
     ]:
@@ -771,20 +774,20 @@ def insert_notification_history(session, service_id, email_template_ids, sms_tem
             continue
 
         num_batches = math.ceil(total / Config.BATCH_SIZE)
-        print(f"\n  Inserting {total:,} {ntype} notification_history rows ({failed_count:,} permanent-failure)...")
+        print(f"\n  Inserting {total:,} {ntype} notification_history rows ({total_failures:,} failures)...")
         print(f"    Batches: {num_batches} x {Config.BATCH_SIZE:,} (using COPY)")
 
         remaining = total
-        failed_remaining = failed_count
+        failures_remaining = total_failures
 
         for batch_idx in range(num_batches):
             batch_size = min(Config.BATCH_SIZE, remaining)
-            rows, failed_remaining, remaining = _build_notification_batch(
+            rows, failures_remaining, remaining = _build_notification_batch(
                 batch_size,
                 service_id,
                 template_ids,
                 ntype,
-                failed_remaining,
+                failures_remaining,
                 remaining,
                 job_ids,
                 api_key_id,
