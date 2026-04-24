@@ -20,7 +20,7 @@ default_worker_class = "gevent_otel_worker.OTelAwareGeventWorker" if ff_enable_o
 workers = int(os.getenv("GUNICORN_WORKERS", "4"))
 worker_class = os.getenv("GUNICORN_WORKER_CLASS", default_worker_class)
 worker_connections = int(os.getenv("GUNICORN_WORKER_CONNECTIONS", "256"))
-threads = int(os.getenv("GUNICORN_THREADS", "1"))
+threads = int(os.getenv("GUNICORN_THREADS", "1"))  # Only valid with gthread
 preload_app = env.bool("GUNICORN_PRELOAD_APP", default=False)
 bind = "0.0.0.0:{}".format(os.getenv("PORT"))
 accesslog = "-"
