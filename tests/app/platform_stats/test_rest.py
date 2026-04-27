@@ -263,7 +263,7 @@ def test_get_sms_cost_for_all_services_returns_400_when_start_date_after_end_dat
         _expected_status=400,
     )
 
-    assert response["message"] == "start_date must on or before end_date"
+    assert response["message"] == "start_date must be on or before end_date"
 
 
 def test_get_sms_cost_for_all_services_returns_400_when_dates_missing(admin_request):
