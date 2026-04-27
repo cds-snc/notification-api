@@ -165,10 +165,10 @@ def get_sms_cost_for_all_services():
     result_list = [
         {
             "service_id": str(service_id),
-            "fragment_count": int(data["fragment_count"]),
-            "total_cost": float(data["total_cost"]),
+            "fragment_count": int(service_costs["fragment_count"]),
+            "total_cost": float(service_costs["total_cost"]),
         }
-        for service_id, data in sorted(result_dict.items())
+        for service_id, service_costs in sorted(result_dict.items())
     ]
 
     return jsonify(
