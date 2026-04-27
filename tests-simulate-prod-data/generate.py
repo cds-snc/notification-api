@@ -34,12 +34,12 @@ FAKE_USER_EMAIL_DOMAIN = "staging-simulate.local"
 # These must match the simulated recipient addresses in app/config.py
 # (SIMULATED_EMAIL_ADDRESSES / SIMULATED_SMS_NUMBERS) so that the
 # notification-api recognises them and skips real delivery.
-SIMULATE_EMAILS = [
+SIMULATED_EMAIL_ADDRESSES = [
     "simulate-delivered@notification.canada.ca",
     "simulate-delivered-2@notification.canada.ca",
     "simulate-delivered-3@notification.canada.ca",
 ]
-FAKE_PHONE = "+16132532222"
+SIMULATED_SMS_NUMBER = "+16132532222"
 
 VARIABLE_NAMES = [
     "first_name",
@@ -188,7 +188,7 @@ def create_users(session):
                 "name": f"{PREFIX} User {i}",
                 "email": email,
                 "password": "simulated-no-login",  # not a real bcrypt hash — these users should never log in
-                "mobile": FAKE_PHONE,
+                "mobile": SIMULATED_SMS_NUMBER,
                 "now": datetime.now(timezone.utc),
             },
         )
@@ -347,7 +347,7 @@ def create_reply_to(session, service_id):
         {
             "id": str(reply_id),
             "sid": str(service_id),
-            "email": SIMULATE_EMAILS[0],
+            "email": SIMULATED_EMAIL_ADDRESSES[0],
             "now": datetime.now(timezone.utc),
         },
     )
@@ -867,13 +867,13 @@ def insert_live_notifications(session, service_id, email_template_ids, sms_templ
             else:
                 status = "permanent-failure"
 
-            to_address = random.choice(SIMULATE_EMAILS) if ntype == NOTIFICATION_TYPE_EMAIL else FAKE_PHONE
+            to_address = random.choice(SIMULATED_EMAIL_ADDRESSES) if ntype == NOTIFICATION_TYPE_EMAIL else SIMULATED_SMS_NUMBER
 
             rows.append(
                 {
                     "id": str(_uuid()),
                     "to": to_address,
-                    "normalised_to": to_address.lower() if ntype == NOTIFICATION_TYPE_EMAIL else FAKE_PHONE,
+                    "normalised_to": to_address.lower() if ntype == NOTIFICATION_TYPE_EMAIL else SIMULATED_SMS_NUMBER,
                     "service_id": str(service_id),
                     "template_id": str(tmpl_id),
                     "template_version": 1,
