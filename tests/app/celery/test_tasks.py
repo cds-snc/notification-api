@@ -1,4 +1,5 @@
 import json
+import logging
 import uuid
 from datetime import datetime, timedelta
 from unittest import mock
@@ -1535,6 +1536,60 @@ class TestSaveErrorHandling:
         mock_persist_notifications.assert_called_once()
         mock_save_email.assert_called_with(queue="retry-tasks", exc=expected_error)
         mock_acknowldege.assert_called_once_with(receipt)
+
+    def test_save_smss_does_not_reach_success_path_on_persist_error(self, sample_template_with_placeholders, mocker, caplog):
+        """Regression test for GC-001: the explicit return after handle_batch_error_and_forward
+        prevents the success-path log from being emitted. Without the return, execution falls
+        through to current_app.logger.debug('Sending following sms notifications to AWS ...')
+        even though saved_notifications is empty. This test fails if the return is removed."""
+
+        notification1 = _notification_json(
+            sample_template_with_placeholders,
+            to="+1 650 253 2221",
+            personalisation={"name": "Jo"},
+        )
+        notification1["id"] = str(uuid.uuid4())
+        notification1["service_id"] = str(sample_template_with_placeholders.service.id)
+
+        mocker.patch("app.celery.tasks.persist_notifications", side_effect=SQLAlchemyError())
+        mocker.patch("app.celery.tasks.save_smss.retry")
+        mocker.patch("app.sms_normal.acknowledge")
+
+        with caplog.at_level(logging.DEBUG):
+            save_smss(
+                str(sample_template_with_placeholders.service.id),
+                [signer_notification.sign(notification1)],
+                uuid.uuid4(),
+            )
+
+        assert "Sending following sms notifications to AWS" not in caplog.text
+
+    def test_save_emails_does_not_reach_success_path_on_persist_error(self, sample_email_template_with_placeholders, mocker):
+        """Belt-and-suspenders: the return after handle_batch_error_and_forward is a consistency
+        improvement. The if saved_notifications: guard below it already prevents
+        try_to_send_notifications_to_queue from being called when saved_notifications=[],
+        so this test passes with or without the return. It documents that the send is never
+        triggered after a persist error."""
+        notification1 = _notification_json(
+            sample_email_template_with_placeholders,
+            to="test1@gmail.com",
+            personalisation={"name": "Jo"},
+        )
+        notification1["id"] = str(uuid.uuid4())
+        notification1["service_id"] = str(sample_email_template_with_placeholders.service.id)
+
+        mocker.patch("app.celery.tasks.persist_notifications", side_effect=SQLAlchemyError())
+        mocker.patch("app.celery.tasks.save_emails.retry")
+        mocker.patch("app.email_normal.acknowledge")
+        mock_try_to_send = mocker.patch("app.celery.tasks.try_to_send_notifications_to_queue")
+
+        save_emails(
+            str(sample_email_template_with_placeholders.service.id),
+            [signer_notification.sign(notification1)],
+            uuid.uuid4(),
+        )
+
+        mock_try_to_send.assert_not_called()
 
 
 class TestSaveEmails:
