@@ -1314,11 +1314,12 @@ def test_dao_fetch_sms_cost_for_all_services_historical_only(notify_db_session):
 
 
 @freeze_time("2026-04-08 14:00:00")
-def test_dao_fetch_sms_cost_for_all_services_today_only(notify_db_session):
-    """When the date range is today only, data comes from the Notification table."""
+def test_dao_fetch_sms_cost_for_all_services_today_only_returns_empty(notify_db_session):
+    """When the date range is today only, no FactBilling data exists yet so result is empty."""
     service = create_service()
     template = create_template(service=service, template_type="sms")
 
+    # Notification table data for today -- should NOT be picked up
     notif = save_notification(
         create_notification(
             template=template,
@@ -1333,14 +1334,13 @@ def test_dao_fetch_sms_cost_for_all_services_today_only(notify_db_session):
 
     result = dao_fetch_sms_cost_for_all_services_in_range(date(2026, 4, 8), date(2026, 4, 8))
 
-    assert len(result) == 1
-    assert result[service.id]["fragment_count"] == 4
-    assert result[service.id]["total_cost"] == Decimal("0.015")
+    # No FactBilling rows for today, so empty
+    assert result == {}
 
 
 @freeze_time("2026-04-08 14:00:00")
-def test_dao_fetch_sms_cost_for_all_services_combined(notify_db_session):
-    """When the range spans historical days and today, both sources are combined."""
+def test_dao_fetch_sms_cost_for_all_services_combined_uses_only_fact_billing(notify_db_session):
+    """When the range spans historical days and today, only FactBilling data is used."""
     service = create_service()
     template = create_template(service=service, template_type="sms")
 
@@ -1355,7 +1355,7 @@ def test_dao_fetch_sms_cost_for_all_services_combined(notify_db_session):
         rate_multiplier=1,
     )
 
-    # Today: Notification table
+    # Today: Notification table -- should NOT be picked up
     notif = save_notification(
         create_notification(
             template=template,
@@ -1370,104 +1370,9 @@ def test_dao_fetch_sms_cost_for_all_services_combined(notify_db_session):
     result = dao_fetch_sms_cost_for_all_services_in_range(date(2026, 4, 7), date(2026, 4, 8))
 
     assert len(result) == 1
-    # fragment_count = 10 (ft_billing) + 2 (notification) = 12
-    assert result[service.id]["fragment_count"] == 12
-    # total_cost = (10 * 1 * 0.02) + (0.003 + 0.007) = 0.20 + 0.01 = 0.21
-    assert result[service.id]["total_cost"] == Decimal("0.21")
-
-
-@freeze_time("2026-04-08 14:00:00")
-def test_dao_fetch_sms_cost_for_all_services_excludes_test_keys(notify_db_session):
-    """Notifications sent with test keys should not be counted for today's data."""
-    service = create_service()
-    template = create_template(service=service, template_type="sms")
-
-    # A 'test' key notification -- should be excluded
-    notif_test = save_notification(
-        create_notification(
-            template=template,
-            status="delivered",
-            billable_units=5,
-            key_type="test",
-        )
-    )
-    notif_test.sms_total_carrier_fee = Decimal("0.100")
-    notif_test.sms_total_message_price = Decimal("0.100")
-
-    # A 'normal' key notification -- should be included
-    notif_normal = save_notification(
-        create_notification(
-            template=template,
-            status="delivered",
-            billable_units=1,
-            key_type="normal",
-        )
-    )
-    notif_normal.sms_total_carrier_fee = Decimal("0.002")
-    notif_normal.sms_total_message_price = Decimal("0.003")
-    db.session.commit()
-
-    result = dao_fetch_sms_cost_for_all_services_in_range(date(2026, 4, 8), date(2026, 4, 8))
-
-    assert len(result) == 1
-    assert result[service.id]["fragment_count"] == 1
-    assert result[service.id]["total_cost"] == Decimal("0.005")
-
-
-@freeze_time("2026-04-08 14:00:00")
-def test_dao_fetch_sms_cost_for_all_services_excludes_non_billable_status(notify_db_session):
-    """Notifications with non-billable statuses (e.g. created) should not be counted."""
-    service = create_service()
-    template = create_template(service=service, template_type="sms")
-
-    notif_created = save_notification(
-        create_notification(
-            template=template,
-            status="created",
-            billable_units=3,
-        )
-    )
-    notif_created.sms_total_carrier_fee = Decimal("0.100")
-    notif_created.sms_total_message_price = Decimal("0.100")
-
-    notif_delivered = save_notification(
-        create_notification(
-            template=template,
-            status="delivered",
-            billable_units=2,
-        )
-    )
-    notif_delivered.sms_total_carrier_fee = Decimal("0.004")
-    notif_delivered.sms_total_message_price = Decimal("0.006")
-    db.session.commit()
-
-    result = dao_fetch_sms_cost_for_all_services_in_range(date(2026, 4, 8), date(2026, 4, 8))
-
-    assert len(result) == 1
-    assert result[service.id]["fragment_count"] == 2
-    assert result[service.id]["total_cost"] == Decimal("0.010")
-
-
-@freeze_time("2026-04-08 14:00:00")
-def test_dao_fetch_sms_cost_for_all_services_null_carrier_fees(notify_db_session):
-    """Null sms_total_carrier_fee / sms_total_message_price are treated as 0."""
-    service = create_service()
-    template = create_template(service=service, template_type="sms")
-
-    save_notification(
-        create_notification(
-            template=template,
-            status="delivered",
-            billable_units=3,
-        )
-    )
-    # Don't set carrier fees -- they remain NULL
-
-    result = dao_fetch_sms_cost_for_all_services_in_range(date(2026, 4, 8), date(2026, 4, 8))
-
-    assert len(result) == 1
-    assert result[service.id]["fragment_count"] == 3
-    assert result[service.id]["total_cost"] == Decimal("0")
+    # Only FactBilling data: fragment_count = 10, total_cost = 10 * 1 * 0.02 = 0.20
+    assert result[service.id]["fragment_count"] == 10
+    assert result[service.id]["total_cost"] == Decimal("0.20")
 
 
 @freeze_time("2026-04-08 14:00:00")
