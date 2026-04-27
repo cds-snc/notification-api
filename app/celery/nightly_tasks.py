@@ -7,7 +7,7 @@ from notifications_utils.statsd_decorators import statsd
 from sqlalchemy import func
 from sqlalchemy.exc import SQLAlchemyError
 
-from app import notify_celery, performance_platform_client, zendesk_client
+from app import notify_celery, performance_platform_client, statsd_client, zendesk_client
 from app.aws import s3
 from app.celery.service_callback_tasks import send_delivery_status_to_service
 from app.config import QueueNames
@@ -141,6 +141,13 @@ def timeout_notifications():
             )
 
     current_app.logger.info("Timeout period reached for {} notifications, status has been updated.".format(len(notifications)))
+    if temporary_failure_notifications:
+        current_app.logger.info(
+            f"Timeout: {len(temporary_failure_notifications)} notifications set to temporary-failure (no receipt; billable), "
+            f"{len(technical_failure_notifications)} notifications set to technical-failure (never dispatched)."
+        )
+        statsd_client.incr("notifications.timeout.temporary_failure", len(temporary_failure_notifications))
+
     if technical_failure_notifications:
         message = (
             "{} notifications have been updated to technical-failure because they "
