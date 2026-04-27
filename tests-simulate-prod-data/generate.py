@@ -925,6 +925,13 @@ def populate_ft_notification_status(session, service_id, email_template_ids, sms
     total_sms_delivered = Config.NUM_SMS_TOTAL - Config.NUM_SMS_FAILED
     total_sms_failed = Config.NUM_SMS_FAILED
 
+    # Match the status distribution from _build_notification_batch:
+    # Success: 97% delivered, 3% sent
+    # Failure: 80% permanent-failure, 15% temporary-failure, 5% technical-failure
+    DELIVERED_RATIO = 0.97
+    PERM_FAILURE_RATIO = 0.80
+    TEMP_FAILURE_RATIO = 0.15
+
     num_days = len(dates)
     null_job_id = "00000000-0000-0000-0000-000000000000"
 
@@ -956,36 +963,37 @@ def populate_ft_notification_status(session, service_id, email_template_ids, sms
             daily_delivered = _distribute_over_days(delivered_total, num_days, day_index)
             daily_failed = _distribute_over_days(failed_total, num_days, day_index)
 
-            if daily_delivered > 0:
-                rows.append(
-                    {
-                        "bst_date": bst_date,
-                        "template_id": str(tmpl_id),
-                        "service_id": str(service_id),
-                        "job_id": null_job_id,
-                        "notification_type": ntype,
-                        "key_type": "normal",
-                        "notification_status": "delivered",
-                        "notification_count": daily_delivered,
-                        "billable_units": daily_delivered,
-                        "created_at": datetime.now(timezone.utc),
-                    }
-                )
-            if daily_failed > 0:
-                rows.append(
-                    {
-                        "bst_date": bst_date,
-                        "template_id": str(tmpl_id),
-                        "service_id": str(service_id),
-                        "job_id": null_job_id,
-                        "notification_type": ntype,
-                        "key_type": "normal",
-                        "notification_status": "permanent-failure",
-                        "notification_count": daily_failed,
-                        "billable_units": daily_failed,
-                        "created_at": datetime.now(timezone.utc),
-                    }
-                )
+            # Split delivered into delivered + sent (matching _build_notification_batch ratios)
+            daily_sent = int(daily_delivered * (1 - DELIVERED_RATIO))
+            daily_delivered_actual = daily_delivered - daily_sent
+
+            # Split failures into permanent/temporary/technical
+            daily_perm = int(daily_failed * PERM_FAILURE_RATIO)
+            daily_temp = int(daily_failed * TEMP_FAILURE_RATIO)
+            daily_tech = daily_failed - daily_perm - daily_temp
+
+            for status, count in [
+                ("delivered", daily_delivered_actual),
+                ("sent", daily_sent),
+                ("permanent-failure", daily_perm),
+                ("temporary-failure", daily_temp),
+                ("technical-failure", daily_tech),
+            ]:
+                if count > 0:
+                    rows.append(
+                        {
+                            "bst_date": bst_date,
+                            "template_id": str(tmpl_id),
+                            "service_id": str(service_id),
+                            "job_id": null_job_id,
+                            "notification_type": ntype,
+                            "key_type": "normal",
+                            "notification_status": status,
+                            "notification_count": count,
+                            "billable_units": count,
+                            "created_at": datetime.now(timezone.utc),
+                        }
+                    )
 
         if len(rows) >= 5000:
             _copy_rows(session, "ft_notification_status", ft_columns, rows)
