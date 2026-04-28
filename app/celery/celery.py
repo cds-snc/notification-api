@@ -38,9 +38,10 @@ def make_task(app):
 class NotifyCelery(Celery):
     def send_task(self, name, args=None, kwargs=None, **options):
         options["headers"] = options.get("headers") or {}
-        message_group_id = options.get("MessageGroupId")
+        message_group_id = options.pop("MessageGroupId", None)
         if message_group_id:
-            options["headers"]["notify_message_group_id"] = message_group_id
+            # Convert UUID to string for SQS compatibility
+            options["headers"]["notify_message_group_id"] = str(message_group_id)
         return super().send_task(name, args, kwargs, **options)
 
     def init_app(self, app):
