@@ -39,13 +39,6 @@ class RateLimiter(ABC):
         pass
 
     @abstractmethod
-    def reset_limiter(self):
-        """
-        Reset the rate limiter.
-        """
-        pass
-
-    @abstractmethod
     def get_current_usage(self) -> int:
         """
         Get the current parts count in the active window.
@@ -103,6 +96,9 @@ class InMemoryRateLimiter(RateLimiter):
         """
         if parts_count <= 0:
             raise ValueError("parts_count must be positive")
+
+        if parts_count > self.cap_per_minute:
+            raise ValueError("parts_count must be smaller than or equal to the cap_per_minute")
 
         now = time()
         window_start = now - self.WINDOW_SIZE_SECONDS
