@@ -57,7 +57,7 @@
                 "worker",
                 "--pidfile",
                 "/tmp/celery.pid",
-                "--concurrency=4",
+                "--concurrency=1",
                 "-l",
                 "DEBUG",
                 "-Q",
