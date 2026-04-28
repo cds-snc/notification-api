@@ -105,12 +105,12 @@ def dao_fetch_sms_cost_for_service_in_range(service_id, start_date, end_date):
 
 
 def dao_fetch_sms_cost_for_all_services_in_range(start_date, end_date):
-    """Return the total SMS cost and fragment count for ALL services in the given date range (inclusive).
+    """Return the total SMS cost and fragment count for ALL services in the given date range.
+    This EXCLUDES the current_day, as the ft_table aggregation happens in a nightly task
 
     Returns a dictionary keyed by service_id with fragment_count and total_cost for each service.
 
     Uses only FactBilling (the nightly-populated aggregate table) for efficiency.
-    Today's data will not be included since FactBilling is populated by a nightly task.
     For current-day data for a single service, use dao_fetch_sms_cost_for_service_in_range instead.
     """
     fact_results = (
