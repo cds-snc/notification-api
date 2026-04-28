@@ -304,7 +304,7 @@ def send_notification_to_queue(notification, research_mode, queue=None):
         queue = QueueNames.RESEARCH_MODE
 
     # Pioritize sending per services within the same queue by default.
-    message_group_id: str = notification.service_id
+    message_group_id: str = str(notification.service_id)
     celery_params: list = [str(notification.id)]
 
     # Final verification for the queue to send to and apply final stage overrides.
