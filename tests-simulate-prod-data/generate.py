@@ -30,8 +30,16 @@ def _timestamp():
 # Helpers
 # ---------------------------------------------------------------------------
 
-FAKE_EMAIL_DOMAIN = "staging-simulate.local"
-FAKE_PHONE = "+16135550199"
+FAKE_USER_EMAIL_DOMAIN = "staging-simulate.local"
+# These must match the simulated recipient addresses in app/config.py
+# (SIMULATED_EMAIL_ADDRESSES / SIMULATED_SMS_NUMBERS) so that the
+# notification-api recognises them and skips real delivery.
+SIMULATED_EMAIL_ADDRESSES = [
+    "simulate-delivered@notification.canada.ca",
+    "simulate-delivered-2@notification.canada.ca",
+    "simulate-delivered-3@notification.canada.ca",
+]
+SIMULATED_SMS_NUMBER = "+16132532222"
 
 VARIABLE_NAMES = [
     "first_name",
@@ -164,7 +172,7 @@ def create_users(session):
     users = []
     for i in range(1, Config.NUM_USERS + 1):
         user_id = _uuid()
-        email = f"{PREFIX}-user-{i}@{FAKE_EMAIL_DOMAIN}"
+        email = f"{PREFIX}-user-{i}@{FAKE_USER_EMAIL_DOMAIN}"
         print(f"  Creating user {i}/{Config.NUM_USERS}: {email} ({user_id})...")
         session.execute(
             text("""
@@ -180,7 +188,7 @@ def create_users(session):
                 "name": f"{PREFIX} User {i}",
                 "email": email,
                 "password": "simulated-no-login",  # not a real bcrypt hash — these users should never log in
-                "mobile": FAKE_PHONE,
+                "mobile": SIMULATED_SMS_NUMBER,
                 "now": datetime.now(timezone.utc),
             },
         )
@@ -339,7 +347,7 @@ def create_reply_to(session, service_id):
         {
             "id": str(reply_id),
             "sid": str(service_id),
-            "email": f"reply-{PREFIX}@{FAKE_EMAIL_DOMAIN}",
+            "email": SIMULATED_EMAIL_ADDRESSES[0],
             "now": datetime.now(timezone.utc),
         },
     )
@@ -670,7 +678,7 @@ def _build_notification_batch(
     service_id,
     template_ids,
     notification_type,
-    num_failed_remaining,
+    failures_remaining,
     num_remaining,
     job_ids,
     api_key_id,
@@ -683,15 +691,26 @@ def _build_notification_batch(
 
     for _ in range(batch_size):
         # Force remaining failures into the last rows to guarantee exact totals
-        if num_failed_remaining >= num_remaining:
+        if failures_remaining >= num_remaining:
             is_failed = True
-        elif num_failed_remaining > 0:
-            is_failed = random.random() < (num_failed_remaining / max(num_remaining, 1))
+        elif failures_remaining > 0:
+            is_failed = random.random() < (failures_remaining / max(num_remaining, 1))
         else:
             is_failed = False
-        status = "permanent-failure" if is_failed else "delivered"
+
         if is_failed:
-            num_failed_remaining -= 1
+            # Realistic failure status distribution
+            fail_roll = random.random()
+            if fail_roll < 0.80:
+                status = "permanent-failure"
+            elif fail_roll < 0.95:
+                status = "temporary-failure"
+            else:
+                status = "technical-failure"
+            failures_remaining -= 1
+        else:
+            # Realistic success status distribution
+            status = "delivered" if random.random() < 0.97 else "sent"
         num_remaining -= 1
 
         tmpl_id = random.choice(template_ids)
@@ -719,7 +738,7 @@ def _build_notification_batch(
             }
         )
 
-    return rows, num_failed_remaining, num_remaining
+    return rows, failures_remaining, num_remaining
 
 
 def insert_notification_history(session, service_id, email_template_ids, sms_template_ids, job_ids, api_key_id):
@@ -746,7 +765,7 @@ def insert_notification_history(session, service_id, email_template_ids, sms_tem
         "client_reference",
     ]
 
-    for ntype, template_ids, total, failed_count in [
+    for ntype, template_ids, total, total_failures in [
         (NOTIFICATION_TYPE_EMAIL, email_template_ids, Config.NUM_EMAILS_TOTAL, Config.NUM_EMAILS_FAILED),
         (NOTIFICATION_TYPE_SMS, sms_template_ids, Config.NUM_SMS_TOTAL, Config.NUM_SMS_FAILED),
     ]:
@@ -755,20 +774,20 @@ def insert_notification_history(session, service_id, email_template_ids, sms_tem
             continue
 
         num_batches = math.ceil(total / Config.BATCH_SIZE)
-        print(f"\n  Inserting {total:,} {ntype} notification_history rows ({failed_count:,} permanent-failure)...")
+        print(f"\n  Inserting {total:,} {ntype} notification_history rows ({total_failures:,} failures)...")
         print(f"    Batches: {num_batches} x {Config.BATCH_SIZE:,} (using COPY)")
 
         remaining = total
-        failed_remaining = failed_count
+        failures_remaining = total_failures
 
         for batch_idx in range(num_batches):
             batch_size = min(Config.BATCH_SIZE, remaining)
-            rows, failed_remaining, remaining = _build_notification_batch(
+            rows, failures_remaining, remaining = _build_notification_batch(
                 batch_size,
                 service_id,
                 template_ids,
                 ntype,
-                failed_remaining,
+                failures_remaining,
                 remaining,
                 job_ids,
                 api_key_id,
@@ -800,7 +819,7 @@ def insert_live_notifications(session, service_id, email_template_ids, sms_templ
     print(
         f"    Split: {total_emails:,} email ({total_emails/total_count*100:.0f}%) + {total_sms:,} SMS ({total_sms/total_count*100:.0f}%)"
     )
-    print("    Status distribution: ~2% created, ~3% sending, ~5% pending, ~85% delivered, ~5% permanent-failure")
+    print("    Status distribution: ~95% delivered, ~5% permanent-failure (terminal statuses only)")
 
     notif_columns = [
         "id",
@@ -840,26 +859,21 @@ def insert_live_notifications(session, service_id, email_template_ids, sms_templ
             created = _random_date(start_date.date(), end_date.date())
             job = random.choice(type_jobs) if type_jobs and random.random() < 0.7 else None
 
-            # Mix of statuses for live table (more realistic)
+            # Only use terminal statuses to avoid Celery tasks (timeout_notifications,
+            # replay_created_notifications) picking up fake rows and raising errors.
             status_roll = random.random()
-            if status_roll < 0.02:
-                status = "created"
-            elif status_roll < 0.05:
-                status = "sending"
-            elif status_roll < 0.10:
-                status = "pending"
-            elif status_roll < 0.95:
+            if status_roll < 0.95:
                 status = "delivered"
             else:
                 status = "permanent-failure"
 
-            to_address = f"test-{i}@{FAKE_EMAIL_DOMAIN}" if ntype == NOTIFICATION_TYPE_EMAIL else FAKE_PHONE
+            to_address = random.choice(SIMULATED_EMAIL_ADDRESSES) if ntype == NOTIFICATION_TYPE_EMAIL else SIMULATED_SMS_NUMBER
 
             rows.append(
                 {
                     "id": str(_uuid()),
                     "to": to_address,
-                    "normalised_to": to_address.lower() if ntype == NOTIFICATION_TYPE_EMAIL else FAKE_PHONE,
+                    "normalised_to": to_address.lower() if ntype == NOTIFICATION_TYPE_EMAIL else SIMULATED_SMS_NUMBER,
                     "service_id": str(service_id),
                     "template_id": str(tmpl_id),
                     "template_version": 1,
@@ -911,6 +925,13 @@ def populate_ft_notification_status(session, service_id, email_template_ids, sms
     total_sms_delivered = Config.NUM_SMS_TOTAL - Config.NUM_SMS_FAILED
     total_sms_failed = Config.NUM_SMS_FAILED
 
+    # Match the status distribution from _build_notification_batch:
+    # Success: 97% delivered, 3% sent
+    # Failure: 80% permanent-failure, 15% temporary-failure, 5% technical-failure
+    DELIVERED_RATIO = 0.97
+    PERM_FAILURE_RATIO = 0.80
+    TEMP_FAILURE_RATIO = 0.15
+
     num_days = len(dates)
     null_job_id = "00000000-0000-0000-0000-000000000000"
 
@@ -942,36 +963,37 @@ def populate_ft_notification_status(session, service_id, email_template_ids, sms
             daily_delivered = _distribute_over_days(delivered_total, num_days, day_index)
             daily_failed = _distribute_over_days(failed_total, num_days, day_index)
 
-            if daily_delivered > 0:
-                rows.append(
-                    {
-                        "bst_date": bst_date,
-                        "template_id": str(tmpl_id),
-                        "service_id": str(service_id),
-                        "job_id": null_job_id,
-                        "notification_type": ntype,
-                        "key_type": "normal",
-                        "notification_status": "delivered",
-                        "notification_count": daily_delivered,
-                        "billable_units": daily_delivered,
-                        "created_at": datetime.now(timezone.utc),
-                    }
-                )
-            if daily_failed > 0:
-                rows.append(
-                    {
-                        "bst_date": bst_date,
-                        "template_id": str(tmpl_id),
-                        "service_id": str(service_id),
-                        "job_id": null_job_id,
-                        "notification_type": ntype,
-                        "key_type": "normal",
-                        "notification_status": "permanent-failure",
-                        "notification_count": daily_failed,
-                        "billable_units": daily_failed,
-                        "created_at": datetime.now(timezone.utc),
-                    }
-                )
+            # Split delivered into delivered + sent (matching _build_notification_batch ratios)
+            daily_sent = int(daily_delivered * (1 - DELIVERED_RATIO))
+            daily_delivered_actual = daily_delivered - daily_sent
+
+            # Split failures into permanent/temporary/technical
+            daily_perm = int(daily_failed * PERM_FAILURE_RATIO)
+            daily_temp = int(daily_failed * TEMP_FAILURE_RATIO)
+            daily_tech = daily_failed - daily_perm - daily_temp
+
+            for status, count in [
+                ("delivered", daily_delivered_actual),
+                ("sent", daily_sent),
+                ("permanent-failure", daily_perm),
+                ("temporary-failure", daily_temp),
+                ("technical-failure", daily_tech),
+            ]:
+                if count > 0:
+                    rows.append(
+                        {
+                            "bst_date": bst_date,
+                            "template_id": str(tmpl_id),
+                            "service_id": str(service_id),
+                            "job_id": null_job_id,
+                            "notification_type": ntype,
+                            "key_type": "normal",
+                            "notification_status": status,
+                            "notification_count": count,
+                            "billable_units": count,
+                            "created_at": datetime.now(timezone.utc),
+                        }
+                    )
 
         if len(rows) >= 5000:
             _copy_rows(session, "ft_notification_status", ft_columns, rows)
