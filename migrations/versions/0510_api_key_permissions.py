@@ -18,13 +18,15 @@ down_revision = "0509_use_custom_unsub_url"
 
 
 def upgrade():
+    # Nullable + no server_default so Postgres can add the column as a metadata-only
+    # change without rewriting the table or taking a long ACCESS EXCLUSIVE lock.
+    # Existing rows will read back as NULL; the model defaults new rows to [].
     op.add_column(
         "api_keys",
         sa.Column(
             "permissions",
             postgresql.ARRAY(sa.String(length=255)),
-            nullable=False,
-            server_default="{}",
+            nullable=True,
         ),
     )
     op.add_column(
@@ -32,8 +34,7 @@ def upgrade():
         sa.Column(
             "permissions",
             postgresql.ARRAY(sa.String(length=255)),
-            nullable=False,
-            server_default="{}",
+            nullable=True,
         ),
     )
 

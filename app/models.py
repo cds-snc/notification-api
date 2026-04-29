@@ -998,8 +998,7 @@ class ApiKey(BaseModel, Versioned):
     last_used_timestamp = db.Column(db.DateTime, index=False, unique=False, nullable=True, default=None)
     permissions = db.Column(
         ARRAY(db.String(255)),
-        nullable=False,
-        server_default="{}",
+        nullable=True,
         default=list,
     )
 
