@@ -479,15 +479,47 @@ def create_template_folders(session, service_id):
     return folder_ids, folder_names
 
 
+def get_existing_service_creator_id(session, service_id):
+    """Return a valid creator user id for an existing service."""
+    result = session.execute(
+        text(
+            """
+            SELECT s.created_by_id
+            FROM services s
+            WHERE s.id = :sid
+        """
+        ),
+        {"sid": str(service_id)},
+    )
+    row = result.fetchone()
+    if not row:
+        raise click.ClickException(f"Service '{service_id}' not found.")
+
+    creator_id = row[0]
+    if not creator_id:
+        raise click.ClickException(f"Service '{service_id}' has no created_by_id; cannot create templates with a valid creator.")
+
+    return creator_id
+
+
 def create_templates(session, service_id, creator_id, folder_ids):
-    """Create templates across folders. Folder 0 (high-volume) gets the bulk."""
+    """Create templates for a service, optionally mapped to folders.
+
+    If folder_ids is empty, templates are created without folder mappings.
+    """
     all_template_ids = []
     email_template_ids = []
     sms_template_ids = []
 
-    # Folder 0: high-volume folder
+    has_folders = bool(folder_ids)
+    high_volume_folder_id = folder_ids[0] if has_folders else None
+
+    # Folder 0 (if present): high-volume folder
     hv_count = Config.HIGH_VOLUME_FOLDER_TEMPLATE_COUNT
-    print(f"  Creating {hv_count} templates in high-volume folder...")
+    if has_folders:
+        print(f"  Creating {hv_count} templates in high-volume folder...")
+    else:
+        print(f"  Creating {hv_count} unfoldered templates...")
     for i in range(hv_count):
         tid = _uuid()
         num_vars = random.randint(Config.TEMPLATE_VARIABLES_MIN, Config.TEMPLATE_VARIABLES_MAX)
@@ -536,14 +568,14 @@ def create_templates(session, service_id, creator_id, folder_ids):
             },
         )
 
-        # template_folder_map association
-        session.execute(
-            text("""
-            INSERT INTO template_folder_map (template_id, template_folder_id)
-            VALUES (:tid, :fid)
-        """),
-            {"tid": str(tid), "fid": str(folder_ids[0])},
-        )
+        if high_volume_folder_id:
+            session.execute(
+                text("""
+                INSERT INTO template_folder_map (template_id, template_folder_id)
+                VALUES (:tid, :fid)
+            """),
+                {"tid": str(tid), "fid": str(high_volume_folder_id)},
+            )
 
         all_template_ids.append(tid)
         if ttype == NOTIFICATION_TYPE_EMAIL:
@@ -555,11 +587,75 @@ def create_templates(session, service_id, creator_id, folder_ids):
             print(f"    ... {i+1}/{hv_count} templates created")
             session.flush()
 
-    # Other folders: small number of templates each
-    for fi, fid in enumerate(folder_ids[1:], start=2):
-        count = Config.OTHER_FOLDER_TEMPLATE_COUNT
-        print(f"  Creating {count} templates in folder {fi}...")
-        for j in range(count):
+    # Other folder-sized template chunks
+    if has_folders:
+        for fi, fid in enumerate(folder_ids[1:], start=2):
+            count = Config.OTHER_FOLDER_TEMPLATE_COUNT
+            print(f"  Creating {count} templates in folder {fi}...")
+            for j in range(count):
+                tid = _uuid()
+                num_vars = random.randint(Config.TEMPLATE_VARIABLES_MIN, Config.TEMPLATE_VARIABLES_MAX)
+                ttype = NOTIFICATION_TYPE_EMAIL if j % 2 == 0 else NOTIFICATION_TYPE_SMS
+                content = _template_content(num_vars, ttype)
+                chosen_vars = random.sample(VARIABLE_NAMES, min(num_vars, len(VARIABLE_NAMES)))
+                subject = _template_subject(num_vars, chosen_vars) if ttype == NOTIFICATION_TYPE_EMAIL else None
+
+                session.execute(
+                    text("""
+                    INSERT INTO templates (id, name, template_type, created_at, content, subject,
+                                           archived, hidden, service_id, created_by_id, version, process_type)
+                    VALUES (:id, :name, :ttype, :now, :content, :subject,
+                            false, false, :sid, :cid, 1, 'normal')
+                """),
+                    {
+                        "id": str(tid),
+                        "name": f"{PREFIX}-folder{fi}-template-{j+1}",
+                        "ttype": ttype,
+                        "now": datetime.now(timezone.utc),
+                        "content": content,
+                        "subject": subject,
+                        "sid": str(service_id),
+                        "cid": str(creator_id),
+                    },
+                )
+
+                session.execute(
+                    text("""
+                    INSERT INTO templates_history (id, name, template_type, created_at, content, subject,
+                                                   archived, hidden, service_id, created_by_id, version, process_type)
+                    VALUES (:id, :name, :ttype, :now, :content, :subject,
+                            false, false, :sid, :cid, 1, 'normal')
+                """),
+                    {
+                        "id": str(tid),
+                        "name": f"{PREFIX}-folder{fi}-template-{j+1}",
+                        "ttype": ttype,
+                        "now": datetime.now(timezone.utc),
+                        "content": content,
+                        "subject": subject,
+                        "sid": str(service_id),
+                        "cid": str(creator_id),
+                    },
+                )
+
+                session.execute(
+                    text("""
+                    INSERT INTO template_folder_map (template_id, template_folder_id)
+                    VALUES (:tid, :fid)
+                """),
+                    {"tid": str(tid), "fid": str(fid)},
+                )
+
+                all_template_ids.append(tid)
+                if ttype == NOTIFICATION_TYPE_EMAIL:
+                    email_template_ids.append(tid)
+                else:
+                    sms_template_ids.append(tid)
+    else:
+        extra_templates = Config.OTHER_FOLDER_TEMPLATE_COUNT * max(Config.NUM_TEMPLATE_FOLDERS - 1, 0)
+        if extra_templates:
+            print(f"  Creating {extra_templates} additional unfoldered templates...")
+        for j in range(extra_templates):
             tid = _uuid()
             num_vars = random.randint(Config.TEMPLATE_VARIABLES_MIN, Config.TEMPLATE_VARIABLES_MAX)
             ttype = NOTIFICATION_TYPE_EMAIL if j % 2 == 0 else NOTIFICATION_TYPE_SMS
@@ -576,7 +672,7 @@ def create_templates(session, service_id, creator_id, folder_ids):
             """),
                 {
                     "id": str(tid),
-                    "name": f"{PREFIX}-folder{fi}-template-{j+1}",
+                    "name": f"{PREFIX}-unfoldered-template-{j+1}",
                     "ttype": ttype,
                     "now": datetime.now(timezone.utc),
                     "content": content,
@@ -595,7 +691,7 @@ def create_templates(session, service_id, creator_id, folder_ids):
             """),
                 {
                     "id": str(tid),
-                    "name": f"{PREFIX}-folder{fi}-template-{j+1}",
+                    "name": f"{PREFIX}-unfoldered-template-{j+1}",
                     "ttype": ttype,
                     "now": datetime.now(timezone.utc),
                     "content": content,
@@ -603,14 +699,6 @@ def create_templates(session, service_id, creator_id, folder_ids):
                     "sid": str(service_id),
                     "cid": str(creator_id),
                 },
-            )
-
-            session.execute(
-                text("""
-                INSERT INTO template_folder_map (template_id, template_folder_id)
-                VALUES (:tid, :fid)
-            """),
-                {"tid": str(tid), "fid": str(fid)},
             )
 
             all_template_ids.append(tid)
@@ -905,6 +993,147 @@ def insert_live_notifications(session, service_id, email_template_ids, sms_templ
             print(f"      ... {total:,}/{total:,} (100.0%) [{_timestamp()}]")
 
     print(f"\n  ✓ Live notifications table populated ({total_count:,} rows).")
+
+
+def get_existing_service_templates_and_jobs(session, service_id):
+    """Return template ids by type and existing jobs for a service."""
+    result = session.execute(
+        text("SELECT id, template_type FROM templates WHERE service_id = :sid ORDER BY created_at"),
+        {"sid": str(service_id)},
+    )
+    all_template_ids = []
+    email_template_ids = []
+    sms_template_ids = []
+    for row in result:
+        tid = row[0]
+        ttype = row[1]
+        all_template_ids.append(tid)
+        if ttype == NOTIFICATION_TYPE_EMAIL:
+            email_template_ids.append(tid)
+        else:
+            sms_template_ids.append(tid)
+
+    if not all_template_ids:
+        raise click.ClickException(
+            f"No templates found for service '{service_id}'. Create templates before generating notifications."
+        )
+
+    result = session.execute(
+        text("SELECT id, template_id, created_at FROM jobs WHERE service_id = :sid ORDER BY created_at"),
+        {"sid": str(service_id)},
+    )
+    job_ids = []
+    for row in result:
+        result2 = session.execute(text("SELECT template_type FROM templates WHERE id = :tid"), {"tid": str(row[1])})
+        ttype_row = result2.fetchone()
+        job_ids.append(
+            {
+                "id": row[0],
+                "template_id": row[1],
+                "type": ttype_row[0] if ttype_row else "email",
+                "created_at": row[2],
+            }
+        )
+
+    return all_template_ids, email_template_ids, sms_template_ids, job_ids
+
+
+def insert_live_notifications_for_day(
+    session,
+    service_id,
+    email_template_ids,
+    sms_template_ids,
+    job_ids,
+    api_key_id,
+    target_date,
+    total_emails,
+    total_sms,
+):
+    """Insert live notifications for one specific UTC date only."""
+    if total_emails < 0 or total_sms < 0:
+        raise click.ClickException("Live notification totals must be non-negative.")
+
+    print(f"\n  Inserting live notifications for {target_date.isoformat()} (UTC day)...")
+    print(f"    Email: {total_emails:,}")
+    print(f"    SMS:   {total_sms:,}")
+    print("    Status distribution: ~95% delivered, ~5% permanent-failure")
+
+    notif_columns = [
+        "id",
+        "to",
+        "normalised_to",
+        "service_id",
+        "template_id",
+        "template_version",
+        "notification_type",
+        "created_at",
+        "sent_at",
+        "updated_at",
+        "notification_status",
+        "key_type",
+        "billable_units",
+        "international",
+        "api_key_id",
+        "job_id",
+        "job_row_number",
+        "client_reference",
+    ]
+
+    for ntype, template_ids, total in [
+        (NOTIFICATION_TYPE_EMAIL, email_template_ids, total_emails),
+        (NOTIFICATION_TYPE_SMS, sms_template_ids, total_sms),
+    ]:
+        if not template_ids or total == 0:
+            continue
+
+        type_jobs = [j for j in job_ids if j["type"] == ntype] if job_ids else []
+        rows = []
+        print(f"\n    Generating {total:,} {ntype} notifications... (using COPY)")
+
+        for i in range(total):
+            tmpl_id = random.choice(template_ids)
+            created = _random_date(target_date, target_date)
+            job = random.choice(type_jobs) if type_jobs and random.random() < 0.7 else None
+
+            status = "delivered" if random.random() < 0.95 else "permanent-failure"
+            to_address = random.choice(SIMULATED_EMAIL_ADDRESSES) if ntype == NOTIFICATION_TYPE_EMAIL else SIMULATED_SMS_NUMBER
+
+            rows.append(
+                {
+                    "id": str(_uuid()),
+                    "to": to_address,
+                    "normalised_to": to_address.lower() if ntype == NOTIFICATION_TYPE_EMAIL else SIMULATED_SMS_NUMBER,
+                    "service_id": str(service_id),
+                    "template_id": str(tmpl_id),
+                    "template_version": 1,
+                    "notification_type": ntype,
+                    "created_at": created,
+                    "sent_at": created + timedelta(seconds=random.randint(1, 30)),
+                    "updated_at": created + timedelta(seconds=random.randint(31, 120)),
+                    "notification_status": status,
+                    "key_type": "normal",
+                    "billable_units": 1,
+                    "international": False,
+                    "api_key_id": str(api_key_id) if api_key_id else None,
+                    "job_id": str(job["id"]) if job else None,
+                    "job_row_number": random.randint(0, Config.JOB_NOTIFICATION_COUNT - 1) if job else None,
+                    "client_reference": PREFIX,
+                }
+            )
+
+            if len(rows) >= Config.BATCH_SIZE:
+                _copy_rows(session, "notifications", notif_columns, rows)
+                session.commit()
+                pct = ((i + 1) / total) * 100
+                print(f"      ... {i+1:,}/{total:,} ({pct:.1f}%) [{_timestamp()}]")
+                rows = []
+
+        if rows:
+            _copy_rows(session, "notifications", notif_columns, rows)
+            session.commit()
+            print(f"      ... {total:,}/{total:,} (100.0%) [{_timestamp()}]")
+
+    print(f"\n  ✓ Live notifications table populated for {target_date.isoformat()} UTC.")
 
 
 def _distribute_over_days(total, num_days, day_index):
@@ -1243,7 +1472,31 @@ def cleanup(session):
     default=False,
     help="Use quick 100K preset (~185K notifications total for fast testing)",
 )
-def main(cleanup_only, skip_notifications, skip_aggregates, only_notifications_and_aggregates, quick_100000):
+@click.option(
+    "--templates-only-service-id",
+    default="",
+    help="Existing service UUID to create only template folders + templates (no org/users/jobs/notifications).",
+)
+@click.option(
+    "--live-only-service-id",
+    default="",
+    help="Existing service UUID to create notifications table rows only (no notification_history, no aggregates).",
+)
+@click.option(
+    "--live-date",
+    default="",
+    help="UTC date for --live-only-service-id in YYYY-MM-DD format. Defaults to today (UTC).",
+)
+def main(
+    cleanup_only,
+    skip_notifications,
+    skip_aggregates,
+    only_notifications_and_aggregates,
+    quick_100000,
+    templates_only_service_id,
+    live_only_service_id,
+    live_date,
+):
     """Generate production-like data for staging performance testing."""
 
     # Apply quick-100000 preset if requested
@@ -1276,6 +1529,80 @@ def main(cleanup_only, skip_notifications, skip_aggregates, only_notifications_a
         print(f"{'='*60}\n")
 
         try:
+            if live_only_service_id:
+                print("\n" + "=" * 60)
+                print("MODE: Creating live notifications only for existing service")
+                print("=" * 60 + "\n")
+
+                # Validate service exists
+                creator_id = get_existing_service_creator_id(session, live_only_service_id)
+                print(f"  Service ID: {live_only_service_id}")
+                print(f"  Creator ID: {creator_id}")
+
+                if live_date:
+                    try:
+                        target_date = datetime.strptime(live_date, "%Y-%m-%d").date()
+                    except ValueError as e:
+                        raise click.ClickException(f"Invalid --live-date '{live_date}': {e}")
+                else:
+                    target_date = datetime.now(timezone.utc).date()
+
+                _, email_template_ids, sms_template_ids, job_ids = get_existing_service_templates_and_jobs(
+                    session, live_only_service_id
+                )
+                print(f"  Found templates: {len(email_template_ids)} email, {len(sms_template_ids)} sms; jobs: {len(job_ids)}")
+
+                insert_live_notifications_for_day(
+                    session=session,
+                    service_id=live_only_service_id,
+                    email_template_ids=email_template_ids,
+                    sms_template_ids=sms_template_ids,
+                    job_ids=job_ids,
+                    api_key_id=None,
+                    target_date=target_date,
+                    total_emails=Config.NUM_EMAILS_TOTAL,
+                    total_sms=Config.NUM_SMS_TOTAL,
+                )
+
+                session.commit()
+                print("\n" + "=" * 60)
+                print("SUCCESS: Live notifications-only generation complete.")
+                print(f"  Service ID: {live_only_service_id}")
+                print(f"  Date (UTC): {target_date}")
+                print(f"  Email rows: {Config.NUM_EMAILS_TOTAL:,}")
+                print(f"  SMS rows:   {Config.NUM_SMS_TOTAL:,}")
+                print("=" * 60)
+                return
+
+            if templates_only_service_id:
+                print("\n" + "=" * 60)
+                print("MODE: Creating unfoldered templates for existing service")
+                print("=" * 60 + "\n")
+
+                # Validate service exists and use its creator as template created_by_id.
+                creator_id = get_existing_service_creator_id(session, templates_only_service_id)
+                print(f"  Service ID: {templates_only_service_id}")
+                print(f"  Creator ID: {creator_id}")
+
+                print("Creating templates...")
+                all_template_ids, email_template_ids, sms_template_ids = create_templates(
+                    session,
+                    templates_only_service_id,
+                    creator_id,
+                    [],
+                )
+
+                session.commit()
+                print("\n" + "=" * 60)
+                print("SUCCESS: Templates created for existing service.")
+                print(f"  Service ID: {templates_only_service_id}")
+                print("  Template folders created: 0")
+                print(f"  Templates created: {len(all_template_ids)}")
+                print(f"    - Email: {len(email_template_ids)}")
+                print(f"    - SMS: {len(sms_template_ids)}")
+                print("=" * 60)
+                return
+
             if only_notifications_and_aggregates:
                 # Only generate notifications and aggregates for existing setup objects
                 print("\n" + "=" * 60)
