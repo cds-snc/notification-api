@@ -1,7 +1,7 @@
 import datetime
 import itertools
 import uuid
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import Any, Iterable, Literal
 
 from flask import current_app, url_for
@@ -25,10 +25,11 @@ from notifications_utils.timezones import (
     convert_utc_to_local_timezone,
 )
 from sqlalchemy import CheckConstraint, Index, UniqueConstraint
-from sqlalchemy.dialects.postgresql import JSON, JSONB, UUID
+from sqlalchemy.dialects.postgresql import ARRAY, JSON, JSONB, UUID
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import validates
 
 from app import (
     DATETIME_FORMAT,
@@ -995,6 +996,12 @@ class ApiKey(BaseModel, Versioned):
     created_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), index=True, nullable=False)
     compromised_key_info = db.Column(JSONB(none_as_null=True), nullable=True, default={})
     last_used_timestamp = db.Column(db.DateTime, index=False, unique=False, nullable=True, default=None)
+    permissions = db.Column(
+        ARRAY(db.String(255)),
+        nullable=False,
+        server_default="{}",
+        default=list,
+    )
 
     __table_args__ = (
         Index(
@@ -1017,11 +1024,48 @@ class ApiKey(BaseModel, Versioned):
         if secret:
             self._secret = signer_api_key.sign(str(secret))
 
+    @validates("permissions")
+    def validate_permissions_value(self, _key, value):
+        """Ensure only known permission names are persisted on the api_keys row.
+
+        Acts as a safety net for any internal code path that bypasses REST-layer
+        validation. The authoritative list is API_KEY_PERMISSION_TYPES.
+        """
+        if value is None:
+            return []
+        invalid = set(value) - API_KEY_PERMISSION_TYPES
+        if invalid:
+            raise ValueError(f"Invalid api key permission(s): {sorted(invalid)}")
+        # Deduplicate while preserving order
+        seen: set[str] = set()
+        deduped = []
+        for v in value:
+            if v not in seen:
+                seen.add(v)
+                deduped.append(v)
+        return deduped
+
+    def has_permission(self, permission: str) -> bool:
+        return permission in (self.permissions or [])
+
 
 ApiKeyType = Literal["normal", "team", "test"]
 KEY_TYPE_NORMAL: Literal["normal"] = "normal"
 KEY_TYPE_TEAM: Literal["team"] = "team"
 KEY_TYPE_TEST: Literal["test"] = "test"
+
+
+class ApiKeyPermission(StrEnum):
+    """Permissions that can be granted to an API key (independent of key_type).
+
+    Add new values here when extending API key capabilities. The corresponding
+    string is what gets stored in the ApiKey.permissions array column.
+    """
+
+    MANAGE_TEMPLATES = "manage_templates"
+
+
+API_KEY_PERMISSION_TYPES: frozenset[str] = frozenset(p.value for p in ApiKeyPermission)
 
 
 class KeyTypes(BaseModel):
