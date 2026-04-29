@@ -7,6 +7,7 @@ from app.errors import InvalidRequest
 from app.models import EMAIL_TYPE, SMS_TYPE
 from app.platform_stats.rest import validate_date_range_is_within_a_financial_year
 from tests.app.db import (
+    create_ft_billing,
     create_ft_notification_status,
     create_notification,
     create_service,
@@ -207,3 +208,78 @@ def test_get_send_methods_stats_by_service(mocker, admin_request):
         date(2020, 12, 1),
         date(2020, 12, 7),
     )
+
+
+@freeze_time("2026-04-08 14:00:00")
+def test_get_sms_cost_for_all_services_happy_path(notify_db_session, admin_request):
+    """Happy path: returns aggregated SMS costs for multiple services."""
+    service_a = create_service(service_name="Service A")
+    template_a = create_template(service=service_a, template_type="sms")
+    service_b = create_service(service_name="Service B")
+    template_b = create_template(service=service_b, template_type="sms")
+
+    create_ft_billing(
+        utc_date="2026-04-05",
+        service=service_a,
+        template=template_a,
+        notification_type="sms",
+        billable_unit=10,
+        rate=0.02,
+        rate_multiplier=1,
+    )
+    create_ft_billing(
+        utc_date="2026-04-06",
+        service=service_b,
+        template=template_b,
+        notification_type="sms",
+        billable_unit=5,
+        rate=0.03,
+        rate_multiplier=1,
+    )
+
+    response = admin_request.get(
+        "platform_stats.get_sms_cost_for_all_services",
+        start_date="2026-04-01",
+        end_date="2026-04-07",
+    )
+
+    assert response["start_date"] == "2026-04-01"
+    assert response["end_date"] == "2026-04-07"
+    assert len(response["services"]) == 2
+
+    by_id = {s["service_id"]: s for s in response["services"]}
+    assert by_id[str(service_a.id)]["fragment_count"] == 10
+    assert by_id[str(service_a.id)]["total_cost"] == pytest.approx(10 * 0.02)
+    assert by_id[str(service_b.id)]["fragment_count"] == 5
+    assert by_id[str(service_b.id)]["total_cost"] == pytest.approx(5 * 0.03)
+
+
+def test_get_sms_cost_for_all_services_returns_400_when_start_date_after_end_date(admin_request):
+    """Validation: start_date > end_date should return 400."""
+    response = admin_request.get(
+        "platform_stats.get_sms_cost_for_all_services",
+        start_date="2026-06-30",
+        end_date="2026-06-01",
+        _expected_status=400,
+    )
+
+    assert response["message"] == "start_date must be on or before end_date"
+
+
+def test_get_sms_cost_for_all_services_returns_400_when_dates_missing(admin_request):
+    """Validation: missing required date params should return 400."""
+    admin_request.get(
+        "platform_stats.get_sms_cost_for_all_services",
+        _expected_status=400,
+    )
+
+
+def test_get_sms_cost_for_all_services_returns_empty_services_when_no_data(notify_db_session, admin_request):
+    """When no billing data exists, services list should be empty."""
+    response = admin_request.get(
+        "platform_stats.get_sms_cost_for_all_services",
+        start_date="2026-01-01",
+        end_date="2026-01-31",
+    )
+
+    assert response["services"] == []

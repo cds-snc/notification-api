@@ -104,6 +104,42 @@ def dao_fetch_sms_cost_for_service_in_range(service_id, start_date, end_date):
     return {"fragment_count": fragment_count, "total_cost": total_cost}
 
 
+def dao_fetch_sms_cost_for_all_services_in_range(start_date, end_date):
+    """Return the total SMS cost and fragment count for ALL services in the given date range.
+    This EXCLUDES the current_day, as the ft_table aggregation happens in a nightly task
+
+    Returns a dictionary keyed by service_id with fragment_count and total_cost for each service.
+
+    Uses only FactBilling (the nightly-populated aggregate table) for efficiency.
+    For current-day data for a single service, use dao_fetch_sms_cost_for_service_in_range instead.
+    """
+    fact_results = (
+        db.session.query(
+            FactBilling.service_id,
+            func.coalesce(func.sum(FactBilling.billable_units), 0).label("fragment_count"),
+            func.coalesce(func.sum(FactBilling.billable_units * FactBilling.rate_multiplier * FactBilling.rate), 0).label(
+                "total_cost"
+            ),
+        )
+        .filter(
+            FactBilling.bst_date >= start_date,
+            FactBilling.bst_date <= end_date,
+            FactBilling.notification_type == SMS_TYPE,
+        )
+        .group_by(FactBilling.service_id)
+        .all()
+    )
+
+    sms_cost_by_service = {}
+    for row in fact_results:
+        sms_cost_by_service[row.service_id] = {
+            "fragment_count": int(row.fragment_count),
+            "total_cost": Decimal(str(row.total_cost)),
+        }
+
+    return sms_cost_by_service
+
+
 def fetch_sms_free_allowance_remainder(start_date):
     # ASSUMPTION: AnnualBilling has been populated for year.
     billing_year = get_financial_year_for_datetime(start_date)
