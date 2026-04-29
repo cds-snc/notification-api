@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 from flask import current_app
 from notifications_utils.clients import redis
@@ -15,7 +15,7 @@ from notifications_utils.timezones import convert_local_timezone_to_utc
 from app import redis_store
 from app.celery import provider_tasks
 from app.celery.letters_pdf_tasks import create_letters_pdf
-from app.config import QueueNames
+from app.config import Priorities, QueueNames
 from app.dao.api_key_dao import update_last_used_api_key
 from app.dao.notifications_dao import (
     bulk_insert_notifications,
@@ -113,7 +113,7 @@ def persist_notification(
     )
     template = dao_get_template_by_id(template_id, template_version, use_cache=True)
     notification.queue_name = choose_queue(
-        notification=notification, research_mode=service.research_mode, queue=get_delivery_queue_for_template(template)
+        notification=notification, research_mode=service.research_mode, priority_queue=get_delivery_queue_for_template(template)
     )
 
     # Calculate billable_units if feature flag is enabled and not explicitly provided
@@ -210,18 +210,38 @@ def transform_notification(
 
 def db_save_and_send_notification(notification: Notification):
     dao_create_notification(notification)
+    current_app.logger.info(f"{notification.notification_type} {notification.id} created at {notification.created_at}")
+
     if notification.key_type != KEY_TYPE_TEST:
         service_id = notification.service_id
         if redis_store.get(redis.daily_limit_cache_key(service_id)):
             redis_store.incr(redis.daily_limit_cache_key(service_id))
 
-    current_app.logger.info(f"{notification.notification_type} {notification.id} created at {notification.created_at}")
+    # Pioritize sending per services within the same queue by default.
+    message_group_id: str = notification.service_id
+    queue: str = notification.queue_name
+    celery_params: list = [str(notification.id)]
+    if (
+        notification.notification_type == SMS_TYPE
+        # We don't want to send test notifications to the rate limited queue.
+        and notification.queue_name != QueueNames.RESEARCH_MODE
+        and current_app.config.get("FF_SMS_RATELIMIT")
+    ):
+        queue = QueueNames.SEND_SMS_FAIR
+        # Prioritize sending per the queue names derived from the template category.
+        message_group_id = get_delivery_queue_for_template(notification.template)
+        if current_app.config.get("FF_USE_BILLABLE_UNITS") and notification.billable_units:
+            celery_params.append(notification.billable_units)
+        else:
+            billable_units = number_of_sms_fragments(notification.template, notification.personalisation)
+            celery_params.append(billable_units)
 
     deliver_task = choose_deliver_task(notification)
     try:
         deliver_task.apply_async(
-            [str(notification.id)],
-            queue=notification.queue_name,
+            celery_params,
+            queue=queue,
+            MessageGroupId=message_group_id,
         )
     except Exception:
         dao_delete_notifications_by_id(notification.id)
@@ -231,23 +251,37 @@ def db_save_and_send_notification(notification: Notification):
     )
 
 
-def choose_queue(notification, research_mode, queue=None) -> QueueNames:
+def choose_queue(notification: Notification, research_mode: bool, priority_queue: Optional[str] = None) -> str:
+    """
+    Determine the appropriate Celery queue for a notification based on its attributes and the service's research mode.
+    Args:        notification (Notification): The notification for which to choose a queue.
+        research_mode (bool): Whether the service is in research mode.
+        priority_queue (QueueNames, optional): An optional pre-determined queue. If provided, this will be
+        used instead of determining the queue based on notification attributes.
+    Returns:
+        str: The appropriate Celery queue for the notification as a string.
+    """
     if research_mode or notification.key_type == KEY_TYPE_TEST:
-        queue = QueueNames.RESEARCH_MODE
+        return QueueNames.RESEARCH_MODE
 
+    override_queue: Optional[str] = priority_queue
     if notification.notification_type == SMS_TYPE:
         if notification.sends_with_custom_number():
-            queue = QueueNames.SEND_THROTTLED_SMS
-        if not queue:
-            queue = QueueNames.SEND_SMS_MEDIUM
-    if notification.notification_type == EMAIL_TYPE:
-        if not queue:
-            queue = QueueNames.SEND_EMAIL_MEDIUM
-    if notification.notification_type == LETTER_TYPE:
-        if not queue:
-            queue = QueueNames.CREATE_LETTERS_PDF
+            override_queue = QueueNames.SEND_THROTTLED_SMS
+        # Enable the SMS rate limit feature but without overriding throttled dedicated or research lanes.
+        elif not priority_queue and current_app.config.get("FF_SMS_RATELIMIT"):
+            override_queue = QueueNames.SEND_SMS_FAIR
+        elif not priority_queue:
+            override_queue = QueueNames.SEND_SMS_MEDIUM
+    elif notification.notification_type == EMAIL_TYPE:
+        if not priority_queue:
+            override_queue = QueueNames.SEND_EMAIL_MEDIUM
+    elif notification.notification_type == LETTER_TYPE:
+        if not priority_queue:
+            override_queue = QueueNames.CREATE_LETTERS_PDF
 
-    return queue
+    assert override_queue is not None, "Queue should have been determined based on notification type and priority queue"
+    return override_queue
 
 
 def choose_deliver_task(notification):
@@ -255,6 +289,8 @@ def choose_deliver_task(notification):
         deliver_task = provider_tasks.deliver_sms
         if notification.sends_with_custom_number():
             deliver_task = provider_tasks.deliver_throttled_sms
+        elif current_app.config.get("FF_SMS_RATELIMIT"):
+            deliver_task = provider_tasks.deliver_sms_rate_limited
     if notification.notification_type == EMAIL_TYPE:
         deliver_task = provider_tasks.deliver_email
     if notification.notification_type == LETTER_TYPE:
@@ -267,12 +303,28 @@ def send_notification_to_queue(notification, research_mode, queue=None):
     if research_mode or notification.key_type == KEY_TYPE_TEST:
         queue = QueueNames.RESEARCH_MODE
 
+    # Pioritize sending per services within the same queue by default.
+    message_group_id: str = str(notification.service_id)
+    celery_params: list = [str(notification.id)]
+
+    # Final verification for the queue to send to and apply final stage overrides.
     if notification.notification_type == SMS_TYPE:
         deliver_task = provider_tasks.deliver_sms
         if notification.sends_with_custom_number():
             deliver_task = provider_tasks.deliver_throttled_sms
             queue = QueueNames.SEND_THROTTLED_SMS
-        if not queue or queue == QueueNames.NORMAL:
+        elif current_app.config.get("FF_SMS_RATELIMIT") and queue != QueueNames.RESEARCH_MODE:
+            deliver_task = provider_tasks.deliver_sms_rate_limited
+            # The previous queue parameter becomes the fair queue priority and
+            # the queue is overriden to be a fair queue.
+            message_group_id = queue or get_delivery_queue_for_template(notification.template)
+            queue = QueueNames.SEND_SMS_FAIR
+            if current_app.config.get("FF_USE_BILLABLE_UNITS") and notification.billable_units:
+                celery_params.append(notification.billable_units)
+            else:
+                billable_units = number_of_sms_fragments(notification.template, notification.personalisation)
+                celery_params.append(billable_units)
+        elif not queue or queue == QueueNames.NORMAL:
             queue = QueueNames.SEND_SMS_MEDIUM
     if notification.notification_type == EMAIL_TYPE:
         if not queue or queue == QueueNames.NORMAL:
@@ -284,7 +336,7 @@ def send_notification_to_queue(notification, research_mode, queue=None):
         deliver_task = create_letters_pdf
 
     try:
-        deliver_task.apply_async([str(notification.id)], queue=queue)
+        deliver_task.apply_async(celery_params, queue=queue, MessageGroupId=message_group_id)
     except Exception:
         dao_delete_notifications_by_id(notification.id)
         raise
@@ -338,7 +390,9 @@ def persist_notifications(notifications: List[VerifiedNotification]) -> List[Not
         template = dao_get_template_by_id(notification_obj.template_id, notification_obj.template_version, use_cache=True)
         service = dao_fetch_service_by_id(service_id, use_cache=True)
         notification_obj.queue_name = choose_queue(
-            notification=notification_obj, research_mode=service.research_mode, queue=get_delivery_queue_for_template(template)
+            notification=notification_obj,
+            research_mode=service.research_mode,
+            priority_queue=get_delivery_queue_for_template(template),
         )
 
         if notification.get("notification_type") == SMS_TYPE:
