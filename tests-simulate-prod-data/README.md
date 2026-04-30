@@ -73,6 +73,13 @@ make generate-quick
 # Uses preset: 95.5K emails + 90K SMS + 10K live notifications
 make generate-quick-100000
 
+# Create only unfoldered templates for an existing service UUID
+make generate-templates-only SERVICE_ID=d4e8a7f4-2b8a-4c9a-8b3f-9c2d4e8a7f4b
+
+# Create live notifications only (notifications table), for one service on one UTC day
+# Counts come from NUM_EMAILS_TOTAL / NUM_SMS_TOTAL in .env (or inline overrides)
+NUM_EMAILS_TOTAL=900000 NUM_SMS_TOTAL=600000 make generate-live-only SERVICE_ID=d4e8a7f4-2b8a-4c9a-8b3f-9c2d4e8a7f4b LIVE_DATE=2026-04-29
+
 # Skip aggregate tables (ft_notification_status, ft_billing)
 make generate-no-aggregates
 
