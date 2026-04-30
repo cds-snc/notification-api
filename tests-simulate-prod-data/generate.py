@@ -1475,7 +1475,7 @@ def cleanup(session):
 @click.option(
     "--templates-only-service-id",
     default="",
-    help="Existing service UUID to create only template folders + templates (no org/users/jobs/notifications).",
+    help="Existing service UUID to create only templates (no org/users/jobs/notifications).",
 )
 @click.option(
     "--live-only-service-id",
