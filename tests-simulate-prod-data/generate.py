@@ -1004,10 +1004,12 @@ def get_existing_service_templates_and_jobs(session, service_id):
     all_template_ids = []
     email_template_ids = []
     sms_template_ids = []
+    template_types_by_id = {}
     for row in result:
         tid = row[0]
         ttype = row[1]
         all_template_ids.append(tid)
+        template_types_by_id[str(tid)] = ttype
         if ttype == NOTIFICATION_TYPE_EMAIL:
             email_template_ids.append(tid)
         else:
@@ -1024,13 +1026,11 @@ def get_existing_service_templates_and_jobs(session, service_id):
     )
     job_ids = []
     for row in result:
-        result2 = session.execute(text("SELECT template_type FROM templates WHERE id = :tid"), {"tid": str(row[1])})
-        ttype_row = result2.fetchone()
         job_ids.append(
             {
                 "id": row[0],
                 "template_id": row[1],
-                "type": ttype_row[0] if ttype_row else "email",
+                "type": template_types_by_id.get(str(row[1]), "email"),
                 "created_at": row[2],
             }
         )
