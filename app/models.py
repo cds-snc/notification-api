@@ -1032,9 +1032,12 @@ class ApiKey(BaseModel, Versioned):
         """
         if value is None:
             return []
-        invalid = set(value) - API_KEY_PERMISSION_TYPES
+        invalid = [v for v in value if v not in API_KEY_PERMISSION_TYPES]
         if invalid:
-            raise ValueError(f"Invalid api key permission(s): {sorted(invalid)}")
+            # Cast to str for display so non-string values (e.g. None) don't blow
+            # up sorting with a TypeError.
+            invalid_display = sorted({str(v) for v in invalid})
+            raise ValueError(f"Invalid api key permission(s): {invalid_display}")
         # Deduplicate while preserving order
         seen: set[str] = set()
         deduped = []
