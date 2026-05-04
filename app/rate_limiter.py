@@ -178,20 +178,54 @@ class InMemoryRateLimiter(RateLimiter):
 _rate_limiter_instance: RateLimiter | None = None
 
 
-def initialize_rate_limiter(cap_per_minute: int) -> RateLimiter:
+def initialize_rate_limiter(cap_per_minute: int, use_redis: bool = False) -> RateLimiter:
     """
     Initialize the global rate limiter instance.
 
     Called during app initialization (see app/__init__.py).
 
+    The backend is chosen based on:
+    1. use_redis parameter (if provided)
+    2. Config value from app.config.SMS_RATE_LIMITER_BACKEND (if set to 'redis')
+    3. Default: InMemoryRateLimiter
+
     Args:
         cap_per_minute (int): Maximum SMS parts per minute.
+        use_redis (bool, optional): Force Redis backend if True, in-memory if False.
 
     Returns:
         RateLimiter: The initialized rate limiter instance.
     """
+    import logging
+
     global _rate_limiter_instance
-    _rate_limiter_instance = InMemoryRateLimiter(cap_per_minute)
+
+    logger = logging.getLogger(__name__)
+
+    # Determine which backend to use
+    backend = "memory"  # default
+
+    if use_redis is not None:
+        backend = "redis" if use_redis else "memory"
+    else:
+        # Check config
+        try:
+            from app.config import Config
+
+            config_backend = getattr(Config, "SMS_RATE_LIMITER_BACKEND", "memory")
+            if config_backend.lower() == "redis":
+                backend = "redis"
+        except Exception:
+            pass
+
+    # Create the appropriate backend
+    if backend == "redis":
+        logger.info("SMS rate limiter: initializing with Redis backend")
+        _rate_limiter_instance = RedisRateLimiter(cap_per_minute)
+    else:
+        logger.info("SMS rate limiter: initializing with in-memory backend")
+        _rate_limiter_instance = InMemoryRateLimiter(cap_per_minute)
+
     return _rate_limiter_instance
 
 
@@ -213,3 +247,188 @@ def get_rate_limiter() -> RateLimiter:
             "SMS rate limiter not initialized. " "Call initialize_rate_limiter() during app startup (app/__init__.py)."
         )
     return _rate_limiter_instance
+
+
+class RedisRateLimiter(RateLimiter):
+    """
+    Redis-backed SMS parts rate limiter using a 60-second sliding window.
+
+    Key structure:
+    - `sms:rate_limit:entries` (sorted set)
+      - Score: timestamp of when entry was added
+      - Member: "entry_id:parts_count" (parts count is encoded in the member)
+
+    This approach avoids separate key tracking and usage cache inconsistency.
+    Parts counts are extracted via regex when needed.
+    """
+
+    WINDOW_SIZE_SECONDS = 60
+    REDIS_KEY_ENTRIES = "sms:rate_limit:entries"
+
+    def __init__(self, cap_per_minute: int, redis_client=None):
+        """
+        Initialize the Redis-backed rate limiter.
+
+        Args:
+            cap_per_minute (int): Maximum SMS parts allowed per minute.
+            redis_client: Redis client instance. If None, uses app's redis_store.
+        """
+        self.cap_per_minute = cap_per_minute
+        self.redis_client = redis_client
+        self._lua_scripts = {}
+
+    @property
+    def redis(self):
+        # Lazy-load Redis client to avoid circular imports at init time.
+        if self.redis_client is not None:
+            return self.redis_client
+        from app import redis_store
+
+        return redis_store
+
+    def _get_acquire_lua_script(self):
+        if "acquire" not in self._lua_scripts:
+            lua_code = """
+            local entries_key = KEYS[1]
+
+            local cap_per_minute = tonumber(ARGV[1])
+            local parts_count = tonumber(ARGV[2])
+            local now = tonumber(ARGV[3])
+            local entry_id = ARGV[4]
+            local window_size = tonumber(ARGV[5])
+
+            local window_start = now - window_size
+
+            -- 1. Remove expired entries
+            redis.call('ZREMRANGEBYSCORE', entries_key, '-inf', '(' .. window_start)
+
+            -- 2. Compute current usage by summing parts from members
+            local current_usage = 0
+            local entries = redis.call('ZRANGE', entries_key, 0, -1)
+
+            for i = 1, #entries do
+                local member = entries[i]
+                local sep = string.find(member, ":")
+                local parts = tonumber(string.sub(member, sep + 1)) or 0
+                current_usage = current_usage + parts
+            end
+
+            -- 3. Check capacity
+            if current_usage + parts_count <= cap_per_minute then
+                local member = entry_id .. ":" .. parts_count
+
+                redis.call('ZADD', entries_key, now, member)
+                redis.call('EXPIRE', entries_key, window_size + 10)
+
+                return {1, 0}
+            else
+                -- 4. Calculate wait time
+                local remaining_needed = current_usage + parts_count - cap_per_minute
+                local parts_freed = 0
+                local last_timestamp_to_wait = nil
+
+                local entries_with_scores = redis.call('ZRANGE', entries_key, 0, -1, 'WITHSCORES')
+
+                for i = 1, #entries_with_scores, 2 do
+                    local member = entries_with_scores[i]
+                    local timestamp = tonumber(entries_with_scores[i + 1])
+
+                    local sep = string.find(member, ":")
+                    local parts = tonumber(string.sub(member, sep + 1)) or 0
+                    parts_freed = parts_freed + parts
+                    last_timestamp_to_wait = timestamp
+
+                    if parts_freed >= remaining_needed then
+                        break
+                    end
+                end
+
+                local seconds_to_wait = 1
+                if last_timestamp_to_wait ~= nil then
+                    local seconds_until_expires = window_size - (now - last_timestamp_to_wait)
+                    seconds_to_wait = math.max(1, math.ceil(seconds_until_expires))
+                end
+
+                return {0, seconds_to_wait}
+            end
+            """
+            self._lua_scripts["acquire"] = self.redis.register_script(lua_code)
+
+        return self._lua_scripts["acquire"]
+
+    def acquire_lease(self, parts_count: int) -> Tuple[bool, int]:
+        """
+        Attempt to acquire capacity for SMS parts.
+
+        Args:
+            parts_count (int): Number of parts (fragments) to send.
+
+        Returns:
+            Tuple[bool, int]:
+                - (True, 0) if parts can be sent immediately.
+                - (False, seconds_remaining) if rate limit exhausted;
+                  seconds_remaining is the time until enough entries expire to
+                  accommodate the requested parts.
+        """
+        if parts_count <= 0:
+            raise ValueError("parts_count must be positive")
+
+        if parts_count > self.cap_per_minute:
+            raise ValueError("parts_count must be smaller than or equal to the cap_per_minute")
+
+        import uuid
+
+        now = time()
+        entry_id = str(uuid.uuid4())
+
+        script = self._get_acquire_lua_script()
+        result = script(
+            keys=[self.REDIS_KEY_ENTRIES],
+            args=[
+                self.cap_per_minute,
+                parts_count,
+                now,
+                entry_id,
+                self.WINDOW_SIZE_SECONDS,
+            ],
+        )
+
+        success, wait_seconds = result[0], result[1]
+
+        if success:
+            current_app.logger.info(f"SMS rate limiter (Redis): acquired {parts_count} parts. " f"Entry ID: {entry_id}")
+        else:
+            current_app.logger.warning(
+                f"SMS rate limiter (Redis): capacity exhausted. Requested {parts_count} parts. "
+                f"Will retry in {wait_seconds} seconds."
+            )
+
+        return bool(success), wait_seconds
+
+    def get_current_usage(self) -> int:
+        """Get the current parts count in the active 60-second window from Redis."""
+        now = time()
+        window_start = now - self.WINDOW_SIZE_SECONDS
+
+        # Remove expired entries
+        self.redis.zremrangebyscore(self.REDIS_KEY_ENTRIES, "-inf", f"({window_start}")
+
+        # Recalculate usage by summing parts from members (encoded as "entry_id:parts")
+        current_usage = 0
+        entries = self.redis.zrange(self.REDIS_KEY_ENTRIES, 0, -1)
+        for member in entries:
+            # Extract parts count from member string format "entry_id:parts_count"
+            if isinstance(member, bytes):
+                member = member.decode("utf-8")
+            parts_str = member.split(":")[-1] if ":" in member else "0"
+            try:
+                current_usage += int(parts_str)
+            except ValueError:
+                pass
+
+        return current_usage
+
+    def reset_limiter(self):
+        self.redis.delete(self.REDIS_KEY_ENTRIES)
+
+        current_app.logger.info("SMS rate limiter entries cleared")

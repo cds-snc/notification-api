@@ -1,8 +1,9 @@
 from unittest.mock import patch
 
+import fakeredis
 import pytest
 
-from app.rate_limiter import InMemoryRateLimiter
+from app.rate_limiter import InMemoryRateLimiter, RedisRateLimiter
 
 
 class TestInMemoryRateLimiter:
@@ -189,3 +190,149 @@ class TestInMemoryRateLimiter:
                 mock_time.return_value = base_time + 59.9
                 limiter.get_current_usage()
                 assert limiter.current_usage == 50
+
+
+class TestRedisRateLimiter:
+    @pytest.fixture
+    def limiter(self):
+        redis_client = fakeredis.FakeRedis()
+        return RedisRateLimiter(cap_per_minute=1000, redis_client=redis_client)
+
+    def test_acquire_lease_below_capacity_succeeds(self, client, limiter):
+        with client.application.app_context():
+            allow_send, wait_seconds = limiter.acquire_lease(100)
+            assert allow_send is True
+            assert wait_seconds == 0
+
+    def test_acquire_lease_at_capacity_succeeds(self, client, limiter):
+        with client.application.app_context():
+            allow_send, wait_seconds = limiter.acquire_lease(1000)
+            assert allow_send is True
+            assert wait_seconds == 0
+
+    def test_acquire_lease_exceeding_capacity_fails(self, client, limiter):
+        with client.application.app_context():
+            limiter.acquire_lease(1000)
+            allow_send, wait_seconds = limiter.acquire_lease(100)
+
+            assert allow_send is False
+            assert wait_seconds > 0
+
+    def test_acquire_with_zero_parts_raises_error(self, client, limiter):
+        with client.application.app_context():
+            with pytest.raises(ValueError):
+                limiter.acquire_lease(0)
+
+    def test_acquire_negative_parts_raises_error(self, client, limiter):
+        with client.application.app_context():
+            with pytest.raises(ValueError):
+                limiter.acquire_lease(-10)
+
+    def test_acquire_over_capacity_raises_error(self, client, limiter):
+        with client.application.app_context():
+            with pytest.raises(ValueError):
+                limiter.acquire_lease(limiter.cap_per_minute + 1)
+
+    def test_get_current_usage_returns_running_total(self, client, limiter):
+        with client.application.app_context():
+            limiter.acquire_lease(150)
+            limiter.acquire_lease(250)
+            limiter.acquire_lease(300)
+
+            assert limiter.get_current_usage() == 700
+
+    def test_multiple_entries_in_window(self, client, limiter):
+        with client.application.app_context():
+            limiter.acquire_lease(10)
+            limiter.acquire_lease(20)
+            limiter.acquire_lease(30)
+
+            usage = limiter.get_current_usage()
+            assert usage == 60
+
+    def test_retry_delay_when_single_entry_needs_to_expire(self, client, limiter):
+        with client.application.app_context():
+            with patch("app.rate_limiter.time") as mock_time:
+                base_time = 100.0
+                mock_time.return_value = base_time
+
+                limiter.acquire_lease(1000)
+
+                mock_time.return_value = base_time + 5
+                allow_send, wait_seconds = limiter.acquire_lease(50)
+
+                assert allow_send is False
+                assert wait_seconds >= limiter.WINDOW_SIZE_SECONDS - 5 - 1
+                assert wait_seconds <= limiter.WINDOW_SIZE_SECONDS
+
+    def test_retry_delay_when_multiple_entries_need_to_expire(self, client, limiter):
+        with client.application.app_context():
+            with patch("app.rate_limiter.time") as mock_time:
+                base_time = 100.0
+                mock_time.return_value = base_time
+
+                limiter.acquire_lease(400)
+
+                mock_time.return_value = base_time + 5
+                limiter.acquire_lease(400)
+
+                mock_time.return_value = base_time + 10
+                limiter.acquire_lease(200)
+
+                mock_time.return_value = base_time + 10
+                allow_send, wait_seconds = limiter.acquire_lease(500)
+
+                assert allow_send is False
+                assert wait_seconds >= limiter.WINDOW_SIZE_SECONDS - 5 - 1
+                assert wait_seconds <= limiter.WINDOW_SIZE_SECONDS
+
+    def test_capacity_after_some_entries_expire(self, client, limiter):
+        with client.application.app_context():
+            with patch("app.rate_limiter.time") as mock_time:
+                base_time = 100.0
+                mock_time.return_value = base_time
+
+                limiter.acquire_lease(600)
+
+                mock_time.return_value = base_time + 10
+                limiter.acquire_lease(400)
+
+                # First entry expires (100 + 60 = 160)
+                mock_time.return_value = base_time + 70
+                allow_send, _ = limiter.acquire_lease(500)
+
+                assert allow_send is True
+                assert limiter.get_current_usage() == 900
+
+    def test_window_slightly_older_than_60_seconds_is_removed(self, client, limiter):
+        with client.application.app_context():
+            with patch("app.rate_limiter.time") as mock_time:
+                base_time = 100.0
+                mock_time.return_value = base_time
+
+                limiter.acquire_lease(50)
+
+                mock_time.return_value = base_time + 60.1
+                assert limiter.get_current_usage() == 0
+
+    def test_window_exactly_60_seconds_old_is_not_removed(self, client, limiter):
+        with client.application.app_context():
+            with patch("app.rate_limiter.time") as mock_time:
+                base_time = 100.0
+                mock_time.return_value = base_time
+
+                limiter.acquire_lease(50)
+
+                mock_time.return_value = base_time + 60.0
+                assert limiter.get_current_usage() == 50
+
+    def test_window_slightly_under_60_seconds_is_kept(self, client, limiter):
+        with client.application.app_context():
+            with patch("app.rate_limiter.time") as mock_time:
+                base_time = 100.0
+                mock_time.return_value = base_time
+
+                limiter.acquire_lease(50)
+
+                mock_time.return_value = base_time + 59.9
+                assert limiter.get_current_usage() == 50

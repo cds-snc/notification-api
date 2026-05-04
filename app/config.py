@@ -3,7 +3,6 @@ import os
 from datetime import timedelta
 from typing import Any, List
 
-from celery.schedules import crontab
 from dotenv import load_dotenv
 from environs import Env
 from fido2.server import Fido2Server
@@ -11,6 +10,8 @@ from fido2.webauthn import PublicKeyCredentialRpEntity
 from kombu import Exchange, Queue
 from notifications_utils import logging
 from sqlalchemy.pool import NullPool
+
+from celery.schedules import crontab
 
 env = Env()
 env.read_env()
@@ -588,6 +589,8 @@ class Config(object):
     CELERY_QUEUES: List[Any] = []
     CELERY_DELIVER_SMS_RATE_LIMIT = os.getenv("CELERY_DELIVER_SMS_RATE_LIMIT", "1/s")
     CELERY_DELIVER_SMS_RATE_LIMIT_PER_MINUTE = env.int("CELERY_DELIVER_SMS_RATE_LIMIT_PER_MINUTE", 6_000)
+    # SMS rate limiter backend: "memory" for in-process (Phase 1), "redis" for distributed (Phase 2, multi-worker)
+    SMS_RATE_LIMITER_BACKEND = os.getenv("SMS_RATE_LIMITER_BACKEND", "memory")
     AWS_SEND_SMS_BOTO_CALL_LATENCY = os.getenv("AWS_SEND_SMS_BOTO_CALL_LATENCY", 0.06)  # average delay in production
 
     CONTACT_FORM_EMAIL_ADDRESS = os.getenv("CONTACT_FORM_EMAIL_ADDRESS", "helpdesk@cds-snc.ca")
