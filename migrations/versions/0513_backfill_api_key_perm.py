@@ -16,7 +16,7 @@ from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-revision = "0513_backfill_api_key_permissions"
+revision = "0513_backfill_api_key_perm"
 down_revision = "0512_api_key_permissions"
 
 
