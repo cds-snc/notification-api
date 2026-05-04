@@ -256,3 +256,63 @@ class TestResigning:
             api_key = ApiKey.query.get(initial_key.id)
             assert api_key.secret == secret  # unsigned value is the same
             assert api_key._secret != _secret  # signature is different
+
+
+class TestApiKeyPermissions:
+    def _make_key(self, sample_service, **overrides):
+        kwargs = {
+            "service": sample_service,
+            "name": sample_service.name,
+            "created_by": sample_service.created_by,
+            "key_type": KEY_TYPE_NORMAL,
+        }
+        kwargs.update(overrides)
+        api_key = ApiKey(**kwargs)
+        save_model_api_key(api_key)
+        return api_key
+
+    def test_default_permissions_is_empty_list(self, sample_service):
+        api_key = self._make_key(sample_service)
+        assert api_key.permissions == []
+
+    def test_explicit_none_is_normalised_to_empty_list(self, sample_service):
+        api_key = self._make_key(sample_service, permissions=None)
+        assert api_key.permissions == []
+
+    def test_can_persist_and_round_trip_known_permission(self, sample_service):
+        from app.models import ApiKeyPermission
+
+        api_key = self._make_key(sample_service, permissions=[ApiKeyPermission.MANAGE_TEMPLATES])
+        fetched = ApiKey.query.get(api_key.id)
+        assert fetched.permissions == ["manage_templates"]
+
+    def test_unknown_permission_is_rejected(self, sample_service):
+        with pytest.raises(ValueError, match="Invalid api key permission"):
+            self._make_key(sample_service, permissions=["not_a_real_permission"])
+
+    def test_unknown_permission_error_handles_non_string_values(self, sample_service):
+        # Regression: sorted() on a mixed-type set used to raise TypeError,
+        # turning a 400-style validation failure into a 500.
+        with pytest.raises(ValueError, match="Invalid api key permission"):
+            self._make_key(sample_service, permissions=[None, "manage_templates"])
+
+    def test_duplicate_permissions_are_deduplicated_preserving_order(self, sample_service):
+        api_key = self._make_key(
+            sample_service,
+            permissions=["manage_templates", "manage_templates"],
+        )
+        assert api_key.permissions == ["manage_templates"]
+
+    def test_has_permission_true_when_present(self, sample_service):
+        api_key = self._make_key(sample_service, permissions=["manage_templates"])
+        assert api_key.has_permission("manage_templates") is True
+
+    def test_has_permission_false_when_absent(self, sample_service):
+        api_key = self._make_key(sample_service)
+        assert api_key.has_permission("manage_templates") is False
+
+    def test_has_permission_handles_none_permissions(self, sample_service):
+        api_key = self._make_key(sample_service)
+        # Simulate the DB-loaded NULL case
+        api_key.__dict__["permissions"] = None
+        assert api_key.has_permission("manage_templates") is False
