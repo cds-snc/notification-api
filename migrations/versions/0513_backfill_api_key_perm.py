@@ -7,13 +7,12 @@ This is safe to run on a live table:
 - The UPDATE is a normal row-level operation (no ACCESS EXCLUSIVE lock).
 - ALTER COLUMN SET DEFAULT is metadata-only in Postgres (no rewrite).
 
-Revision ID: 0513_backfill_api_key_permissions
+Revision ID: 0513_backfill_api_key_perm
 Revises: 0512_api_key_permissions
 Create Date: 2026-05-04
 """
 
 from alembic import op
-from sqlalchemy.dialects import postgresql
 
 revision = "0513_backfill_api_key_perm"
 down_revision = "0512_api_key_permissions"
