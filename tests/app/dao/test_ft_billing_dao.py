@@ -11,6 +11,7 @@ from notifications_utils.timezones import convert_utc_to_local_timezone
 from app import db
 from app.dao.fact_billing_dao import (
     create_billing_record,
+    dao_fetch_sms_cost_for_all_services_in_range,
     dao_fetch_sms_cost_for_service_in_range,
     delete_billing_data_for_service_for_day,
     fetch_billing_data_for_day,
@@ -1274,3 +1275,109 @@ def test_dao_fetch_sms_cost_for_service_in_range_empty_range(notify_db_session):
 
     assert result["fragment_count"] == 0
     assert result["total_cost"] == Decimal("0")
+
+
+@freeze_time("2026-04-08 14:00:00")
+def test_dao_fetch_sms_cost_for_all_services_historical_only(notify_db_session):
+    """When the date range is entirely in the past, only FactBilling is queried."""
+    service_a = create_service(service_name="Service A")
+    template_a = create_template(service=service_a, template_type="sms")
+    service_b = create_service(service_name="Service B")
+    template_b = create_template(service=service_b, template_type="sms")
+
+    create_ft_billing(
+        utc_date="2026-04-05",
+        service=service_a,
+        template=template_a,
+        notification_type="sms",
+        billable_unit=3,
+        rate=Decimal("0.0165"),
+        rate_multiplier=1,
+    )
+    create_ft_billing(
+        utc_date="2026-04-06",
+        service=service_b,
+        template=template_b,
+        notification_type="sms",
+        billable_unit=5,
+        rate=Decimal("0.0165"),
+        rate_multiplier=2,
+    )
+
+    result = dao_fetch_sms_cost_for_all_services_in_range(date(2026, 4, 5), date(2026, 4, 6))
+
+    assert len(result) == 2
+    assert result[service_a.id]["fragment_count"] == 3
+    assert result[service_a.id]["total_cost"] == Decimal("0.0495")
+    assert result[service_b.id]["fragment_count"] == 5
+    assert result[service_b.id]["total_cost"] == Decimal("0.165")
+
+
+@freeze_time("2026-04-08 14:00:00")
+def test_dao_fetch_sms_cost_for_all_services_today_only_returns_empty(notify_db_session):
+    """When the date range is today only, no FactBilling data exists yet so result is empty."""
+    service = create_service()
+    template = create_template(service=service, template_type="sms")
+
+    # Notification table data for today -- should NOT be picked up
+    notif = save_notification(
+        create_notification(
+            template=template,
+            status="delivered",
+            billable_units=4,
+            key_type="normal",
+        )
+    )
+    notif.sms_total_carrier_fee = Decimal("0.005")
+    notif.sms_total_message_price = Decimal("0.010")
+    db.session.commit()
+
+    result = dao_fetch_sms_cost_for_all_services_in_range(date(2026, 4, 8), date(2026, 4, 8))
+
+    # No FactBilling rows for today, so empty
+    assert result == {}
+
+
+@freeze_time("2026-04-08 14:00:00")
+def test_dao_fetch_sms_cost_for_all_services_combined_uses_only_fact_billing(notify_db_session):
+    """When the range spans historical days and today, only FactBilling data is used."""
+    service = create_service()
+    template = create_template(service=service, template_type="sms")
+
+    # Historical: yesterday in FactBilling
+    create_ft_billing(
+        utc_date="2026-04-07",
+        service=service,
+        template=template,
+        notification_type="sms",
+        billable_unit=10,
+        rate=Decimal("0.02"),
+        rate_multiplier=1,
+    )
+
+    # Today: Notification table -- should NOT be picked up
+    notif = save_notification(
+        create_notification(
+            template=template,
+            status="delivered",
+            billable_units=2,
+        )
+    )
+    notif.sms_total_carrier_fee = Decimal("0.003")
+    notif.sms_total_message_price = Decimal("0.007")
+    db.session.commit()
+
+    result = dao_fetch_sms_cost_for_all_services_in_range(date(2026, 4, 7), date(2026, 4, 8))
+
+    assert len(result) == 1
+    # Only FactBilling data: fragment_count = 10, total_cost = 10 * 1 * 0.02 = 0.20
+    assert result[service.id]["fragment_count"] == 10
+    assert result[service.id]["total_cost"] == Decimal("0.20")
+
+
+@freeze_time("2026-04-08 14:00:00")
+def test_dao_fetch_sms_cost_for_all_services_empty_range(notify_db_session):
+    """Returns empty dict when there is no data in the range."""
+    result = dao_fetch_sms_cost_for_all_services_in_range(date(2026, 4, 1), date(2026, 4, 7))
+
+    assert result == {}
