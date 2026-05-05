@@ -34,6 +34,7 @@ from app.dao.date_util import get_financial_year
 from app.dao.fact_notification_status_dao import (
     fetch_delivered_notification_stats_by_month,
     fetch_monthly_template_usage_for_service,
+    fetch_monthly_template_usage_for_service_paginated,
     fetch_notification_status_for_service_by_month,
     fetch_notification_status_for_service_for_today_and_7_previous_days,
     fetch_stats_for_all_services_by_date_range,
@@ -856,6 +857,52 @@ def resume_service(service_id):
 def get_monthly_template_usage(service_id):
     try:
         start_date, end_date = get_financial_year(int(request.args.get("year", "NaN")))
+
+        # If page param provided, paginate by unique templates at the DB level.
+        page = request.args.get("page")
+        if page is not None:
+            try:
+                page = int(page)
+            except ValueError:
+                raise InvalidRequest("page must be an integer", status_code=400)
+            if page < 1:
+                raise InvalidRequest("page must be greater than 0", status_code=400)
+
+            page_size = int(request.args.get("page_size", 50))
+            if page_size < 1 or page_size > 100:
+                raise InvalidRequest("page_size must be between 1 and 100", status_code=400)
+
+            data, total_templates = fetch_monthly_template_usage_for_service_paginated(
+                start_date=start_date,
+                end_date=end_date,
+                service_id=service_id,
+                page=page,
+                page_size=page_size,
+            )
+            paginated_stats = [
+                {
+                    "template_id": str(i.template_id),
+                    "name": i.name,
+                    "type": i.template_type,
+                    "month": i.month,
+                    "year": i.year,
+                    "count": i.count,
+                    "is_precompiled_letter": i.is_precompiled_letter,
+                }
+                for i in data
+            ]
+
+            has_next = (page * page_size) < total_templates
+            has_prev = page > 1
+            links = {}
+            if has_prev:
+                links["prev"] = "page {}".format(page - 1)
+            if has_next:
+                links["next"] = "page {}".format(page + 1)
+
+            return jsonify(data=paginated_stats, total=total_templates, page=page, page_size=page_size, links=links), 200
+
+        # If no page param provided, return all templates without pagination.
         data = fetch_monthly_template_usage_for_service(start_date=start_date, end_date=end_date, service_id=service_id)
         stats = list()
         for i in data:

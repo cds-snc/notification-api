@@ -99,6 +99,111 @@ def test_get_template_usage_by_month_returns_two_templates(admin_request, sample
     assert resp_json[2]["is_precompiled_letter"] is False
 
 
+@freeze_time("2017-11-11 06:00")
+def test_get_template_usage_by_month_paginated_returns_paginated_shape(admin_request, sample_template):
+    create_ft_notification_status(utc_date=date(2017, 4, 2), template=sample_template, count=3)
+
+    resp_json = admin_request.get(
+        "service.get_monthly_template_usage",
+        service_id=sample_template.service_id,
+        year=2017,
+        page=1,
+        page_size=50,
+    )
+
+    assert "data" in resp_json
+    assert "total" in resp_json
+    assert resp_json["page"] == 1
+    assert resp_json["page_size"] == 50
+    assert resp_json["links"] == {}
+    assert resp_json["total"] == 1
+    assert len(resp_json["data"]) == 1
+    assert resp_json["data"][0]["template_id"] == str(sample_template.id)
+
+
+@freeze_time("2017-11-11 06:00")
+def test_get_template_usage_by_month_paginated_orders_templates_by_total_count_desc(admin_request, sample_service):
+    template_low = create_template(sample_service, template_name="low")
+    template_high = create_template(sample_service, template_name="high")
+    create_ft_notification_status(utc_date=date(2017, 4, 2), template=template_low, count=1)
+    create_ft_notification_status(utc_date=date(2017, 4, 2), template=template_high, count=10)
+    create_ft_notification_status(utc_date=date(2017, 5, 2), template=template_high, count=5)
+
+    resp_json = admin_request.get(
+        "service.get_monthly_template_usage",
+        service_id=sample_service.id,
+        year=2017,
+        page=1,
+        page_size=1,
+    )
+
+    assert resp_json["total"] == 2
+    template_ids_in_page = {row["template_id"] for row in resp_json["data"]}
+    assert template_ids_in_page == {str(template_high.id)}
+    assert resp_json["links"] == {"next": "page 2"}
+
+
+@freeze_time("2017-11-11 06:00")
+def test_get_template_usage_by_month_paginated_returns_all_months_for_templates_on_page(admin_request, sample_service):
+    template = create_template(sample_service, template_name="t")
+    create_ft_notification_status(utc_date=date(2017, 4, 2), template=template, count=2)
+    create_ft_notification_status(utc_date=date(2017, 5, 2), template=template, count=3)
+
+    resp_json = admin_request.get(
+        "service.get_monthly_template_usage",
+        service_id=sample_service.id,
+        year=2017,
+        page=1,
+        page_size=50,
+    )
+
+    assert resp_json["total"] == 1
+    assert len(resp_json["data"]) == 2
+    months = sorted(row["month"] for row in resp_json["data"])
+    assert months == [4, 5]
+
+
+@freeze_time("2017-11-11 06:00")
+def test_get_template_usage_by_month_paginated_page_2_returns_prev_link(admin_request, sample_service):
+    template_a = create_template(sample_service, template_name="a")
+    template_b = create_template(sample_service, template_name="b")
+    create_ft_notification_status(utc_date=date(2017, 4, 2), template=template_a, count=10)
+    create_ft_notification_status(utc_date=date(2017, 4, 2), template=template_b, count=1)
+
+    resp_json = admin_request.get(
+        "service.get_monthly_template_usage",
+        service_id=sample_service.id,
+        year=2017,
+        page=2,
+        page_size=1,
+    )
+
+    assert resp_json["page"] == 2
+    assert resp_json["links"] == {"prev": "page 1"}
+    assert {row["template_id"] for row in resp_json["data"]} == {str(template_b.id)}
+
+
+@pytest.mark.parametrize(
+    "kwargs, expected_message",
+    [
+        ({"page": "abc"}, "page must be an integer"),
+        ({"page": 0}, "page must be greater than 0"),
+        ({"page": -1}, "page must be greater than 0"),
+        ({"page": 1, "page_size": 0}, "page_size must be between 1 and 100"),
+        ({"page": 1, "page_size": 101}, "page_size must be between 1 and 100"),
+    ],
+)
+def test_get_template_usage_by_month_paginated_invalid_args_returns_400(admin_request, sample_service, kwargs, expected_message):
+    resp_json = admin_request.get(
+        "service.get_monthly_template_usage",
+        service_id=sample_service.id,
+        year=2017,
+        _expected_status=400,
+        **kwargs,
+    )
+    assert expected_message in resp_json["message"]
+
+
 @pytest.mark.parametrize(
     "today_only, stats",
     [
