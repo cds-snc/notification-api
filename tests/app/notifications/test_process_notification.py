@@ -3,14 +3,6 @@ import uuid
 from unittest.mock import ANY, call
 
 import pytest
-from boto3.exceptions import Boto3Error
-from freezegun import freeze_time
-from notifications_utils.recipients import (
-    validate_and_format_email_address,
-    validate_and_format_phone_number,
-)
-from sqlalchemy.exc import SQLAlchemyError
-
 from app.celery.utils import CeleryParams
 from app.config import QueueNames
 from app.dao.service_sms_sender_dao import dao_update_service_sms_sender
@@ -36,6 +28,14 @@ from app.notifications.process_notifications import (
     transform_notification,
 )
 from app.v2.errors import BadRequestError
+from boto3.exceptions import Boto3Error
+from freezegun import freeze_time
+from notifications_utils.recipients import (
+    validate_and_format_email_address,
+    validate_and_format_phone_number,
+)
+from sqlalchemy.exc import SQLAlchemyError
+
 from tests.app.conftest import create_sample_api_key
 from tests.app.db import create_service_sms_sender
 from tests.conftest import set_config, set_config_values
@@ -610,9 +610,7 @@ class TestSendNotificationQueue:
                 MessageGroupId="send-sms-medium-tasks",
             )
 
-    def test_send_notification_to_queue_with_ff_sms_ratelimit_uses_incoming_queue_as_message_group(
-        self, notify_api, mocker
-    ):
+    def test_send_notification_to_queue_with_ff_sms_ratelimit_uses_incoming_queue_as_message_group(self, notify_api, mocker):
         # When a volume-adjusted queue arrives (e.g. send-sms-low), it becomes the MessageGroupId.
         with set_config(notify_api, "FF_SMS_RATELIMIT", True):
             notification = Notification(
@@ -636,9 +634,7 @@ class TestSendNotificationQueue:
                 MessageGroupId=QueueNames.SEND_SMS_LOW,
             )
 
-    def test_send_notification_to_queue_with_ff_sms_ratelimit_bypasses_for_research_mode(
-        self, notify_api, mocker
-    ):
+    def test_send_notification_to_queue_with_ff_sms_ratelimit_bypasses_for_research_mode(self, notify_api, mocker):
         with set_config(notify_api, "FF_SMS_RATELIMIT", True):
             notification = Notification(
                 id=uuid.uuid4(),
@@ -658,9 +654,7 @@ class TestSendNotificationQueue:
             )
             mock_rate_limited.assert_not_called()
 
-    def test_send_notification_to_queue_with_ff_sms_ratelimit_throttled_sms_takes_priority(
-        self, notify_api, mocker
-    ):
+    def test_send_notification_to_queue_with_ff_sms_ratelimit_throttled_sms_takes_priority(self, notify_api, mocker):
         with set_config(notify_api, "FF_SMS_RATELIMIT", True):
             notification = Notification(
                 id=uuid.uuid4(),

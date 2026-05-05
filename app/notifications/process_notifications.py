@@ -15,7 +15,7 @@ from notifications_utils.timezones import convert_local_timezone_to_utc
 from app import redis_store
 from app.celery import provider_tasks
 from app.celery.letters_pdf_tasks import create_letters_pdf
-from app.config import Priorities, QueueNames
+from app.config import QueueNames
 from app.dao.api_key_dao import update_last_used_api_key
 from app.dao.notifications_dao import (
     bulk_insert_notifications,

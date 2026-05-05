@@ -119,9 +119,7 @@ def send_sms_to_provider(notification):
         try:
             template_category_id = template_dict.get("template_category_id")
             if template_category_id is not None:
-                sending_vehicle = SmsSendingVehicles(
-                    dao_get_template_category_by_id(template_category_id).sms_sending_vehicle
-                )
+                sending_vehicle = SmsSendingVehicles(dao_get_template_category_by_id(template_category_id).sms_sending_vehicle)
             else:
                 sending_vehicle = None
             reference = provider.send_sms(
@@ -387,9 +385,7 @@ def send_email_to_provider(notification: Notification):
         else:
             sending_domain = service.sending_domain
 
-        from_address = get_from_address(
-            friendly_from=service.name, email_from=service.email_from, sending_domain=sending_domain
-        )
+        from_address = get_from_address(friendly_from=service.name, email_from=service.email_from, sending_domain=sending_domain)
         email_reply_to = notification.reply_to_text
 
         reference = provider.send_email(
