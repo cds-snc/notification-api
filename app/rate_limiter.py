@@ -275,7 +275,7 @@ class RedisRateLimiter(RateLimiter):
         """
         self.cap_per_minute = cap_per_minute
         self.redis_client = redis_client
-        self._lua_scripts = {}
+        self._lua_scripts: dict[str, object] = {}
 
     @property
     def redis(self):
