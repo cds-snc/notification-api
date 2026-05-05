@@ -999,6 +999,7 @@ def fetch_monthly_template_usage_for_service(start_date, end_date, service_id):
         )
     else:
         query = stats
+
     return query.all()
 
 
@@ -1012,21 +1013,46 @@ def fetch_monthly_template_usage_for_service_paginated(start_date, end_date, ser
 
     Returns a tuple of (results, total_unique_templates).
     """
+    today_in_range = start_date <= datetime.utcnow() <= end_date
+    today = get_local_timezone_midnight_in_utc(datetime.utcnow()) if today_in_range else None
+
     # Step 1: Get the page of template IDs sorted by total count desc.
+    fact_template_counts = db.session.query(
+        FactNotificationStatus.template_id.label("template_id"),
+        FactNotificationStatus.notification_count.label("count"),
+    ).filter(
+        FactNotificationStatus.service_id == service_id,
+        FactNotificationStatus.bst_date >= start_date.strftime("%Y-%m-%d"),
+        FactNotificationStatus.bst_date < end_date.strftime("%Y-%m-%d"),
+        FactNotificationStatus.key_type != KEY_TYPE_TEST,
+        FactNotificationStatus.notification_status != NOTIFICATION_CANCELLED,
+    )
+
+    if today_in_range:
+        today_template_counts = (
+            db.session.query(
+                Notification.template_id.label("template_id"),
+                func.count().label("count"),
+            )
+            .filter(
+                Notification.created_at >= today,
+                Notification.service_id == service_id,
+                Notification.key_type != KEY_TYPE_TEST,
+                Notification.status != NOTIFICATION_CANCELLED,
+            )
+            .group_by(Notification.template_id)
+        )
+        combined_subq = fact_template_counts.union_all(today_template_counts).subquery()
+    else:
+        combined_subq = fact_template_counts.subquery()
+
     template_id_query = (
         db.session.query(
-            FactNotificationStatus.template_id.label("template_id"),
-            func.sum(FactNotificationStatus.notification_count).label("total_count"),
+            combined_subq.c.template_id.label("template_id"),
+            func.sum(combined_subq.c.count).label("total_count"),
         )
-        .filter(
-            FactNotificationStatus.service_id == service_id,
-            FactNotificationStatus.bst_date >= start_date.strftime("%Y-%m-%d"),
-            FactNotificationStatus.bst_date < end_date.strftime("%Y-%m-%d"),
-            FactNotificationStatus.key_type != KEY_TYPE_TEST,
-            FactNotificationStatus.notification_status != NOTIFICATION_CANCELLED,
-        )
-        .group_by(FactNotificationStatus.template_id)
-        .order_by(func.sum(FactNotificationStatus.notification_count).desc())
+        .group_by(combined_subq.c.template_id)
+        .order_by(func.sum(combined_subq.c.count).desc(), combined_subq.c.template_id)
     )
 
     total = template_id_query.count()
@@ -1070,8 +1096,7 @@ def fetch_monthly_template_usage_for_service_paginated(start_date, end_date, ser
         )
     )
 
-    if start_date <= datetime.utcnow() <= end_date:
-        today = get_local_timezone_midnight_in_utc(datetime.utcnow())
+    if today_in_range:
         month = get_local_timezone_month_from_utc_column(Notification.created_at)
 
         stats_for_today = (

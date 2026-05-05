@@ -1250,6 +1250,24 @@ def test_fetch_monthly_template_usage_for_service_paginated_includes_today_for_p
     assert counts == {1: 5, 3: 1}
 
 
+@freeze_time("2018-03-30 14:00")
+def test_fetch_monthly_template_usage_for_service_paginated_picks_up_today_only_templates(sample_service):
+    """A template that only has notifications today (not yet in fact table) should still
+    be counted in `total` and returned when on the page."""
+    fact_template = create_template(service=sample_service, template_name="historic")
+    today_only_template = create_template(service=sample_service, template_name="today_only")
+    create_ft_notification_status(utc_date=date(2018, 1, 5), service=sample_service, template=fact_template, count=5)
+    save_notification(create_notification(template=today_only_template, created_at=datetime.utcnow(), status="delivered"))
+
+    results, total = fetch_monthly_template_usage_for_service_paginated(
+        datetime(2018, 1, 1), datetime(2018, 3, 31), sample_service.id, page=1, page_size=50
+    )
+
+    assert total == 2
+    template_ids_returned = {str(r.template_id) for r in results}
+    assert template_ids_returned == {str(fact_template.id), str(today_only_template.id)}
+
+
 @pytest.mark.parametrize("notification_type, count", [("sms", 3), ("email", 5), ("letter", 7)])
 def test_get_total_sent_notifications_for_day_and_type_returns_right_notification_type(
     notification_type,
