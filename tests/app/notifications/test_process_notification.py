@@ -3,6 +3,14 @@ import uuid
 from unittest.mock import ANY, call
 
 import pytest
+from boto3.exceptions import Boto3Error
+from freezegun import freeze_time
+from notifications_utils.recipients import (
+    validate_and_format_email_address,
+    validate_and_format_phone_number,
+)
+from sqlalchemy.exc import SQLAlchemyError
+
 from app.celery.utils import CeleryParams
 from app.config import QueueNames
 from app.dao.service_sms_sender_dao import dao_update_service_sms_sender
@@ -28,14 +36,6 @@ from app.notifications.process_notifications import (
     transform_notification,
 )
 from app.v2.errors import BadRequestError
-from boto3.exceptions import Boto3Error
-from freezegun import freeze_time
-from notifications_utils.recipients import (
-    validate_and_format_email_address,
-    validate_and_format_phone_number,
-)
-from sqlalchemy.exc import SQLAlchemyError
-
 from tests.app.conftest import create_sample_api_key
 from tests.app.db import create_service_sms_sender
 from tests.conftest import set_config, set_config_values
