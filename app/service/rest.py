@@ -856,11 +856,11 @@ def resume_service(service_id):
 
 @service_blueprint.route("/<uuid:service_id>/notifications/templates_usage/monthly", methods=["GET"])
 def get_monthly_template_usage(service_id):
-    query_args = {
-        "year": request.args.get("year", type=int),
-        "page": request.args.get("page", type=int),
-        "page_size": request.args.get("page_size", type=int),
-    }
+    query_args = {"year": request.args.get("year", type=int)}
+    if "page" in request.args:
+        query_args["page"] = request.args.get("page", type=int)
+    if "page_size" in request.args:
+        query_args["page_size"] = request.args.get("page_size", type=int)
     validate(query_args, get_monthly_template_usage_request)
 
     start_date, end_date = get_financial_year(query_args["year"])

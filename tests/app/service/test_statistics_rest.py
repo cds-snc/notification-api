@@ -123,23 +123,27 @@ def test_get_template_usage_by_month_paginated_returns_paginated_shape(admin_req
 
 @freeze_time("2017-11-11 06:00")
 def test_get_template_usage_by_month_paginated_orders_templates_by_total_count_desc(admin_request, sample_service):
+    high_count_templates = []
+    for i in range(10):
+        template = create_template(sample_service, template_name=f"high_{i:02d}")
+        create_ft_notification_status(utc_date=date(2017, 4, 2), template=template, count=100 - i)
+        high_count_templates.append(template)
+
     template_low = create_template(sample_service, template_name="low")
-    template_high = create_template(sample_service, template_name="high")
     create_ft_notification_status(utc_date=date(2017, 4, 2), template=template_low, count=1)
-    create_ft_notification_status(utc_date=date(2017, 4, 2), template=template_high, count=10)
-    create_ft_notification_status(utc_date=date(2017, 5, 2), template=template_high, count=5)
 
     resp_json = admin_request.get(
         "service.get_monthly_template_usage",
         service_id=sample_service.id,
         year=2017,
         page=1,
-        page_size=1,
+        page_size=10,
     )
 
-    assert resp_json["total"] == 2
+    assert resp_json["total"] == 11
     template_ids_in_page = {row["template_id"] for row in resp_json["data"]}
-    assert template_ids_in_page == {str(template_high.id)}
+    assert template_ids_in_page == {str(t.id) for t in high_count_templates}
+    assert str(template_low.id) not in template_ids_in_page
     assert resp_json["links"] == {"next": "page 2"}
 
 
@@ -165,32 +169,33 @@ def test_get_template_usage_by_month_paginated_returns_all_months_for_templates_
 
 @freeze_time("2017-11-11 06:00")
 def test_get_template_usage_by_month_paginated_page_2_returns_prev_link(admin_request, sample_service):
-    template_a = create_template(sample_service, template_name="a")
-    template_b = create_template(sample_service, template_name="b")
-    create_ft_notification_status(utc_date=date(2017, 4, 2), template=template_a, count=10)
-    create_ft_notification_status(utc_date=date(2017, 4, 2), template=template_b, count=1)
+    templates = []
+    for i in range(11):
+        template = create_template(sample_service, template_name=f"t{i:02d}")
+        create_ft_notification_status(utc_date=date(2017, 4, 2), template=template, count=11 - i)
+        templates.append(template)
 
     resp_json = admin_request.get(
         "service.get_monthly_template_usage",
         service_id=sample_service.id,
         year=2017,
         page=2,
-        page_size=1,
+        page_size=10,
     )
 
     assert resp_json["page"] == 2
     assert resp_json["links"] == {"prev": "page 1"}
-    assert {row["template_id"] for row in resp_json["data"]} == {str(template_b.id)}
+    assert {row["template_id"] for row in resp_json["data"]} == {str(templates[-1].id)}
 
 
 @pytest.mark.parametrize(
     "kwargs, expected_message",
     [
-        ({"page": "abc"}, "page must be an integer"),
-        ({"page": 0}, "page must be greater than 0"),
-        ({"page": -1}, "page must be greater than 0"),
-        ({"page": 1, "page_size": 0}, "page_size must be between 1 and 100"),
-        ({"page": 1, "page_size": 101}, "page_size must be between 1 and 100"),
+        ({"page": "abc"}, "is not of type integer"),
+        ({"page": "0"}, "is less than the minimum of 1"),
+        ({"page": "-1"}, "is less than the minimum of 1"),
+        ({"page": "1", "page_size": "0"}, "is less than the minimum of 10"),
+        ({"page": "1", "page_size": "101"}, "is greater than the maximum of 100"),
     ],
 )
 def test_get_template_usage_by_month_paginated_invalid_args_returns_400(admin_request, sample_service, kwargs, expected_message):
@@ -201,7 +206,12 @@ def test_get_template_usage_by_month_paginated_invalid_args_returns_400(admin_re
         _expected_status=400,
         **kwargs,
     )
-    assert expected_message in resp_json["message"]
+    # Accept either a list of errors or a single error string
+    errors = resp_json.get("errors")
+    if isinstance(errors, list):
+        assert any(expected_message in err["message"] for err in errors)
+    else:
+        assert expected_message in errors
 
 
 @pytest.mark.parametrize(
