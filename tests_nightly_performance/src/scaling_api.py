@@ -128,6 +128,7 @@ def add_custom_arguments(parser: LocustArgumentParser, **kwargs):
         help="Stop the test once this user count is reached (default: 300); set to 0 for no limit",
     )
 
+
 # ---------------------------------------------------------------------------
 # Shared notification ID pool — POST tasks push IDs, GET tasks sample from it.
 # Using a bounded deque keeps memory stable over a long run.
@@ -157,6 +158,7 @@ def _sample_id() -> "str | None":
 # Task weights must sum to 100 for easy mental math on traffic mix.
 # ---------------------------------------------------------------------------
 
+
 class NotifyApiUser(HttpUser):
     """Simulates a realistic mix of send (POST) and query (GET) API calls."""
 
@@ -183,9 +185,7 @@ class NotifyApiUser(HttpUser):
             "template_id": Config.EMAIL_TEMPLATE_ID_ONE_VAR,
             "personalisation": {"var": "scaling test - single email"},
         }
-        with self.client.post(
-            "/v2/notifications/email", json=payload, headers=self.headers, catch_response=True
-        ) as response:
+        with self.client.post("/v2/notifications/email", json=payload, headers=self.headers, catch_response=True) as response:
             if response.status_code == 201:
                 try:
                     _push_id(response.json()["id"])
@@ -199,9 +199,7 @@ class NotifyApiUser(HttpUser):
             "template_id": Config.SMS_TEMPLATE_ID_ONE_VAR,
             "personalisation": {"var": "scaling test - single sms"},
         }
-        with self.client.post(
-            "/v2/notifications/sms", json=payload, headers=self.headers, catch_response=True
-        ) as response:
+        with self.client.post("/v2/notifications/sms", json=payload, headers=self.headers, catch_response=True) as response:
             if response.status_code == 201:
                 try:
                     _push_id(response.json()["id"])
@@ -244,9 +242,7 @@ class NotifyApiUser(HttpUser):
         payload = {
             "name": f"Scaling bulk email {datetime.utcnow().isoformat()}",
             "template_id": Config.EMAIL_TEMPLATE_ID_ONE_VAR,
-            "csv": rows_to_csv(
-                [["email address", "var"], *generate_job_rows(Config.EMAIL_ADDRESS, SMALL_BULK_SIZE)]
-            ),
+            "csv": rows_to_csv([["email address", "var"], *generate_job_rows(Config.EMAIL_ADDRESS, SMALL_BULK_SIZE)]),
         }
         self.client.post("/v2/notifications/bulk", json=payload, headers=self.headers)
 
@@ -255,9 +251,7 @@ class NotifyApiUser(HttpUser):
         payload = {
             "name": f"Scaling bulk SMS {datetime.utcnow().isoformat()}",
             "template_id": Config.SMS_TEMPLATE_ID_ONE_VAR,
-            "csv": rows_to_csv(
-                [["phone number", "var"], *generate_job_rows(Config.PHONE_NUMBER, SMALL_BULK_SIZE)]
-            ),
+            "csv": rows_to_csv([["phone number", "var"], *generate_job_rows(Config.PHONE_NUMBER, SMALL_BULK_SIZE)]),
         }
         self.client.post("/v2/notifications/bulk", json=payload, headers=self.headers)
 
@@ -314,6 +308,7 @@ class NotifyApiUser(HttpUser):
 # All parameters are tunable at runtime via CLI flags or env vars.
 # Pass --max-users 0 to run until stopped manually.
 # ---------------------------------------------------------------------------
+
 
 class StepwiseLoadShape(LoadTestShape):
     def tick(self):

@@ -95,14 +95,36 @@ def print_max_rps(environment, **kwargs):
 def add_custom_arguments(parser, **kwargs):
     parser.add_argument("--skip-bulk", action="store_true", default=False, help="Skip bulk send tasks")
     parser.add_argument("--bulk-only", action="store_true", default=False, help="Only run bulk send tasks, skip individual sends")
-    parser.add_argument("--bulk-size", type=int, default=BULK_SIZE, help=f"Number of messages per bulk send request (default: {BULK_SIZE})")
+    parser.add_argument(
+        "--bulk-size", type=int, default=BULK_SIZE, help=f"Number of messages per bulk send request (default: {BULK_SIZE})"
+    )
     parser.add_argument("--start-users", type=int, default=0, help="Number of users to start with before stepping up")
-    parser.add_argument("--constant-users", type=int, default=0, help="Maintain a fixed number of users indefinitely with no step-up")
-    parser.add_argument("--include-get", action="store_true", default=False, help="Include GET notification requests in the test (by ID and list)")
-    parser.add_argument("--get-only", action="store_true", default=False, help="Only run GET notification tasks, skip all send tasks (implies --include-get)")
-    parser.add_argument("--pacing", type=float, default=60.0, help="Seconds between tasks per user using constant_pacing (default: 60). Ignored if --wait-min/--wait-max are set.")
-    parser.add_argument("--wait-min", type=float, default=None, help="Minimum wait seconds between tasks (enables between() mode instead of constant_pacing)")
+    parser.add_argument(
+        "--constant-users", type=int, default=0, help="Maintain a fixed number of users indefinitely with no step-up"
+    )
+    parser.add_argument(
+        "--include-get", action="store_true", default=False, help="Include GET notification requests in the test (by ID and list)"
+    )
+    parser.add_argument(
+        "--get-only",
+        action="store_true",
+        default=False,
+        help="Only run GET notification tasks, skip all send tasks (implies --include-get)",
+    )
+    parser.add_argument(
+        "--pacing",
+        type=float,
+        default=60.0,
+        help="Seconds between tasks per user using constant_pacing (default: 60). Ignored if --wait-min/--wait-max are set.",
+    )
+    parser.add_argument(
+        "--wait-min",
+        type=float,
+        default=None,
+        help="Minimum wait seconds between tasks (enables between() mode instead of constant_pacing)",
+    )
     parser.add_argument("--wait-max", type=float, default=None, help="Maximum wait seconds between tasks (used with --wait-min)")
+
 
 BULK_SIZE = 2000
 
