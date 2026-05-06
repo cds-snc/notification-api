@@ -22,6 +22,9 @@ Key CLI flags:
     --constant-users INT   Hold a fixed user count indefinitely (no step-up)
     --include-get          Also run GET notification tasks
     --get-only             Only run GET tasks (implies --include-get)
+    --pacing FLOAT         Seconds between tasks per user, constant_pacing (default: 60)
+    --wait-min FLOAT       Switch to between() mode; sets minimum wait seconds
+    --wait-max FLOAT       Maximum wait seconds for between() mode (default: same as --wait-min)
 
 Required env vars:
     PERF_TEST_API_KEY
@@ -39,7 +42,7 @@ from datetime import datetime
 
 import gevent
 from tests_nightly_performance.src.common import Config, generate_job_rows, rows_to_csv
-from locust import HttpUser, LoadTestShape, between, events, task
+from locust import HttpUser, LoadTestShape, between, constant_pacing, events, task
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -97,6 +100,9 @@ def add_custom_arguments(parser, **kwargs):
     parser.add_argument("--constant-users", type=int, default=0, help="Maintain a fixed number of users indefinitely with no step-up")
     parser.add_argument("--include-get", action="store_true", default=False, help="Include GET notification requests in the test (by ID and list)")
     parser.add_argument("--get-only", action="store_true", default=False, help="Only run GET notification tasks, skip all send tasks (implies --include-get)")
+    parser.add_argument("--pacing", type=float, default=60.0, help="Seconds between tasks per user using constant_pacing (default: 60). Ignored if --wait-min/--wait-max are set.")
+    parser.add_argument("--wait-min", type=float, default=None, help="Minimum wait seconds between tasks (enables between() mode instead of constant_pacing)")
+    parser.add_argument("--wait-max", type=float, default=None, help="Maximum wait seconds between tasks (used with --wait-min)")
 
 BULK_SIZE = 2000
 
@@ -105,8 +111,15 @@ BULK_SIZE = 2000
 
 
 class NotifyApiUser(HttpUser):
-    wait_time = between(0.1, 1)  # short pause between tasks for continuous load
     host = Config.HOST
+
+    def wait_time(self):
+        opts = self.environment.parsed_options
+        if opts.wait_min is not None:
+            wait_max = opts.wait_max if opts.wait_max is not None else opts.wait_min
+            return between(opts.wait_min, wait_max)(self)
+        return constant_pacing(opts.pacing)(self)
+
     _sent_ids: deque = deque(maxlen=500)  # shared pool of sent notification IDs for GET tasks
 
     def __init__(self, *args, **kwargs):

@@ -3,6 +3,10 @@ import os
 from io import StringIO
 from typing import Iterator, List
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 # from app/config.py
 # This does not do the boto call to send, but instead immediately creates a "delivered" receipt
 INTERNAL_TEST_NUMBER = "+16135550123"
