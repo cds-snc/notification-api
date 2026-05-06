@@ -18,7 +18,7 @@ Key CLI flags:
     --skip-bulk           Skip bulk send tasks
     --bulk-only           Only run bulk send tasks
     --bulk-size INT        Recipients per bulk send (default: 2000)
-    --start-users INT      Start with this many users before stepping up
+    --start-users INT      Immediately ramp to this many users, then step up by 50 every 120s
     --constant-users INT   Hold a fixed user count indefinitely (no step-up)
     --include-get          Also run GET notification tasks
     --get-only             Only run GET tasks (implies --include-get)
@@ -41,7 +41,7 @@ from collections import deque
 from datetime import datetime
 
 import gevent
-from tests_nightly_performance.src.common import Config, generate_job_rows, rows_to_csv
+from common import Config, generate_job_rows, rows_to_csv
 from locust import HttpUser, LoadTestShape, between, constant_pacing, events, task
 from dotenv import load_dotenv
 
@@ -127,7 +127,6 @@ class NotifyApiUser(HttpUser):
         Config.check()
         self.headers = {"Authorization": f"ApiKey-v1 {Config.API_KEY}"}
         if Config.WAF_SECRET:
-            print("WAF secret provided, adding to headers")
             self.headers["waf-secret"] = Config.WAF_SECRET
 
     @task(30)
@@ -228,32 +227,38 @@ class NotifyApiUser(HttpUser):
 
 
 class StepLoadShape(LoadTestShape):
-    """Continuously scales up users with no ceiling to find the system breaking point.
+    """Controls user ramp-up behaviour.
 
-    Adds STEP_USERS every STEP_DURATION seconds indefinitely.
+    Default (no flags): holds --users at the spawn-rate set in locust.conf, matching
+    the nightly runner behaviour exactly (flat load, no step-up).
+
+    With --constant-users N: ramps to N users immediately and holds indefinitely.
+
+    With --start-users N: shocks to N users on start, then steps up by STEP_USERS
+    every STEP_DURATION seconds indefinitely.
     """
 
-    STEP_USERS = 50  # users to add per step
+    STEP_USERS = 50  # users to add per step (only used with --start-users)
     STEP_DURATION = 120  # seconds per step
-    SPAWN_RATE = 5  # users spawned per second when scaling up
 
     def tick(self):
         run_time = self.get_run_time()
         opts = self.runner.environment.parsed_options
         constant_users = opts.constant_users
         start_users = opts.start_users
+        spawn_rate = opts.spawn_rate  # honours -r / locust.conf spawn-rate
         current_step = int(run_time / self.STEP_DURATION)
 
         if constant_users > 0:
             # Hold a fixed number of users indefinitely, no step-up
-            return (constant_users, constant_users if run_time < 1 else self.SPAWN_RATE)
+            return (constant_users, constant_users if run_time < 1 else spawn_rate)
 
         if start_users > 0:
             # Shock the system immediately with all start_users, then step up from there
             if current_step == 0:
                 return (start_users, start_users)
             target_users = start_users + current_step * self.STEP_USERS
-        else:
-            target_users = (current_step + 1) * self.STEP_USERS
+            return (target_users, spawn_rate)
 
-        return (target_users, self.SPAWN_RATE)
+        # Default: flat load using --users and --spawn-rate from CLI / locust.conf
+        return (opts.num_users, spawn_rate)
