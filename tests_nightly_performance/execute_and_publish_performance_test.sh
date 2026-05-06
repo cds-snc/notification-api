@@ -19,6 +19,7 @@ cd tests_nightly_performance || exit 1
 locust --config locust.conf \
        --locustfile src/blast_api.py \
        --users 3000 \
+       --bulk-size 2 \
        --html "$perf_test_results_folder/index.html" --csv "$perf_test_results_folder/api_test"
 
 # Sleep 15 minutes to allow the system to stabilize

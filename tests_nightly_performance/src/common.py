@@ -3,28 +3,47 @@ import os
 from io import StringIO
 from typing import Iterator, List
 
-from dotenv import load_dotenv
-
 # from app/config.py
 # This does not do the boto call to send, but instead immediately creates a "delivered" receipt
 INTERNAL_TEST_NUMBER = "+16135550123"
 
-load_dotenv()
 
+class _Config:
+    @property
+    def EMAIL_ADDRESS(self):
+        return os.environ.get("PERF_TEST_EMAIL_ADDRESS", "success@simulator.amazonses.com")
 
-class Config:
-    EMAIL_ADDRESS = os.environ.get("PERF_TEST_EMAIL_ADDRESS", "success@simulator.amazonses.com")
-    PHONE_NUMBER = os.environ.get("PERF_TEST_PHONE_NUMBER", INTERNAL_TEST_NUMBER)
-    EMAIL_TEMPLATE_ID_ONE_VAR = os.environ.get("PERF_TEST_EMAIL_TEMPLATE_ID_ONE_VAR")
-    SMS_TEMPLATE_ID_ONE_VAR = os.environ.get("PERF_TEST_SMS_TEMPLATE_ID_ONE_VAR")
-    API_KEY = os.environ.get("PERF_TEST_API_KEY")
-    HOST = os.environ.get("PERF_TEST_DOMAIN", "https://api.staging.notification.cdssandbox.xyz")
+    @property
+    def PHONE_NUMBER(self):
+        return os.environ.get("PERF_TEST_PHONE_NUMBER", INTERNAL_TEST_NUMBER)
 
-    @staticmethod
-    def check():
+    @property
+    def EMAIL_TEMPLATE_ID_ONE_VAR(self):
+        return os.environ.get("PERF_TEST_EMAIL_TEMPLATE_ID_ONE_VAR")
+
+    @property
+    def SMS_TEMPLATE_ID_ONE_VAR(self):
+        return os.environ.get("PERF_TEST_SMS_TEMPLATE_ID_ONE_VAR")
+
+    @property
+    def API_KEY(self):
+        return os.environ.get("PERF_TEST_API_KEY")
+
+    @property
+    def WAF_SECRET(self):
+        return os.environ.get("PERF_TEST_WAF_SECRET")
+
+    @property
+    def HOST(self):
+        return os.environ.get("PERF_TEST_DOMAIN", "https://api.staging.notification.cdssandbox.xyz")
+
+    def check(self):
         for key in ["EMAIL_ADDRESS", "PHONE_NUMBER", "EMAIL_TEMPLATE_ID_ONE_VAR", "SMS_TEMPLATE_ID_ONE_VAR", "API_KEY"]:
-            if not getattr(Config, key):
+            if not getattr(self, key):
                 raise ValueError(f"{key} is not set")
+
+
+Config = _Config()
 
 
 def rows_to_csv(rows: List[List[str]]):
