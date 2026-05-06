@@ -41,9 +41,10 @@ from collections import deque
 from datetime import datetime
 
 import gevent
-from common import Config, generate_job_rows, rows_to_csv
-from locust import HttpUser, LoadTestShape, between, constant_pacing, events, task
 from dotenv import load_dotenv
+from locust import HttpUser, LoadTestShape, between, constant_pacing, events, task
+
+from common import Config, generate_job_rows, rows_to_csv
 
 load_dotenv()
 
