@@ -13,6 +13,7 @@ from app.dao.fact_notification_status_dao import (
     fetch_delivered_notification_stats_by_month,
     fetch_monthly_notification_statuses_per_service,
     fetch_monthly_template_usage_for_service,
+    fetch_monthly_template_usage_for_service_paginated,
     fetch_notification_billable_units_for_service_for_today_and_7_previous_days,
     fetch_notification_stats_for_trial_services,
     fetch_notification_status_for_day,
@@ -1113,6 +1114,158 @@ def test_fetch_monthly_template_usage_for_service_does_not_include_test_notifica
     results = fetch_monthly_template_usage_for_service(datetime(2018, 1, 1), datetime(2018, 3, 31), sample_template.service_id)
 
     assert len(results) == 0
+
+
+@freeze_time("2018-03-30 14:00")
+def test_fetch_monthly_template_usage_for_service_paginated_returns_total_unique_templates(sample_service):
+    template_a = create_template(service=sample_service, template_name="a")
+    template_b = create_template(service=sample_service, template_name="b")
+    template_c = create_template(service=sample_service, template_name="c")
+    create_ft_notification_status(utc_date=date(2018, 1, 5), service=sample_service, template=template_a, count=5)
+    create_ft_notification_status(utc_date=date(2018, 2, 5), service=sample_service, template=template_a, count=3)
+    create_ft_notification_status(utc_date=date(2018, 1, 5), service=sample_service, template=template_b, count=10)
+    create_ft_notification_status(utc_date=date(2018, 1, 5), service=sample_service, template=template_c, count=1)
+
+    results, total = fetch_monthly_template_usage_for_service_paginated(
+        datetime(2018, 1, 1), datetime(2018, 3, 31), sample_service.id, page=1, page_size=50
+    )
+
+    assert total == 3
+    template_ids_returned = {str(r.template_id) for r in results}
+    assert template_ids_returned == {str(template_a.id), str(template_b.id), str(template_c.id)}
+
+
+@freeze_time("2018-03-30 14:00")
+def test_fetch_monthly_template_usage_for_service_paginated_orders_by_total_count_desc(sample_service):
+    template_low = create_template(service=sample_service, template_name="low")
+    template_high = create_template(service=sample_service, template_name="high")
+    create_ft_notification_status(utc_date=date(2018, 1, 5), service=sample_service, template=template_low, count=2)
+    create_ft_notification_status(utc_date=date(2018, 1, 5), service=sample_service, template=template_high, count=20)
+
+    results, total = fetch_monthly_template_usage_for_service_paginated(
+        datetime(2018, 1, 1), datetime(2018, 3, 31), sample_service.id, page=1, page_size=1
+    )
+
+    assert total == 2
+    template_ids_returned = {str(r.template_id) for r in results}
+    assert template_ids_returned == {str(template_high.id)}
+
+
+@freeze_time("2018-03-30 14:00")
+def test_fetch_monthly_template_usage_for_service_paginated_returns_all_months_for_page(sample_service):
+    template = create_template(service=sample_service, template_name="t")
+    create_ft_notification_status(utc_date=date(2018, 1, 5), service=sample_service, template=template, count=2)
+    create_ft_notification_status(utc_date=date(2018, 2, 5), service=sample_service, template=template, count=3)
+    create_ft_notification_status(utc_date=date(2018, 3, 5), service=sample_service, template=template, count=4)
+
+    results, total = fetch_monthly_template_usage_for_service_paginated(
+        datetime(2018, 1, 1), datetime(2018, 3, 31), sample_service.id, page=1, page_size=50
+    )
+
+    assert total == 1
+    months = sorted(r.month for r in results)
+    assert months == [1, 2, 3]
+    counts = {r.month: r.count for r in results}
+    assert counts == {1: 2, 2: 3, 3: 4}
+
+
+@freeze_time("2018-03-30 14:00")
+def test_fetch_monthly_template_usage_for_service_paginated_offsets_correctly(sample_service):
+    template_a = create_template(service=sample_service, template_name="a")
+    template_b = create_template(service=sample_service, template_name="b")
+    create_ft_notification_status(utc_date=date(2018, 1, 5), service=sample_service, template=template_a, count=10)
+    create_ft_notification_status(utc_date=date(2018, 1, 5), service=sample_service, template=template_b, count=1)
+
+    results, total = fetch_monthly_template_usage_for_service_paginated(
+        datetime(2018, 1, 1), datetime(2018, 3, 31), sample_service.id, page=2, page_size=1
+    )
+
+    assert total == 2
+    assert len(results) == 1
+    assert str(results[0].template_id) == str(template_b.id)
+
+
+@freeze_time("2018-03-30 14:00")
+def test_fetch_monthly_template_usage_for_service_paginated_returns_empty_when_no_data(sample_service):
+    results, total = fetch_monthly_template_usage_for_service_paginated(
+        datetime(2018, 1, 1), datetime(2018, 3, 31), sample_service.id, page=1, page_size=50
+    )
+
+    assert results == []
+    assert total == 0
+
+
+@freeze_time("2018-03-30 14:00")
+def test_fetch_monthly_template_usage_for_service_paginated_excludes_cancelled(sample_service):
+    template = create_template(service=sample_service, template_name="t")
+    create_ft_notification_status(
+        utc_date=date(2018, 1, 5),
+        service=sample_service,
+        template=template,
+        notification_status="cancelled",
+        count=10,
+    )
+
+    results, total = fetch_monthly_template_usage_for_service_paginated(
+        datetime(2018, 1, 1), datetime(2018, 3, 31), sample_service.id, page=1, page_size=50
+    )
+
+    assert results == []
+    assert total == 0
+
+
+@freeze_time("2018-03-30 14:00")
+def test_fetch_monthly_template_usage_for_service_paginated_excludes_test_keys(sample_service):
+    template = create_template(service=sample_service, template_name="t")
+    create_ft_notification_status(
+        utc_date=date(2018, 1, 5),
+        service=sample_service,
+        template=template,
+        key_type="test",
+        count=10,
+    )
+
+    results, total = fetch_monthly_template_usage_for_service_paginated(
+        datetime(2018, 1, 1), datetime(2018, 3, 31), sample_service.id, page=1, page_size=50
+    )
+
+    assert results == []
+    assert total == 0
+
+
+@freeze_time("2018-03-30 14:00")
+def test_fetch_monthly_template_usage_for_service_paginated_includes_today_for_paged_templates(sample_service):
+    template = create_template(service=sample_service, template_name="t")
+    create_ft_notification_status(utc_date=date(2018, 1, 5), service=sample_service, template=template, count=5)
+    save_notification(create_notification(template=template, created_at=datetime.utcnow(), status="delivered"))
+
+    results, total = fetch_monthly_template_usage_for_service_paginated(
+        datetime(2018, 1, 1), datetime(2018, 3, 31), sample_service.id, page=1, page_size=50
+    )
+
+    assert total == 1
+    months = sorted(r.month for r in results)
+    assert months == [1, 3]
+    counts = {r.month: r.count for r in results}
+    assert counts == {1: 5, 3: 1}
+
+
+@freeze_time("2018-03-30 14:00")
+def test_fetch_monthly_template_usage_for_service_paginated_picks_up_today_only_templates(sample_service):
+    """A template that only has notifications today (not yet in fact table) should still
+    be counted in `total` and returned when on the page."""
+    fact_template = create_template(service=sample_service, template_name="historic")
+    today_only_template = create_template(service=sample_service, template_name="today_only")
+    create_ft_notification_status(utc_date=date(2018, 1, 5), service=sample_service, template=fact_template, count=5)
+    save_notification(create_notification(template=today_only_template, created_at=datetime.utcnow(), status="delivered"))
+
+    results, total = fetch_monthly_template_usage_for_service_paginated(
+        datetime(2018, 1, 1), datetime(2018, 3, 31), sample_service.id, page=1, page_size=50
+    )
+
+    assert total == 2
+    template_ids_returned = {str(r.template_id) for r in results}
+    assert template_ids_returned == {str(fact_template.id), str(today_only_template.id)}
 
 
 @pytest.mark.parametrize("notification_type, count", [("sms", 3), ("email", 5), ("letter", 7)])

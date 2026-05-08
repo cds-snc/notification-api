@@ -34,6 +34,7 @@ from app.dao.date_util import get_financial_year
 from app.dao.fact_notification_status_dao import (
     fetch_delivered_notification_stats_by_month,
     fetch_monthly_template_usage_for_service,
+    fetch_monthly_template_usage_for_service_paginated,
     fetch_notification_status_for_service_by_month,
     fetch_notification_status_for_service_for_today_and_7_previous_days,
     fetch_stats_for_all_services_by_date_range,
@@ -126,6 +127,7 @@ from app.service.service_senders_schema import (
     add_service_email_reply_to_request,
     add_service_sms_sender_request,
 )
+from app.service.service_statistics_schema import get_monthly_template_usage_request
 from app.service.utils import (
     get_organisation_id_from_crm_org_notes,
     get_safelist_objects,
@@ -854,26 +856,63 @@ def resume_service(service_id):
 
 @service_blueprint.route("/<uuid:service_id>/notifications/templates_usage/monthly", methods=["GET"])
 def get_monthly_template_usage(service_id):
-    try:
-        start_date, end_date = get_financial_year(int(request.args.get("year", "NaN")))
-        data = fetch_monthly_template_usage_for_service(start_date=start_date, end_date=end_date, service_id=service_id)
-        stats = list()
-        for i in data:
-            stats.append(
-                {
-                    "template_id": str(i.template_id),
-                    "name": i.name,
-                    "type": i.template_type,
-                    "month": i.month,
-                    "year": i.year,
-                    "count": i.count,
-                    "is_precompiled_letter": i.is_precompiled_letter,
-                }
-            )
+    query_args = {"year": request.args.get("year", type=int)}
+    if "page" in request.args:
+        query_args["page"] = request.args.get("page", type=int)
+    if "page_size" in request.args:
+        query_args["page_size"] = request.args.get("page_size", type=int)
+    validate(query_args, get_monthly_template_usage_request)
 
-        return jsonify(stats=stats), 200
-    except ValueError:
-        raise InvalidRequest("Year must be a number", status_code=400)
+    start_date, end_date = get_financial_year(query_args["year"])
+    page = query_args["page"] if "page" in query_args else None
+    page_size = query_args["page_size"] if "page_size" in query_args else 50
+
+    if page is not None:
+        data, total_templates = fetch_monthly_template_usage_for_service_paginated(
+            start_date=start_date,
+            end_date=end_date,
+            service_id=service_id,
+            page=page,
+            page_size=page_size,
+        )
+        paginated_stats = [
+            {
+                "template_id": str(i.template_id),
+                "name": i.name,
+                "type": i.template_type,
+                "month": i.month,
+                "year": i.year,
+                "count": i.count,
+                "is_precompiled_letter": i.is_precompiled_letter,
+            }
+            for i in data
+        ]
+
+        has_next = (page * page_size) < total_templates
+        has_prev = page > 1
+        links = {}
+        if has_prev:
+            links["prev"] = f"page {page - 1}"
+        if has_next:
+            links["next"] = f"page {page + 1}"
+
+        return jsonify(data=paginated_stats, total=total_templates, page=page, page_size=page_size, links=links), 200
+
+    # If no page param provided, return all templates without pagination.
+    data = fetch_monthly_template_usage_for_service(start_date=start_date, end_date=end_date, service_id=service_id)
+    stats = [
+        {
+            "template_id": str(i.template_id),
+            "name": i.name,
+            "type": i.template_type,
+            "month": i.month,
+            "year": i.year,
+            "count": i.count,
+            "is_precompiled_letter": i.is_precompiled_letter,
+        }
+        for i in data
+    ]
+    return jsonify(stats=stats), 200
 
 
 @service_blueprint.route("/<uuid:service_id>/send-notification", methods=["POST"])
