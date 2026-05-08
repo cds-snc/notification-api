@@ -261,15 +261,18 @@ def choose_queue(notification: Notification, research_mode: bool, priority_queue
     Returns:
         str: The appropriate Celery queue for the notification as a string.
     """
+    # Custom SMS senders (dedicated numbers) always route to the throttled queue,
+    # even in research mode — the dedicated number must be respected.
+    if notification.notification_type == SMS_TYPE and notification.sends_with_custom_number():
+        return QueueNames.SEND_THROTTLED_SMS
+
     if research_mode or notification.key_type == KEY_TYPE_TEST:
         return QueueNames.RESEARCH_MODE
 
     override_queue: Optional[str] = priority_queue
     if notification.notification_type == SMS_TYPE:
-        if notification.sends_with_custom_number():
-            override_queue = QueueNames.SEND_THROTTLED_SMS
         # Enable the SMS rate limit feature but without overriding throttled dedicated or research lanes.
-        elif not priority_queue and current_app.config.get("FF_SMS_RATELIMIT"):
+        if not priority_queue and current_app.config.get("FF_SMS_RATELIMIT"):
             override_queue = QueueNames.SEND_SMS_FAIR
         elif not priority_queue:
             override_queue = QueueNames.SEND_SMS_MEDIUM
@@ -289,7 +292,7 @@ def choose_deliver_task(notification):
         deliver_task = provider_tasks.deliver_sms
         if notification.sends_with_custom_number():
             deliver_task = provider_tasks.deliver_throttled_sms
-        elif current_app.config.get("FF_SMS_RATELIMIT"):
+        elif current_app.config.get("FF_SMS_RATELIMIT") and notification.queue_name != QueueNames.RESEARCH_MODE:
             deliver_task = provider_tasks.deliver_sms_rate_limited
     if notification.notification_type == EMAIL_TYPE:
         deliver_task = provider_tasks.deliver_email
