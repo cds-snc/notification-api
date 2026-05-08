@@ -329,14 +329,16 @@ def send_notification_to_queue(notification, research_mode, queue=None):
                 celery_params.append(billable_units)
         elif not queue or queue == QueueNames.NORMAL:
             queue = QueueNames.SEND_SMS_MEDIUM
-    if notification.notification_type == EMAIL_TYPE:
+    elif notification.notification_type == EMAIL_TYPE:
         if not queue or queue == QueueNames.NORMAL:
             queue = QueueNames.SEND_EMAIL_MEDIUM
         deliver_task = provider_tasks.deliver_email
-    if notification.notification_type == LETTER_TYPE:
+    elif notification.notification_type == LETTER_TYPE:
         if not queue or queue == QueueNames.NORMAL:
             queue = QueueNames.CREATE_LETTERS_PDF
         deliver_task = create_letters_pdf
+    else:
+        raise ValueError(f"Unexpected notification type {notification.notification_type}")
 
     try:
         deliver_task.apply_async(celery_params, queue=queue, MessageGroupId=message_group_id)
