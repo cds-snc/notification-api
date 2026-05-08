@@ -98,7 +98,7 @@ get_notifications_request = {
             },
         },
         "template_type": {"type": "array", "items": {"enum": TEMPLATE_TYPES}},
-        "include_jobs": {"enum": ["true", "True"]},
+        "include_jobs": {"enum": ["true", "True", "false", "False"]},
         "older_than": uuid,
     },
     "additionalProperties": False,
