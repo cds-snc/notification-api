@@ -40,8 +40,15 @@ class NotifyCelery(Celery):
         options["headers"] = options.get("headers") or {}
         message_group_id = options.pop("MessageGroupId", None)
         if message_group_id:
-            # Convert UUID to string for SQS compatibility
-            options["headers"]["notify_message_group_id"] = str(message_group_id)
+            message_group_id = str(message_group_id)
+            # Store in Celery task headers so tasks can read it via self.message_group_id
+            # (used by deliver_sms_rate_limited to re-queue with the same group).
+            options["headers"]["notify_message_group_id"] = message_group_id
+            # Also set as a kombu message property so the SQS transport includes
+            # MessageGroupId in the boto3 SendMessage call, enabling SQS fair queuing
+            # on both standard queues (noisy-neighbour protection) and FIFO queues.
+            options["properties"] = options.get("properties") or {}
+            options["properties"]["MessageGroupId"] = message_group_id
         return super().send_task(name, args, kwargs, **options)
 
     def init_app(self, app):
