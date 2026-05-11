@@ -166,13 +166,17 @@ class InMemoryRateLimiter(RateLimiter):
 
 
 # ============================================================================
-# Module-level instance: Global rate limiter for the entire application
+# Module-level rate limiter instance
 # ============================================================================
-# This instance is created once per Flask app and shared across all Celery tasks.
-# It tracks parts sent across all services globally (not per-service).
+# For the in-memory backend, this instance is process-local: it is shared only
+# within the current Python process (for example, one Flask/Celery worker
+# process) and is not coordinated across multiple Celery worker processes,
+# pods, or hosts.
 #
-# In Phase 2, this will be replaced with a Redis-backed instance via feature flag
-# or environment configuration, without changing any task code.
+# As a result, the in-memory backend does not provide a true global cap unless
+# deployment is constrained so that only a single worker process/pod consumes
+# the relevant queue. Phase 2 should use a Redis-backed implementation to
+# enforce a global cross-process rate limit without changing task code.
 # ============================================================================
 
 _rate_limiter_instance: RateLimiter | None = None
