@@ -143,6 +143,8 @@ def get_jobs_by_service(service_id):
         except ValueError:
             errors = {"page_size": ["{} is not an integer".format(request.args["page_size"])]}
             raise InvalidRequest(errors, status_code=400)
+        if page_size < 1:
+            raise InvalidRequest({"page_size": ["page_size must be a positive integer"]}, status_code=400)
 
     statuses = [x.strip() for x in request.args.get("statuses", "").split(",")]
 
@@ -322,9 +324,18 @@ def get_paginated_jobs(service_id, limit_days, statuses, page, page_size=None):
     end_time = time.time()
     current_app.logger.info(f"[get_paginated_jobs] took {"{:.3f}".format(end_time - start_time)} seconds")
 
+    # Build extra kwargs so pagination links preserve all original query params.
+    link_kwargs = {"service_id": service_id}
+    if limit_days is not None:
+        link_kwargs["limit_days"] = limit_days
+    if page_size is not None:
+        link_kwargs["page_size"] = page_size
+    if statuses:
+        link_kwargs["statuses"] = ",".join(statuses)
+
     return {
         "data": data,
         "page_size": pagination.per_page,
         "total": pagination.total,
-        "links": pagination_links(pagination, ".get_jobs_by_service", service_id=service_id),
+        "links": pagination_links(pagination, ".get_jobs_by_service", **link_kwargs),
     }

@@ -966,6 +966,8 @@ def test_get_jobs_accepts_page_size_parameter(admin_request, sample_template):
     assert resp_json["total"] == 10
     assert "links" in resp_json
     assert set(resp_json["links"].keys()) == {"next", "last"}
+    assert "page_size=3" in resp_json["links"]["next"]
+    assert "page_size=3" in resp_json["links"]["last"]
 
 
 def test_get_jobs_accepts_page_size_and_page_parameters(admin_request, sample_template):
@@ -981,6 +983,9 @@ def test_get_jobs_accepts_page_size_and_page_parameters(admin_request, sample_te
     assert resp_json["total"] == 10
     assert "links" in resp_json
     assert set(resp_json["links"].keys()) == {"prev", "next", "last"}
+    assert "page_size=3" in resp_json["links"]["prev"]
+    assert "page_size=3" in resp_json["links"]["next"]
+    assert "page_size=3" in resp_json["links"]["last"]
 
 
 @pytest.mark.parametrize(
@@ -989,6 +994,8 @@ def test_get_jobs_accepts_page_size_and_page_parameters(admin_request, sample_te
         ("abc", "abc is not an integer"),
         ("3.14", "3.14 is not an integer"),
         ("not_a_number", "not_a_number is not an integer"),
+        ("0", "page_size must be a positive integer"),
+        ("-1", "page_size must be a positive integer"),
     ],
 )
 def test_get_jobs_with_invalid_page_size_returns_400(admin_request, sample_template, invalid_page_size, expected_error):
