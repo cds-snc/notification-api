@@ -953,6 +953,55 @@ def test_get_jobs_accepts_page_parameter(admin_request, sample_template):
     assert set(resp_json["links"].keys()) == {"prev", "next", "last"}
 
 
+def test_get_jobs_accepts_page_size_parameter(admin_request, sample_template):
+    create_10_jobs(sample_template)
+
+    resp_json = admin_request.get("job.get_jobs_by_service", service_id=sample_template.service_id, page_size=3)
+
+    assert len(resp_json["data"]) == 3
+    assert resp_json["data"][0]["created_at"] == "2015-01-01T10:00:00.000000+00:00"
+    assert resp_json["data"][1]["created_at"] == "2015-01-01T09:00:00.000000+00:00"
+    assert resp_json["data"][2]["created_at"] == "2015-01-01T08:00:00.000000+00:00"
+    assert resp_json["page_size"] == 3
+    assert resp_json["total"] == 10
+    assert "links" in resp_json
+    assert set(resp_json["links"].keys()) == {"next", "last"}
+
+
+def test_get_jobs_accepts_page_size_and_page_parameters(admin_request, sample_template):
+    create_10_jobs(sample_template)
+
+    resp_json = admin_request.get("job.get_jobs_by_service", service_id=sample_template.service_id, page=2, page_size=3)
+
+    assert len(resp_json["data"]) == 3
+    assert resp_json["data"][0]["created_at"] == "2015-01-01T07:00:00.000000+00:00"
+    assert resp_json["data"][1]["created_at"] == "2015-01-01T06:00:00.000000+00:00"
+    assert resp_json["data"][2]["created_at"] == "2015-01-01T05:00:00.000000+00:00"
+    assert resp_json["page_size"] == 3
+    assert resp_json["total"] == 10
+    assert "links" in resp_json
+    assert set(resp_json["links"].keys()) == {"prev", "next", "last"}
+
+
+@pytest.mark.parametrize(
+    "invalid_page_size, expected_error",
+    [
+        ("abc", "abc is not an integer"),
+        ("3.14", "3.14 is not an integer"),
+        ("not_a_number", "not_a_number is not an integer"),
+    ],
+)
+def test_get_jobs_with_invalid_page_size_returns_400(admin_request, sample_template, invalid_page_size, expected_error):
+    resp_json = admin_request.get(
+        "job.get_jobs_by_service",
+        service_id=sample_template.service_id,
+        page_size=invalid_page_size,
+        _expected_status=400,
+    )
+    assert resp_json["result"] == "error"
+    assert expected_error in resp_json["message"]["page_size"][0]
+
+
 @pytest.mark.parametrize(
     "statuses_filter, expected_statuses",
     [
