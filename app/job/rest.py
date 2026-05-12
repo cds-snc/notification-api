@@ -136,10 +136,21 @@ def get_jobs_by_service(service_id):
     else:
         limit_days = None
 
+    page_size = None
+    if request.args.get("page_size"):
+        try:
+            page_size = int(request.args["page_size"])
+        except ValueError:
+            errors = {"page_size": ["{} is not an integer".format(request.args["page_size"])]}
+            raise InvalidRequest(errors, status_code=400)
+        if page_size < 1:
+            raise InvalidRequest({"page_size": ["page_size must be a positive integer"]}, status_code=400)
+
     statuses = [x.strip() for x in request.args.get("statuses", "").split(",")]
 
     page = int(request.args.get("page", 1))
-    return jsonify(**get_paginated_jobs(service_id, limit_days, statuses, page))
+
+    return jsonify(**get_paginated_jobs(service_id, limit_days, statuses, page, page_size=page_size))
 
 
 @job_blueprint.route("", methods=["POST"])
@@ -253,13 +264,13 @@ def get_service_has_jobs(service_id):
     return jsonify(data={"has_jobs": has_jobs}), 200
 
 
-def get_paginated_jobs(service_id, limit_days, statuses, page):
+def get_paginated_jobs(service_id, limit_days, statuses, page, page_size=None):
     start_time = time.time()
     pagination = dao_get_jobs_by_service_id(
         service_id,
         limit_days=limit_days,
         page=page,
-        page_size=current_app.config["PAGE_SIZE"],
+        page_size=page_size if page_size is not None else current_app.config["PAGE_SIZE"],
         statuses=statuses,
     )
     data = job_schema.dump(pagination.items, many=True)
@@ -314,9 +325,18 @@ def get_paginated_jobs(service_id, limit_days, statuses, page):
     end_time = time.time()
     current_app.logger.info(f"[get_paginated_jobs] took {"{:.3f}".format(end_time - start_time)} seconds")
 
+    # Build extra kwargs so pagination links preserve all original query params.
+    link_kwargs = {"service_id": service_id}
+    if limit_days is not None:
+        link_kwargs["limit_days"] = limit_days
+    if page_size is not None:
+        link_kwargs["page_size"] = page_size
+    if statuses:
+        link_kwargs["statuses"] = ",".join(statuses)
+
     return {
         "data": data,
         "page_size": pagination.per_page,
         "total": pagination.total,
-        "links": pagination_links(pagination, ".get_jobs_by_service", service_id=service_id),
+        "links": pagination_links(pagination, ".get_jobs_by_service", **link_kwargs),
     }
