@@ -1009,6 +1009,37 @@ def test_get_jobs_with_invalid_page_size_returns_400(admin_request, sample_templ
     assert expected_error in resp_json["message"]["page_size"][0]
 
 
+def test_get_jobs_pagination_links_preserve_all_query_params(admin_request, sample_template):
+    """Test that pagination links preserve page_size, limit_days, and statuses together"""
+    # Create jobs with different statuses
+    create_job(sample_template, job_status="pending")
+    create_job(sample_template, job_status="pending")
+    create_job(sample_template, job_status="pending")
+    create_job(sample_template, job_status="finished")
+    create_job(sample_template, job_status="finished")
+
+    resp_json = admin_request.get(
+        "job.get_jobs_by_service",
+        service_id=sample_template.service_id,
+        page_size=2,
+        limit_days=7,
+        statuses="pending,finished",
+    )
+
+    assert resp_json["page_size"] == 2
+    assert resp_json["total"] == 5
+    assert "links" in resp_json
+
+    # Verify all query parameters are preserved in pagination links
+    if "next" in resp_json["links"]:
+        assert "page_size=2" in resp_json["links"]["next"]
+        assert "limit_days=7" in resp_json["links"]["next"]
+        assert (
+            "statuses=pending%2Cfinished" in resp_json["links"]["next"]
+            or "statuses=pending,finished" in resp_json["links"]["next"]
+        )
+
+
 @pytest.mark.parametrize(
     "statuses_filter, expected_statuses",
     [

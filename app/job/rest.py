@@ -149,6 +149,7 @@ def get_jobs_by_service(service_id):
     statuses = [x.strip() for x in request.args.get("statuses", "").split(",")]
 
     page = int(request.args.get("page", 1))
+
     return jsonify(**get_paginated_jobs(service_id, limit_days, statuses, page, page_size=page_size))
 
 
