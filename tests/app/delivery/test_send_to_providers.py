@@ -378,6 +378,8 @@ def test_send_email_does_not_add_unsubscribe_headers_when_use_custom_unsubscribe
         "example.com/unsub",
         "http://example.com/unsub",  # http is not allowed, only https
         "https://hi",  # no dot in hostname
+        "https://example.com/unsub\r\nX-Injected: evil",  # CRLF header injection attempt
+        "https://example.com/unsub\nX-Injected: evil",  # LF header injection attempt
         "",
     ],
 )

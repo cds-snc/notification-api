@@ -261,11 +261,17 @@ def _validate_unsubscribe_url(url, notification_id):
     """Validates that the unsubscribe URL is a well-formed https URL with a proper hostname.
     Reuses the same criteria as the existing https_url JSON Schema definition in the project
     (scheme must be https, host must look like a real domain with at least one dot).
+    Also rejects URLs containing control characters (CR, LF, etc.) to prevent header injection,
+    since this value is placed directly into an email header.
     Returns the URL if valid, None otherwise.
     """
     if not url:
         return None
     try:
+        # Reject any control characters before further parsing — they can enable header injection
+        # when the URL is interpolated into a List-Unsubscribe header value.
+        if any(c < "\x20" for c in url):
+            raise ValueError("URL contains control characters")
         parsed = urlparse(url)
         if parsed.scheme != "https":
             raise ValueError("scheme must be https")
