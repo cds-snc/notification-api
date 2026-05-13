@@ -217,7 +217,7 @@ def db_save_and_send_notification(notification: Notification):
         if redis_store.get(redis.daily_limit_cache_key(service_id)):
             redis_store.incr(redis.daily_limit_cache_key(service_id))
 
-    # Pioritize sending per services within the same queue by default.
+    # Prioritize sending per services within the same queue by default.
     message_group_id: str = notification.service_id
     queue: str = notification.queue_name
     celery_params: list = [str(notification.id)]
