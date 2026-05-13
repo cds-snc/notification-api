@@ -45,13 +45,9 @@ class AwsPinpointClient(SmsClient):
             destinationNumber = to
             try:
                 start_time = monotonic()
-                send_with_dedicated_phone_number = self._send_with_dedicated_phone_number(sender) and self.current_app.config.get(
-                    "FF_USE_PINPOINT_FOR_DEDICATED", False
-                )
+                send_with_dedicated_phone_number = self._send_with_dedicated_phone_number(sender)
                 # If the number is US based, we must use a US Toll Free number to send the message
-                if phonenumbers.region_code_for_number(match.number) == "US" and self.current_app.config.get(
-                    "FF_USE_PINPOINT_FOR_US", False
-                ):
+                if phonenumbers.region_code_for_number(match.number) == "US":
                     response = self._dedicated_client.send_text_message(
                         DestinationPhoneNumber=destinationNumber,
                         OriginationIdentity=self.current_app.config["AWS_US_TOLL_FREE_NUMBER"],

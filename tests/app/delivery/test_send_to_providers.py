@@ -88,48 +88,23 @@ class TestProviderToUse:
             provider = send_to_providers.provider_to_use("sms", "1234", "+16135551234", template_id=sc_template)
         assert provider.name == "pinpoint"
 
-    def test_should_use_sns_for_sms_if_dedicated_number(self, restore_provider_details, notify_api):
+    def test_should_use_pinpoint_for_sms_if_dedicated_number(self, restore_provider_details, notify_api):
         with set_config_values(
             notify_api,
             {
                 "AWS_PINPOINT_SC_POOL_ID": "sc_pool_id",
                 "AWS_PINPOINT_DEFAULT_POOL_ID": "default_pool_id",
-                "FF_USE_PINPOINT_FOR_DEDICATED": False,
-            },
-        ):
-            provider = send_to_providers.provider_to_use("sms", "1234", "+16135551234", False, "+12345678901")
-        assert provider.name == "sns"
-
-    def test_should_use_pinpoint_for_sms_if_dedicated_number_and_ff_enabled(self, restore_provider_details, notify_api):
-        with set_config_values(
-            notify_api,
-            {
-                "AWS_PINPOINT_SC_POOL_ID": "sc_pool_id",
-                "AWS_PINPOINT_DEFAULT_POOL_ID": "default_pool_id",
-                "FF_USE_PINPOINT_FOR_DEDICATED": True,
             },
         ):
             provider = send_to_providers.provider_to_use("sms", "1234", "+16135551234", False, "+12345678901")
         assert provider.name == "pinpoint"
 
-    def test_should_use_sns_for_sms_if_sending_to_the_US(self, restore_provider_details, notify_api):
+    def test_should_use_pinpoint_for_sms_if_sending_to_the_US(self, restore_provider_details, notify_api):
         with set_config_values(
             notify_api,
             {
                 "AWS_PINPOINT_SC_POOL_ID": "sc_pool_id",
                 "AWS_PINPOINT_DEFAULT_POOL_ID": "default_pool_id",
-            },
-        ):
-            provider = send_to_providers.provider_to_use("sms", "1234", "+17065551234")
-        assert provider.name == "sns"
-
-    def test_should_use_pinpoint_for_sms_if_sending_to_the_US_and_flag_enabled(self, restore_provider_details, notify_api):
-        with set_config_values(
-            notify_api,
-            {
-                "AWS_PINPOINT_SC_POOL_ID": "sc_pool_id",
-                "AWS_PINPOINT_DEFAULT_POOL_ID": "default_pool_id",
-                "FF_USE_PINPOINT_FOR_US": True,
             },
         ):
             provider = send_to_providers.provider_to_use("sms", "1234", "+17065551234")
