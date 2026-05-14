@@ -408,10 +408,7 @@ class StepLoadShape(LoadTestShape):
         if max_errors > 0:
             total_failures = self.runner.stats.total.num_failures
             if total_failures >= max_errors:
-                print(
-                    f"\n*** Failure count {total_failures} reached max-errors limit {max_errors} "
-                    f"— stopping test ***"
-                )
+                print(f"\n*** Failure count {total_failures} reached max-errors limit {max_errors} " f"— stopping test ***")
                 return None
 
         if constant_users > 0:
