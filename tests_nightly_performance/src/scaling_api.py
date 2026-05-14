@@ -147,10 +147,9 @@ def _push_id(notification_id: str) -> None:
 
 def _sample_id() -> "str | None":
     """Return a random notification ID from the pool without removing it."""
-    with _ids_lock:
-        if not _notification_ids:
-            return None
-        return _notification_ids[random.randint(0, len(_notification_ids) - 1)]
+    if not _notification_ids:
+        return None
+    return _notification_ids[random.randint(0, len(_notification_ids) - 1)]
 
 
 # ---------------------------------------------------------------------------
@@ -294,23 +293,22 @@ class NotifyApiUser(HttpUser):
         self.client.get("/v2/notifications", headers=self.headers)
 
 
-# ---------------------------------------------------------------------------
-# Load shape — steps up by --step-users every --step-time seconds.
-#
-# Example progression with defaults (step-time=180, step-users=20, start-users=10):
-#   0-3 min  →  10 users
-#   3-6 min  →  30 users
-#   6-9 min  →  50 users
-#   9-12 min →  70 users
-#   …
-#   ~42 min  → 300 users  (--max-users reached → test ends)
-#
-# All parameters are tunable at runtime via CLI flags or env vars.
-# Pass --max-users 0 to run until stopped manually.
-# ---------------------------------------------------------------------------
-
-
 class StepwiseLoadShape(LoadTestShape):
+    """
+    Steps up by --step-users every --step-time seconds.
+
+    Example progression with defaults (step-time=180, step-users=20, start-users=10):
+      0-3 min  →  10 users
+      3-6 min  →  30 users
+      6-9 min  →  50 users
+      9-12 min →  70 users
+      …
+      ~42 min  → 300 users  (--max-users reached → test ends)
+
+    All parameters are tunable at runtime via CLI flags or env vars.
+    Pass --max-users 0 to run until stopped manually.
+    """
+
     def tick(self):
         opts = self.runner.environment.parsed_options
         elapsed = self.get_run_time()

@@ -88,45 +88,128 @@ def print_max_rps(environment, **kwargs):
         print(f"*** Send rate when errors first appeared: {_rps_at_first_error:.2f} req/s ***")
     else:
         print("*** No errors observed during test ***")
+    print(f"*** Missing IDs - single email: {NotifyApiUser._missing_id_email}, single SMS: {NotifyApiUser._missing_id_sms} ***")
     print()
 
 
 @events.init_command_line_parser.add_listener
 def add_custom_arguments(parser, **kwargs):
-    parser.add_argument("--skip-bulk", action="store_true", default=False, help="Skip bulk send tasks")
-    parser.add_argument("--bulk-only", action="store_true", default=False, help="Only run bulk send tasks, skip individual sends")
     parser.add_argument(
-        "--bulk-size", type=int, default=BULK_SIZE, help=f"Number of messages per bulk send request (default: {BULK_SIZE})"
+        "--skip-bulk",
+        action="store_true",
+        default=False,
+        help=(
+            "Omit the send_bulk_emails task from the test run. "
+            "Useful when you want to isolate single-send throughput or GET behaviour "
+            "without the additional load that large CSV payloads place on the API."
+        ),
     )
-    parser.add_argument("--start-users", type=int, default=0, help="Number of users to start with before stepping up")
     parser.add_argument(
-        "--constant-users", type=int, default=0, help="Maintain a fixed number of users indefinitely with no step-up"
+        "--bulk-only",
+        action="store_true",
+        default=False,
+        help=(
+            "Run only the send_bulk_emails task; all single-send (email/SMS) and GET tasks "
+            "return immediately without making a request. "
+            "Use this to stress the bulk-send code path in isolation."
+        ),
     )
     parser.add_argument(
-        "--include-get", action="store_true", default=False, help="Include GET notification requests in the test (by ID and list)"
+        "--bulk-size",
+        type=int,
+        default=BULK_SIZE,
+        help=(
+            f"Number of recipient rows included in each bulk send CSV (default: {BULK_SIZE}). "
+            "Larger values increase payload size and back-end processing time per request, "
+            "which reduces the overall request rate but increases per-request DB write volume. "
+            "Keep this small (e.g. 2-10) if you want the API/DB to be the bottleneck rather "
+            "than payload serialisation or queue depth."
+        ),
+    )
+    parser.add_argument(
+        "--start-users",
+        type=int,
+        default=0,
+        help=(
+            "Immediately spawn this many users at test start, then continue stepping up by "
+            f"{StepLoadShape.STEP_USERS} users every {StepLoadShape.STEP_DURATION} seconds indefinitely. "
+            "Use this to skip the slow ramp-up phase and shock the system from a known baseline. "
+            "Ignored when --constant-users is set. Default: 0 (uses flat --users from locust.conf)."
+        ),
+    )
+    parser.add_argument(
+        "--constant-users",
+        type=int,
+        default=0,
+        help=(
+            "Hold exactly this many concurrent users for the entire test with no step-up. "
+            "The initial ramp to the target uses the configured spawn rate (-r / locust.conf), "
+            "after which the user count is held flat indefinitely. "
+            "Takes precedence over --start-users. Default: 0 (disabled)."
+        ),
+    )
+    parser.add_argument(
+        "--include-get",
+        action="store_true",
+        default=False,
+        help=(
+            "Enable the GET tasks (get_notification_by_id and get_notifications_list) alongside "
+            "the default send tasks. By default GET tasks are skipped to keep the test "
+            "write-heavy, matching production traffic patterns. "
+            "IDs are sampled from notifications sent during the same run."
+        ),
     )
     parser.add_argument(
         "--get-only",
         action="store_true",
         default=False,
-        help="Only run GET notification tasks, skip all send tasks (implies --include-get)",
+        help=(
+            "Run only the GET tasks (get_notification_by_id and get_notifications_list); "
+            "all send tasks return immediately without making a request. "
+            "Implies --include-get. Use this to stress the read path in isolation, "
+            "for example after pre-populating the database with notifications."
+        ),
     )
     parser.add_argument(
         "--pacing",
         type=float,
         default=60.0,
-        help="Seconds between tasks per user using constant_pacing (default: 60). Ignored if --wait-min/--wait-max are set.",
+        help=(
+            "Target seconds between the start of consecutive tasks for each user, using Locust's "
+            "constant_pacing wait function (default: 60). "
+            "constant_pacing dynamically adjusts the actual sleep time so that the wall-clock gap "
+            "between task starts stays as close to this value as possible — if a task runs longer "
+            "than --pacing seconds, the next task starts immediately (no sleep). "
+            "This gives a stable per-user RPS ceiling of 1/pacing regardless of task duration. "
+            "Ignored in favour of between() if --wait-min is set."
+        ),
     )
     parser.add_argument(
         "--wait-min",
         type=float,
         default=None,
-        help="Minimum wait seconds between tasks (enables between() mode instead of constant_pacing)",
+        help=(
+            "Minimum wait seconds between tasks, switching the wait strategy from "
+            "constant_pacing to Locust's between() function. "
+            "between() draws a uniform random sleep in [--wait-min, --wait-max] after each task "
+            "completes, so the actual inter-task gap also includes task execution time. "
+            "Setting this produces more variable per-user RPS than --pacing. "
+            "If --wait-max is omitted it defaults to the same value as --wait-min (fixed wait)."
+        ),
     )
-    parser.add_argument("--wait-max", type=float, default=None, help="Maximum wait seconds between tasks (used with --wait-min)")
+    parser.add_argument(
+        "--wait-max",
+        type=float,
+        default=None,
+        help=(
+            "Maximum wait seconds between tasks when --wait-min is set (default: same as --wait-min). "
+            "Each user sleeps for a uniformly random duration in [--wait-min, --wait-max] after "
+            "each task. Has no effect unless --wait-min is also provided."
+        ),
+    )
 
 
-BULK_SIZE = 2000
+BULK_SIZE = 2
 
 # Note that task weights add up to 100
 # If you add / remove tasks please keep the sum 100
@@ -143,6 +226,8 @@ class NotifyApiUser(HttpUser):
         return constant_pacing(opts.pacing)(self)
 
     _sent_ids: deque = deque(maxlen=500)  # shared pool of sent notification IDs for GET tasks
+    _missing_id_email: int = 0  # count of single email responses missing an ID
+    _missing_id_sms: int = 0  # count of single SMS responses missing an ID
 
     def __init__(self, *args, **kwargs):
         super(NotifyApiUser, self).__init__(*args, **kwargs)
@@ -165,7 +250,7 @@ class NotifyApiUser(HttpUser):
             try:
                 NotifyApiUser._sent_ids.append(response.json()["id"])
             except Exception:
-                pass
+                NotifyApiUser._missing_id_email += 1
 
     @task(30)
     def send_one_sms(self):
@@ -181,7 +266,7 @@ class NotifyApiUser(HttpUser):
             try:
                 NotifyApiUser._sent_ids.append(response.json()["id"])
             except Exception:
-                pass
+                NotifyApiUser._missing_id_sms += 1
 
     @task(5)
     def send_email_with_attachment(self):
