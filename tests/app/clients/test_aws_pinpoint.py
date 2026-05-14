@@ -215,7 +215,7 @@ def test_send_sms_uses_dryrun(notify_api, mocker, sample_template, template_id):
 
 
 @pytest.mark.serial
-def test_send_sms_uses_dedicated_number_when_flag_enabled(notify_api, mocker):
+def test_send_sms_uses_dedicated_number_with_long_code_sender(notify_api, mocker):
     # Mock AWS clients
     dedicated_mock = mocker.patch.object(aws_pinpoint_client, "_dedicated_client", create=True)
     default_mock = mocker.patch.object(aws_pinpoint_client, "_client", create=True)
@@ -232,7 +232,6 @@ def test_send_sms_uses_dedicated_number_when_flag_enabled(notify_api, mocker):
             "AWS_PINPOINT_SC_POOL_ID": "sc_pool_id",
             "AWS_PINPOINT_DEFAULT_POOL_ID": "default_pool_id",
             "AWS_PINPOINT_CONFIGURATION_SET_NAME": "config_set_name",
-            "FF_USE_PINPOINT_FOR_DEDICATED": True,
         },
     ):
         aws_pinpoint_client.send_sms(
@@ -257,7 +256,7 @@ def test_send_sms_uses_dedicated_number_when_flag_enabled(notify_api, mocker):
 
 
 @pytest.mark.serial
-def test_send_sms_to_us_number_uses_pinpoint_when_flag_enabled(notify_api, mocker):
+def test_send_sms_to_us_number_uses_US_toll_free_number(notify_api, mocker):
     dedicated_mock = mocker.patch.object(aws_pinpoint_client, "_dedicated_client", create=True)
     default_mock = mocker.patch.object(aws_pinpoint_client, "_client", create=True)
     mocker.patch.object(aws_pinpoint_client, "statsd_client", create=True)
@@ -271,7 +270,6 @@ def test_send_sms_to_us_number_uses_pinpoint_when_flag_enabled(notify_api, mocke
         {
             "AWS_US_TOLL_FREE_NUMBER": us_toll_free_number,
             "AWS_PINPOINT_CONFIGURATION_SET_NAME": "config_set_name",
-            "FF_USE_PINPOINT_FOR_US": True,
         },
     ):
         aws_pinpoint_client.send_sms(to, content, reference)

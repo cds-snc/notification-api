@@ -451,28 +451,18 @@ def provider_to_use(
         provider: Provider to use to send the notification.
     """
 
-    has_dedicated_number = sender is not None and sender.startswith("+1")
     cannot_determine_recipient_country = False
     recipient_outside_canada = False
-    sending_to_us_number = False
     if to is not None:
         match = next(iter(phonenumbers.PhoneNumberMatcher(to, "US")), None)
         if match is None:
             cannot_determine_recipient_country = True
-        elif (
-            phonenumbers.region_code_for_number(match.number) == "US"
-        ):  # The US is a special case that needs to send from a US toll free number
-            sending_to_us_number = True
-        elif phonenumbers.region_code_for_number(match.number) != "CA":
+        elif phonenumbers.region_code_for_number(match.number) not in ["CA", "US"]:
             recipient_outside_canada = True
     using_sc_pool_template = template_id is not None and str(template_id) in current_app.config["AWS_PINPOINT_SC_TEMPLATE_IDS"]
     zone_1_outside_canada = recipient_outside_canada and not international
-    use_pinpoint_for_dedicated = current_app.config.get("FF_USE_PINPOINT_FOR_DEDICATED", False)
-    use_pinpoint_for_us = current_app.config.get("FF_USE_PINPOINT_FOR_US", False)
     do_not_use_pinpoint = (
-        (has_dedicated_number and not use_pinpoint_for_dedicated)
-        or (sending_to_us_number and not use_pinpoint_for_us)
-        or cannot_determine_recipient_country
+        cannot_determine_recipient_country
         or zone_1_outside_canada
         or not current_app.config["AWS_PINPOINT_SC_POOL_ID"]
         or ((not current_app.config["AWS_PINPOINT_DEFAULT_POOL_ID"]) and not using_sc_pool_template)

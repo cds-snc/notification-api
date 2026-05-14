@@ -953,6 +953,93 @@ def test_get_jobs_accepts_page_parameter(admin_request, sample_template):
     assert set(resp_json["links"].keys()) == {"prev", "next", "last"}
 
 
+def test_get_jobs_accepts_page_size_parameter(admin_request, sample_template):
+    create_10_jobs(sample_template)
+
+    resp_json = admin_request.get("job.get_jobs_by_service", service_id=sample_template.service_id, page_size=3)
+
+    assert len(resp_json["data"]) == 3
+    assert resp_json["data"][0]["created_at"] == "2015-01-01T10:00:00.000000+00:00"
+    assert resp_json["data"][1]["created_at"] == "2015-01-01T09:00:00.000000+00:00"
+    assert resp_json["data"][2]["created_at"] == "2015-01-01T08:00:00.000000+00:00"
+    assert resp_json["page_size"] == 3
+    assert resp_json["total"] == 10
+    assert "links" in resp_json
+    assert set(resp_json["links"].keys()) == {"next", "last"}
+    assert "page_size=3" in resp_json["links"]["next"]
+    assert "page_size=3" in resp_json["links"]["last"]
+
+
+def test_get_jobs_accepts_page_size_and_page_parameters(admin_request, sample_template):
+    create_10_jobs(sample_template)
+
+    resp_json = admin_request.get("job.get_jobs_by_service", service_id=sample_template.service_id, page=2, page_size=3)
+
+    assert len(resp_json["data"]) == 3
+    assert resp_json["data"][0]["created_at"] == "2015-01-01T07:00:00.000000+00:00"
+    assert resp_json["data"][1]["created_at"] == "2015-01-01T06:00:00.000000+00:00"
+    assert resp_json["data"][2]["created_at"] == "2015-01-01T05:00:00.000000+00:00"
+    assert resp_json["page_size"] == 3
+    assert resp_json["total"] == 10
+    assert "links" in resp_json
+    assert set(resp_json["links"].keys()) == {"prev", "next", "last"}
+    assert "page_size=3" in resp_json["links"]["prev"]
+    assert "page_size=3" in resp_json["links"]["next"]
+    assert "page_size=3" in resp_json["links"]["last"]
+
+
+@pytest.mark.parametrize(
+    "invalid_page_size, expected_error",
+    [
+        ("abc", "abc is not an integer"),
+        ("3.14", "3.14 is not an integer"),
+        ("not_a_number", "not_a_number is not an integer"),
+        ("0", "page_size must be a positive integer"),
+        ("-1", "page_size must be a positive integer"),
+    ],
+)
+def test_get_jobs_with_invalid_page_size_returns_400(admin_request, sample_template, invalid_page_size, expected_error):
+    resp_json = admin_request.get(
+        "job.get_jobs_by_service",
+        service_id=sample_template.service_id,
+        page_size=invalid_page_size,
+        _expected_status=400,
+    )
+    assert resp_json["result"] == "error"
+    assert expected_error in resp_json["message"]["page_size"][0]
+
+
+def test_get_jobs_pagination_links_preserve_all_query_params(admin_request, sample_template):
+    """Test that pagination links preserve page_size, limit_days, and statuses together"""
+    # Create jobs with different statuses
+    create_job(sample_template, job_status="pending")
+    create_job(sample_template, job_status="pending")
+    create_job(sample_template, job_status="pending")
+    create_job(sample_template, job_status="finished")
+    create_job(sample_template, job_status="finished")
+
+    resp_json = admin_request.get(
+        "job.get_jobs_by_service",
+        service_id=sample_template.service_id,
+        page_size=2,
+        limit_days=7,
+        statuses="pending,finished",
+    )
+
+    assert resp_json["page_size"] == 2
+    assert resp_json["total"] == 5
+    assert "links" in resp_json
+
+    # Verify all query parameters are preserved in pagination links
+    if "next" in resp_json["links"]:
+        assert "page_size=2" in resp_json["links"]["next"]
+        assert "limit_days=7" in resp_json["links"]["next"]
+        assert (
+            "statuses=pending%2Cfinished" in resp_json["links"]["next"]
+            or "statuses=pending,finished" in resp_json["links"]["next"]
+        )
+
+
 @pytest.mark.parametrize(
     "statuses_filter, expected_statuses",
     [
