@@ -29,8 +29,7 @@
             "module": "flask",
             "env": {
                 "FLASK_APP": "application.py",
-                "FLASK_ENV": "development",
-                "FF_SMS_RATELIMIT": "true"
+                "FLASK_ENV": "development"
             },
             "args": [
                 "run",
@@ -48,9 +47,6 @@
             "module": "celery",
             "console": "integratedTerminal",
             "justMyCode": false,
-            "env": {
-                "FF_SMS_RATELIMIT": "true"
-            },
             "args": [
                 "--app",
                 "run_celery",
