@@ -25,6 +25,8 @@ Key CLI flags:
     --pacing FLOAT         Seconds between tasks per user, constant_pacing (default: 60)
     --wait-min FLOAT       Switch to between() mode; sets minimum wait seconds
     --wait-max FLOAT       Maximum wait seconds for between() mode (default: same as --wait-min)
+    --error-threshold FLOAT  Stop when error rate exceeds this % (default: 3.0, 0 to disable)
+    --max-errors INT         Stop after this many absolute failures (default: 0 / disabled)
 
 Required env vars:
     PERF_TEST_API_KEY
@@ -227,6 +229,17 @@ def add_custom_arguments(parser, **kwargs):
             "Prevents a handful of early failures from stopping the test before it is warmed up."
         ),
     )
+    parser.add_argument(
+        "--max-errors",
+        type=int,
+        default=0,
+        help=(
+            "Stop the test after this many absolute failures have been recorded (default: 0 / disabled). "
+            "Acts independently of --error-threshold — whichever condition is met first stops the test. "
+            "Useful when you want to cap the number of errors regardless of overall request volume "
+            "(e.g. --max-errors 2000 to stop after 2 000 failures irrespective of error rate)."
+        ),
+    )
 
 
 BULK_SIZE = 2
@@ -389,6 +402,17 @@ class StepLoadShape(LoadTestShape):
                         f"after {total_requests} requests — stopping test ***"
                     )
                     return None
+
+        # Stop the test when the absolute error count exceeds --max-errors.
+        max_errors = opts.max_errors
+        if max_errors > 0:
+            total_failures = self.runner.stats.total.num_failures
+            if total_failures >= max_errors:
+                print(
+                    f"\n*** Failure count {total_failures} reached max-errors limit {max_errors} "
+                    f"— stopping test ***"
+                )
+                return None
 
         if constant_users > 0:
             # Hold a fixed number of users indefinitely, no step-up

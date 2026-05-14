@@ -59,6 +59,7 @@ LOCUST_BASE=(
     --run-time 1h
     --error-threshold "$ERROR_THRESHOLD"
     --min-requests "$MIN_REQUESTS"
+    --wait-min 0
 )
 
 # ---------------------------------------------------------------------------
@@ -68,8 +69,9 @@ log() { echo "[$(date '+%H:%M:%S')] $*"; }
 
 run_scenario() {
     local number="$1"
-    local label="$2"
-    shift 2
+    local slug="$2"
+    local label="$3"
+    shift 3
     local extra_flags=("$@")
 
     log "========================================================"
@@ -78,19 +80,24 @@ run_scenario() {
 
     "${LOCUST_BASE[@]}" \
         "${extra_flags[@]}" \
-        --csv  "$OUTPUT_DIR/scenario${number}" \
-        --html "$OUTPUT_DIR/scenario${number}.html" \
+        --csv  "$OUTPUT_DIR/${slug}" \
+        --html "$OUTPUT_DIR/${slug}.html" \
         || true   # don't abort the suite if locust exits non-zero
 
     log "Scenario $number complete. Uploading results to S3..."
-    aws s3 cp "$OUTPUT_DIR/" "${S3_BASE}/scenario${number}/" --recursive --exclude "*" \
-        --include "scenario${number}*" || log "WARNING: S3 upload failed for scenario $number"
+    aws s3 cp "$OUTPUT_DIR/" "${S3_BASE}/${slug}/" --recursive --exclude "*" \
+        --include "${slug}*" || log "WARNING: S3 upload failed for scenario $number"
 }
 
 cooldown() {
     local next="$1"
-    log "Cooling down for ${COOLDOWN}s before scenario $next..."
-    sleep "$COOLDOWN"
+    log "Cooling down for ${COOLDOWN}s before scenario $next... (Ctrl-C to skip cool-down)"
+    sleep "$COOLDOWN" &
+    local sleep_pid=$!
+    # Trap SIGINT so Ctrl-C only kills the sleep, not the whole script.
+    trap "kill $sleep_pid 2>/dev/null; log 'Cool-down skipped.'" INT
+    wait $sleep_pid
+    trap - INT  # restore default SIGINT handling for the next scenario
 }
 
 # ---------------------------------------------------------------------------
@@ -110,7 +117,7 @@ echo ""
 # Scenario 1 — Gradual ramp-up of individual sends
 #   Starts at 10 users, steps up by 50 every 120 s until error threshold.
 # ---------------------------------------------------------------------------
-run_scenario 1 "Gradual ramp-up of individual sends" \
+run_scenario 1 "individual-send-ramp-up" "Gradual ramp-up of individual sends" \
     --skip-bulk \
     --start-users 10
 
@@ -120,7 +127,7 @@ cooldown 2
 # Scenario 2 — Spike of individual sends  (SPIKE_USERS configurable)
 #   Immediately holds SPIKE_USERS concurrent users until error threshold.
 # ---------------------------------------------------------------------------
-run_scenario 2 "Spike of individual sends (${SPIKE_USERS} users)" \
+run_scenario 2 "individual-send-spike" "Spike of individual sends (${SPIKE_USERS} users)" \
     --skip-bulk \
     --constant-users "$SPIKE_USERS"
 
@@ -130,7 +137,7 @@ cooldown 3
 # Scenario 3 — Gradual ramp-up of bulk sends
 #   Starts at 10 users, steps up by 50 every 120 s until error threshold.
 # ---------------------------------------------------------------------------
-run_scenario 3 "Gradual ramp-up of bulk sends" \
+run_scenario 3 "bulk-send-ramp-up" "Gradual ramp-up of bulk sends" \
     --bulk-only \
     --start-users 10
 
@@ -140,7 +147,7 @@ cooldown 4
 # Scenario 4 — Spike of bulk sends  (SPIKE_USERS configurable)
 #   Immediately holds SPIKE_USERS concurrent users until error threshold.
 # ---------------------------------------------------------------------------
-run_scenario 4 "Spike of bulk sends (${SPIKE_USERS} users)" \
+run_scenario 4 "bulk-send-spike" "Spike of bulk sends (${SPIKE_USERS} users)" \
     --bulk-only \
     --constant-users "$SPIKE_USERS"
 
@@ -150,7 +157,7 @@ cooldown 5
 # Scenario 5 — Gradual ramp-up of GET requests only
 #   Starts at 10 users, steps up by 50 every 120 s until error threshold.
 # ---------------------------------------------------------------------------
-run_scenario 5 "Gradual ramp-up of GET requests only" \
+run_scenario 5 "get-ramp-up" "Gradual ramp-up of GET requests only" \
     --get-only \
     --start-users 10
 
