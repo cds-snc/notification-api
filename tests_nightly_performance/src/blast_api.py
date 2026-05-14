@@ -207,6 +207,26 @@ def add_custom_arguments(parser, **kwargs):
             "each task. Has no effect unless --wait-min is also provided."
         ),
     )
+    parser.add_argument(
+        "--error-threshold",
+        type=float,
+        default=3.0,
+        help=(
+            "Automatically stop the test when the error rate (failures / total requests) exceeds "
+            "this percentage (default: 3.0). The check is skipped until --min-requests have been "
+            "completed so that early noise cannot trigger a premature stop. Set to 0 to disable."
+        ),
+    )
+    parser.add_argument(
+        "--min-requests",
+        type=int,
+        default=100,
+        help=(
+            "Minimum number of completed requests (successes + failures) required before the "
+            "--error-threshold check is evaluated (default: 100). "
+            "Prevents a handful of early failures from stopping the test before it is warmed up."
+        ),
+    )
 
 
 BULK_SIZE = 2
@@ -355,6 +375,20 @@ class StepLoadShape(LoadTestShape):
         start_users = opts.start_users
         spawn_rate = opts.spawn_rate  # honours -r / locust.conf spawn-rate
         current_step = int(run_time / self.STEP_DURATION)
+
+        # Stop the test when the error rate exceeds the configured threshold.
+        error_threshold = opts.error_threshold
+        if error_threshold > 0:
+            stats = self.runner.stats.total
+            total_requests = stats.num_requests + stats.num_failures
+            if total_requests >= opts.min_requests:
+                error_rate = stats.fail_ratio * 100
+                if error_rate > error_threshold:
+                    print(
+                        f"\n*** Error rate {error_rate:.1f}% exceeded threshold {error_threshold:.1f}% "
+                        f"after {total_requests} requests — stopping test ***"
+                    )
+                    return None
 
         if constant_users > 0:
             # Hold a fixed number of users indefinitely, no step-up
