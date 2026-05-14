@@ -41,14 +41,19 @@ class NotifyCelery(Celery):
         message_group_id = options.pop("MessageGroupId", None)
         if message_group_id:
             message_group_id = str(message_group_id)
-            # Store in Celery task headers so tasks can read it via self.message_group_id
+            # Always store in Celery task headers so tasks can read it via self.message_group_id
             # (used by deliver_sms_rate_limited to re-queue with the same group).
             options["headers"]["notify_message_group_id"] = message_group_id
-            # Also set as a kombu message property so the SQS transport includes
-            # MessageGroupId in the boto3 SendMessage call, enabling SQS fair queuing
-            # on both standard queues (noisy-neighbour protection) and FIFO queues.
-            options["properties"] = options.get("properties") or {}
-            options["properties"]["MessageGroupId"] = message_group_id
+            # Only forward to kombu as a message property (so SQS receives it) when the
+            # fair-queue feature flag is enabled. This prevents any SQS behaviour change
+            # in production until the flag is turned on.
+
+            # Also set as kombu message property so the SQS transport includes
+            # MessageGroupId in the message for FIFO queues. This is required
+            # for the fair-queue feature to work.
+            if current_app.config.get("FF_SMS_RATELIMIT"):
+                options["properties"] = options.get("properties") or {}
+                options["properties"]["MessageGroupId"] = message_group_id
         return super().send_task(name, args, kwargs, **options)
 
     def init_app(self, app):
