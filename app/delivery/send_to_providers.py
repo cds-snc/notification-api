@@ -263,11 +263,17 @@ def _validate_unsubscribe_url(url, notification_id):
     """Validates that the unsubscribe URL is a well-formed https URL with a proper hostname.
     Reuses the same criteria as the existing https_url JSON Schema definition in the project
     (scheme must be https, host must look like a real domain with at least one dot).
+    Also rejects URLs containing control characters (CR, LF, etc.) to prevent header injection,
+    since this value is placed directly into an email header.
     Returns the URL if valid, None otherwise.
     """
     if not url:
         return None
     try:
+        # Reject any control characters before further parsing — they can enable header injection
+        # when the URL is interpolated into a List-Unsubscribe header value.
+        if any(c < "\x20" for c in url):
+            raise ValueError("URL contains control characters")
         parsed = urlparse(url)
         if parsed.scheme != "https":
             raise ValueError("scheme must be https")
@@ -362,11 +368,15 @@ def send_email_to_provider(notification: Notification):
         contains_pii(notification, str(plain_text_email))
 
     # Service-managed one-click unsubscribe: if the template has use_custom_unsubscribe_url
-    # enabled and the personalisation contains ((unsubscribe_url)) or ((unsub_url)), use that
-    # URL for the RFC 8058 List-Unsubscribe header only (no Notify-hosted page or body link).
+    # enabled and the personalisation contains ((unsubscribe_url)), ((unsub_url)), or ((unsub_link)),
+    # use that URL for the RFC 8058 List-Unsubscribe header only (no Notify-hosted page or body link).
     unsubscribe_link_for_header = None
     if getattr(template_obj, "use_custom_unsubscribe_url", False) and personalisation_data:
-        raw_url = personalisation_data.get("unsubscribe_url") or personalisation_data.get("unsub_url")
+        raw_url = (
+            personalisation_data.get("unsubscribe_url")
+            or personalisation_data.get("unsub_url")
+            or personalisation_data.get("unsub_link")
+        )
         unsubscribe_link_for_header = _validate_unsubscribe_url(raw_url, notification.id)
 
     current_app.logger.info(
