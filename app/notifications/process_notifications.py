@@ -286,7 +286,10 @@ def choose_queue(notification: Notification, research_mode: bool, priority_queue
         if not priority_queue:
             override_queue = QueueNames.CREATE_LETTERS_PDF
 
-    assert override_queue is not None, "Queue should have been determined based on notification type and priority queue"
+    if override_queue is None:
+        raise ValueError(
+            f"Could not determine queue for notification type {notification.notification_type!r}"
+        )
     return override_queue
 
 
