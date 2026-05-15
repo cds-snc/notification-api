@@ -3,7 +3,7 @@ from unittest.mock import patch
 import fakeredis
 import pytest
 
-from app.rate_limiter import InMemoryRateLimiter, RedisRateLimiter
+from app.rate_limiter import InMemoryRateLimiter, RedisZSetRateLimiter
 
 
 class TestInMemoryRateLimiter:
@@ -196,7 +196,7 @@ class TestRedisRateLimiter:
     @pytest.fixture
     def limiter(self):
         redis_client = fakeredis.FakeRedis()
-        return RedisRateLimiter(cap_per_minute=1000, redis_client=redis_client)
+        return RedisZSetRateLimiter(cap_per_minute=1000, redis_client=redis_client)
 
     def test_acquire_lease_below_capacity_succeeds(self, client, limiter):
         with client.application.app_context():

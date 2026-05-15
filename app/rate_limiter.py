@@ -228,7 +228,7 @@ def initialize_rate_limiter(cap_per_minute: int, use_redis: bool = False) -> Rat
     # Create the appropriate backend
     if backend == "redis":
         logger.info("SMS rate limiter: initializing with Redis backend")
-        _rate_limiter_instance = RedisRateLimiter(cap_per_minute)
+        _rate_limiter_instance = RedisZSetRateLimiter(cap_per_minute)
     else:
         logger.info("SMS rate limiter: initializing with in-memory backend")
         _rate_limiter_instance = InMemoryRateLimiter(cap_per_minute)
@@ -256,7 +256,7 @@ def get_rate_limiter() -> RateLimiter:
     return _rate_limiter_instance
 
 
-class RedisRateLimiter(RateLimiter):
+class RedisZSetRateLimiter(RateLimiter):
     """
     Redis-backed SMS parts rate limiter using a 60-second sliding window.
 
