@@ -219,8 +219,12 @@ def initialize_rate_limiter(cap_per_minute: int, use_redis: bool = False) -> Rat
             config_backend = getattr(Config, "SMS_RATE_LIMITER_BACKEND", "memory")
             if config_backend.lower() == "redis":
                 backend = "redis"
-        except Exception:
-            pass
+        except (ImportError, AttributeError) as exc:
+            logger.warning(
+                "SMS rate limiter: failed to read backend from config; "
+                "falling back to in-memory backend. Error: %s",
+                exc,
+            )
 
     # Create the appropriate backend
     if backend == "redis":
@@ -428,7 +432,9 @@ class RedisRateLimiter(RateLimiter):
             try:
                 current_usage += int(parts_str)
             except ValueError:
-                pass
+                current_app.logger.warning(
+                    f"SMS rate limiter (Redis): skipping malformed usage entry member={member!r}, parts={parts_str!r}"
+                )
 
         return current_usage
 
