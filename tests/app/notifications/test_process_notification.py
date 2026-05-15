@@ -476,7 +476,7 @@ class TestSendNotificationQueue:
                 "normal",
                 "+14383898585",
                 "research-mode-tasks",
-                "deliver_throttled_sms",
+                "deliver_sms",
             ),
             (False, None, "sms", "normal", None, QueueNames.SEND_SMS_MEDIUM, "deliver_sms"),
             (False, None, "email", "normal", None, QueueNames.SEND_EMAIL_MEDIUM, "deliver_email"),
