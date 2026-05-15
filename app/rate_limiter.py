@@ -432,7 +432,9 @@ class RedisRateLimiter(RateLimiter):
             try:
                 current_usage += int(parts_str)
             except ValueError:
-                pass
+                current_app.logger.warning(
+                    f"SMS rate limiter (Redis): skipping malformed usage entry member={member!r}, parts={parts_str!r}"
+                )
 
         return current_usage
 
