@@ -18,6 +18,10 @@ def make_task(app):
         abstract = True
         start = None
 
+        @property
+        def message_group_id(self):
+            return self.request.get("notify_message_group_id")
+
         def on_success(self, retval, task_id, args, kwargs):
             elapsed_time = time.time() - self.start
             app.logger.info("{task_name} took {time}s".format(task_name=self.name, time="{0:.4f}".format(elapsed_time)))
@@ -32,6 +36,26 @@ def make_task(app):
 
 
 class NotifyCelery(Celery):
+    def send_task(self, name, args=None, kwargs=None, **options):
+        options["headers"] = options.get("headers") or {}
+        message_group_id = options.pop("MessageGroupId", None)
+        if message_group_id:
+            message_group_id = str(message_group_id)
+            # Always store in Celery task headers so tasks can read it via self.message_group_id
+            # (used by deliver_sms_rate_limited to re-queue with the same group).
+            options["headers"]["notify_message_group_id"] = message_group_id
+            # Only forward to kombu as a message property (so SQS receives it) when the
+            # fair-queue feature flag is enabled. This prevents any SQS behaviour change
+            # in production until the flag is turned on.
+
+            # Also set as kombu message property so the SQS transport includes
+            # MessageGroupId in the message for FIFO queues. This is required
+            # for the fair-queue feature to work.
+            if current_app.config.get("FF_SMS_RATELIMIT"):
+                options["properties"] = options.get("properties") or {}
+                options["properties"]["MessageGroupId"] = message_group_id
+        return super().send_task(name, args, kwargs, **options)
+
     def init_app(self, app):
         super().__init__(
             app.import_name,

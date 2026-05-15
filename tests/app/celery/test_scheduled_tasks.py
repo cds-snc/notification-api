@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from unittest.mock import call
+from unittest.mock import ANY, call
 
 import pytest
 from freezegun import freeze_time
@@ -184,7 +184,7 @@ def test_should_send_all_scheduled_notifications_to_deliver_queue(sample_templat
 
     send_scheduled_notifications()
 
-    mocked.apply_async.assert_called_once_with([str(message_to_deliver.id)], queue=QueueNames.SEND_SMS_MEDIUM)
+    mocked.apply_async.assert_called_once_with([str(message_to_deliver.id)], queue=QueueNames.SEND_SMS_MEDIUM, MessageGroupId=ANY)
     scheduled_notifications = dao_get_scheduled_notifications()
     assert not scheduled_notifications
 
@@ -363,8 +363,8 @@ def test_replay_created_notifications(notify_db_session, sample_service, mocker)
     save_notification(create_notification(template=email_template, created_at=datetime.utcnow(), status="created"))
 
     replay_created_notifications()
-    email_delivery_queue.assert_called_once_with([str(old_email.id)], queue=QueueNames.SEND_EMAIL_MEDIUM)
-    sms_delivery_queue.assert_called_once_with([str(old_sms.id)], queue=QueueNames.SEND_SMS_MEDIUM)
+    email_delivery_queue.assert_called_once_with([str(old_email.id)], queue=QueueNames.SEND_EMAIL_MEDIUM, MessageGroupId=ANY)
+    sms_delivery_queue.assert_called_once_with([str(old_sms.id)], queue=QueueNames.SEND_SMS_MEDIUM, MessageGroupId=ANY)
 
 
 def test_check_job_status_task_does_not_raise_error(sample_template):

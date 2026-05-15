@@ -2,7 +2,7 @@ import json
 import uuid
 from datetime import datetime, timedelta
 from unittest import mock
-from unittest.mock import MagicMock, Mock, call
+from unittest.mock import ANY, MagicMock, Mock, call
 
 import pytest
 import requests_mock
@@ -1152,7 +1152,9 @@ class TestSaveSmss:
         assert persisted_notification.personalisation == {"name": "Jo"}
         assert persisted_notification._personalisation == signer_personalisation.sign({"name": "Jo"})
         assert persisted_notification.notification_type == "sms"
-        mocked_deliver_sms.assert_called_once_with([str(persisted_notification.id)], queue=QueueNames.SEND_SMS_MEDIUM)
+        mocked_deliver_sms.assert_called_once_with(
+            [str(persisted_notification.id)], queue=QueueNames.SEND_SMS_MEDIUM, MessageGroupId=ANY
+        )
 
     @pytest.mark.parametrize("sender_id", [None, "996958a8-0c06-43be-a40e-56e4a2d1655c"])
     def test_save_sms_should_use_redis_cache_to_retrieve_service_and_template_when_possible(
@@ -1207,7 +1209,9 @@ class TestSaveSmss:
         assert persisted_notification.reply_to_text == (f"+1{sms_sender.sms_sender}" if sender_id else None)
 
         mocked_deliver_sms.assert_called_once_with(
-            [str(persisted_notification.id)], queue="send-throttled-sms-tasks" if sender_id else QueueNames.SEND_SMS_MEDIUM
+            [str(persisted_notification.id)],
+            queue="send-throttled-sms-tasks" if sender_id else QueueNames.SEND_SMS_MEDIUM,
+            MessageGroupId=ANY,
         )
         if sender_id:
             mocked_get_sender_id.assert_called_once_with(persisted_notification.service_id, sender_id)
@@ -1228,7 +1232,7 @@ class TestSaveSmss:
         save_smss(template.service_id, [signer_notification.sign(notification)], notification_id)
         persisted_notification = Notification.query.one()
         provider_tasks.deliver_sms.apply_async.assert_called_once_with(
-            [str(persisted_notification.id)], queue="research-mode-tasks"
+            [str(persisted_notification.id)], queue="research-mode-tasks", MessageGroupId=ANY
         )
         assert mocked_deliver_sms.called
 
@@ -1252,11 +1256,11 @@ class TestSaveSmss:
         persisted_notification = Notification.query.one()
         if process_type == "priority":
             provider_tasks.deliver_sms.apply_async.assert_called_once_with(
-                [str(persisted_notification.id)], queue=QueueNames.SEND_SMS_HIGH
+                [str(persisted_notification.id)], queue=QueueNames.SEND_SMS_HIGH, MessageGroupId=ANY
             )
         else:
             provider_tasks.deliver_sms.apply_async.assert_called_once_with(
-                [str(persisted_notification.id)], queue=QueueNames.SEND_SMS_LOW
+                [str(persisted_notification.id)], queue=QueueNames.SEND_SMS_LOW, MessageGroupId=ANY
             )
         assert mocked_deliver_sms.called
 
@@ -1276,7 +1280,7 @@ class TestSaveSmss:
         )
         persisted_notification = Notification.query.one()
         provider_tasks.deliver_sms.apply_async.assert_called_once_with(
-            [str(persisted_notification.id)], queue=QueueNames.SEND_SMS_LOW
+            [str(persisted_notification.id)], queue=QueueNames.SEND_SMS_LOW, MessageGroupId=ANY
         )
         assert mocked_deliver_sms.called
 
@@ -1296,7 +1300,7 @@ class TestSaveSmss:
 
         persisted_notification = Notification.query.one()
         provider_tasks.deliver_throttled_sms.apply_async.assert_called_once_with(
-            [str(persisted_notification.id)], queue="send-throttled-sms-tasks"
+            [str(persisted_notification.id)], queue="send-throttled-sms-tasks", MessageGroupId=ANY
         )
         mocked_deliver_sms.assert_not_called()
         mocked_deliver_throttled_sms.assert_called_once()
@@ -1324,7 +1328,7 @@ class TestSaveSmss:
         assert not persisted_notification.personalisation
         assert persisted_notification.notification_type == "sms"
         provider_tasks.deliver_sms.apply_async.assert_called_once_with(
-            [str(persisted_notification.id)], queue=QueueNames.SEND_SMS_MEDIUM
+            [str(persisted_notification.id)], queue=QueueNames.SEND_SMS_MEDIUM, MessageGroupId=ANY
         )
 
     def test_save_sms_should_save_default_smm_sender_notification_reply_to_text_on(self, notify_db_session, mocker):
@@ -1362,7 +1366,7 @@ class TestSaveSmss:
         assert persisted_notification.notification_type == "sms"
 
         provider_tasks.deliver_sms.apply_async.assert_called_once_with(
-            [str(persisted_notification.id)], queue=QueueNames.SEND_SMS_MEDIUM
+            [str(persisted_notification.id)], queue=QueueNames.SEND_SMS_MEDIUM, MessageGroupId=ANY
         )
 
     def test_save_sms_should_go_to_retry_queue_if_database_errors(self, sample_template, mocker):
@@ -1593,7 +1597,9 @@ class TestSaveEmails:
         assert persisted_notification.personalisation == {"name": "Jo"}
         assert persisted_notification._personalisation == signer_personalisation.sign({"name": "Jo"})
         assert persisted_notification.notification_type == "email"
-        mocked_deliver_email.assert_called_once_with([str(persisted_notification.id)], queue=QueueNames.SEND_EMAIL_MEDIUM)
+        mocked_deliver_email.assert_called_once_with(
+            [str(persisted_notification.id)], queue=QueueNames.SEND_EMAIL_MEDIUM, MessageGroupId=ANY
+        )
         if sender_id:
             mocked_get_sender_id.assert_called_once_with(persisted_notification.service_id, sender_id)
 
@@ -1641,7 +1647,7 @@ class TestSaveEmails:
 
         persisted_notification = Notification.query.one()
         provider_tasks.deliver_email.apply_async.assert_called_once_with(
-            [str(persisted_notification.id)], queue="research-mode-tasks"
+            [str(persisted_notification.id)], queue="research-mode-tasks", MessageGroupId=ANY
         )
 
     @pytest.mark.parametrize(
@@ -1661,7 +1667,9 @@ class TestSaveEmails:
         save_emails(service.id, [signer_notification.sign(notification)], notification_id)
 
         persisted_notification = Notification.query.one()
-        provider_tasks.deliver_email.apply_async.assert_called_once_with([str(persisted_notification.id)], queue=expected_queue)
+        provider_tasks.deliver_email.apply_async.assert_called_once_with(
+            [str(persisted_notification.id)], queue=expected_queue, MessageGroupId=ANY
+        )
 
     def test_should_route_save_email_task_to_bulk_on_large_csv_file(self, notify_db_session, mocker):
         service = create_service()
@@ -1676,7 +1684,7 @@ class TestSaveEmails:
 
         persisted_notification = Notification.query.one()
         provider_tasks.deliver_email.apply_async.assert_called_once_with(
-            [str(persisted_notification.id)], queue=QueueNames.SEND_EMAIL_LOW
+            [str(persisted_notification.id)], queue=QueueNames.SEND_EMAIL_LOW, MessageGroupId=ANY
         )
 
     def test_should_use_email_template_and_persist(
@@ -1716,7 +1724,7 @@ class TestSaveEmails:
         assert persisted_notification.notification_type == "email"
 
         provider_tasks.deliver_email.apply_async.assert_called_once_with(
-            [str(persisted_notification.id)], queue=QueueNames.SEND_EMAIL_MEDIUM
+            [str(persisted_notification.id)], queue=QueueNames.SEND_EMAIL_MEDIUM, MessageGroupId=ANY
         )
 
     def test_save_email_should_use_template_version_from_job_not_latest(self, sample_email_template, mocker):
@@ -1744,7 +1752,7 @@ class TestSaveEmails:
         assert not persisted_notification.sent_by
         assert persisted_notification.notification_type == "email"
         provider_tasks.deliver_email.apply_async.assert_called_once_with(
-            [str(persisted_notification.id)], queue=QueueNames.SEND_EMAIL_MEDIUM
+            [str(persisted_notification.id)], queue=QueueNames.SEND_EMAIL_MEDIUM, MessageGroupId=ANY
         )
 
     def test_should_use_email_template_subject_placeholders(self, sample_email_template_with_placeholders, mocker):
@@ -1766,7 +1774,7 @@ class TestSaveEmails:
         assert not persisted_notification.reference
         assert persisted_notification.notification_type == "email"
         provider_tasks.deliver_email.apply_async.assert_called_once_with(
-            [str(persisted_notification.id)], queue=QueueNames.SEND_EMAIL_MEDIUM
+            [str(persisted_notification.id)], queue=QueueNames.SEND_EMAIL_MEDIUM, MessageGroupId=ANY
         )
 
     def test_save_email_uses_the_reply_to_text_when_provided(self, sample_email_template, mocker):
@@ -1823,7 +1831,7 @@ class TestSaveEmails:
         assert not persisted_notification.reference
         assert persisted_notification.notification_type == "email"
         provider_tasks.deliver_email.apply_async.assert_called_once_with(
-            [str(persisted_notification.id)], queue=QueueNames.SEND_EMAIL_MEDIUM
+            [str(persisted_notification.id)], queue=QueueNames.SEND_EMAIL_MEDIUM, MessageGroupId=ANY
         )
 
     def test_save_email_should_go_to_retry_queue_if_database_errors(self, sample_email_template, mocker):

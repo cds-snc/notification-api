@@ -1,6 +1,6 @@
 import datetime
 import uuid
-from unittest.mock import call
+from unittest.mock import ANY, call
 
 import pytest
 from boto3.exceptions import Boto3Error
@@ -38,7 +38,7 @@ from app.notifications.process_notifications import (
 from app.v2.errors import BadRequestError
 from tests.app.conftest import create_sample_api_key
 from tests.app.db import create_service_sms_sender
-from tests.conftest import set_config
+from tests.conftest import set_config, set_config_values
 
 
 class TestContentCreation:
@@ -475,8 +475,8 @@ class TestSendNotificationQueue:
                 "sms",
                 "normal",
                 "+14383898585",
-                "send-throttled-sms-tasks",
-                "deliver_throttled_sms",
+                "research-mode-tasks",
+                "deliver_sms",
             ),
             (False, None, "sms", "normal", None, QueueNames.SEND_SMS_MEDIUM, "deliver_sms"),
             (False, None, "email", "normal", None, QueueNames.SEND_EMAIL_MEDIUM, "deliver_email"),
@@ -573,7 +573,7 @@ class TestSendNotificationQueue:
 
         send_notification_to_queue(notification=notification, research_mode=research_mode, queue=requested_queue)
 
-        mocked.assert_called_once_with([str(notification.id)], queue=expected_queue)
+        mocked.assert_called_once_with([str(notification.id)], queue=expected_queue, MessageGroupId=ANY)
 
     def test_send_notification_to_queue_throws_exception_deletes_notification(self, sample_notification, mocker):
         mocked = mocker.patch(
@@ -582,10 +582,98 @@ class TestSendNotificationQueue:
         )
         with pytest.raises(Boto3Error):
             send_notification_to_queue(sample_notification, False)
-        mocked.assert_called_once_with([(str(sample_notification.id))], queue=QueueNames.SEND_SMS_MEDIUM)
+        mocked.assert_called_once_with([(str(sample_notification.id))], queue=QueueNames.SEND_SMS_MEDIUM, MessageGroupId=ANY)
 
         assert Notification.query.count() == 0
         assert NotificationHistory.query.count() == 0
+
+    def test_send_notification_to_queue_with_ff_sms_ratelimit_routes_to_fair_queue(self, notify_api, mocker):
+        with set_config(notify_api, "FF_SMS_RATELIMIT", True):
+            notification = Notification(
+                id=uuid.uuid4(),
+                key_type="normal",
+                notification_type="sms",
+                created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
+            )
+            mock_apply = mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+            mocker.patch(
+                "app.notifications.process_notifications.get_delivery_queue_for_template",
+                return_value="send-sms-medium-tasks",
+            )
+            mocker.patch("app.notifications.process_notifications.number_of_sms_fragments", return_value=2)
+
+            send_notification_to_queue(notification=notification, research_mode=False, queue=None)
+
+            mock_apply.assert_called_once_with(
+                [str(notification.id), 2],
+                queue=QueueNames.SEND_SMS_FAIR,
+                MessageGroupId="send-sms-medium-tasks",
+            )
+
+    def test_send_notification_to_queue_with_ff_sms_ratelimit_uses_incoming_queue_as_message_group(self, notify_api, mocker):
+        # When a volume-adjusted queue arrives (e.g. send-sms-low), it becomes the MessageGroupId.
+        with set_config(notify_api, "FF_SMS_RATELIMIT", True):
+            notification = Notification(
+                id=uuid.uuid4(),
+                key_type="normal",
+                notification_type="sms",
+                created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
+            )
+            mock_apply = mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+            mocker.patch("app.notifications.process_notifications.number_of_sms_fragments", return_value=3)
+
+            send_notification_to_queue(
+                notification=notification,
+                research_mode=False,
+                queue=QueueNames.SEND_SMS_LOW,
+            )
+
+            mock_apply.assert_called_once_with(
+                [str(notification.id), 3],
+                queue=QueueNames.SEND_SMS_FAIR,
+                MessageGroupId=QueueNames.SEND_SMS_LOW,
+            )
+
+    def test_send_notification_to_queue_with_ff_sms_ratelimit_bypasses_for_research_mode(self, notify_api, mocker):
+        with set_config(notify_api, "FF_SMS_RATELIMIT", True):
+            notification = Notification(
+                id=uuid.uuid4(),
+                key_type="normal",
+                notification_type="sms",
+                created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
+            )
+            mock_rate_limited = mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+            mock_deliver_sms = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
+
+            send_notification_to_queue(notification=notification, research_mode=True, queue=None)
+
+            mock_deliver_sms.assert_called_once_with(
+                [str(notification.id)],
+                queue=QueueNames.RESEARCH_MODE,
+                MessageGroupId=ANY,
+            )
+            mock_rate_limited.assert_not_called()
+
+    def test_send_notification_to_queue_with_ff_sms_ratelimit_throttled_sms_takes_priority(self, notify_api, mocker):
+        with set_config(notify_api, "FF_SMS_RATELIMIT", True):
+            notification = Notification(
+                id=uuid.uuid4(),
+                key_type="normal",
+                notification_type="sms",
+                reply_to_text="+14383898585",
+                created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
+            )
+            mock_rate_limited = mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+            mock_throttled = mocker.patch("app.celery.provider_tasks.deliver_throttled_sms.apply_async")
+
+            send_notification_to_queue(notification=notification, research_mode=False, queue=None)
+
+            mock_throttled.assert_called_once_with(
+                [str(notification.id)],
+                queue=QueueNames.SEND_THROTTLED_SMS,
+                MessageGroupId=ANY,
+            )
+            mock_rate_limited.assert_not_called()
 
 
 class TestSimulatedRecipient:
@@ -656,7 +744,7 @@ class TestChooseQueue:
                 "sms",
                 "normal",
                 "+14383898585",
-                "send-throttled-sms-tasks",
+                "research-mode-tasks",
             ),
             (False, None, "sms", "normal", None, QueueNames.SEND_SMS_MEDIUM),
             (False, None, "email", "normal", None, QueueNames.SEND_EMAIL_MEDIUM),
@@ -750,6 +838,40 @@ class TestChooseQueue:
         )
 
         assert choose_queue(notification, research_mode, requested_queue) == expected_queue
+
+    @pytest.mark.parametrize(
+        ("research_mode, priority_queue, key_type, reply_to_text, expected_queue"),
+        [
+            # FF on: normal SMS with no priority queue → routed to SEND_SMS_FAIR
+            (False, None, "normal", None, QueueNames.SEND_SMS_FAIR),
+            # FF on: research mode still returns RESEARCH_MODE
+            (True, None, "normal", None, QueueNames.RESEARCH_MODE),
+            # FF on: test key still returns RESEARCH_MODE
+            (False, None, "test", None, QueueNames.RESEARCH_MODE),
+            # FF on: custom number (dedicated sender) takes priority over fair queue
+            (False, None, "normal", "+14383898585", QueueNames.SEND_THROTTLED_SMS),
+            # FF on: explicit priority_queue overrides fair queue routing
+            (False, "notify-internal-tasks", "normal", None, "notify-internal-tasks"),
+        ],
+    )
+    def test_choose_queue_with_ff_sms_ratelimit(
+        self,
+        notify_api,
+        research_mode,
+        priority_queue,
+        key_type,
+        reply_to_text,
+        expected_queue,
+    ):
+        with set_config(notify_api, "FF_SMS_RATELIMIT", True):
+            notification = Notification(
+                id=uuid.uuid4(),
+                notification_type="sms",
+                key_type=key_type,
+                reply_to_text=reply_to_text,
+                created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
+            )
+            assert choose_queue(notification, research_mode, priority_queue) == expected_queue
 
 
 class TestTransformNotification:
@@ -1035,7 +1157,7 @@ class TestDBSaveAndSendNotification:
 
         db_save_and_send_notification(notification=notification)
 
-        mocked.assert_called_once_with([str(notification.id)], queue=expected_queue)
+        mocked.assert_called_once_with([str(notification.id)], queue=expected_queue, MessageGroupId=ANY)
 
     def test_db_save_and_send_notification_throws_exception_deletes_notification(
         self, sample_template, sample_api_key, sample_job, mocker
@@ -1064,7 +1186,7 @@ class TestDBSaveAndSendNotification:
 
         with pytest.raises(Boto3Error):
             db_save_and_send_notification(notification)
-        mocked.assert_called_once_with([(str(notification.id))], queue=QueueNames.SEND_SMS_MEDIUM)
+        mocked.assert_called_once_with([(str(notification.id))], queue=QueueNames.SEND_SMS_MEDIUM, MessageGroupId=ANY)
 
         assert Notification.query.count() == 0
         assert NotificationHistory.query.count() == 0
@@ -1234,6 +1356,118 @@ class TestDBSaveAndSendNotification:
         mock_incr.assert_called_once_with(
             str(sample_template.service_id) + "-2016-01-01-count",
         )
+
+    def test_db_save_and_send_with_ff_sms_ratelimit_routes_sms_to_fair_queue(
+        self, notify_api, sample_template, notify_db, notify_db_session, mocker
+    ):
+        with set_config(notify_api, "FF_SMS_RATELIMIT", True):
+            mock_apply = mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+            mocker.patch(
+                "app.notifications.process_notifications.get_delivery_queue_for_template",
+                return_value="send-sms-medium-tasks",
+            )
+            mocker.patch("app.notifications.process_notifications.number_of_sms_fragments", return_value=3)
+
+            notification = Notification(
+                id=uuid.uuid4(),
+                to="+16502532222",
+                template_id=sample_template.id,
+                template_version=sample_template.version,
+                key_type="normal",
+                notification_type="sms",
+                created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
+                queue_name=QueueNames.SEND_SMS_FAIR,
+            )
+            db_save_and_send_notification(notification=notification)
+
+            mock_apply.assert_called_once_with(
+                [str(notification.id), 3],
+                queue=QueueNames.SEND_SMS_FAIR,
+                MessageGroupId="send-sms-medium-tasks",
+            )
+
+    def test_db_save_and_send_with_ff_sms_ratelimit_uses_stored_billable_units(
+        self, notify_api, sample_template, notify_db, notify_db_session, mocker
+    ):
+        with set_config_values(notify_api, {"FF_SMS_RATELIMIT": True, "FF_USE_BILLABLE_UNITS": True}):
+            mock_apply = mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+            mocker.patch(
+                "app.notifications.process_notifications.get_delivery_queue_for_template",
+                return_value="send-sms-medium-tasks",
+            )
+            mock_fragments = mocker.patch("app.notifications.process_notifications.number_of_sms_fragments")
+
+            notification = Notification(
+                id=uuid.uuid4(),
+                to="+16502532222",
+                template_id=sample_template.id,
+                template_version=sample_template.version,
+                key_type="normal",
+                notification_type="sms",
+                billable_units=4,
+                created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
+                queue_name=QueueNames.SEND_SMS_FAIR,
+            )
+            db_save_and_send_notification(notification=notification)
+
+            mock_apply.assert_called_once_with(
+                [str(notification.id), 4],
+                queue=QueueNames.SEND_SMS_FAIR,
+                MessageGroupId="send-sms-medium-tasks",
+            )
+            mock_fragments.assert_not_called()
+
+    def test_db_save_and_send_with_ff_sms_ratelimit_bypasses_for_research_mode(
+        self, notify_api, sample_template, notify_db, notify_db_session, mocker
+    ):
+        with set_config(notify_api, "FF_SMS_RATELIMIT", True):
+            mock_rate_limited = mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+            mock_deliver_sms = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
+
+            notification = Notification(
+                id=uuid.uuid4(),
+                to="+16502532222",
+                template_id=sample_template.id,
+                template_version=sample_template.version,
+                key_type="test",
+                notification_type="sms",
+                created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
+                queue_name=QueueNames.RESEARCH_MODE,
+            )
+            db_save_and_send_notification(notification=notification)
+
+            mock_deliver_sms.assert_called_once_with(
+                [str(notification.id)],
+                queue=QueueNames.RESEARCH_MODE,
+                MessageGroupId=ANY,
+            )
+            mock_rate_limited.assert_not_called()
+
+    def test_db_save_and_send_with_ff_sms_ratelimit_email_unaffected(
+        self, notify_api, sample_email_template, notify_db, notify_db_session, mocker
+    ):
+        with set_config(notify_api, "FF_SMS_RATELIMIT", True):
+            mock_rate_limited = mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+            mock_deliver_email = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
+
+            notification = Notification(
+                id=uuid.uuid4(),
+                to="test@example.com",
+                template_id=sample_email_template.id,
+                template_version=sample_email_template.version,
+                key_type="normal",
+                notification_type="email",
+                created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
+                queue_name=QueueNames.SEND_EMAIL_MEDIUM,
+            )
+            db_save_and_send_notification(notification=notification)
+
+            mock_deliver_email.assert_called_once_with(
+                [str(notification.id)],
+                queue=QueueNames.SEND_EMAIL_MEDIUM,
+                MessageGroupId=ANY,
+            )
+            mock_rate_limited.assert_not_called()
 
 
 # TODO: Remove feature flag checks after FF_USE_BILLABLE_UNITS go live

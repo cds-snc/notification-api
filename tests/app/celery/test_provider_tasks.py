@@ -1,3 +1,4 @@
+import uuid
 from unittest.mock import MagicMock, call
 
 import pytest
@@ -6,13 +7,14 @@ from notifications_utils.recipients import InvalidEmailError
 
 import app
 from app.celery import provider_tasks
-from app.celery.provider_tasks import deliver_email, deliver_sms, deliver_throttled_sms
+from app.celery.provider_tasks import deliver_email, deliver_sms, deliver_sms_rate_limited, deliver_throttled_sms
 from app.clients.email.aws_ses import AwsSesClientException
+from app.config import QueueNames
 from app.exceptions import (
     NotificationTechnicalFailureException,
     PinpointValidationException,
 )
-from celery.exceptions import MaxRetriesExceededError
+from celery.exceptions import Ignore, MaxRetriesExceededError
 
 sms_methods = [
     (deliver_sms, "deliver_sms"),
@@ -24,6 +26,7 @@ def test_should_have_decorated_tasks_functions():
     assert deliver_sms.__wrapped__.__name__ == "deliver_sms"
     assert deliver_throttled_sms.__wrapped__.__name__ == "deliver_throttled_sms"
     assert deliver_email.__wrapped__.__name__ == "deliver_email"
+    assert deliver_sms_rate_limited.__wrapped__.__name__ == "deliver_sms_rate_limited"
 
 
 @pytest.mark.parametrize("sms_method,sms_method_name", sms_methods)
@@ -248,3 +251,50 @@ def test_send_sms_should_not_switch_providers_on_non_provider_failure(
     sms_method(sample_notification.id)
 
     assert switch_provider_mock.called is False
+
+
+class TestDeliverSmsRateLimited:
+    def test_delivers_sms_when_rate_limit_acquired(self, notify_api, mocker):
+        notification_id = str(uuid.uuid4())
+        mock_limiter = MagicMock()
+        mock_limiter.acquire_lease.return_value = (True, 0)
+        mocker.patch("app.celery.provider_tasks.get_rate_limiter", return_value=mock_limiter)
+        mock_deliver = mocker.patch("app.celery.provider_tasks._deliver_sms")
+        mock_apply_async = mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+
+        deliver_sms_rate_limited(notification_id, 2)
+
+        mock_deliver.assert_called_once()
+        mock_apply_async.assert_not_called()
+
+    def test_reschedules_and_raises_ignore_when_rate_limited(self, notify_api, mocker):
+        notification_id = str(uuid.uuid4())
+        mock_limiter = MagicMock()
+        mock_limiter.acquire_lease.return_value = (False, 30)
+        mocker.patch("app.celery.provider_tasks.get_rate_limiter", return_value=mock_limiter)
+        mocker.patch("app.celery.provider_tasks._deliver_sms")
+        mock_apply_async = mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+        # In unit test context, the task object doesn't inherit NotifyTask so
+        # message_group_id property isn't available; patch it directly.
+        deliver_sms_rate_limited._get_current_object().message_group_id = None
+
+        with pytest.raises(Ignore):
+            deliver_sms_rate_limited(notification_id, 2)
+
+        mock_apply_async.assert_called_once_with(
+            queue=QueueNames.SEND_SMS_FAIR,
+            args=[notification_id, 2],
+            countdown=30,
+            MessageGroupId=None,
+        )
+
+    def test_uses_same_private_deliver_sms_method(self, notify_api, mocker):
+        notification_id = str(uuid.uuid4())
+        mock_limiter = MagicMock()
+        mock_limiter.acquire_lease.return_value = (True, 0)
+        mocker.patch("app.celery.provider_tasks.get_rate_limiter", return_value=mock_limiter)
+        mock_deliver = mocker.patch("app.celery.provider_tasks._deliver_sms")
+
+        deliver_sms_rate_limited(notification_id, 1)
+
+        mock_deliver.assert_called_once()
