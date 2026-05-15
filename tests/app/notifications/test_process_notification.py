@@ -744,7 +744,7 @@ class TestChooseQueue:
                 "sms",
                 "normal",
                 "+14383898585",
-                "send-throttled-sms-tasks",
+                "research-mode-tasks",
             ),
             (False, None, "sms", "normal", None, QueueNames.SEND_SMS_MEDIUM),
             (False, None, "email", "normal", None, QueueNames.SEND_EMAIL_MEDIUM),
