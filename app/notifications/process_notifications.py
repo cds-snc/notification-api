@@ -309,7 +309,7 @@ def send_notification_to_queue(notification, research_mode, queue=None):
     if research_mode or notification.key_type == KEY_TYPE_TEST:
         queue = QueueNames.RESEARCH_MODE
 
-    # Pioritize sending per services within the same queue by default.
+    # Prioritize sending per services within the same queue by default.
     message_group_id: str = str(notification.service_id)
     celery_params: list = [str(notification.id)]
 
