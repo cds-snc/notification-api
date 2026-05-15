@@ -249,7 +249,7 @@ def db_save_and_send_notification(notification: Notification):
         dao_delete_notifications_by_id(notification.id)
         raise
     current_app.logger.info(
-        f"{notification.notification_type} {notification.id} sent to the {notification.queue_name} queue for delivery"
+        f"{notification.notification_type} {notification.id} sent to the {queue} queue for delivery"
     )
 
 
