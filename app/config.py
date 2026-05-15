@@ -85,7 +85,7 @@ class QueueNames(object):
 
     # Fair queue for sending SMS, used to rate limit sending SMS from Notify to
     # our SMS provider to avoid hitting downstream rate limits.
-    SEND_SMS_FAIR = "send-sms-fair-tasks"
+    SEND_SMS_FAIR = "send-sms-fair"
 
     # Queues for sending all emails.
     SEND_EMAIL_HIGH = "send-email-high"
