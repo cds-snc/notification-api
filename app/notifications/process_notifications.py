@@ -248,9 +248,7 @@ def db_save_and_send_notification(notification: Notification):
     except Exception:
         dao_delete_notifications_by_id(notification.id)
         raise
-    current_app.logger.info(
-        f"{notification.notification_type} {notification.id} sent to the {queue} queue for delivery"
-    )
+    current_app.logger.info(f"{notification.notification_type} {notification.id} sent to the {queue} queue for delivery")
 
 
 def choose_queue(notification: Notification, research_mode: bool, priority_queue: Optional[str] = None) -> str:
@@ -287,9 +285,7 @@ def choose_queue(notification: Notification, research_mode: bool, priority_queue
             override_queue = QueueNames.CREATE_LETTERS_PDF
 
     if override_queue is None:
-        raise ValueError(
-            f"Could not determine queue for notification type {notification.notification_type!r}"
-        )
+        raise ValueError(f"Could not determine queue for notification type {notification.notification_type!r}")
     return override_queue
 
 

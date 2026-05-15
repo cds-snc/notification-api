@@ -221,8 +221,7 @@ def initialize_rate_limiter(cap_per_minute: int, use_redis: bool = False) -> Rat
                 backend = "redis"
         except (ImportError, AttributeError) as exc:
             logger.warning(
-                "SMS rate limiter: failed to read backend from config; "
-                "falling back to in-memory backend. Error: %s",
+                "SMS rate limiter: failed to read backend from config; " "falling back to in-memory backend. Error: %s",
                 exc,
             )
 
