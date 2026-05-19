@@ -186,10 +186,8 @@ class NotifyApiUser(HttpUser):
         }
         with self.client.post("/v2/notifications/email", json=payload, headers=self.headers, catch_response=True) as response:
             if response.status_code == 201:
-                try:
-                    _push_id(response.json()["id"])
-                except Exception:
-                    pass
+                if notification_id := response.json().get("id"):
+                    _push_id(notification_id)
 
     @task(30)
     def send_one_sms(self):
@@ -200,10 +198,8 @@ class NotifyApiUser(HttpUser):
         }
         with self.client.post("/v2/notifications/sms", json=payload, headers=self.headers, catch_response=True) as response:
             if response.status_code == 201:
-                try:
-                    _push_id(response.json()["id"])
-                except Exception:
-                    pass
+                if notification_id := response.json().get("id"):
+                    _push_id(notification_id)
 
     @task(5)
     def send_email_with_attachment(self):
