@@ -148,6 +148,54 @@ def test_fetch_billing_data_for_today_includes_data_with_the_right_date(
     assert results[0].notifications_sent == 2
 
 
+def test_fetch_billing_data_for_day_uses_utc_midnight_boundaries(notify_db_session):
+    service = create_service()
+    template = create_template(service=service, template_type="sms")
+
+    # Exactly around UTC midnight: only records in [2026-05-11 00:00:00, 2026-05-12 00:00:00)
+    # should be counted for process_day=2026-05-11.
+    save_notification(
+        create_notification(
+            template=template,
+            status="delivered",
+            created_at=datetime(2026, 5, 10, 23, 59, 59),
+        )
+    )
+    save_notification(
+        create_notification(
+            template=template,
+            status="delivered",
+            created_at=datetime(2026, 5, 11, 0, 0, 0),
+        )
+    )
+    save_notification(
+        create_notification(
+            template=template,
+            status="delivered",
+            created_at=datetime(2026, 5, 11, 23, 59, 59),
+        )
+    )
+    save_notification(
+        create_notification(
+            template=template,
+            status="delivered",
+            created_at=datetime(2026, 5, 12, 0, 0, 0),
+        )
+    )
+
+    day_results = fetch_billing_data_for_day(process_day=date(2026, 5, 11), service_id=service.id)
+    assert len(day_results) == 1
+    assert day_results[0].notifications_sent == 2
+
+    previous_day_results = fetch_billing_data_for_day(process_day=date(2026, 5, 10), service_id=service.id)
+    assert len(previous_day_results) == 1
+    assert previous_day_results[0].notifications_sent == 1
+
+    next_day_results = fetch_billing_data_for_day(process_day=date(2026, 5, 12), service_id=service.id)
+    assert len(next_day_results) == 1
+    assert next_day_results[0].notifications_sent == 1
+
+
 def test_fetch_billing_data_for_day_is_grouped_by_template_and_notification_type(
     notify_db_session,
 ):
