@@ -1,5 +1,6 @@
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal
+from typing import Any
 
 from flask import current_app
 from sqlalchemy import Date, Integer, and_, case, desc, func
@@ -433,7 +434,7 @@ def fetch_billing_data_for_day(process_day: date, service_id=None):
     end_date = datetime.combine(process_day + timedelta(days=1), time.min)
     # use notification_history if process day is older than 7 days
     # this is useful if we need to rebuild the ft_billing table for a date older than 7 days ago.
-    transit_data = []
+    transit_data: list[Any] = []
     if not service_id:
         service_ids = [x.id for x in Service.query.all()]
     else:
