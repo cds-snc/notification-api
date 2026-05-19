@@ -2,7 +2,6 @@ from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
 from flask import current_app
-from notifications_utils.timezones import convert_utc_to_local_timezone
 from sqlalchemy import Date, Integer, and_, case, desc, func
 from sqlalchemy.dialects.postgresql import insert
 
@@ -360,12 +359,11 @@ def fetch_billing_totals_for_year(service_id, year):
 
 def fetch_monthly_billing_for_year(service_id, year):
     year_start_date, year_end_date = get_financial_year(year)
-    utcnow = datetime.utcnow()
-    today = convert_utc_to_local_timezone(utcnow)
+    today_utc = datetime.utcnow().date()
     # if year end date is less than today, we are calculating for data in the past and have no need for deltas.
-    if year_end_date >= today:
-        yesterday = today - timedelta(days=1)
-        for day in [yesterday, today]:
+    if year_end_date.date() >= today_utc:
+        yesterday_utc = today_utc - timedelta(days=1)
+        for day in [yesterday_utc, today_utc]:
             data = fetch_billing_data_for_day(process_day=day, service_id=service_id)
             for d in data:
                 update_fact_billing(data=d, process_day=day)
@@ -430,7 +428,7 @@ def delete_billing_data_for_service_for_day(process_day, service_id):
     return FactBilling.query.filter(FactBilling.bst_date == process_day, FactBilling.service_id == service_id).delete()
 
 
-def fetch_billing_data_for_day(process_day, service_id=None):
+def fetch_billing_data_for_day(process_day: date, service_id=None):
     start_date = datetime.combine(process_day, time.min)
     end_date = datetime.combine(process_day + timedelta(days=1), time.min)
     # use notification_history if process day is older than 7 days
