@@ -2,10 +2,7 @@ from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 
 from flask import current_app
-from notifications_utils.timezones import (
-    convert_local_timezone_to_utc,
-    convert_utc_to_local_timezone,
-)
+from notifications_utils.timezones import convert_utc_to_local_timezone
 from sqlalchemy import Date, Integer, and_, case, desc, func
 from sqlalchemy.dialects.postgresql import insert
 
@@ -47,7 +44,7 @@ def dao_fetch_sms_cost_for_service_in_range(service_id, start_date, end_date):
     1. Check if `ft_billing` has been populated for the requested date range and if not, fall back to the `notifications` table
     2. Always use the `notifications` table for today and yesterday's data, and `ft_billing` for anything older
     """
-    today = convert_utc_to_local_timezone(datetime.utcnow()).date()
+    today = datetime.utcnow().date()
 
     fragment_count = 0
     total_cost = Decimal(0)
@@ -75,8 +72,8 @@ def dao_fetch_sms_cost_for_service_in_range(service_id, start_date, end_date):
 
     # Current-day data from Notification table
     if start_date <= today and end_date >= today:
-        today_start = convert_local_timezone_to_utc(datetime.combine(today, time.min))
-        today_end = convert_local_timezone_to_utc(datetime.combine(today + timedelta(days=1), time.min))
+        today_start = datetime.combine(today, time.min)
+        today_end = datetime.combine(today + timedelta(days=1), time.min)
         notif_result = (
             db.session.query(
                 func.coalesce(func.sum(Notification.billable_units), 0).label("fragment_count"),
@@ -434,8 +431,8 @@ def delete_billing_data_for_service_for_day(process_day, service_id):
 
 
 def fetch_billing_data_for_day(process_day, service_id=None):
-    start_date = convert_local_timezone_to_utc(datetime.combine(process_day, time.min))
-    end_date = convert_local_timezone_to_utc(datetime.combine(process_day + timedelta(days=1), time.min))
+    start_date = datetime.combine(process_day, time.min)
+    end_date = datetime.combine(process_day + timedelta(days=1), time.min)
     # use notification_history if process day is older than 7 days
     # this is useful if we need to rebuild the ft_billing table for a date older than 7 days ago.
     transit_data = []

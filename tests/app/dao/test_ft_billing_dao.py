@@ -119,11 +119,11 @@ def test_fetch_billing_data_for_today_includes_data_with_the_right_key_type(
 
 
 @freeze_time("2018-04-02 06:20:00")
-# This test assumes the local timezone is EST
 def test_fetch_billing_data_for_today_includes_data_with_the_right_date(
     notify_db_session,
 ):
-    process_day = datetime(2018, 4, 1, 13, 30, 0)
+    # Uses UTC midnight as the day boundary
+    process_day = datetime(2018, 4, 1, 13, 30, 0)  # UTC
     service = create_service()
     template = create_template(service=service, template_type="sms")
     save_notification(create_notification(template=template, status="delivered", created_at=process_day))
@@ -131,7 +131,7 @@ def test_fetch_billing_data_for_today_includes_data_with_the_right_date(
         create_notification(
             template=template,
             status="delivered",
-            created_at=datetime(2018, 4, 1, 4, 23, 23),
+            created_at=datetime(2018, 4, 1, 4, 23, 23),  # UTC - still within April 1 UTC
         )
     )
 
@@ -139,13 +139,12 @@ def test_fetch_billing_data_for_today_includes_data_with_the_right_date(
         create_notification(
             template=template,
             status="delivered",
-            created_at=datetime(2018, 3, 31, 20, 23, 23),
+            created_at=datetime(2018, 3, 31, 20, 23, 23),  # UTC - prior day, excluded
         )
     )
     save_notification(create_notification(template=template, status="sending", created_at=process_day + timedelta(days=1)))
 
-    day_under_test = convert_utc_to_local_timezone(process_day)
-    results = fetch_billing_data_for_day(day_under_test)
+    results = fetch_billing_data_for_day(process_day.date())
     assert len(results) == 1
     assert results[0].notifications_sent == 2
 
