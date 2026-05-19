@@ -7,7 +7,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from app import notify_celery
 from app.celery.utils import CeleryParams
-from app.config import Config
+from app.config import Config, QueueNames
 from app.dao import notifications_dao
 from app.dao.notifications_dao import update_notification_status_by_id
 from app.delivery import send_to_providers
@@ -25,7 +25,9 @@ from app.models import (
     Notification,
 )
 from app.notifications.callbacks import _check_and_queue_callback_task
+from app.rate_limiter import get_rate_limiter
 from celery import Task
+from celery.exceptions import Ignore
 
 
 # Celery rate limits are per worker instance and not a global rate limit.
@@ -62,6 +64,30 @@ def deliver_throttled_sms(self, notification_id):
 @statsd(namespace="tasks")
 def deliver_sms(self, notification_id):
     _deliver_sms(self, notification_id)
+
+
+@notify_celery.task(
+    bind=True,
+    name="deliver_sms_rate_limited",
+    max_retries=48,
+    default_retry_delay=300,
+)
+@statsd(namespace="tasks")
+def deliver_sms_rate_limited(self, notification_id: str, parts_count: int):
+    acquired, seconds_to_wait = get_rate_limiter().acquire_lease(parts_count)
+    if acquired:
+        _deliver_sms(self, notification_id)
+    else:
+        current_app.logger.warning(
+            f"Rate limit hit for notification {notification_id} with {parts_count} parts. Retrying after {seconds_to_wait} seconds."
+        )
+        deliver_sms_rate_limited.apply_async(
+            queue=QueueNames.SEND_SMS_FAIR,
+            args=[notification_id, parts_count],
+            countdown=seconds_to_wait,
+            MessageGroupId=self.message_group_id,
+        )
+        raise Ignore()
 
 
 SCAN_RETRY_BACKOFF = 10

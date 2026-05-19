@@ -38,6 +38,7 @@ from app.encryption import CryptoSigner
 from app.json_provider import NotifyJSONProvider
 from app.otel_request_metrics import init_otel_request_metrics
 from app.queue import RedisQueue
+from app.rate_limiter import initialize_rate_limiter
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 DATE_FORMAT = "%Y-%m-%d"
@@ -139,6 +140,9 @@ def create_app(application, config=None):
 
     if application.config["FF_SALESFORCE_CONTACT"]:
         salesforce_client.init_app(application)
+
+    # Initialize the global rate limiter instance with the configured rate limit for SMS delivery tasks.
+    initialize_rate_limiter(application.config["CELERY_DELIVER_SMS_RATE_LIMIT_PER_MINUTE"])
 
     flask_redis.init_app(application)
     flask_cache_ops.init_app(application)

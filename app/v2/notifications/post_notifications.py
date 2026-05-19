@@ -502,7 +502,7 @@ def process_sms_or_email_notification(
             notification.queue_name = choose_queue(
                 notification=notification,
                 research_mode=service.research_mode,
-                queue=get_delivery_queue_for_template(template),
+                priority_queue=get_delivery_queue_for_template(template),
             )
             db_save_and_send_notification(notification)
 

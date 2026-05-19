@@ -1,6 +1,7 @@
 import json
 import uuid
 from datetime import datetime, timedelta
+from unittest.mock import ANY
 
 import pytest
 from flask import current_app, url_for
@@ -204,7 +205,7 @@ def test_send_user_sms_code(client, sample_user, sms_code_template, mocker, rese
     assert notification.reply_to_text == notify_service.get_default_sms_sender()
 
     app.celery.provider_tasks.deliver_sms.apply_async.assert_called_once_with(
-        ([str(notification.id)]), queue="notify-internal-tasks"
+        ([str(notification.id)]), queue="notify-internal-tasks", MessageGroupId=ANY
     )
 
 
@@ -229,7 +230,7 @@ def test_send_user_code_for_sms_with_optional_to_field(client, sample_user, sms_
     notification = Notification.query.first()
     assert notification.to == to_number
     app.celery.provider_tasks.deliver_sms.apply_async.assert_called_once_with(
-        ([str(notification.id)]), queue="notify-internal-tasks"
+        ([str(notification.id)]), queue="notify-internal-tasks", MessageGroupId=ANY
     )
 
 
@@ -310,7 +311,7 @@ def test_send_new_user_email_verification(client, sample_user, mocker, email_ver
     assert resp.status_code == 204
     notification = Notification.query.first()
     assert VerifyCode.query.count() == 0
-    mocked.assert_called_once_with(([str(notification.id)]), queue="notify-internal-tasks")
+    mocked.assert_called_once_with(([str(notification.id)]), queue="notify-internal-tasks", MessageGroupId=ANY)
     assert notification.reply_to_text == notify_service.get_default_reply_to_email_address()
 
 
@@ -409,7 +410,7 @@ def test_send_user_email_code(
     assert mocked.call_count == 1
     assert noti.personalisation["name"] == "Test User"
     assert noti.personalisation["verify_code"] == "11111"
-    deliver_email.assert_called_once_with([str(noti.id)], queue="notify-internal-tasks")
+    deliver_email.assert_called_once_with([str(noti.id)], queue="notify-internal-tasks", MessageGroupId=ANY)
 
 
 def test_send_user_email_code_with_urlencoded_next_param(admin_request, mocker, sample_user, email_2fa_code_template):
