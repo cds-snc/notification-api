@@ -399,6 +399,12 @@ def persist_notifications(notifications: List[VerifiedNotification]) -> List[Not
         )
         template = dao_get_template_by_id(notification_obj.template_id, notification_obj.template_version, use_cache=True)
         notification_obj.template = template  # Store the template in the object for downstream consumers
+        if (
+            current_app.config.get("FF_USE_BILLABLE_UNITS")
+            and not notification_obj.billable_units
+            and notification.get("notification_type") == SMS_TYPE
+        ):
+            notification_obj.billable_units = number_of_sms_fragments(template, notification.get("personalisation"))
         service = dao_fetch_service_by_id(service_id, use_cache=True)
         notification_obj.queue_name = choose_queue(
             notification=notification_obj,
