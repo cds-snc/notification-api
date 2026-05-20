@@ -6,7 +6,6 @@ from types import SimpleNamespace
 
 import pytest
 from freezegun import freeze_time
-from notifications_utils.timezones import convert_utc_to_local_timezone
 
 from app import db
 from app.dao.fact_billing_dao import (
@@ -94,7 +93,7 @@ def test_fetch_billing_data_for_today_includes_data_with_the_right_status(
     for status in ["created", "technical-failure"]:
         save_notification(create_notification(template=template, status=status))
 
-    today = convert_utc_to_local_timezone(datetime.utcnow())
+    today = datetime.utcnow().date()
     results = fetch_billing_data_for_day(today)
     assert results == []
     for status in ["delivered", "sending", "temporary-failure"]:
@@ -112,18 +111,18 @@ def test_fetch_billing_data_for_today_includes_data_with_the_right_key_type(
     for key_type in ["normal", "test", "team"]:
         save_notification(create_notification(template=template, status="delivered", key_type=key_type))
 
-    today = convert_utc_to_local_timezone(datetime.utcnow())
+    today = datetime.utcnow().date()
     results = fetch_billing_data_for_day(today)
     assert len(results) == 1
     assert results[0].notifications_sent == 2
 
 
 @freeze_time("2018-04-02 06:20:00")
-# This test assumes the local timezone is EST
 def test_fetch_billing_data_for_today_includes_data_with_the_right_date(
     notify_db_session,
 ):
-    process_day = datetime(2018, 4, 1, 13, 30, 0)
+    # Uses UTC midnight as the day boundary
+    process_day = datetime(2018, 4, 1, 13, 30, 0)  # UTC
     service = create_service()
     template = create_template(service=service, template_type="sms")
     save_notification(create_notification(template=template, status="delivered", created_at=process_day))
@@ -131,7 +130,7 @@ def test_fetch_billing_data_for_today_includes_data_with_the_right_date(
         create_notification(
             template=template,
             status="delivered",
-            created_at=datetime(2018, 4, 1, 4, 23, 23),
+            created_at=datetime(2018, 4, 1, 4, 23, 23),  # UTC - still within April 1 UTC
         )
     )
 
@@ -139,15 +138,62 @@ def test_fetch_billing_data_for_today_includes_data_with_the_right_date(
         create_notification(
             template=template,
             status="delivered",
-            created_at=datetime(2018, 3, 31, 20, 23, 23),
+            created_at=datetime(2018, 3, 31, 20, 23, 23),  # UTC - prior day, excluded
         )
     )
     save_notification(create_notification(template=template, status="sending", created_at=process_day + timedelta(days=1)))
 
-    day_under_test = convert_utc_to_local_timezone(process_day)
-    results = fetch_billing_data_for_day(day_under_test)
+    results = fetch_billing_data_for_day(process_day.date())
     assert len(results) == 1
     assert results[0].notifications_sent == 2
+
+
+def test_fetch_billing_data_for_day_uses_utc_midnight_boundaries(notify_db_session):
+    service = create_service()
+    template = create_template(service=service, template_type="sms")
+
+    # Exactly around UTC midnight: only records in [2026-05-11 00:00:00, 2026-05-12 00:00:00)
+    # should be counted for process_day=2026-05-11.
+    save_notification(
+        create_notification(
+            template=template,
+            status="delivered",
+            created_at=datetime(2026, 5, 10, 23, 59, 59),
+        )
+    )
+    save_notification(
+        create_notification(
+            template=template,
+            status="delivered",
+            created_at=datetime(2026, 5, 11, 0, 0, 0),
+        )
+    )
+    save_notification(
+        create_notification(
+            template=template,
+            status="delivered",
+            created_at=datetime(2026, 5, 11, 23, 59, 59),
+        )
+    )
+    save_notification(
+        create_notification(
+            template=template,
+            status="delivered",
+            created_at=datetime(2026, 5, 12, 0, 0, 0),
+        )
+    )
+
+    day_results = fetch_billing_data_for_day(process_day=date(2026, 5, 11), service_id=service.id)
+    assert len(day_results) == 1
+    assert day_results[0].notifications_sent == 2
+
+    previous_day_results = fetch_billing_data_for_day(process_day=date(2026, 5, 10), service_id=service.id)
+    assert len(previous_day_results) == 1
+    assert previous_day_results[0].notifications_sent == 1
+
+    next_day_results = fetch_billing_data_for_day(process_day=date(2026, 5, 12), service_id=service.id)
+    assert len(next_day_results) == 1
+    assert next_day_results[0].notifications_sent == 1
 
 
 def test_fetch_billing_data_for_day_is_grouped_by_template_and_notification_type(
@@ -159,7 +205,7 @@ def test_fetch_billing_data_for_day_is_grouped_by_template_and_notification_type
     save_notification(create_notification(template=sms_template_1, status="delivered"))
     save_notification(create_notification(template=sms_template_2, status="delivered"))
 
-    today = convert_utc_to_local_timezone(datetime.utcnow())
+    today = datetime.utcnow().date()
     results = fetch_billing_data_for_day(today)
     assert len(results) == 2
     assert results[0].notifications_sent == 1
@@ -174,7 +220,7 @@ def test_fetch_billing_data_for_day_is_grouped_by_service(notify_db_session):
     save_notification(create_notification(template=sms_template_1, status="delivered"))
     save_notification(create_notification(template=sms_template_2, status="delivered"))
 
-    today = convert_utc_to_local_timezone(datetime.utcnow())
+    today = datetime.utcnow().date()
     results = fetch_billing_data_for_day(today)
     assert len(results) == 2
     assert results[0].notifications_sent == 1
@@ -187,7 +233,7 @@ def test_fetch_billing_data_for_day_is_grouped_by_provider(notify_db_session):
     save_notification(create_notification(template=template, status="delivered", sent_by="sns"))
     save_notification(create_notification(template=template, status="delivered", sent_by="pinpoint"))
 
-    today = convert_utc_to_local_timezone(datetime.utcnow())
+    today = datetime.utcnow().date()
     results = fetch_billing_data_for_day(today)
     assert len(results) == 2
     assert results[0].notifications_sent == 1
@@ -200,7 +246,7 @@ def test_fetch_billing_data_for_day_is_grouped_by_rate_mulitplier(notify_db_sess
     save_notification(create_notification(template=template, status="delivered", rate_multiplier=1))
     save_notification(create_notification(template=template, status="delivered", rate_multiplier=2))
 
-    today = convert_utc_to_local_timezone(datetime.utcnow())
+    today = datetime.utcnow().date()
     results = fetch_billing_data_for_day(today)
     assert len(results) == 2
     assert results[0].notifications_sent == 1
@@ -213,7 +259,7 @@ def test_fetch_billing_data_for_day_is_grouped_by_international(notify_db_sessio
     save_notification(create_notification(template=template, status="delivered", international=True))
     save_notification(create_notification(template=template, status="delivered", international=False))
 
-    today = convert_utc_to_local_timezone(datetime.utcnow())
+    today = datetime.utcnow().date()
     results = fetch_billing_data_for_day(today)
     assert len(results) == 2
     assert results[0].notifications_sent == 1
@@ -228,7 +274,7 @@ def test_fetch_billing_data_for_day_is_grouped_by_sms_sending_vehicle(notify_db_
     # Short code: origination number does not match the long code pattern
     save_notification(create_notification(template=template, status="delivered", sms_origination_phone_number="12345"))
 
-    today = convert_utc_to_local_timezone(datetime.utcnow())
+    today = datetime.utcnow().date()
     results = fetch_billing_data_for_day(today)
     assert len(results) == 2
     vehicles = {r.sms_sending_vehicle for r in results}
@@ -242,7 +288,7 @@ def test_fetch_billing_data_for_day_null_origination_number_is_long_code(notify_
     # NULL origination number should fall back to template category's sms_sending_vehicle (long_code by default)
     save_notification(create_notification(template=template, status="delivered", sms_origination_phone_number=None))
 
-    today = convert_utc_to_local_timezone(datetime.utcnow())
+    today = datetime.utcnow().date()
     results = fetch_billing_data_for_day(today)
     assert len(results) == 1
     assert results[0].sms_sending_vehicle == "long_code"
@@ -255,7 +301,7 @@ def test_fetch_billing_data_for_day_null_origination_uses_template_category_vehi
     # NULL origination + short_code category → should yield short_code
     save_notification(create_notification(template=template, status="delivered", sms_origination_phone_number=None))
 
-    today = convert_utc_to_local_timezone(datetime.utcnow())
+    today = datetime.utcnow().date()
     results = fetch_billing_data_for_day(today)
     assert len(results) == 1
     assert results[0].sms_sending_vehicle == "short_code"
@@ -271,7 +317,7 @@ def test_fetch_billing_data_for_day_is_grouped_by_notification_type(notify_db_se
     save_notification(create_notification(template=sms_template, status="delivered"))
     save_notification(create_notification(template=sms_template, status="delivered"))
 
-    today = convert_utc_to_local_timezone(datetime.utcnow())
+    today = datetime.utcnow().date()
     results = fetch_billing_data_for_day(today)
     assert len(results) == 1
     notification_types = [x[2] for x in results if x[2] in ["email", "sms", "letter"]]
@@ -279,7 +325,7 @@ def test_fetch_billing_data_for_day_is_grouped_by_notification_type(notify_db_se
 
 
 def test_fetch_billing_data_for_day_returns_empty_list(notify_db_session):
-    today = convert_utc_to_local_timezone(datetime.utcnow())
+    today = datetime.utcnow().date()
     results = fetch_billing_data_for_day(today)
     assert results == []
 
@@ -306,8 +352,8 @@ def test_fetch_billing_data_for_day_uses_notification_history(notify_db_session)
     Notification.query.delete()
     db.session.commit()
 
-    # Query using the local timezone converted from the same reference time
-    local_history_date = convert_utc_to_local_timezone(history_time)
+    # Query using the UTC date of the same reference time
+    local_history_date = history_time.date()
     results = fetch_billing_data_for_day(process_day=local_history_date, service_id=service.id)
     assert len(results) == 1
     assert results[0].notifications_sent == 2
@@ -321,7 +367,7 @@ def test_fetch_billing_data_for_day_returns_list_for_given_service(notify_db_ses
     save_notification(create_notification(template=template, status="delivered"))
     save_notification(create_notification(template=template_2, status="delivered"))
 
-    today = convert_utc_to_local_timezone(datetime.utcnow())
+    today = datetime.utcnow().date()
     results = fetch_billing_data_for_day(process_day=today, service_id=service.id)
     assert len(results) == 1
     assert results[0].service_id == service.id
@@ -334,7 +380,7 @@ def test_fetch_billing_data_for_day_bills_correctly_for_status(notify_db_session
     for status in NOTIFICATION_STATUS_TYPES:
         save_notification(create_notification(template=sms_template, status=status))
 
-    today = convert_utc_to_local_timezone(datetime.utcnow())
+    today = datetime.utcnow().date()
     results = fetch_billing_data_for_day(process_day=today, service_id=service.id)
 
     sms_results = [x for x in results if x[2] == "sms"]
@@ -980,7 +1026,7 @@ def test_fetch_billing_data_for_day_long_code_origination_is_long_code(notify_db
         )
     )
 
-    today = convert_utc_to_local_timezone(datetime.utcnow())
+    today = datetime.utcnow().date()
     results = fetch_billing_data_for_day(today)
     assert len(results) == 1
     assert results[0].sms_sending_vehicle == "long_code"
@@ -1014,7 +1060,7 @@ def test_update_fact_billing_persists_billing_total(notify_db_session, billing_r
     """End-to-end: billing_total is written to ft_billing by update_fact_billing."""
     service = create_service()
     template = create_template(service=service, template_type="sms")
-    today = convert_utc_to_local_timezone(datetime.utcnow())
+    today = datetime.utcnow().date()
 
     save_notification(
         create_notification(
@@ -1030,7 +1076,7 @@ def test_update_fact_billing_persists_billing_total(notify_db_session, billing_r
     rows = fetch_billing_data_for_day(today)
     assert len(rows) == 1
 
-    update_fact_billing(rows[0], today.date())
+    update_fact_billing(rows[0], today)
 
     record = FactBilling.query.one()
     # 2 billable_units * 1 rate_multiplier * 0.162 (long_code rate from billing_rates) = 0.324
@@ -1043,7 +1089,7 @@ def test_update_fact_billing_international_sms_uses_long_code_rate(notify_db_ses
     """
     service = create_service()
     template = create_template(service=service, template_type="sms")
-    today = convert_utc_to_local_timezone(datetime.utcnow())
+    today = datetime.utcnow().date()
 
     # Insert both rates; short_code is purposely higher to prove it isn't chosen
     create_rate(start_date=datetime(2016, 1, 1), value=0.162, notification_type="sms", sms_sending_vehicle="long_code")
@@ -1066,7 +1112,7 @@ def test_update_fact_billing_international_sms_uses_long_code_rate(notify_db_ses
     assert len(rows) == 1
     assert rows[0].sms_sending_vehicle == "long_code"  # international always reported as long_code
 
-    update_fact_billing(rows[0], today.date())
+    update_fact_billing(rows[0], today)
 
     record = FactBilling.query.one()
     # Should use long_code rate (0.162), not short_code rate (0.999)
