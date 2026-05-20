@@ -596,6 +596,7 @@ class TestSendNotificationQueue:
                 created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
             )
             mock_apply = mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+            mocker.patch("app.notifications.process_notifications.dao_get_template_by_id")
             mocker.patch(
                 "app.notifications.process_notifications.get_delivery_queue_for_template",
                 return_value="send-sms-medium-tasks",
@@ -620,6 +621,7 @@ class TestSendNotificationQueue:
                 created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
             )
             mock_apply = mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+            mocker.patch("app.notifications.process_notifications.dao_get_template_by_id")
             mocker.patch("app.notifications.process_notifications.number_of_sms_fragments", return_value=3)
 
             send_notification_to_queue(
