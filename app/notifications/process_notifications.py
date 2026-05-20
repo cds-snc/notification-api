@@ -320,14 +320,17 @@ def send_notification_to_queue(notification, research_mode, queue=None):
             queue = QueueNames.SEND_THROTTLED_SMS
         elif current_app.config.get("FF_SMS_RATELIMIT") and queue != QueueNames.RESEARCH_MODE:
             deliver_task = provider_tasks.deliver_sms_rate_limited
+            template = notification.template or dao_get_template_by_id(
+                notification.template_id, notification.template_version, use_cache=True
+            )
             # The previous queue parameter becomes the fair queue priority and
-            # the queue is overriden to be a fair queue.
-            message_group_id = queue or get_delivery_queue_for_template(notification.template)
+            # the queue is overridden to be a fair queue.
+            message_group_id = queue or get_delivery_queue_for_template(template)
             queue = QueueNames.SEND_SMS_FAIR
             if current_app.config.get("FF_USE_BILLABLE_UNITS") and notification.billable_units:
                 celery_params.append(notification.billable_units)
             else:
-                billable_units = number_of_sms_fragments(notification.template, notification.personalisation)
+                billable_units = number_of_sms_fragments(template, notification.personalisation)
                 celery_params.append(billable_units)
         elif not queue or queue == QueueNames.NORMAL:
             queue = QueueNames.SEND_SMS_MEDIUM
@@ -395,6 +398,7 @@ def persist_notifications(notifications: List[VerifiedNotification]) -> List[Not
             billable_units=notification.get("billable_units"),  # type: ignore
         )
         template = dao_get_template_by_id(notification_obj.template_id, notification_obj.template_version, use_cache=True)
+        notification_obj.template = template  # Store the template in the object for downstream consumers
         service = dao_fetch_service_by_id(service_id, use_cache=True)
         notification_obj.queue_name = choose_queue(
             notification=notification_obj,
