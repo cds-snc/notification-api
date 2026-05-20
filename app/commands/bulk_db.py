@@ -1,5 +1,6 @@
 import functools
 import itertools
+import time as time_module
 import uuid
 from datetime import date, datetime, timedelta
 from decimal import Decimal
@@ -9,9 +10,12 @@ from click_datetime import Datetime as click_dt
 from flask import cli as flask_cli
 from flask import current_app, json
 from notifications_utils.statsd_decorators import statsd
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 
 from app import db
+from app.celery.reporting_tasks import create_nightly_billing_for_day
+from app.config import QueueNames
 from app.dao.annual_billing_dao import dao_create_or_update_annual_billing_for_year
 from app.dao.organisation_dao import (
     dao_add_service_to_organisation,
@@ -25,6 +29,7 @@ from app.models import (
     PROVIDERS,
     Domain,
     EmailBranding,
+    FactBilling,
     LetterBranding,
     Organisation,
     Service,
@@ -353,12 +358,6 @@ def rebuild_ft_billing_utc(start_date, end_date, task_delay):
     SQL query is issued.  The upsert in update_fact_billing overwrites existing rows.
     """
 
-    from sqlalchemy import func
-
-    from app.celery.reporting_tasks import create_nightly_billing_for_day
-    from app.config import QueueNames
-    from app.models import FactBilling
-
     # Resolve date range from ft_billing if not supplied
     row = db.session.query(func.min(FactBilling.bst_date), func.max(FactBilling.bst_date)).one()
     db_min, db_max = row[0], row[1]
@@ -375,8 +374,6 @@ def rebuild_ft_billing_utc(start_date, end_date, task_delay):
 
     total_days = (last_day - first_day).days + 1
     current_app.logger.info("rebuild-ft-billing-utc: enqueuing {} day(s) from {} to {}".format(total_days, first_day, last_day))
-
-    import time as time_module
 
     enqueued = 0
     cursor = first_day
