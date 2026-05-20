@@ -410,6 +410,62 @@ class TestPersistNotification:
         assert persisted_notification[1].to == "foo2@bar.com"
         assert persisted_notification[0].service == sample_job.service
 
+    def test_persist_notifications_sets_template_on_returned_objects(self, sample_template, sample_api_key, mocker):
+        # Regression test: bulk_save_objects bypasses the ORM identity map, so template must be set
+        # explicitly on the notification object inside persist_notifications for downstream consumers.
+        mocker.patch("app.notifications.process_notifications.redis_store.get", return_value=None)
+        mocker.patch("app.notifications.process_notifications.dao_get_template_by_id", return_value=sample_template)
+        mocker.patch("app.notifications.process_notifications.dao_fetch_service_by_id", return_value=sample_template.service)
+        mocker.patch("app.notifications.process_notifications.choose_queue", return_value="sms_normal_queue")
+
+        notifications = persist_notifications(
+            [
+                dict(
+                    template_id=sample_template.id,
+                    template_version=sample_template.version,
+                    recipient="+16502532222",
+                    service=sample_template.service,
+                    personalisation={},
+                    notification_type="sms",
+                    api_key_id=sample_api_key.id,
+                    key_type=sample_api_key.key_type,
+                )
+            ]
+        )
+
+        assert notifications[0].template is sample_template
+
+    def test_persist_notifications_calculates_billable_units_when_not_in_input(self, notify_api, sample_template, sample_api_key, mocker):
+        # When FF_USE_BILLABLE_UNITS is on and billable_units is absent from the input dict,
+        # persist_notifications must calculate and store it via number_of_sms_fragments.
+        with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
+            mocker.patch("app.notifications.process_notifications.redis_store.get", return_value=None)
+            mocker.patch("app.notifications.process_notifications.dao_get_template_by_id", return_value=sample_template)
+            mocker.patch("app.notifications.process_notifications.dao_fetch_service_by_id", return_value=sample_template.service)
+            mocker.patch("app.notifications.process_notifications.choose_queue", return_value="sms_normal_queue")
+            mock_fragments = mocker.patch(
+                "app.notifications.process_notifications.number_of_sms_fragments", return_value=2
+            )
+
+            notifications = persist_notifications(
+                [
+                    dict(
+                        template_id=sample_template.id,
+                        template_version=sample_template.version,
+                        recipient="+16502532222",
+                        service=sample_template.service,
+                        personalisation={},
+                        notification_type="sms",
+                        api_key_id=sample_api_key.id,
+                        key_type=sample_api_key.key_type,
+                        # intentionally no 'billable_units' key
+                    )
+                ]
+            )
+
+            mock_fragments.assert_called_once()
+            assert notifications[0].billable_units == 2
+
     def test_persist_notifications_reply_to_text_is_original_value_if_sender_is_changed_later(
         self, sample_template, sample_api_key, mocker
     ):
@@ -676,6 +732,58 @@ class TestSendNotificationQueue:
                 MessageGroupId=ANY,
             )
             mock_rate_limited.assert_not_called()
+
+    def test_send_notification_to_queue_with_ff_sms_ratelimit_skips_dao_when_template_already_set(self, notify_api, mocker):
+        # When notification.template is already populated the DAO lookup should be skipped entirely.
+        with set_config(notify_api, "FF_SMS_RATELIMIT", True):
+            mock_template = mocker.MagicMock()
+            notification = Notification(
+                id=uuid.uuid4(),
+                key_type="normal",
+                notification_type="sms",
+                created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
+            )
+            notification.template = mock_template
+            mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+            mock_dao = mocker.patch("app.notifications.process_notifications.dao_get_template_by_id")
+            mocker.patch(
+                "app.notifications.process_notifications.get_delivery_queue_for_template",
+                return_value="send-sms-medium-tasks",
+            )
+            mocker.patch("app.notifications.process_notifications.number_of_sms_fragments", return_value=1)
+
+            send_notification_to_queue(notification=notification, research_mode=False, queue=None)
+
+            mock_dao.assert_not_called()
+
+    def test_send_notification_to_queue_with_ff_sms_ratelimit_uses_precomputed_billable_units(self, notify_api, mocker):
+        # When FF_USE_BILLABLE_UNITS is on and billable_units is already set, number_of_sms_fragments must not be called.
+        with set_config(notify_api, "FF_SMS_RATELIMIT", True), set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
+            mock_template = mocker.MagicMock()
+            notification = Notification(
+                id=uuid.uuid4(),
+                key_type="normal",
+                notification_type="sms",
+                created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
+                billable_units=4,
+            )
+            notification.template = mock_template
+            mock_apply = mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+            mocker.patch("app.notifications.process_notifications.dao_get_template_by_id")
+            mocker.patch(
+                "app.notifications.process_notifications.get_delivery_queue_for_template",
+                return_value="send-sms-medium-tasks",
+            )
+            mock_fragments = mocker.patch("app.notifications.process_notifications.number_of_sms_fragments")
+
+            send_notification_to_queue(notification=notification, research_mode=False, queue=None)
+
+            mock_fragments.assert_not_called()
+            mock_apply.assert_called_once_with(
+                [str(notification.id), 4],
+                queue=QueueNames.SEND_SMS_FAIR,
+                MessageGroupId=ANY,
+            )
 
 
 class TestSimulatedRecipient:
