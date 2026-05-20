@@ -435,7 +435,9 @@ class TestPersistNotification:
 
         assert notifications[0].template is sample_template
 
-    def test_persist_notifications_calculates_billable_units_when_not_in_input(self, notify_api, sample_template, sample_api_key, mocker):
+    def test_persist_notifications_calculates_billable_units_when_not_in_input(
+        self, notify_api, sample_template, sample_api_key, mocker
+    ):
         # When FF_USE_BILLABLE_UNITS is on and billable_units is absent from the input dict,
         # persist_notifications must calculate and store it via number_of_sms_fragments.
         with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
@@ -443,9 +445,7 @@ class TestPersistNotification:
             mocker.patch("app.notifications.process_notifications.dao_get_template_by_id", return_value=sample_template)
             mocker.patch("app.notifications.process_notifications.dao_fetch_service_by_id", return_value=sample_template.service)
             mocker.patch("app.notifications.process_notifications.choose_queue", return_value="sms_normal_queue")
-            mock_fragments = mocker.patch(
-                "app.notifications.process_notifications.number_of_sms_fragments", return_value=2
-            )
+            mock_fragments = mocker.patch("app.notifications.process_notifications.number_of_sms_fragments", return_value=2)
 
             notifications = persist_notifications(
                 [
