@@ -1,43 +1,310 @@
+"""
+blast_api.py - Open-ended stress test that continuously ramps up users to find the
+breaking point of the Notify API with no upper ceiling.
+
+Sends a realistic mix of single email/SMS POSTs, emails with attachments/links, and
+bulk sends. Optionally includes GET-by-ID and GET-list tasks (off by default).
+
+Usage (headful, for watching the dashboard):
+    locust --locustfile src/blast_api.py --headful
+
+Usage (headless, via execute_and_publish_performance_test.sh):
+    locust --config locust.conf \
+           --locustfile src/blast_api.py \
+           --users 3000 \
+           --bulk-size 2
+
+Key CLI flags:
+    --skip-bulk           Skip bulk send tasks
+    --bulk-only           Only run bulk send tasks
+    --bulk-size INT        Recipients per bulk send (default: 2000)
+    --start-users INT      Immediately ramp to this many users, then step up by 50 every 120s
+    --constant-users INT   Hold a fixed user count indefinitely (no step-up)
+    --include-get          Also run GET notification tasks
+    --get-only             Only run GET tasks (implies --include-get)
+    --pacing FLOAT         Seconds between tasks per user, constant_pacing (default: 60)
+    --wait-min FLOAT       Switch to between() mode; sets minimum wait seconds
+    --wait-max FLOAT       Maximum wait seconds for between() mode (default: same as --wait-min)
+    --error-threshold FLOAT  Stop when error rate exceeds this % (default: 3.0, 0 to disable)
+    --max-errors INT         Stop after this many absolute failures (default: 0 / disabled)
+
+Required env vars:
+    PERF_TEST_API_KEY
+    PERF_TEST_EMAIL_TEMPLATE_ID_ONE_VAR
+    PERF_TEST_SMS_TEMPLATE_ID_ONE_VAR
+    PERF_TEST_EMAIL_ADDRESS   (optional, defaults to SES simulator address)
+    PERF_TEST_PHONE_NUMBER    (optional, defaults to internal test number)
+    PERF_TEST_DOMAIN          (optional, defaults to staging)
+    PERF_TEST_WAF_SECRET      (optional, bypasses WAF rate limiting)
+"""
+
+import random
+from collections import deque
 from datetime import datetime
 
+import gevent
 from common import Config, generate_job_rows, rows_to_csv
-from locust import HttpUser, constant_pacing, task
+from dotenv import load_dotenv
+from locust import HttpUser, LoadTestShape, between, constant_pacing, events, task
 
-BULK_SIZE = 2000
+load_dotenv()
+
+_max_rps: float = 0.0
+_max_users: int = 0
+_rps_at_first_error: float | None = None
+_prev_error_count: int = 0
+_rps_sampler_greenlet = None
+
+
+def _sample_rps(environment):
+    global _max_rps, _max_users, _rps_at_first_error, _prev_error_count
+    while True:
+        runner = environment.runner
+        if runner:
+            rps = runner.stats.total.current_rps
+            if rps > _max_rps:
+                _max_rps = rps
+            user_count = runner.user_count
+            if user_count > _max_users:
+                _max_users = user_count
+            error_count = runner.stats.total.num_failures
+            if _rps_at_first_error is None and error_count > _prev_error_count:
+                _rps_at_first_error = rps
+            _prev_error_count = error_count
+        gevent.sleep(1)
+
+
+@events.init.add_listener
+def on_init(environment, **kwargs):
+    global _rps_sampler_greenlet
+    _rps_sampler_greenlet = gevent.spawn(_sample_rps, environment)
+
+
+@events.quitting.add_listener
+def print_max_rps(environment, **kwargs):
+    if _rps_sampler_greenlet:
+        _rps_sampler_greenlet.kill()
+    print(f"\n*** Maximum send rate observed: {_max_rps:.2f} req/s ***")
+    print(f"*** Maximum concurrent users: {_max_users} ***")
+    if _rps_at_first_error is not None:
+        print(f"*** Send rate when errors first appeared: {_rps_at_first_error:.2f} req/s ***")
+    else:
+        print("*** No errors observed during test ***")
+    print(f"*** Missing IDs - single email: {NotifyApiUser._missing_id_email}, single SMS: {NotifyApiUser._missing_id_sms} ***")
+    print()
+
+
+@events.init_command_line_parser.add_listener
+def add_custom_arguments(parser, **kwargs):
+    parser.add_argument(
+        "--skip-bulk",
+        action="store_true",
+        default=False,
+        help=(
+            "Omit the send_bulk_emails task from the test run. "
+            "Useful when you want to isolate single-send throughput or GET behaviour "
+            "without the additional load that large CSV payloads place on the API."
+        ),
+    )
+    parser.add_argument(
+        "--bulk-only",
+        action="store_true",
+        default=False,
+        help=(
+            "Run only the send_bulk_emails task; all single-send (email/SMS) and GET tasks "
+            "return immediately without making a request. "
+            "Use this to stress the bulk-send code path in isolation."
+        ),
+    )
+    parser.add_argument(
+        "--bulk-size",
+        type=int,
+        default=BULK_SIZE,
+        help=(
+            f"Number of recipient rows included in each bulk send CSV (default: {BULK_SIZE}). "
+            "Larger values increase payload size and back-end processing time per request, "
+            "which reduces the overall request rate but increases per-request DB write volume. "
+            "Keep this small (e.g. 2-10) if you want the API/DB to be the bottleneck rather "
+            "than payload serialisation or queue depth."
+        ),
+    )
+    parser.add_argument(
+        "--start-users",
+        type=int,
+        default=0,
+        help=(
+            "Immediately spawn this many users at test start, then continue stepping up by "
+            f"{StepLoadShape.STEP_USERS} users every {StepLoadShape.STEP_DURATION} seconds indefinitely. "
+            "Use this to skip the slow ramp-up phase and shock the system from a known baseline. "
+            "Ignored when --constant-users is set. Default: 0 (uses flat --users from locust.conf)."
+        ),
+    )
+    parser.add_argument(
+        "--constant-users",
+        type=int,
+        default=0,
+        help=(
+            "Hold exactly this many concurrent users for the entire test with no step-up. "
+            "The initial ramp to the target uses the configured spawn rate (-r / locust.conf), "
+            "after which the user count is held flat indefinitely. "
+            "Takes precedence over --start-users. Default: 0 (disabled)."
+        ),
+    )
+    parser.add_argument(
+        "--include-get",
+        action="store_true",
+        default=False,
+        help=(
+            "Enable the GET tasks (get_notification_by_id and get_notifications_list) alongside "
+            "the default send tasks. By default GET tasks are skipped to keep the test "
+            "write-heavy, matching production traffic patterns. "
+            "IDs are sampled from notifications sent during the same run."
+        ),
+    )
+    parser.add_argument(
+        "--get-only",
+        action="store_true",
+        default=False,
+        help=(
+            "Run only the GET tasks (get_notification_by_id and get_notifications_list); "
+            "all send tasks return immediately without making a request. "
+            "Implies --include-get. Use this to stress the read path in isolation, "
+            "for example after pre-populating the database with notifications."
+        ),
+    )
+    parser.add_argument(
+        "--pacing",
+        type=float,
+        default=60.0,
+        help=(
+            "Target seconds between the start of consecutive tasks for each user, using Locust's "
+            "constant_pacing wait function (default: 60). "
+            "constant_pacing dynamically adjusts the actual sleep time so that the wall-clock gap "
+            "between task starts stays as close to this value as possible — if a task runs longer "
+            "than --pacing seconds, the next task starts immediately (no sleep). "
+            "This gives a stable per-user RPS ceiling of 1/pacing regardless of task duration. "
+            "Ignored in favour of between() if --wait-min is set."
+        ),
+    )
+    parser.add_argument(
+        "--wait-min",
+        type=float,
+        default=None,
+        help=(
+            "Minimum wait seconds between tasks, switching the wait strategy from "
+            "constant_pacing to Locust's between() function. "
+            "between() draws a uniform random sleep in [--wait-min, --wait-max] after each task "
+            "completes, so the actual inter-task gap also includes task execution time. "
+            "Setting this produces more variable per-user RPS than --pacing. "
+            "If --wait-max is omitted it defaults to the same value as --wait-min (fixed wait)."
+        ),
+    )
+    parser.add_argument(
+        "--wait-max",
+        type=float,
+        default=None,
+        help=(
+            "Maximum wait seconds between tasks when --wait-min is set (default: same as --wait-min). "
+            "Each user sleeps for a uniformly random duration in [--wait-min, --wait-max] after "
+            "each task. Has no effect unless --wait-min is also provided."
+        ),
+    )
+    parser.add_argument(
+        "--error-threshold",
+        type=float,
+        default=3.0,
+        help=(
+            "Automatically stop the test when the error rate (failures / total requests) exceeds "
+            "this percentage (default: 3.0). The check is skipped until --min-requests have been "
+            "completed so that early noise cannot trigger a premature stop. Set to 0 to disable."
+        ),
+    )
+    parser.add_argument(
+        "--min-requests",
+        type=int,
+        default=100,
+        help=(
+            "Minimum number of completed requests (successes + failures) required before the "
+            "--error-threshold check is evaluated (default: 100). "
+            "Prevents a handful of early failures from stopping the test before it is warmed up."
+        ),
+    )
+    parser.add_argument(
+        "--max-errors",
+        type=int,
+        default=0,
+        help=(
+            "Stop the test after this many absolute failures have been recorded (default: 0 / disabled). "
+            "Acts independently of --error-threshold — whichever condition is met first stops the test. "
+            "Useful when you want to cap the number of errors regardless of overall request volume "
+            "(e.g. --max-errors 2000 to stop after 2 000 failures irrespective of error rate)."
+        ),
+    )
+
+
+BULK_SIZE = 2
 
 # Note that task weights add up to 100
 # If you add / remove tasks please keep the sum 100
 
 
 class NotifyApiUser(HttpUser):
-    wait_time = constant_pacing(60)  # 60 seconds between each task
     host = Config.HOST
+
+    def wait_time(self):
+        opts = self.environment.parsed_options
+        if opts.wait_min is not None:
+            wait_max = opts.wait_max if opts.wait_max is not None else opts.wait_min
+            return between(opts.wait_min, wait_max)(self)
+        return constant_pacing(opts.pacing)(self)
+
+    _sent_ids: deque = deque(maxlen=500)  # shared pool of sent notification IDs for GET tasks
+    _missing_id_email: int = 0  # count of single email responses missing an ID
+    _missing_id_sms: int = 0  # count of single SMS responses missing an ID
 
     def __init__(self, *args, **kwargs):
         super(NotifyApiUser, self).__init__(*args, **kwargs)
         Config.check()
         self.headers = {"Authorization": f"ApiKey-v1 {Config.API_KEY}"}
+        if Config.WAF_SECRET:
+            self.headers["waf-secret"] = Config.WAF_SECRET
 
-    @task(35)
+    @task(30)
     def send_one_email(self):
+        if self.environment.parsed_options.bulk_only or self.environment.parsed_options.get_only:
+            return
         json = {
             "email_address": Config.EMAIL_ADDRESS,
             "template_id": Config.EMAIL_TEMPLATE_ID_ONE_VAR,
             "personalisation": {"var": "single email"},
         }
-        self.client.post("/v2/notifications/email", json=json, headers=self.headers)
+        response = self.client.post("/v2/notifications/email", json=json, headers=self.headers)
+        if response.status_code == 201:
+            try:
+                NotifyApiUser._sent_ids.append(response.json()["id"])
+            except Exception:
+                NotifyApiUser._missing_id_email += 1
 
-    @task(35)
+    @task(30)
     def send_one_sms(self):
+        if self.environment.parsed_options.bulk_only or self.environment.parsed_options.get_only:
+            return
         json = {
             "phone_number": Config.PHONE_NUMBER,
             "template_id": Config.SMS_TEMPLATE_ID_ONE_VAR,
             "personalisation": {"var": "single sms"},
         }
-        self.client.post("/v2/notifications/sms", json=json, headers=self.headers)
+        response = self.client.post("/v2/notifications/sms", json=json, headers=self.headers)
+        if response.status_code == 201:
+            try:
+                NotifyApiUser._sent_ids.append(response.json()["id"])
+            except Exception:
+                NotifyApiUser._missing_id_sms += 1
 
     @task(5)
     def send_email_with_attachment(self):
+        if self.environment.parsed_options.bulk_only or self.environment.parsed_options.get_only:
+            return
         json = {
             "email_address": Config.EMAIL_ADDRESS,
             "template_id": Config.EMAIL_TEMPLATE_ID_ONE_VAR,
@@ -54,6 +321,8 @@ class NotifyApiUser(HttpUser):
 
     @task(5)
     def send_email_with_link_notifications(self):
+        if self.environment.parsed_options.bulk_only or self.environment.parsed_options.get_only:
+            return
         json = {
             "email_address": Config.EMAIL_ADDRESS,
             "template_id": Config.EMAIL_TEMPLATE_ID_ONE_VAR,
@@ -67,11 +336,91 @@ class NotifyApiUser(HttpUser):
         }
         self.client.post("/v2/notifications/email", json=json, headers=self.headers)
 
+    @task(10)
+    def get_notification_by_id(self):
+        opts = self.environment.parsed_options
+        if not opts.include_get and not opts.get_only:
+            return
+        if not NotifyApiUser._sent_ids:
+            return
+        notification_id = random.choice(list(NotifyApiUser._sent_ids))
+        self.client.get(f"/v2/notifications/{notification_id}", headers=self.headers)
+
+    @task(10)
+    def get_notifications_list(self):
+        opts = self.environment.parsed_options
+        if not opts.include_get and not opts.get_only:
+            return
+        self.client.get("/v2/notifications", headers=self.headers)
+
     @task(20)
     def send_bulk_emails(self):
+        if self.environment.parsed_options.skip_bulk or self.environment.parsed_options.get_only:
+            return
+        bulk_size = self.environment.parsed_options.bulk_size
         json = {
             "name": f"Email send rate test {datetime.utcnow().isoformat()}",
             "template_id": Config.EMAIL_TEMPLATE_ID_ONE_VAR,
-            "csv": rows_to_csv([["email address", "var"], *generate_job_rows(Config.EMAIL_ADDRESS, 2)]),
+            "csv": rows_to_csv([["email address", "var"], *generate_job_rows(Config.EMAIL_ADDRESS, bulk_size)]),
         }
         self.client.post("/v2/notifications/bulk", json=json, headers=self.headers)
+
+
+class StepLoadShape(LoadTestShape):
+    """Controls user ramp-up behaviour.
+
+    Default (no flags): holds --users at the spawn-rate set in locust.conf, matching
+    the nightly runner behaviour exactly (flat load, no step-up).
+
+    With --constant-users N: ramps to N users immediately and holds indefinitely.
+
+    With --start-users N: shocks to N users on start, then steps up by STEP_USERS
+    every STEP_DURATION seconds indefinitely.
+    """
+
+    STEP_USERS = 50  # users to add per step (only used with --start-users)
+    STEP_DURATION = 120  # seconds per step
+
+    def tick(self):
+        run_time = self.get_run_time()
+        opts = self.runner.environment.parsed_options
+        constant_users = opts.constant_users
+        start_users = opts.start_users
+        spawn_rate = opts.spawn_rate  # honours -r / locust.conf spawn-rate
+        current_step = int(run_time / self.STEP_DURATION)
+
+        # Stop the test when the error rate exceeds the configured threshold.
+        error_threshold = opts.error_threshold
+        if error_threshold > 0:
+            stats = self.runner.stats.total
+            total_requests = stats.num_requests + stats.num_failures
+            if total_requests >= opts.min_requests:
+                error_rate = stats.fail_ratio * 100
+                if error_rate > error_threshold:
+                    print(
+                        f"\n*** Error rate {error_rate:.1f}% exceeded threshold {error_threshold:.1f}% "
+                        f"after {total_requests} requests — stopping test ***"
+                    )
+                    return None
+
+        # Stop the test when the absolute error count exceeds --max-errors.
+        max_errors = opts.max_errors
+        if max_errors > 0:
+            total_failures = self.runner.stats.total.num_failures
+            if total_failures >= max_errors:
+                print(f"\n*** Failure count {total_failures} reached max-errors limit {max_errors} " f"— stopping test ***")
+                return None
+
+        if constant_users > 0:
+            # Hold a fixed number of users indefinitely, no step-up
+            return (constant_users, constant_users if run_time < 1 else spawn_rate)
+
+        if start_users > 0:
+            # Shock the system immediately with all start_users, then step up from there
+            if current_step == 0:
+                return (start_users, start_users)
+            target_users = start_users + current_step * self.STEP_USERS
+            return (target_users, spawn_rate)
+
+        # Default: flat load using --users and --spawn-rate from CLI / locust.conf
+        return (opts.num_users, spawn_rate)
