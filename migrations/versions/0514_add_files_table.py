@@ -26,12 +26,12 @@ def upgrade():
         sa.Column('created_at', sa.DateTime(), server_default=sa.func.now(), nullable=False),
         sa.Column('updated_at', sa.DateTime(), server_default=sa.func.now(), nullable=False),
     )
-    op.create_index('ix_files_template_id', 'files', ['template_id'])
-    op.create_index('ix_files_service_id', 'files', ['service_id'])
+    op.create_index(op.f('ix_files_template_id'), 'files', ['template_id'])
+    op.create_index(op.f('ix_files_service_id'), 'files', ['service_id'])
 
 def downgrade():
-    op.drop_index('ix_files_service_id', table_name='files')
-    op.drop_index('ix_files_template_id', table_name='files')
+    op.drop_index(op.f('ix_files_service_id'), table_name='files')
+    op.drop_index(op.f('ix_files_template_id'), table_name='files')
     op.drop_table('files')
     file_type_enum = postgresql.ENUM('attach', 'link', 'template', name='notify_file_type_enum')
     file_status_enum = postgresql.ENUM('pending_virus_scan', 'uploaded', 'virus_scan_failed', 'deleted', name='notify_file_status_enum')
