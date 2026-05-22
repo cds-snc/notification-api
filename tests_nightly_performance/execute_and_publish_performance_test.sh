@@ -16,10 +16,12 @@ mkdir -p "$perf_test_results_folder"
 cd tests_nightly_performance || exit 1
 
 # Test 1 - Hammer the api
+# Uses blast_api_legacy.py (no LoadTestShape) so that locust.conf's run-time = 10m
+# is respected.  blast_api.py defines a LoadTestShape which causes Locust to ignore
+# run-time entirely, making the test run indefinitely when no --error-threshold is hit.
 locust --config locust.conf \
-       --locustfile src/blast_api.py \
+       --locustfile src/blast_api_legacy.py \
        --users 3000 \
-       --bulk-size 2 \
        --html "$perf_test_results_folder/index.html" --csv "$perf_test_results_folder/api_test"
 
 # Sleep 15 minutes to allow the system to stabilize

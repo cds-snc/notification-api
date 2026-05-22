@@ -27,6 +27,11 @@ Key CLI flags:
     --wait-max FLOAT       Maximum wait seconds for between() mode (default: same as --wait-min)
     --error-threshold FLOAT  Stop when error rate exceeds this % (default: 3.0, 0 to disable)
     --max-errors INT         Stop after this many absolute failures (default: 0 / disabled)
+    --bulk-burst             Run the bulk-burst scenario instead of the default mixed send
+    --burst-requests INT     Concurrent bulk requests per burst (default: 30)
+    --burst-messages INT     Messages (CSV rows) per bulk request (default: 1000)
+    --burst-delay INT        Seconds between bursts (default: 60)
+    --burst-count INT        Number of bursts to send before stopping (default: 5)
 
 Required env vars:
     PERF_TEST_API_KEY
@@ -80,6 +85,18 @@ def on_init(environment, **kwargs):
     _rps_sampler_greenlet = gevent.spawn(_sample_rps, environment)
 
 
+@events.test_start.add_listener
+def configure_user_classes(environment, **kwargs):
+    """Zero out the weight of whichever user class isn't active so Locust
+    doesn't split spawns between NotifyApiUser and BulkBurstUser."""
+    if environment.parsed_options.bulk_burst:
+        NotifyApiUser.weight = 0
+        BulkBurstUser.weight = 1
+    else:
+        NotifyApiUser.weight = 1
+        BulkBurstUser.weight = 0
+
+
 @events.quitting.add_listener
 def print_max_rps(environment, **kwargs):
     if _rps_sampler_greenlet:
@@ -90,7 +107,8 @@ def print_max_rps(environment, **kwargs):
         print(f"*** Send rate when errors first appeared: {_rps_at_first_error:.2f} req/s ***")
     else:
         print("*** No errors observed during test ***")
-    print(f"*** Missing IDs - single email: {NotifyApiUser._missing_id_email}, single SMS: {NotifyApiUser._missing_id_sms} ***")
+    if not environment.parsed_options.bulk_burst:
+        print(f"*** Missing IDs - single email: {NotifyApiUser._missing_id_email}, single SMS: {NotifyApiUser._missing_id_sms} ***")
     print()
 
 
@@ -240,6 +258,45 @@ def add_custom_arguments(parser, **kwargs):
             "(e.g. --max-errors 2000 to stop after 2 000 failures irrespective of error rate)."
         ),
     )
+    parser.add_argument(
+        "--bulk-burst",
+        action="store_true",
+        default=False,
+        env_var="LOCUST_BULK_BURST",
+        help=(
+            "Run the bulk-burst scenario: spawn --burst-requests users immediately and have each "
+            "fire one large bulk POST per cycle. Stops after --burst-count bursts. "
+            "All normal send/GET tasks are skipped when this flag is set."
+        ),
+    )
+    parser.add_argument(
+        "--burst-requests",
+        type=int,
+        default=30,
+        env_var="LOCUST_BURST_REQUESTS",
+        help="Number of concurrent bulk requests fired per burst (default: 30)",
+    )
+    parser.add_argument(
+        "--burst-messages",
+        type=int,
+        default=1000,
+        env_var="LOCUST_BURST_MESSAGES",
+        help="Number of messages (CSV rows) per bulk request (default: 1000)",
+    )
+    parser.add_argument(
+        "--burst-delay",
+        type=int,
+        default=60,
+        env_var="LOCUST_BURST_DELAY",
+        help="Seconds to wait between bursts (default: 60)",
+    )
+    parser.add_argument(
+        "--burst-count",
+        type=int,
+        default=5,
+        env_var="LOCUST_BURST_COUNT",
+        help="Total number of bursts to send before stopping (default: 5)",
+    )
 
 
 BULK_SIZE = 2
@@ -357,11 +414,46 @@ class NotifyApiUser(HttpUser):
     def send_bulk_emails(self):
         if self.environment.parsed_options.skip_bulk or self.environment.parsed_options.get_only:
             return
+        if self.environment.parsed_options.bulk_burst:
+            return
         bulk_size = self.environment.parsed_options.bulk_size
         json = {
             "name": f"Email send rate test {datetime.utcnow().isoformat()}",
             "template_id": Config.EMAIL_TEMPLATE_ID_ONE_VAR,
             "csv": rows_to_csv([["email address", "var"], *generate_job_rows(Config.EMAIL_ADDRESS, bulk_size)]),
+        }
+        self.client.post("/v2/notifications/bulk", json=json, headers=self.headers)
+
+
+class BulkBurstUser(HttpUser):
+    """Fires repeated bursts of large bulk-email requests.
+
+    Activated only when --bulk-burst is passed.  All --burst-requests users are
+    spawned simultaneously; each fires one bulk POST then waits --burst-delay
+    seconds, keeping all users in lockstep across burst cycles.
+    """
+
+    host = Config.HOST
+
+    def wait_time(self):
+        return float(self.environment.parsed_options.burst_delay)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        Config.check()
+        self.headers = {"Authorization": f"ApiKey-v1 {Config.API_KEY}"}
+        if Config.WAF_SECRET:
+            self.headers["waf-secret"] = Config.WAF_SECRET
+
+    @task
+    def fire_bulk_email(self):
+        opts = self.environment.parsed_options
+        json = {
+            "name": f"Burst bulk email {datetime.utcnow().isoformat()}",
+            "template_id": Config.EMAIL_TEMPLATE_ID_ONE_VAR,
+            "csv": rows_to_csv(
+                [["email address", "var"], *generate_job_rows(Config.EMAIL_ADDRESS, opts.burst_messages)]
+            ),
         }
         self.client.post("/v2/notifications/bulk", json=json, headers=self.headers)
 
@@ -376,6 +468,9 @@ class StepLoadShape(LoadTestShape):
 
     With --start-users N: shocks to N users on start, then steps up by STEP_USERS
     every STEP_DURATION seconds indefinitely.
+
+    With --bulk-burst: spawns --burst-requests BulkBurstUser instances immediately
+    and stops after --burst-count * --burst-delay seconds.
     """
 
     STEP_USERS = 50  # users to add per step (only used with --start-users)
@@ -384,9 +479,22 @@ class StepLoadShape(LoadTestShape):
     def tick(self):
         run_time = self.get_run_time()
         opts = self.runner.environment.parsed_options
+        spawn_rate = opts.spawn_rate  # honours -r / locust.conf spawn-rate
+
+        # --- bulk-burst scenario ---
+        if opts.bulk_burst:
+            total_duration = opts.burst_count * opts.burst_delay
+            if run_time >= total_duration:
+                print(
+                    f"\n*** Bulk-burst complete: {opts.burst_count} burst(s) of "
+                    f"{opts.burst_requests} x {opts.burst_messages} messages — stopping test ***"
+                )
+                return None
+            # Spawn all burst users at once and hold that count for the duration.
+            return (opts.burst_requests, opts.burst_requests)
+
         constant_users = opts.constant_users
         start_users = opts.start_users
-        spawn_rate = opts.spawn_rate  # honours -r / locust.conf spawn-rate
         current_step = int(run_time / self.STEP_DURATION)
 
         # Stop the test when the error rate exceeds the configured threshold.
