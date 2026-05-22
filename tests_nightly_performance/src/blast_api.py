@@ -436,8 +436,8 @@ class BulkBurstUser(HttpUser):
     """
 
     host = Config.HOST
-
-    def wait_time(self):
+        # Use constant_pacing so burst cycles stay aligned regardless of request duration.
+        return constant_pacing(float(self.environment.parsed_options.burst_delay))(self)
         return float(self.environment.parsed_options.burst_delay)
 
     def __init__(self, *args, **kwargs):
