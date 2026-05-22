@@ -108,7 +108,9 @@ def print_max_rps(environment, **kwargs):
     else:
         print("*** No errors observed during test ***")
     if not environment.parsed_options.bulk_burst:
-        print(f"*** Missing IDs - single email: {NotifyApiUser._missing_id_email}, single SMS: {NotifyApiUser._missing_id_sms} ***")
+        print(
+            f"*** Missing IDs - single email: {NotifyApiUser._missing_id_email}, single SMS: {NotifyApiUser._missing_id_sms} ***"
+        )
     print()
 
 
@@ -451,9 +453,7 @@ class BulkBurstUser(HttpUser):
         json = {
             "name": f"Burst bulk email {datetime.utcnow().isoformat()}",
             "template_id": Config.EMAIL_TEMPLATE_ID_ONE_VAR,
-            "csv": rows_to_csv(
-                [["email address", "var"], *generate_job_rows(Config.EMAIL_ADDRESS, opts.burst_messages)]
-            ),
+            "csv": rows_to_csv([["email address", "var"], *generate_job_rows(Config.EMAIL_ADDRESS, opts.burst_messages)]),
         }
         self.client.post("/v2/notifications/bulk", json=json, headers=self.headers)
 

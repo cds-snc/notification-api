@@ -21,7 +21,6 @@ load_dotenv()
 
 
 class NotifyApiUser(HttpUser):
-
     host = Config.HOST
     wait_time = constant_pacing(60)  # 60 seconds between each task
 
