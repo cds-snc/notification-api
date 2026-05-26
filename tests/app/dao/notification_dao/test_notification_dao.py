@@ -751,16 +751,18 @@ def _notification_json(sample_template, job_id=None, id=None, status=None):
 
 
 def test_dao_timeout_notifications(sample_template):
+    # Use explicit freeze_time and advance by 2 minutes
     with freeze_time(datetime.utcnow() - timedelta(minutes=2)):
         created = save_notification(create_notification(sample_template, status="created"))
         sending = save_notification(create_notification(sample_template, status="sending"))
         pending = save_notification(create_notification(sample_template, status="pending"))
         delivered = save_notification(create_notification(sample_template, status="delivered"))
 
-    assert Notification.query.get(created.id).status == "created"
-    assert Notification.query.get(sending.id).status == "sending"
-    assert Notification.query.get(pending.id).status == "pending"
-    assert Notification.query.get(delivered.id).status == "delivered"
+        assert Notification.query.get(created.id).status == "created"
+        assert Notification.query.get(sending.id).status == "sending"
+        assert Notification.query.get(pending.id).status == "pending"
+        assert Notification.query.get(delivered.id).status == "delivered"
+
     (
         technical_failure_notifications,
         temporary_failure_notifications,
@@ -770,6 +772,38 @@ def test_dao_timeout_notifications(sample_template):
     assert Notification.query.get(pending.id).status == "temporary-failure"
     assert Notification.query.get(delivered.id).status == "delivered"
     assert len(technical_failure_notifications + temporary_failure_notifications) == 3
+
+    # Check formatted_status for returned callback data
+    for cb in technical_failure_notifications:
+        assert cb.status == "technical-failure"
+        assert cb.formatted_status == "Tech issue"  # for email/sms, technical-failure -> Tech issue
+    for cb in temporary_failure_notifications:
+        assert cb.status == "temporary-failure"
+        assert cb.formatted_status in ("Carrier issue", "Content or inbox issue")  # sms/email
+
+
+def test_timeout_notifications_formatted_status_variants(sample_template):
+    """Test that compute_formatted_status returns correct values for edge cases."""
+    from app.models import compute_formatted_status
+
+    # Permanent failure with feedback_subtype
+    assert compute_formatted_status("email", "permanent-failure", "suppressed", None) == "Blocked"
+    assert compute_formatted_status("email", "permanent-failure", "on-account-suppression-list", None) == "Blocked"
+    # SMS provider-failure with feedback_reason
+    assert (
+        compute_formatted_status("sms", "provider-failure", None, "DESTINATION_COUNTRY_BLOCKED")
+        == "Can't send to this international number"
+    )
+    assert (
+        compute_formatted_status("sms", "provider-failure", None, "NO_ORIGINATION_IDENTITIES_FOUND")
+        == "Can't send to this international number"
+    )
+    # Fallbacks
+    assert compute_formatted_status("sms", "provider-failure", None, None) == "No such number"
+    assert compute_formatted_status("email", "permanent-failure", None, None) == "No such address"
+    # Letter
+    assert compute_formatted_status("letter", "created") == "Accepted"
+    assert compute_formatted_status("letter", "delivered") == "Received"
 
 
 def test_dao_timeout_notifications_only_updates_for_older_notifications(

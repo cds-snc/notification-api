@@ -48,7 +48,10 @@ from app.models import (
     ScheduledNotification,
     Service,
     ServiceDataRetention,
+    Template,
+    compute_formatted_status,
 )
+from app.types import NotificationCallbackData
 from app.utils import escape_special_characters
 
 
@@ -554,17 +557,63 @@ def dao_delete_notifications_by_id(notification_id):
 
 
 def _timeout_notifications(current_statuses, new_status, timeout_start, updated_at):
-    notifications = Notification.query.filter(
+    filters = [
         Notification.created_at < timeout_start,
         Notification.status.in_(current_statuses),
         Notification.notification_type != LETTER_TYPE,
-    ).all()
-    Notification.query.filter(
-        Notification.created_at < timeout_start,
-        Notification.status.in_(current_statuses),
-        Notification.notification_type != LETTER_TYPE,
-    ).update({"status": new_status, "updated_at": updated_at}, synchronize_session=False)
-    return notifications
+    ]
+
+    ids_to_update = [row.id for row in db.session.query(Notification.id).filter(*filters).all()]
+
+    # Bulk UPDATE first so returned data carries the new status
+    Notification.query.filter(Notification.id.in_(ids_to_update)).update(
+        {"status": new_status, "updated_at": updated_at}, synchronize_session=False
+    )
+
+    # Select only the columns needed for callback dispatch rather than
+    # fully hydrating the ORM object graph for the notification.
+    rows = (
+        db.session.query(
+            Notification.id,
+            Notification.service_id,
+            Notification.to,
+            Notification.notification_type,
+            Notification.client_reference,
+            Notification.provider_response,
+            Notification.updated_at,
+            Notification.created_at,
+            Notification.sent_at,
+            Notification.feedback_subtype,
+            Notification.feedback_reason,
+            Template.template_type,
+        )
+        .join(Template, Template.id == Notification.template_id)
+        .filter(Notification.id.in_(ids_to_update))
+        .all()
+    )
+
+    # Lightweight dataclass with pre-computed formatted_status
+    return [
+        NotificationCallbackData(
+            id=str(row.id),
+            service_id=str(row.service_id),
+            to=row.to,
+            status=new_status,
+            formatted_status=compute_formatted_status(
+                row.template_type,
+                new_status,
+                row.feedback_subtype,
+                row.feedback_reason,
+            ),
+            notification_type=row.notification_type,
+            client_reference=row.client_reference,
+            provider_response=row.provider_response,
+            created_at=row.created_at,
+            updated_at=row.updated_at,
+            sent_at=row.sent_at,
+        )
+        for row in rows
+    ]
 
 
 def dao_timeout_notifications(timeout_period_in_seconds):
