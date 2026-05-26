@@ -1377,6 +1377,17 @@ def cleanup(session):
             print("    Deleting templates_history...")
             session.execute(text("DELETE FROM templates_history WHERE service_id = :sid"), {"sid": sid})
 
+            # template_redacted (FK: template_redacted.template_id -> templates.id)
+            print("    Deleting template_redacted...")
+            session.execute(
+                text("""
+                DELETE FROM template_redacted WHERE template_id IN (
+                    SELECT id FROM templates WHERE service_id = :sid
+                )
+            """),
+                {"sid": sid},
+            )
+
             # templates
             print("    Deleting templates...")
             session.execute(text("DELETE FROM templates WHERE service_id = :sid"), {"sid": sid})
@@ -1427,6 +1438,10 @@ def cleanup(session):
             # user_to_service
             print("    Deleting user_to_service...")
             session.execute(text("DELETE FROM user_to_service WHERE service_id = :sid"), {"sid": sid})
+
+            # reports (FK: reports.service_id -> services.id)
+            print("    Deleting reports...")
+            session.execute(text("DELETE FROM reports WHERE service_id = :sid"), {"sid": sid})
 
             # service
             print("    Deleting services_history...")
