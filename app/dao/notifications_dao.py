@@ -15,7 +15,7 @@ from notifications_utils.timezones import (
     convert_local_timezone_to_utc,
     convert_utc_to_local_timezone,
 )
-from sqlalchemy import asc, desc, func
+from sqlalchemy import asc, desc, func, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import defer, joinedload
 from sqlalchemy.orm.exc import NoResultFound
@@ -241,16 +241,16 @@ def _update_notification_status(
 
 @transactional
 def _update_notification_statuses(updates):
-    for update in updates:
-        notification = update.get("notification")
-        bounce_response = update.get("bounce_response")
-        provider_response = update.get("provider_response")
-        feedback_reason = update.get("feedback_reason")
+    for u in updates:
+        notification = u.get("notification")
+        bounce_response = u.get("bounce_response")
+        provider_response = u.get("provider_response")
+        feedback_reason = u.get("feedback_reason")
 
-        final_status = _decide_permanent_temporary_failure(current_status=notification.status, status=update.get("new_status"))
+        final_status = _decide_permanent_temporary_failure(current_status=notification.status, status=u.get("new_status"))
         notification.status = final_status
         if provider_response:
-            notification.provider_response = update.get("provider_response")
+            notification.provider_response = u.get("provider_response")
         if bounce_response:
             notification.feedback_type = bounce_response.get("feedback_type")
             notification.feedback_subtype = bounce_response.get("feedback_subtype")
@@ -258,7 +258,7 @@ def _update_notification_statuses(updates):
             notification.ses_feedback_date = bounce_response.get("ses_feedback_date")
         if feedback_reason:
             notification.feedback_reason = feedback_reason
-    update_notification_statuses([update.get("notification") for update in updates])
+    update_notification_statuses([u.get("notification") for u in updates])
 
 
 @transactional
@@ -557,47 +557,47 @@ def dao_delete_notifications_by_id(notification_id):
 
 
 def _timeout_notifications(current_statuses, new_status, timeout_start, updated_at):
-    filters = [
-        Notification.created_at < timeout_start,
-        Notification.status.in_(current_statuses),
-        Notification.notification_type != LETTER_TYPE,
-    ]
+    # Uses Postgres UPDATE … RETURNING as a CTE so the bulk status transition
+    # and the callback data fetch happen in a single atomic round-trip.
+    # This avoids materialising a potentially large ID list in Python
+    n = Notification.__table__
+    t = Template.__table__
 
-    ids_to_update = [row.id for row in db.session.query(Notification.id).filter(*filters).all()]
-
-    # Bulk UPDATE first so returned data carries the new status
-    Notification.query.filter(Notification.id.in_(ids_to_update)).update(
-        {"status": new_status, "updated_at": updated_at}, synchronize_session=False
-    )
-
-    # Select only the columns needed for callback dispatch rather than
-    # fully hydrating the ORM object graph for the notification.
-    rows = (
-        db.session.query(
-            Notification.id,
-            Notification.service_id,
-            Notification.to,
-            Notification.notification_type,
-            Notification.client_reference,
-            Notification.provider_response,
-            Notification.updated_at,
-            Notification.created_at,
-            Notification.sent_at,
-            Notification.feedback_subtype,
-            Notification.feedback_reason,
-            Template.template_type,
+    update_cte = (
+        update(n)
+        .where(
+            n.c.created_at < timeout_start,
+            n.c.status.in_(current_statuses),
+            n.c.notification_type != LETTER_TYPE,
         )
-        .join(Template, Template.id == Notification.template_id)
-        .filter(Notification.id.in_(ids_to_update))
-        .all()
+        .values({n.c.status: new_status, n.c.updated_at: updated_at})
+        .returning(
+            n.c.id,
+            n.c.service_id,
+            n.c["to"],
+            n.c.notification_type,
+            n.c.client_reference,
+            n.c.provider_response,
+            n.c.updated_at,
+            n.c.created_at,
+            n.c.sent_at,
+            n.c.feedback_subtype,
+            n.c.feedback_reason,
+            n.c.template_id,
+        )
+        .cte("updated")
     )
+
+    stmt = update_cte.join(t, t.c.id == update_cte.c.template_id).select()
+
+    rows = db.session.execute(stmt).fetchall()
 
     # Lightweight dataclass with pre-computed formatted_status
     return [
         NotificationCallbackData(
             id=str(row.id),
             service_id=str(row.service_id),
-            to=row.to,
+            to=row._mapping["to"],
             status=new_status,
             formatted_status=compute_formatted_status(
                 row.template_type,

@@ -751,7 +751,6 @@ def _notification_json(sample_template, job_id=None, id=None, status=None):
 
 
 def test_dao_timeout_notifications(sample_template):
-    # Use explicit freeze_time and advance by 2 minutes
     with freeze_time(datetime.utcnow() - timedelta(minutes=2)):
         created = save_notification(create_notification(sample_template, status="created"))
         sending = save_notification(create_notification(sample_template, status="sending"))
