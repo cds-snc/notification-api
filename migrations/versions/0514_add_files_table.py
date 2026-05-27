@@ -18,7 +18,7 @@ def upgrade():
         sa.Column('template_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('templates.id'), nullable=False),
         sa.Column('service_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('services.id'), nullable=False),
         sa.Column('document_id', postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column('type', sa.Enum('attach', 'link', 'template', name='notify_file_type_enum'), nullable=False),
+        sa.Column('type', sa.Enum('attach', 'link', 'template_attach', name='notify_file_type_enum'), nullable=False),
         sa.Column('name', sa.Text(), nullable=False),
         sa.Column('mime_type', sa.Text(), nullable=True),
         sa.Column('file_size', sa.Integer(), nullable=True),
