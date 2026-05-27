@@ -513,11 +513,11 @@ def _delete_notifications(notification_type, date_to_delete_from, service_id, qu
 
 
 def _delete_for_query(subquery):
-    number_deleted = db.session.query(Notification).filter(Notification.id.in_(subquery)).delete(synchronize_session="fetch")
+    number_deleted = db.session.query(Notification).filter(Notification.id.in_(subquery)).delete(synchronize_session=False)
     deleted = number_deleted
     db.session.commit()
     while number_deleted > 0:
-        number_deleted = db.session.query(Notification).filter(Notification.id.in_(subquery)).delete(synchronize_session="fetch")
+        number_deleted = db.session.query(Notification).filter(Notification.id.in_(subquery)).delete(synchronize_session=False)
         deleted += number_deleted
         db.session.commit()
     return deleted
