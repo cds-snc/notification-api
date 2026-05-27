@@ -314,6 +314,12 @@ def register_v2_blueprints(application):
         v2_template_blueprint,
     )
     from app.v2.templates.get_templates import v2_templates_blueprint as get_templates
+    from app.v3.template import (  # noqa
+        get_template as v3_get_template,
+    )
+    from app.v3.template import (
+        v3_template_blueprint,
+    )
 
     register_notify_blueprint(application, v2_notification_blueprint, requires_auth)
 
@@ -322,6 +328,8 @@ def register_v2_blueprints(application):
     register_notify_blueprint(application, v2_template_blueprint, requires_auth)
 
     register_notify_blueprint(application, get_inbound_sms, requires_auth)
+
+    register_notify_blueprint(application, v3_template_blueprint, requires_auth)
 
     register_notify_blueprint(application, v2_api_spec_blueprint, requires_no_auth)
 
