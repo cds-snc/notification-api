@@ -467,16 +467,6 @@ class FileSchema(BaseSchema):
     created_at = FlexibleDateTime()
     updated_at = FlexibleDateTime()
 
-    @validates("type")
-    def validate_type(self, value):
-        if value not in models.FILE_TYPES:
-            raise ValidationError("Invalid file type")
-
-    @validates("status")
-    def validate_status(self, value):
-        if value not in models.FILE_STATUSES:
-            raise ValidationError("Invalid file status")
-
     class Meta(BaseSchema.Meta):
         model = models.File
         exclude = ("template", "service")
