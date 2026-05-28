@@ -1,9 +1,15 @@
 import uuid
 
 from flask import json
+from notifications_python_client.authentication import create_jwt_token
 
 from app.models import EMAIL_TYPE, SMS_TYPE
 from tests.app.db import create_template
+
+
+def _auth_header(api_key):
+    token = create_jwt_token(secret=api_key.secret, client_id=str(api_key.service_id))
+    return "Authorization", f"Bearer {token}"
 
 
 class TestGetTemplateV3:
@@ -11,7 +17,7 @@ class TestGetTemplateV3:
         self, client, sample_service, create_api_key_with_manage_api_perm
     ):
         template = create_template(sample_service, template_type=SMS_TYPE)
-        auth_header = create_api_key_with_manage_api_perm
+        auth_header = _auth_header(create_api_key_with_manage_api_perm)
 
         response = client.get(
             f"/v3/template/{template.id}",
@@ -28,7 +34,7 @@ class TestGetTemplateV3:
 
     def test_get_template_returns_richer_fields_than_v2(self, client, sample_service, create_api_key_with_manage_api_perm):
         template = create_template(sample_service, template_type=EMAIL_TYPE, subject="Hello")
-        auth_header = create_api_key_with_manage_api_perm
+        auth_header = _auth_header(create_api_key_with_manage_api_perm)
 
         response = client.get(
             f"/v3/template/{template.id}",
@@ -58,7 +64,7 @@ class TestGetTemplateV3:
 
     def test_get_template_returns_403_without_manage_templates_permission(self, client, sample_service, create_api_key_no_perm):
         template = create_template(sample_service, template_type=SMS_TYPE)
-        auth_header = create_api_key_no_perm
+        auth_header = _auth_header(create_api_key_no_perm)
 
         response = client.get(
             f"/v3/template/{template.id}",
@@ -71,7 +77,7 @@ class TestGetTemplateV3:
 
     def test_get_template_returns_404_for_nonexistent_template(self, client, sample_service, create_api_key_with_manage_api_perm):
         nonexistent_id = uuid.uuid4()
-        auth_header = create_api_key_with_manage_api_perm
+        auth_header = _auth_header(create_api_key_with_manage_api_perm)
 
         response = client.get(
             f"/v3/template/{nonexistent_id}",
@@ -84,7 +90,7 @@ class TestGetTemplateV3:
         self, client, sample_service, sample_template, create_api_key_with_manage_api_perm
     ):
         """Templates from other services must not be accessible."""
-        auth_header = create_api_key_with_manage_api_perm
+        auth_header = _auth_header(create_api_key_with_manage_api_perm)
 
         response = client.get(
             f"/v3/template/{sample_template.id}",
@@ -98,7 +104,7 @@ class TestGetTemplateV3:
 
     def test_get_sms_template_has_null_subject(self, client, sample_service, create_api_key_with_manage_api_perm):
         template = create_template(sample_service, template_type=SMS_TYPE)
-        auth_header = create_api_key_with_manage_api_perm
+        auth_header = _auth_header(create_api_key_with_manage_api_perm)
 
         response = client.get(
             f"/v3/template/{template.id}",
@@ -111,7 +117,7 @@ class TestGetTemplateV3:
 
     def test_get_email_template_has_subject(self, client, sample_service, create_api_key_with_manage_api_perm):
         template = create_template(sample_service, template_type=EMAIL_TYPE, subject="Test subject")
-        auth_header = create_api_key_with_manage_api_perm
+        auth_header = _auth_header(create_api_key_with_manage_api_perm)
 
         response = client.get(
             f"/v3/template/{template.id}",
@@ -124,7 +130,7 @@ class TestGetTemplateV3:
 
     def test_get_archived_template_returns_archived_true(self, client, sample_service, create_api_key_with_manage_api_perm):
         template = create_template(sample_service, template_type=SMS_TYPE, archived=True)
-        auth_header = create_api_key_with_manage_api_perm
+        auth_header = _auth_header(create_api_key_with_manage_api_perm)
 
         response = client.get(
             f"/v3/template/{template.id}",
