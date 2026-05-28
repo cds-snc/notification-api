@@ -100,6 +100,9 @@ class Freshdesk(object):
                     f"- Demande d'identifiant de modèle: {self.contact.template_id_link}",
                 ]
             )
+        elif "suppression" in self.contact.support_type.lower():
+            # Suppression list removal notification - just use the message as is
+            pass
         if len(self.contact.user_profile):
             message += f"<br><br>---<br><br> {self.contact.user_profile}"
 

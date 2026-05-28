@@ -232,3 +232,75 @@ def test_send_email_raises_other_errs_as_AwsSesClientException(mocker):
 )
 def test_punycode_encode_email(input, expected_output):
     assert punycode_encode_email(input) == expected_output
+
+
+class TestRemoveEmailFromSuppressionList:
+    def test_remove_email_from_suppression_list_success(self, notify_api, mocker):
+        """Test successfully removing an email from the suppression list"""
+        boto_mock_v2 = mocker.patch.object(aws_ses_client, "_client_v2", create=True)
+        mocker.patch.object(aws_ses_client, "statsd_client", create=True)
+
+        with notify_api.app_context():
+            result = aws_ses_client.remove_email_from_suppression_list("test@example.com")
+
+        assert result is True
+        boto_mock_v2.delete_suppressed_destination.assert_called_once_with(EmailAddress="test@example.com")
+        aws_ses_client.statsd_client.incr.assert_called_with("clients.ses.suppression-removal.success")
+
+    def test_remove_email_not_in_suppression_list(self, notify_api, mocker):
+        """Test removing an email that's not in the suppression list"""
+        boto_mock_v2 = mocker.patch.object(aws_ses_client, "_client_v2", create=True)
+        mocker.patch.object(aws_ses_client, "statsd_client", create=True)
+
+        error_response = {
+            "Error": {
+                "Code": "NotFoundException",
+                "Message": "Email not found in suppression list",
+            }
+        }
+        boto_mock_v2.delete_suppressed_destination.side_effect = botocore.exceptions.ClientError(
+            error_response, "delete_suppressed_destination"
+        )
+
+        with notify_api.app_context():
+            result = aws_ses_client.remove_email_from_suppression_list("test@example.com")
+
+        # Should still return True since email is not on the list
+        assert result is True
+        aws_ses_client.statsd_client.incr.assert_called_with("clients.ses.suppression-removal.not-found")
+
+    def test_remove_email_ses_error(self, notify_api, mocker):
+        """Test handling SES errors during removal"""
+        boto_mock_v2 = mocker.patch.object(aws_ses_client, "_client_v2", create=True)
+        mocker.patch.object(aws_ses_client, "statsd_client", create=True)
+
+        error_response = {
+            "Error": {
+                "Code": "ServiceUnavailable",
+                "Message": "Service temporarily unavailable",
+            }
+        }
+        boto_mock_v2.delete_suppressed_destination.side_effect = botocore.exceptions.ClientError(
+            error_response, "delete_suppressed_destination"
+        )
+
+        with notify_api.app_context():
+            with pytest.raises(AwsSesClientException) as excinfo:
+                aws_ses_client.remove_email_from_suppression_list("test@example.com")
+
+        assert "Failed to remove email from suppression list" in str(excinfo.value)
+        aws_ses_client.statsd_client.incr.assert_called_with("clients.ses.suppression-removal.error")
+
+    def test_remove_email_unexpected_error(self, notify_api, mocker):
+        """Test handling unexpected errors during removal"""
+        boto_mock_v2 = mocker.patch.object(aws_ses_client, "_client_v2", create=True)
+        mocker.patch.object(aws_ses_client, "statsd_client", create=True)
+
+        boto_mock_v2.delete_suppressed_destination.side_effect = Exception("Unexpected error")
+
+        with notify_api.app_context():
+            with pytest.raises(AwsSesClientException) as excinfo:
+                aws_ses_client.remove_email_from_suppression_list("test@example.com")
+
+        assert "Failed to remove email from suppression list" in str(excinfo.value)
+        aws_ses_client.statsd_client.incr.assert_called_with("clients.ses.suppression-removal.error")
