@@ -4,7 +4,7 @@ from flask import json
 from notifications_python_client.authentication import create_jwt_token
 
 from app.models import EMAIL_TYPE, SMS_TYPE
-from tests.app.db import create_template
+from tests.app.db import create_service, create_template
 
 
 def _auth_header(api_key):
@@ -48,7 +48,9 @@ class TestGetTemplateV3:
         assert "archived" in data
         assert "template_category_id" in data
         assert "folder_id" in data
-        assert "process_type" in data
+
+        # process_type is intentionally NOT exposed in v3
+        assert "process_type" not in data
 
         # Core fields still present
         assert "id" in data
@@ -73,7 +75,8 @@ class TestGetTemplateV3:
 
         assert response.status_code == 403
         data = json.loads(response.get_data(as_text=True))
-        assert "manage templates" in data["message"].lower() or "manage_templates" in data["message"].lower()
+        message = data["errors"][0]["message"].lower()
+        assert "manage templates" in message or "manage_templates" in message
 
     def test_get_template_returns_404_for_nonexistent_template(self, client, sample_service, create_api_key_with_manage_api_perm):
         nonexistent_id = uuid.uuid4()
@@ -87,20 +90,19 @@ class TestGetTemplateV3:
         assert response.status_code == 404
 
     def test_get_template_returns_404_for_template_belonging_to_other_service(
-        self, client, sample_service, sample_template, create_api_key_with_manage_api_perm
+        self, client, sample_service, create_api_key_with_manage_api_perm
     ):
         """Templates from other services must not be accessible."""
+        other_service = create_service(service_name=f"other service {uuid.uuid4()}")
+        other_template = create_template(other_service, template_type=SMS_TYPE)
         auth_header = _auth_header(create_api_key_with_manage_api_perm)
 
         response = client.get(
-            f"/v3/template/{sample_template.id}",
+            f"/v3/template/{other_template.id}",
             headers=[("Content-Type", "application/json"), auth_header],
         )
 
-        # sample_template belongs to sample_service so this should work;
-        # if services differ the DAO raises NoResultFound → 404
-        # This test just verifies service scoping is enforced.
-        assert response.status_code in (200, 404)
+        assert response.status_code == 404
 
     def test_get_sms_template_has_null_subject(self, client, sample_service, create_api_key_with_manage_api_perm):
         template = create_template(sample_service, template_type=SMS_TYPE)

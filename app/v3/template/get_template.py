@@ -1,6 +1,6 @@
 from flask import jsonify
 
-from app import api_user, authenticated_service
+from app import DATETIME_FORMAT, api_user, authenticated_service
 from app.dao import templates_dao
 from app.errors import InvalidRequest
 from app.models import ApiKeyPermission
@@ -24,14 +24,13 @@ def _serialize_template(template) -> dict:
         "id": str(template.id),
         "name": template.name,
         "type": template.template_type,
-        "created_at": template.created_at.isoformat(),
-        "updated_at": template.updated_at.isoformat() if template.updated_at else None,
+        "created_at": template.created_at.strftime(DATETIME_FORMAT),
+        "updated_at": template.updated_at.strftime(DATETIME_FORMAT) if template.updated_at else None,
         "created_by": template.created_by.email_address,
         "version": template.version,
         "body": template.content,
         "subject": template.subject if template.template_type != "sms" else None,
         "postage": template.postage,
-        "process_type": template.process_type,
         "template_category_id": str(template.template_category_id) if template.template_category_id else None,
         "folder_id": folder_id,
         "archived": template.archived,
