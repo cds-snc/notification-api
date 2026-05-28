@@ -460,15 +460,15 @@ class TemplateHistorySchema(BaseSchema):
         model = models.TemplateHistory
 
 
-class FileSchema(BaseSchema):
-    template_id = field_for(models.File, "template_id", required=True)
-    service_id = field_for(models.File, "service_id", required=True)
-    document_id = field_for(models.File, "document_id", required=True)
+class FilesSchema(BaseSchema):
+    template_id = field_for(models.Files, "template_id", required=True)
+    service_id = field_for(models.Files, "service_id", required=True)
+    document_id = field_for(models.Files, "document_id", required=True)
     created_at = FlexibleDateTime()
     updated_at = FlexibleDateTime()
 
     class Meta(BaseSchema.Meta):
-        model = models.File
+        model = models.Files
         exclude = ("template", "service")
 
 
@@ -932,4 +932,4 @@ provider_details_history_schema = ProviderDetailsHistorySchema()
 day_schema = DaySchema()
 unarchived_template_schema = UnarchivedTemplateSchema()
 report_schema = ReportSchema()
-file_schema = FileSchema()
+files_schema = FilesSchema()

@@ -20,7 +20,7 @@ from app.models import (
     PRECOMPILED_TEMPLATE_NAME,
     PRIORITY,
     SMS_TYPE,
-    File,
+    Files,
     Notification,
     ServiceSafelist,
 )
@@ -413,18 +413,18 @@ class TestNotificationModel:
 
 
 def test_file_size_mib_returns_none_when_file_size_is_none():
-    file_model = File(file_size=None)
+    file_model = Files(file_size=None)
 
     assert file_model.file_size_mib is None
 
 
 def test_file_size_mib_converts_bytes_to_mebibytes():
-    file_model = File(file_size=3 * 1024 * 1024)
+    file_model = Files(file_size=3 * 1024 * 1024)
 
     assert file_model.file_size_mib == 3
 
 
 def test_file_size_mib_converts_fractional_mebibytes():
-    file_model = File(file_size=int(3.5 * 1024 * 1024))
+    file_model = Files(file_size=int(3.5 * 1024 * 1024))
 
     assert file_model.file_size_mib == 3.5

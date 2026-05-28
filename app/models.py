@@ -1444,7 +1444,7 @@ class TemplateRedacted(BaseModel):
     )
 
 
-class File(BaseModel):
+class Files(BaseModel):
     __tablename__ = "files"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
