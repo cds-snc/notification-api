@@ -75,6 +75,22 @@ NOTIFY_USER_ID = "00000000-0000-0000-0000-000000000000"
 
 sms_sending_vehicles = db.Enum(*[vehicle.value for vehicle in SmsSendingVehicles], name="sms_sending_vehicles")
 
+FILE_TYPE_ATTACH = "attach"
+FILE_TYPE_LINK = "link"
+FILE_TYPE_TEMPLATE_ATTACH = "template_attach"
+FILE_TYPES = [FILE_TYPE_ATTACH, FILE_TYPE_LINK, FILE_TYPE_TEMPLATE_ATTACH]
+
+FILE_STATUS_PENDING_VIRUS_SCAN = "pending_virus_scan"
+FILE_STATUS_UPLOADED = "uploaded"
+FILE_STATUS_VIRUS_SCAN_FAILED = "virus_scan_failed"
+FILE_STATUS_DELETED = "deleted"
+FILE_STATUSES = [
+    FILE_STATUS_PENDING_VIRUS_SCAN,
+    FILE_STATUS_UPLOADED,
+    FILE_STATUS_VIRUS_SCAN_FAILED,
+    FILE_STATUS_DELETED,
+]
+
 
 EMAIL_STATUS_FORMATTED = {
     "failed": "Failed",
@@ -1426,6 +1442,31 @@ class TemplateRedacted(BaseModel):
         uselist=False,
         backref=db.backref("template_redacted", uselist=False),
     )
+
+
+class Files(BaseModel):
+    __tablename__ = "files"
+
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    template_id = db.Column(UUID(as_uuid=True), db.ForeignKey("templates.id"), index=True, nullable=False)
+    service_id = db.Column(UUID(as_uuid=True), db.ForeignKey("services.id"), index=True, nullable=False)
+    document_id = db.Column(UUID(as_uuid=True), nullable=False)
+    type = db.Column(db.Enum(*FILE_TYPES, name="notify_file_type_enum"), nullable=False)
+    name = db.Column(db.Text, nullable=False)
+    mime_type = db.Column(db.Text, nullable=True)
+    file_size = db.Column(db.Integer, nullable=True)
+    status = db.Column(db.Enum(*FILE_STATUSES, name="notify_file_status_enum"), nullable=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    template = db.relationship("Template")
+    service = db.relationship("Service")
+
+    @property
+    def file_size_mib(self):
+        if self.file_size is None:
+            return None
+        return self.file_size / (1024 * 1024)
 
 
 class TemplateHistory(TemplateBase):
