@@ -2869,7 +2869,7 @@ requests = ">=2.0.0"
 
 [[package]]
 name = "notifications-utils"
-version = "53.2.23"
+version = "53.2.24"
 description = "Shared python code for Notification - Provides logging utils etc."
 optional = false
 python-versions = "~3.12.7"
@@ -2905,8 +2905,8 @@ werkzeug = "3.0.6"
 [package.source]
 type = "git"
 url = "https://github.com/cds-snc/notifier-utils.git"
-reference = "renovate/pypi-cryptography-vulnerability"
-resolved_reference = "fa8736f8f35d9f52beee0d8aef9acf78eeba8d8e"
+reference = "53.2.24"
+resolved_reference = "4c1b806a12c7690639ce7f24990a32374e803f3f"
 
 [[package]]
 name = "opentelemetry-api"
@@ -5220,4 +5220,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.12.7"
-content-hash = "c8aa84c112a2dfad030c65bf402373552e07d0f9fff78a3fe0fcbf9b921e5adf"
+content-hash = "fb1aa2623f0c9c087b533290c8d69a5e189ea7fba8e6a2ec448dbf2f1d912f19"
