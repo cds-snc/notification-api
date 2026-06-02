@@ -12,7 +12,6 @@ from app.models import (
     NOTIFICATION_DELIVERED,
     NOTIFICATION_PERMANENT_FAILURE,
     NOTIFICATION_SENT,
-    NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_TEMPORARY_FAILURE,
     SNS_PROVIDER,
 )
@@ -34,7 +33,7 @@ def process_sns_results(self, response):
         notification_status = determine_status(sns_status, provider_response)
         if not notification_status:
             current_app.logger.warning(f"unhandled provider response for reference {reference}, received '{provider_response}'")
-            notification_status = NOTIFICATION_TECHNICAL_FAILURE  # revert to tech failure by default
+            notification_status = NOTIFICATION_PERMANENT_FAILURE  # revert to permanent failure by default
 
         try:
             notification = notifications_dao.dao_get_notification_by_reference(reference)
@@ -131,7 +130,7 @@ def determine_status(sns_status, provider_response):
         "Phone has blocked SMS": NOTIFICATION_TEMPORARY_FAILURE,
         "Phone is on a blocked list": NOTIFICATION_TEMPORARY_FAILURE,
         "Phone is currently unreachable/unavailable": NOTIFICATION_PERMANENT_FAILURE,
-        "Phone number is opted out": NOTIFICATION_TECHNICAL_FAILURE,
+        "Phone number is opted out": NOTIFICATION_PERMANENT_FAILURE,
         "This delivery would exceed max price": NOTIFICATION_TEMPORARY_FAILURE,
         "Unknown error attempting to reach phone": NOTIFICATION_PERMANENT_FAILURE,
         "Unhandled provider": NOTIFICATION_PERMANENT_FAILURE,
@@ -141,6 +140,6 @@ def determine_status(sns_status, provider_response):
     if not status:
         # TODO: Pattern matching in Python 3.10 should simplify this overall function logic.
         if "is opted out" in provider_response:
-            return NOTIFICATION_TECHNICAL_FAILURE
+            return NOTIFICATION_PERMANENT_FAILURE
 
     return status
