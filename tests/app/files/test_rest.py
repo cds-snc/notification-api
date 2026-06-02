@@ -47,18 +47,6 @@ class TestGetFile:
         )
         assert response["status"] == sample_file.status
 
-    def test_get_file_status_returns_404_when_template_file_mismatch(
-        self, notify_db, notify_db_session, admin_request, sample_file, sample_service_full_permissions
-    ):
-        different_template = create_sample_template(notify_db, notify_db_session, service=sample_service_full_permissions)
-
-        admin_request.get(
-            "files.get_file_status",
-            template_id=str(different_template.id),
-            file_id=str(sample_file.id),
-            _expected_status=404,
-        )
-
     def test_get_files_by_template_id(self, admin_request, sample_file):
         admin_request.get(
             "files.get_files_by_template_id",

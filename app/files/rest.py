@@ -84,10 +84,10 @@ def delete_file(template_id, file_id):
 # to access via a token. Just including here for now.
 @files_blueprint.route("/<uuid:file_id>/status", methods=["POST"])
 def update_file_status(template_id, file_id):
+    fetched_file = validate_file_template_match(template_id, file_id)
     data = request.get_json()
     validate(data, post_update_file_status_schema)
 
-    fetched_file = validate_file_template_match(template_id, file_id)
     fetched_file.status = data["status"]
     dao_update_file(fetched_file)
 
