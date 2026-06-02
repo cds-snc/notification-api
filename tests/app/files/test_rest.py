@@ -45,6 +45,18 @@ class TestGetFile:
             _expected_status=200,
         )
 
+    def test_get_file_status_returns_404_when_template_file_mismatch(
+        self, notify_db, notify_db_session, admin_request, sample_file, sample_service_full_permissions
+    ):
+        different_template = create_sample_template(notify_db, notify_db_session, service=sample_service_full_permissions)
+
+        admin_request.get(
+            "files.get_file_status",
+            template_id=str(different_template.id),
+            file_id=str(sample_file.id),
+            _expected_status=404,
+        )
+
     def test_get_files_by_template_id(self, admin_request, sample_file):
         admin_request.get(
             "files.get_files_by_template_id",
@@ -63,6 +75,19 @@ class TestUpdateFileStatus:
             _expected_status=200,
         )
 
+    def test_update_file_status_returns_404_when_template_file_mismatch(
+        self, notify_db, notify_db_session, admin_request, sample_file, sample_service_full_permissions
+    ):
+        different_template = create_sample_template(notify_db, notify_db_session, service=sample_service_full_permissions)
+
+        admin_request.post(
+            "files.update_file_status",
+            template_id=str(different_template.id),
+            file_id=str(sample_file.id),
+            _data={"status": "uploaded"},
+            _expected_status=404,
+        )
+
 
 class TestDeleteFile:
     def test_delete_file(self, admin_request, sample_file):
@@ -71,4 +96,16 @@ class TestDeleteFile:
             template_id=str(sample_file.template_id),
             file_id=str(sample_file.id),
             _expected_status=204,
+        )
+
+    def test_delete_file_returns_404_when_template_file_mismatch(
+        self, notify_db, notify_db_session, admin_request, sample_file, sample_service_full_permissions
+    ):
+        different_template = create_sample_template(notify_db, notify_db_session, service=sample_service_full_permissions)
+
+        admin_request.delete(
+            "files.delete_file",
+            template_id=str(different_template.id),
+            file_id=str(sample_file.id),
+            _expected_status=404,
         )

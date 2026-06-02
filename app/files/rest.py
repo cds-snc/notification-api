@@ -10,7 +10,7 @@ from app.dao.files_dao import (
     dao_get_files_by_template_id,
     dao_update_file,
 )
-from app.errors import register_errors
+from app.errors import InvalidRequest, register_errors
 from app.files.files_schema import (
     post_create_file_schema,
     post_update_file_status_schema,
@@ -100,11 +100,9 @@ def validate_file_template_match(template_id, file_id):
     fetched_file = dao_get_file_by_id(file_id)
 
     if fetched_file.template_id != template_id:
-        return (
-            jsonify(
-                result="error",
-                message=f"Requested file_id {file_id} is not associated with template {template_id}",
-            ),
+        raise InvalidRequest(
+            f"Requested file_id {file_id} is not associated with template {template_id}",
             404,
         )
+
     return fetched_file
