@@ -32,7 +32,7 @@ from app.dao.users_dao import create_secret_code, create_user_code
 from app.history_meta import create_history
 from app.models import (
     EMAIL_TYPE,
-    FILE_STATUS_UPLOADED,
+    FILE_STATUS_PENDING_VIRUS_SCAN,
     FILE_TYPE_TEMPLATE_ATTACH,
     INBOUND_SMS_TYPE,
     KEY_TYPE_NORMAL,
@@ -1780,7 +1780,7 @@ def sample_file(
     notify_db_session,
     sample_service_full_permissions,
     file_type=FILE_TYPE_TEMPLATE_ATTACH,
-    file_status=FILE_STATUS_UPLOADED,
+    file_status=FILE_STATUS_PENDING_VIRUS_SCAN,
     name="file1.csv",
 ):
     sample_template = create_sample_template(notify_db, notify_db_session, service=sample_service_full_permissions)

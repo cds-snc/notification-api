@@ -1,5 +1,6 @@
 import base64
 
+from app.models import FILE_STATUS_UPLOADED
 from tests.app.conftest import create_sample_template
 
 
@@ -38,12 +39,13 @@ class TestCreateFile:
 
 class TestGetFile:
     def test_get_file_status(self, admin_request, sample_file):
-        admin_request.get(
+        response = admin_request.get(
             "files.get_file_status",
             template_id=str(sample_file.template_id),
             file_id=str(sample_file.id),
             _expected_status=200,
         )
+        assert response["status"] == sample_file.status
 
     def test_get_file_status_returns_404_when_template_file_mismatch(
         self, notify_db, notify_db_session, admin_request, sample_file, sample_service_full_permissions
@@ -74,6 +76,7 @@ class TestUpdateFileStatus:
             _data={"status": "uploaded"},
             _expected_status=200,
         )
+        assert sample_file.status == FILE_STATUS_UPLOADED
 
     def test_update_file_status_returns_404_when_template_file_mismatch(
         self, notify_db, notify_db_session, admin_request, sample_file, sample_service_full_permissions

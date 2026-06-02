@@ -7,6 +7,7 @@ from app.dao.files_dao import (
     dao_create_file,
     dao_delete_file,
     dao_get_file_by_id,
+    dao_get_file_status_by_id_and_template_id,
     dao_get_files_by_template_id,
     dao_update_file,
 )
@@ -65,10 +66,8 @@ def get_files_by_template_id(template_id):
 
 @files_blueprint.route("/<uuid:file_id>/status", methods=["GET"])
 def get_file_status(template_id, file_id):
-    fetched_file = validate_file_template_match(template_id, file_id)
-    file = files_schema.dump(fetched_file)
-
-    return jsonify(file), 200
+    file_status = dao_get_file_status_by_id_and_template_id(file_id, template_id)
+    return jsonify({"status": file_status}), 200
 
 
 @files_blueprint.route("/<uuid:file_id>", methods=["DELETE"])
