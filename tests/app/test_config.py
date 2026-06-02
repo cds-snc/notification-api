@@ -27,12 +27,13 @@ def reload_config():
 def test_queue_names_all_queues_correct():
     # Need to ensure that all_queues() only returns queue names used in API
     queues = QueueNames.all_queues()
-    assert len(queues) == 22
+    assert len(queues) == 23
     assert set(
         [
             QueueNames.PRIORITY,
             QueueNames.BULK,
             QueueNames.PERIODIC,
+            QueueNames.NIGHTLY,
             QueueNames.PRIORITY_DATABASE,
             QueueNames.NORMAL_DATABASE,
             QueueNames.BULK_DATABASE,
