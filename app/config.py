@@ -98,6 +98,11 @@ class QueueNames(object):
     REPORTING = "reporting-tasks"
     GENERATE_REPORTS = "generate-reports"
 
+    # Long-running nightly tasks (delete notifications, etc.) — isolated so that
+    # a dedicated worker deployment can use a higher terminationGracePeriodSeconds
+    # without affecting the short-lived periodic-tasks workers.
+    NIGHTLY = "nightly-tasks"
+
     # Queue for scheduled notifications.
     JOBS = "job-tasks"
 
@@ -135,6 +140,7 @@ class QueueNames(object):
         return [
             QueueNames.PRIORITY,
             QueueNames.PERIODIC,
+            QueueNames.NIGHTLY,
             QueueNames.BULK,
             QueueNames.PRIORITY_DATABASE,
             QueueNames.NORMAL_DATABASE,
@@ -491,22 +497,22 @@ class Config(object):
         "delete-sms-notifications": {
             "task": "delete-sms-notifications",
             "schedule": crontab(hour=9, minute=15),  # 4:15 EST in UTC,  after 'create-nightly-notification-status'
-            "options": {"queue": QueueNames.PERIODIC},
+            "options": {"queue": QueueNames.NIGHTLY},
         },
         "delete-email-notifications": {
             "task": "delete-email-notifications",
             "schedule": crontab(hour=9, minute=30),  # 4:30 EST in UTC, after 'create-nightly-notification-status'
-            "options": {"queue": QueueNames.PERIODIC},
+            "options": {"queue": QueueNames.NIGHTLY},
         },
         "delete-letter-notifications": {
             "task": "delete-letter-notifications",
             "schedule": crontab(hour=9, minute=45),  # 4:45 EST in UTC, after 'create-nightly-notification-status'
-            "options": {"queue": QueueNames.PERIODIC},
+            "options": {"queue": QueueNames.NIGHTLY},
         },
         "delete-inbound-sms": {
             "task": "delete-inbound-sms",
             "schedule": crontab(hour=6, minute=40),  # 1:40 EST in UTC
-            "options": {"queue": QueueNames.PERIODIC},
+            "options": {"queue": QueueNames.NIGHTLY},
         },
         "send-daily-performance-platform-stats": {
             "task": "send-daily-performance-platform-stats",
