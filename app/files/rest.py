@@ -103,5 +103,5 @@ def update_file_status(template_id, file_id):
     file_obj.status = data["status"]
     dao_update_file(file_obj)
 
-    current_app.logger.info(f"Updated file status for file: {file_id} template_id: {template_id} to {data["status"]}")
+    current_app.logger.info(f"Updated file status for file: {file_id} template_id: {template_id} to {data['status']}")
     return jsonify(files_schema.dump(file_obj)), 200
