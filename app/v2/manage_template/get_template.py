@@ -35,7 +35,7 @@ def _serialize_template(template) -> dict:
         "subject": template.subject if template.template_type != "sms" else None,
         "postage": template.postage,
         "template_category_id": str(template.template_category_id) if template.template_category_id else None,
-        "template_category_name": str(template.template_category.name) if template.template_category else None,
+        "template_category_name": str(template.template_category.name_en) if template.template_category else None,
         "folder_id": folder_id,
         "archived": template.archived,
     }
