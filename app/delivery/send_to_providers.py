@@ -54,7 +54,6 @@ from app.models import (
     EMAIL_TYPE,
     KEY_TYPE_TEST,
     NOTIFICATION_CONTAINS_PII,
-    NOTIFICATION_PERMANENT_FAILURE,
     NOTIFICATION_SENDING,
     NOTIFICATION_SENT,
     NOTIFICATION_TECHNICAL_FAILURE,
@@ -434,7 +433,7 @@ def update_notification_to_sending(notification, provider):
 def update_notification_to_opted_out(notification, provider):
     notification.sent_at = datetime.utcnow()
     notification.sent_by = provider.get_name()
-    notification.status = NOTIFICATION_PERMANENT_FAILURE
+    notification.status = NOTIFICATION_TECHNICAL_FAILURE
     notification.provider_response = "Phone number is opted out"
     dao_update_notification(notification)
 

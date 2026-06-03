@@ -70,7 +70,7 @@ def process_pinpoint_results(self, response):
 
         if not notification_status:
             current_app.logger.warning(f"unhandled provider response for reference {reference}, received '{provider_response}'")
-            notification_status = NOTIFICATION_TECHNICAL_FAILURE  # revert to tech failure by default
+            notification_status = NOTIFICATION_PERMANENT_FAILURE  # revert to permanent failure by default
 
         try:
             notification = notifications_dao.dao_get_notification_by_reference(reference)
@@ -205,6 +205,8 @@ def determine_pinpoint_status(status: str, provider_response: str, isFinal: bool
     elif "phone is currently unreachable/unavailable" in response_lower:
         return NOTIFICATION_PERMANENT_FAILURE
     elif "unhandled provider" in response_lower:
+        return NOTIFICATION_PERMANENT_FAILURE
+    elif "delivery TTL has expired" in response_lower:
         return NOTIFICATION_PERMANENT_FAILURE
     else:
         return None

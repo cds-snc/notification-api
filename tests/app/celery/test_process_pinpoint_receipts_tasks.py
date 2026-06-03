@@ -202,7 +202,7 @@ def test_process_pinpoint_results_missing_sms_data(notify_api, sample_template, 
             False,
             True,
         ),
-        ("This is not a real response", NOTIFICATION_TECHNICAL_FAILURE, True, True),
+        ("This is not a real response", NOTIFICATION_PERMANENT_FAILURE, True, True),
     ],
 )
 def test_process_pinpoint_results_failed(
