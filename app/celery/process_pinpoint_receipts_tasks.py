@@ -13,6 +13,7 @@ from app.models import (
     NOTIFICATION_DELIVERED,
     NOTIFICATION_PERMANENT_FAILURE,
     NOTIFICATION_SENT,
+    NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_TEMPORARY_FAILURE,
     PINPOINT_PROVIDER,
 )
@@ -194,7 +195,7 @@ def determine_pinpoint_status(status: str, provider_response: str, isFinal: bool
     elif "invalid" in response_lower:
         return NOTIFICATION_PERMANENT_FAILURE
     elif "is opted out" in response_lower:
-        return NOTIFICATION_PERMANENT_FAILURE
+        return NOTIFICATION_TECHNICAL_FAILURE
     elif "unknown error" in response_lower:
         return NOTIFICATION_PERMANENT_FAILURE
     elif "exceed max price" in response_lower:
@@ -204,6 +205,8 @@ def determine_pinpoint_status(status: str, provider_response: str, isFinal: bool
     elif "phone is currently unreachable/unavailable" in response_lower:
         return NOTIFICATION_PERMANENT_FAILURE
     elif "unhandled provider" in response_lower:
+        return NOTIFICATION_PERMANENT_FAILURE
+    elif "delivery TTL has expired" in response_lower:
         return NOTIFICATION_PERMANENT_FAILURE
     else:
         return None

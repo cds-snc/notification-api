@@ -12,6 +12,7 @@ from app.models import (
     NOTIFICATION_DELIVERED,
     NOTIFICATION_PERMANENT_FAILURE,
     NOTIFICATION_SENT,
+    NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_TEMPORARY_FAILURE,
     SNS_PROVIDER,
 )
@@ -130,7 +131,7 @@ def determine_status(sns_status, provider_response):
         "Phone has blocked SMS": NOTIFICATION_TEMPORARY_FAILURE,
         "Phone is on a blocked list": NOTIFICATION_TEMPORARY_FAILURE,
         "Phone is currently unreachable/unavailable": NOTIFICATION_PERMANENT_FAILURE,
-        "Phone number is opted out": NOTIFICATION_PERMANENT_FAILURE,
+        "Phone number is opted out": NOTIFICATION_TECHNICAL_FAILURE,
         "This delivery would exceed max price": NOTIFICATION_TEMPORARY_FAILURE,
         "Unknown error attempting to reach phone": NOTIFICATION_PERMANENT_FAILURE,
         "Unhandled provider": NOTIFICATION_PERMANENT_FAILURE,
