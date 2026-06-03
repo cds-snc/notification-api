@@ -1,13 +1,13 @@
 import uuid
 
 from flask import json
-
-from app.models import EMAIL_TYPE, SMS_TYPE
 from tests import create_authorization_header
 from tests.app.db import create_service, create_template
 
+from app.models import EMAIL_TYPE, SMS_TYPE
 
-class TestGetTemplateV2Enhanced:
+
+class TestGetTemplateV2ManageTemplate:
     def test_get_template_returns_200_with_manage_templates_permission(
         self, client, sample_service, create_api_key_with_manage_api_perm
     ):
@@ -15,7 +15,7 @@ class TestGetTemplateV2Enhanced:
         auth_header = create_authorization_header(api_key=create_api_key_with_manage_api_perm)
 
         response = client.get(
-            f"/v2/template/template-enhanced/{template.id}",
+            f"/v2/manage-template/{template.id}",
             headers=[("Content-Type", "application/json"), auth_header],
         )
 
@@ -32,7 +32,7 @@ class TestGetTemplateV2Enhanced:
         auth_header = create_authorization_header(api_key=create_api_key_with_manage_api_perm)
 
         response = client.get(
-            f"/v2/template/template-enhanced/{template.id}",
+            f"/v2/manage-template/{template.id}",
             headers=[("Content-Type", "application/json"), auth_header],
         )
 
@@ -61,7 +61,7 @@ class TestGetTemplateV2Enhanced:
         auth_header = create_authorization_header(api_key=create_api_key_no_perm)
 
         response = client.get(
-            f"/v2/template/template-enhanced/{template.id}",
+            f"/v2/manage-template/{template.id}",
             headers=[("Content-Type", "application/json"), auth_header],
         )
 
@@ -75,7 +75,7 @@ class TestGetTemplateV2Enhanced:
         auth_header = create_authorization_header(api_key=create_api_key_with_manage_api_perm)
 
         response = client.get(
-            f"/v2/template/template-enhanced/{nonexistent_id}",
+            f"/v2/manage-template/{nonexistent_id}",
             headers=[("Content-Type", "application/json"), auth_header],
         )
 
@@ -89,7 +89,7 @@ class TestGetTemplateV2Enhanced:
         auth_header = create_authorization_header(api_key=create_api_key_with_manage_api_perm)
 
         response = client.get(
-            f"/v2/template/template-enhanced/{other_template.id}",
+            f"/v2/manage-template/{other_template.id}",
             headers=[("Content-Type", "application/json"), auth_header],
         )
 
@@ -100,7 +100,7 @@ class TestGetTemplateV2Enhanced:
         auth_header = create_authorization_header(api_key=create_api_key_with_manage_api_perm)
 
         response = client.get(
-            f"/v2/template/template-enhanced/{template.id}",
+            f"/v2/manage-template/{template.id}",
             headers=[("Content-Type", "application/json"), auth_header],
         )
 
@@ -113,7 +113,7 @@ class TestGetTemplateV2Enhanced:
         auth_header = create_authorization_header(api_key=create_api_key_with_manage_api_perm)
 
         response = client.get(
-            f"/v2/template/template-enhanced/{template.id}",
+            f"/v2/manage-template/{template.id}",
             headers=[("Content-Type", "application/json"), auth_header],
         )
 
@@ -126,7 +126,7 @@ class TestGetTemplateV2Enhanced:
         auth_header = create_authorization_header(api_key=create_api_key_with_manage_api_perm)
 
         response = client.get(
-            f"/v2/template/template-enhanced/{template.id}",
+            f"/v2/manage-template/{template.id}",
             headers=[("Content-Type", "application/json"), auth_header],
         )
 
