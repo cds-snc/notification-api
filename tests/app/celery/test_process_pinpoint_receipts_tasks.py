@@ -24,6 +24,7 @@ from app.models import (
     NOTIFICATION_DELIVERED,
     NOTIFICATION_PERMANENT_FAILURE,
     NOTIFICATION_SENT,
+    NOTIFICATION_TECHNICAL_FAILURE,
     NOTIFICATION_TEMPORARY_FAILURE,
 )
 from app.notifications.callbacks import create_delivery_status_callback_data
@@ -179,7 +180,7 @@ def test_process_pinpoint_results_missing_sms_data(notify_api, sample_template, 
         ),
         (
             "Phone number is opted out",
-            NOTIFICATION_PERMANENT_FAILURE,
+            NOTIFICATION_TECHNICAL_FAILURE,
             False,
             True,
         ),
