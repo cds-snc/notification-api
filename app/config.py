@@ -173,8 +173,9 @@ class TaskNames(object):
 
 
 class Config(object):
-    ### Feature flags are defined first so these can be reused in configuration sections below. ###
-    # Feature flags for bounce rate
+    #################
+    # Feature flags #
+    #################
     FF_ANNUAL_LIMIT = env.bool("FF_ANNUAL_LIMIT", False)
     FF_BENCHMARK_ENDPOINT = env.bool("FF_BENCHMARK_ENDPOINT", False)
     # Timestamp in epoch milliseconds to seed the bounce rate. We will seed data for (24, the below config) included.
