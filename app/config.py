@@ -173,6 +173,21 @@ class TaskNames(object):
 
 
 class Config(object):
+    ### Feature flags are defined first so these can be reused in configuration sections below. ###
+    # Feature flags for bounce rate
+    FF_ANNUAL_LIMIT = env.bool("FF_ANNUAL_LIMIT", False)
+    FF_BENCHMARK_ENDPOINT = env.bool("FF_BENCHMARK_ENDPOINT", False)
+    # Timestamp in epoch milliseconds to seed the bounce rate. We will seed data for (24, the below config) included.
+    FF_BOUNCE_RATE_SEED_EPOCH_MS = os.getenv("FF_BOUNCE_RATE_SEED_EPOCH_MS", False)
+    # Feature flag to enable custom retry policies such as lowering retry period for certain priority lanes.
+    FF_CELERY_CUSTOM_TASK_PARAMS = env.bool("FF_CELERY_CUSTOM_TASK_PARAMS", True)
+    FF_CLOUDWATCH_METRICS_ENABLED = env.bool("FF_CLOUDWATCH_METRICS_ENABLED", False)
+    FF_IMPROVE_CELERY_WORKER_ISOLATION = env.bool("FF_IMPROVE_CELERY_WORKER_ISOLATION", False)
+    FF_PT_SERVICE_SKIP_FRESHDESK = env.bool("FF_PT_SERVICE_SKIP_FRESHDESK", False)
+    FF_SALESFORCE_CONTACT = env.bool("FF_SALESFORCE_CONTACT", False)
+    FF_SMS_RATELIMIT = env.bool("FF_SMS_RATELIMIT", False)
+    FF_USE_BILLABLE_UNITS = env.bool("FF_USE_BILLABLE_UNITS", False)
+
     # URL of admin app
     ADMIN_BASE_URL = os.getenv("ADMIN_BASE_URL", "http://localhost:6012")
 
@@ -497,22 +512,22 @@ class Config(object):
         "delete-sms-notifications": {
             "task": "delete-sms-notifications",
             "schedule": crontab(hour=9, minute=15),  # 4:15 EST in UTC,  after 'create-nightly-notification-status'
-            "options": {"queue": QueueNames.NIGHTLY},
+            "options": {"queue": QueueNames.NIGHTLY if FF_IMPROVE_CELERY_WORKER_ISOLATION else QueueNames.PERIODIC},
         },
         "delete-email-notifications": {
             "task": "delete-email-notifications",
             "schedule": crontab(hour=9, minute=30),  # 4:30 EST in UTC, after 'create-nightly-notification-status'
-            "options": {"queue": QueueNames.NIGHTLY},
+            "options": {"queue": QueueNames.NIGHTLY if FF_IMPROVE_CELERY_WORKER_ISOLATION else QueueNames.PERIODIC},
         },
         "delete-letter-notifications": {
             "task": "delete-letter-notifications",
             "schedule": crontab(hour=9, minute=45),  # 4:45 EST in UTC, after 'create-nightly-notification-status'
-            "options": {"queue": QueueNames.NIGHTLY},
+            "options": {"queue": QueueNames.NIGHTLY if FF_IMPROVE_CELERY_WORKER_ISOLATION else QueueNames.PERIODIC},
         },
         "delete-inbound-sms": {
             "task": "delete-inbound-sms",
             "schedule": crontab(hour=6, minute=40),  # 1:40 EST in UTC
-            "options": {"queue": QueueNames.NIGHTLY},
+            "options": {"queue": QueueNames.NIGHTLY if FF_IMPROVE_CELERY_WORKER_ISOLATION else QueueNames.PERIODIC},
         },
         "send-daily-performance-platform-stats": {
             "task": "send-daily-performance-platform-stats",
@@ -659,19 +674,6 @@ class Config(object):
     BR_VOLUME_MINIMUM = 1000
     BR_WARNING_PERCENTAGE = 0.05
     BR_CRITICAL_PERCENTAGE = 0.1
-
-    # Feature flags for bounce rate
-    FF_ANNUAL_LIMIT = env.bool("FF_ANNUAL_LIMIT", False)
-    FF_BENCHMARK_ENDPOINT = env.bool("FF_BENCHMARK_ENDPOINT", False)
-    # Timestamp in epoch milliseconds to seed the bounce rate. We will seed data for (24, the below config) included.
-    FF_BOUNCE_RATE_SEED_EPOCH_MS = os.getenv("FF_BOUNCE_RATE_SEED_EPOCH_MS", False)
-    # Feature flag to enable custom retry policies such as lowering retry period for certain priority lanes.
-    FF_CELERY_CUSTOM_TASK_PARAMS = env.bool("FF_CELERY_CUSTOM_TASK_PARAMS", True)
-    FF_CLOUDWATCH_METRICS_ENABLED = env.bool("FF_CLOUDWATCH_METRICS_ENABLED", False)
-    FF_PT_SERVICE_SKIP_FRESHDESK = env.bool("FF_PT_SERVICE_SKIP_FRESHDESK", False)
-    FF_SALESFORCE_CONTACT = env.bool("FF_SALESFORCE_CONTACT", False)
-    FF_SMS_RATELIMIT = env.bool("FF_SMS_RATELIMIT", False)
-    FF_USE_BILLABLE_UNITS = env.bool("FF_USE_BILLABLE_UNITS", False)
 
     WAF_SECRET = os.getenv("WAF_SECRET")
 
