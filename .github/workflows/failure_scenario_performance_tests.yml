@@ -57,9 +57,9 @@ jobs:
             --query 'Targets[0].EcsParameters.NetworkConfiguration' \
             --output json)
 
-          SUBNETS=$(echo "$NETWORK_CONFIG" | jq -r '.awsvpcConfiguration.subnets | join(",")')
-          SECURITY_GROUPS=$(echo "$NETWORK_CONFIG" | jq -r '.awsvpcConfiguration.securityGroups | join(",")')
-          ASSIGN_PUBLIC_IP=$(echo "$NETWORK_CONFIG" | jq -r '.awsvpcConfiguration.assignPublicIp')
+          SUBNETS=$(echo "$NETWORK_CONFIG" | jq -r '.awsvpcConfiguration.Subnets | join(",")')
+          SECURITY_GROUPS=$(echo "$NETWORK_CONFIG" | jq -r '.awsvpcConfiguration.SecurityGroups | join(",")')
+          ASSIGN_PUBLIC_IP=$(echo "$NETWORK_CONFIG" | jq -r '.awsvpcConfiguration.AssignPublicIp')
 
           echo "subnets=$SUBNETS"               >> "$GITHUB_OUTPUT"
           echo "security_groups=$SECURITY_GROUPS" >> "$GITHUB_OUTPUT"
