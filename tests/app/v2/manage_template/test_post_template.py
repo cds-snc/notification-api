@@ -24,6 +24,8 @@ class TestPostTemplateV2ManageTemplate:
 
         assert response.status_code == 201
         data = json.loads(response.get_data(as_text=True))
+        assert data["service_id"] == str(sample_service.id)
+        assert data["service_name"] == sample_service.name
         assert data["name"] == payload["name"]
         assert data["type"] == payload["template_type"]
         assert data["body"] == payload["content"]
@@ -88,6 +90,8 @@ class TestPostTemplateV2ManageTemplate:
 
         assert response.status_code == 201
         data = json.loads(response.get_data(as_text=True))
+        assert "service_id" in data
+        assert "service_name" in data
         assert data["subject"] == payload["subject"]
 
     def test_post_template_requires_template_category_id(self, client, create_api_key_with_manage_api_perm):
@@ -105,6 +109,13 @@ class TestPostTemplateV2ManageTemplate:
         )
 
         assert response.status_code == 400
+        data = json.loads(response.get_data(as_text=True))
+        assert data["errors"][0]["error"] == "ValidationError"
+        assert data["errors"][0]["message"] == "template_category_id is not a valid UUID"
+        assert "template_categories" in data
+        assert len(data["template_categories"]) > 0
+        assert "template_category_id" in data["template_categories"][0]
+        assert "name" in data["template_categories"][0]
 
     def test_post_template_returns_400_for_invalid_template_category_id(self, client, create_api_key_with_manage_api_perm):
         auth_header = create_authorization_header(api_key=create_api_key_with_manage_api_perm)
@@ -124,3 +135,31 @@ class TestPostTemplateV2ManageTemplate:
         assert response.status_code == 400
         data = json.loads(response.get_data(as_text=True))
         assert data["errors"][0]["message"] == "template_category_id not found"
+        assert "template_categories" in data
+        assert len(data["template_categories"]) > 0
+        assert "template_category_id" in data["template_categories"][0]
+        assert "name" in data["template_categories"][0]
+
+    def test_post_template_returns_400_with_categories_for_invalid_template_category_uuid(
+        self, client, create_api_key_with_manage_api_perm
+    ):
+        auth_header = create_authorization_header(api_key=create_api_key_with_manage_api_perm)
+        payload = {
+            "name": "Invalid UUID Category",
+            "template_type": SMS_TYPE,
+            "content": "Hello",
+            "template_category_id": "REPLACE_WITH_CATEGORY_UUID",
+        }
+
+        response = client.post(
+            "/v2/manage-template",
+            data=json.dumps(payload),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+
+        assert response.status_code == 400
+        data = json.loads(response.get_data(as_text=True))
+        assert data["errors"][0]["error"] == "ValidationError"
+        assert "template_category_id" in data["errors"][0]["message"]
+        assert "template_categories" in data
+        assert len(data["template_categories"]) > 0

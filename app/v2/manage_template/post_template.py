@@ -1,11 +1,14 @@
+import json
+
 from flask import jsonify, request
+from jsonschema import ValidationError
 from notifications_utils import EMAIL_CHAR_COUNT_LIMIT, SMS_CHAR_COUNT_LIMIT, TEMPLATE_NAME_CHAR_COUNT_LIMIT
 from notifications_utils.template import HTMLEmailTemplate, SMSMessageTemplate
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import api_user, authenticated_service
 from app.dao import templates_dao
-from app.dao.template_categories_dao import dao_get_template_category_by_id
+from app.dao.template_categories_dao import dao_get_all_template_categories, dao_get_template_category_by_id
 from app.dao.template_folder_dao import dao_get_template_folder_by_id_and_service_id
 from app.errors import InvalidRequest
 from app.models import EMAIL_TYPE, SMS_TYPE, ApiKeyPermission, Template
@@ -22,8 +25,19 @@ def post_manage_template():
     if not api_user.has_permission(ApiKeyPermission.MANAGE_TEMPLATES):
         raise InvalidRequest("This API key does not have permission to manage templates.", status_code=403)
 
-    data = validate(request.get_json() or {}, post_manage_template_request)
-    _validate_template_category_id(data["template_category_id"])
+    try:
+        data = validate(request.get_json() or {}, post_manage_template_request)
+    except ValidationError as e:
+        if "template_category_id" in str(e):
+            return _template_category_error_response("ValidationError", _get_validation_message(e))
+        raise
+
+    try:
+        _validate_template_category_id(data["template_category_id"])
+    except InvalidRequest as e:
+        if e.message == "template_category_id not found":
+            return _template_category_error_response("InvalidRequest", e.message)
+        raise
 
     folder = _validate_parent_folder(data)
     template = Template.from_json(
@@ -88,3 +102,34 @@ def _template_name_over_char_limit(name, content, template_type):
     return HTMLEmailTemplate(
         {"name": name, "content": content, "subject": "placeholder", "template_type": template_type}
     ).is_name_too_long()
+
+
+def _template_category_error_response(error_type, message):
+    template_categories = dao_get_all_template_categories(hidden=False)
+    return (
+        jsonify(
+            status_code=400,
+            errors=[{"error": error_type, "message": message}],
+            template_categories=[
+                {"template_category_id": str(template_category.id), "name": template_category.name_en}
+                for template_category in template_categories
+            ],
+        ),
+        400,
+    )
+
+
+def _get_validation_message(error):
+    if isinstance(error.message, str):
+        try:
+            parsed_error = json.loads(error.message)
+        except ValueError:
+            return error.message
+
+        errors = parsed_error.get("errors") if isinstance(parsed_error, dict) else None
+        if isinstance(errors, list) and errors:
+            first_error = errors[0]
+            if isinstance(first_error, dict) and "message" in first_error:
+                return first_error["message"]
+
+    return str(error)
