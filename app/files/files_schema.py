@@ -1,3 +1,5 @@
+import uuid
+
 from app.models import FILE_STATUSES, FILE_TYPES
 
 post_create_file_schema = {
@@ -14,7 +16,7 @@ post_create_file_schema = {
             "binaryEncoding": "base64",
         },
     },
-    "required": ["template_id", "document_id", "type", "name", "mime_type", "file_size", "file_data"],
+    "required": ["template_id", "type", "name", "mime_type", "file_size", "file_data"],
 }
 
 post_update_file_status_schema = {
@@ -22,6 +24,8 @@ post_update_file_status_schema = {
     "description": "POST schema for updating File status",
     "type": "object",
     "properties": {
+        "service_id": uuid,
+        "document_id": uuid,
         "status": {"enum": FILE_STATUSES},
     },
     "required": ["status"],

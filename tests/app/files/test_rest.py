@@ -8,13 +8,11 @@ class TestCreateFile:
     def test_create_file(self, mocker, notify_db, notify_db_session, admin_request, sample_service_full_permissions):
         sample_template = create_sample_template(notify_db, notify_db_session, service=sample_service_full_permissions)
 
-        mocker.patch("app.files.rest.authenticated_service", sample_service_full_permissions)
         admin_request.post(
             "files.create_file",
             template_id=str(sample_template.id),
             _data={
                 "template_id": str(sample_template.id),
-                "document_id": "00000000-0000-4000-a000-000000000001",
                 "type": "attach",
                 "name": "test.pdf",
                 "mime_type": "application/pdf",

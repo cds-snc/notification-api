@@ -1,8 +1,8 @@
 import uuid
 
 from flask import Blueprint, current_app, jsonify, request
+from sqlalchemy.exc import NoResultFound
 
-from app import authenticated_service
 from app.dao.files_dao import (
     dao_create_file,
     dao_delete_file,
@@ -11,6 +11,7 @@ from app.dao.files_dao import (
     dao_get_files_by_template_id,
     dao_update_file,
 )
+from app.dao.templates_dao import dao_get_template_by_id
 from app.errors import InvalidRequest, register_errors
 from app.files.files_schema import (
     post_create_file_schema,
@@ -30,8 +31,14 @@ def create_file(template_id):
     data = request.get_json()
     validate(data, post_create_file_schema)
 
-    check_service_has_permission(UPLOAD_DOCUMENT, authenticated_service.permissions)
-    validate_template_exists(template_id, authenticated_service)
+    try:
+        template = dao_get_template_by_id(template_id)
+    except NoResultFound:
+        raise InvalidRequest("Template not found", status_code=404)
+
+    service = template.service
+    check_service_has_permission(UPLOAD_DOCUMENT, service.permissions)
+    validate_template_exists(template_id, service)
 
     # TODO: Uncomment when dd-api has been updated with the correct paths for template file attachments
     # file_data = data["file_data"]
@@ -44,7 +51,7 @@ def create_file(template_id):
 
     file = Files(
         template_id=data["template_id"],
-        service_id=authenticated_service.id,
+        service_id=service.id,
         document_id=uuid.uuid4(),  # TODO: Use document_id returned by S3
         type=data["type"],
         name=data["name"],
