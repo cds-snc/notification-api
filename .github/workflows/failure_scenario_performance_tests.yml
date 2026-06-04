@@ -92,7 +92,7 @@ jobs:
             --cluster "${{ env.ECS_CLUSTER }}" \
             --task-definition "${{ env.ECS_TASK_FAMILY }}" \
             --launch-type FARGATE \
-            --network-configuration "awsvpcConfiguration={subnets=[${{ steps.network-config.outputs.subnets }}],securityGroups=[${{ steps.network-config.outputs.security_groups }}],assignPublicIp=${{ steps.network-config.outputs.assign_public_ip }}" \
+            --network-configuration "awsvpcConfiguration={subnets=[${{ steps.network-config.outputs.subnets }}],securityGroups=[${{ steps.network-config.outputs.security_groups }}],assignPublicIp=${{ steps.network-config.outputs.assign_public_ip }}}" \
             --overrides "$OVERRIDES" \
             --query 'tasks[0].taskArn' \
             --output text)
