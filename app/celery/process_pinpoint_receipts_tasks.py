@@ -94,13 +94,20 @@ def process_pinpoint_results(self, response):
 
         if notification_status == NOTIFICATION_SENT:
             # Carrier has accepted the message but it hasn't been delivered to the handset yet.
-            # Don't update the notification status, but capture the pricing data from this receipt.
-            notification.sms_total_message_price = total_message_price
-            notification.sms_total_carrier_fee = total_carrier_fee
-            notification.sms_iso_country_code = iso_country_code
-            notification.sms_carrier_name = carrier_name
-            notification.sms_message_encoding = message_encoding
-            notification.sms_origination_phone_number = origination_phone_number
+            # Don't update the notification status, but capture any pricing/metadata present in this receipt.
+            # Only overwrite fields when Pinpoint provides a value, to avoid nulling previously captured data.
+            if total_message_price is not None:
+                notification.sms_total_message_price = total_message_price
+            if total_carrier_fee is not None:
+                notification.sms_total_carrier_fee = total_carrier_fee
+            if iso_country_code is not None:
+                notification.sms_iso_country_code = iso_country_code
+            if carrier_name is not None:
+                notification.sms_carrier_name = carrier_name
+            if message_encoding is not None:
+                notification.sms_message_encoding = message_encoding
+            if origination_phone_number is not None:
+                notification.sms_origination_phone_number = origination_phone_number
             dao_update_notification(notification)
             return
 
