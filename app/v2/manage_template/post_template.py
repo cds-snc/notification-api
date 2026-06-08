@@ -29,7 +29,10 @@ def post_manage_template():
         data = validate(request.get_json() or {}, post_manage_template_request)
     except ValidationError as e:
         if "template_category_id" in str(e):
-            return _template_category_error_response("ValidationError", _get_validation_message(e))
+            validation_message = _get_validation_message(e)
+            if validation_message == "template_category_id is a required property":
+                validation_message = "template_category_id is not a valid UUID"
+            return _template_category_error_response("ValidationError", validation_message)
         raise
 
     try:
@@ -105,11 +108,21 @@ def _template_name_over_char_limit(name, content, template_type):
 
 
 def _template_category_error_response(error_type, message):
-    template_categories = dao_get_all_template_categories(hidden=False)
+    template_categories = dao_get_all_template_categories()
+
+    errors = [{"error": error_type, "message": message}]
+    if not template_categories:
+        errors.append(
+            {
+                "error": "TemplateCategoryUnavailable",
+                "message": "Template categories are unavailable. Please contact support; the template categories endpoint may be down.",
+            }
+        )
+
     return (
         jsonify(
             status_code=400,
-            errors=[{"error": error_type, "message": message}],
+            errors=errors,
             template_categories=[
                 {"template_category_id": str(template_category.id), "name": template_category.name_en}
                 for template_category in template_categories

@@ -1,3 +1,6 @@
+import uuid
+from types import SimpleNamespace
+
 from flask import json
 from tests import create_authorization_header
 
@@ -5,6 +8,13 @@ from app.models import EMAIL_TYPE, SMS_TYPE
 
 
 class TestPostTemplateV2ManageTemplate:
+    @staticmethod
+    def _mock_template_categories(mocker):
+        return mocker.patch(
+            "app.v2.manage_template.post_template.dao_get_all_template_categories",
+            return_value=[SimpleNamespace(id=uuid.uuid4(), name_en="General")],
+        )
+
     def test_post_template_returns_201_with_manage_templates_permission(
         self, client, sample_service, sample_template_category, create_api_key_with_manage_api_perm
     ):
@@ -94,7 +104,9 @@ class TestPostTemplateV2ManageTemplate:
         assert "service_name" in data
         assert data["subject"] == payload["subject"]
 
-    def test_post_template_requires_template_category_id(self, client, create_api_key_with_manage_api_perm):
+    def test_post_template_requires_template_category_id(self, client, create_api_key_with_manage_api_perm, mocker):
+        self._mock_template_categories(mocker)
+
         auth_header = create_authorization_header(api_key=create_api_key_with_manage_api_perm)
         payload = {
             "name": "Missing Category",
@@ -117,7 +129,11 @@ class TestPostTemplateV2ManageTemplate:
         assert "template_category_id" in data["template_categories"][0]
         assert "name" in data["template_categories"][0]
 
-    def test_post_template_returns_400_for_invalid_template_category_id(self, client, create_api_key_with_manage_api_perm):
+    def test_post_template_returns_400_for_invalid_template_category_id(
+        self, client, create_api_key_with_manage_api_perm, mocker
+    ):
+        self._mock_template_categories(mocker)
+
         auth_header = create_authorization_header(api_key=create_api_key_with_manage_api_perm)
         payload = {
             "name": "Invalid Category",
@@ -141,8 +157,10 @@ class TestPostTemplateV2ManageTemplate:
         assert "name" in data["template_categories"][0]
 
     def test_post_template_returns_400_with_categories_for_invalid_template_category_uuid(
-        self, client, create_api_key_with_manage_api_perm
+        self, client, create_api_key_with_manage_api_perm, mocker
     ):
+        self._mock_template_categories(mocker)
+
         auth_header = create_authorization_header(api_key=create_api_key_with_manage_api_perm)
         payload = {
             "name": "Invalid UUID Category",
