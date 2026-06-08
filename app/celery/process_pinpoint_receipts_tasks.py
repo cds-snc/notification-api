@@ -9,6 +9,7 @@ from app import annual_limit_client, notify_celery, statsd_client
 from app.annual_limit_utils import get_annual_limit_notifications_v3
 from app.config import QueueNames
 from app.dao import notifications_dao
+from app.dao.notifications_dao import dao_update_notification
 from app.models import (
     NOTIFICATION_DELIVERED,
     NOTIFICATION_PERMANENT_FAILURE,
@@ -65,9 +66,6 @@ def process_pinpoint_results(self, response):
 
         notification_status = determine_pinpoint_status(status, provider_response, isFinal)
 
-        if notification_status == NOTIFICATION_SENT:
-            return  # we don't want to update the status to sent if it's already sent
-
         if not notification_status:
             current_app.logger.warning(f"unhandled provider response for reference {reference}, received '{provider_response}'")
             notification_status = NOTIFICATION_PERMANENT_FAILURE  # revert to permanent failure by default
@@ -92,6 +90,18 @@ def process_pinpoint_results(self, response):
 
         if notification.status != NOTIFICATION_SENT:
             notifications_dao._duplicate_update_warning(notification, notification_status)
+            return
+
+        if notification_status == NOTIFICATION_SENT:
+            # Carrier has accepted the message but it hasn't been delivered to the handset yet.
+            # Don't update the notification status, but capture the pricing data from this receipt.
+            notification.sms_total_message_price = total_message_price
+            notification.sms_total_carrier_fee = total_carrier_fee
+            notification.sms_iso_country_code = iso_country_code
+            notification.sms_carrier_name = carrier_name
+            notification.sms_message_encoding = message_encoding
+            notification.sms_origination_phone_number = origination_phone_number
+            dao_update_notification(notification)
             return
 
         notifications_dao._update_notification_status(
