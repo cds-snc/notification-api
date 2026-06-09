@@ -44,6 +44,7 @@ from app.models import (
     SERVICE_PERMISSION_TYPES,
     SMS_TYPE,
     ApiKey,
+    ApiKeyPermission,
     Fido2Key,
     Files,
     InvitedUser,
@@ -1793,3 +1794,29 @@ def sample_file(
         status=file_status,
     )
     return dao_create_file(file)
+@pytest.fixture
+def create_api_key_with_manage_api_perm(sample_service):
+    data = {
+        "service": sample_service,
+        "name": f"v3 test key {uuid.uuid4()}",
+        "created_by": sample_service.created_by,
+        "key_type": KEY_TYPE_NORMAL,
+        "permissions": [ApiKeyPermission.MANAGE_TEMPLATES],
+    }
+    api_key = ApiKey(**data)
+    save_model_api_key(api_key)
+    return api_key
+
+
+@pytest.fixture
+def create_api_key_no_perm(sample_service):
+    data = {
+        "service": sample_service,
+        "name": f"v3 test key no perms {uuid.uuid4()}",
+        "created_by": sample_service.created_by,
+        "key_type": KEY_TYPE_NORMAL,
+        "permissions": [],
+    }
+    api_key = ApiKey(**data)
+    save_model_api_key(api_key)
+    return api_key

@@ -1,0 +1,151 @@
+name: Failure Scenario Performance Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      cooldown:
+        description: 'Cool-down between scenarios in seconds (default: 1800 / 30 min)'
+        required: false
+        default: '1800'
+      error_threshold:
+        description: 'Error % that triggers a test stop (default: 3.0)'
+        required: false
+        default: '3.0'
+      min_requests:
+        description: 'Minimum requests before threshold is evaluated (default: 100)'
+        required: false
+        default: '100'
+      spike_users:
+        description: 'Concurrent users for spike scenarios 2 & 4 (default: 500)'
+        required: false
+        default: '500'
+
+env:
+  ACCOUNT_ID: ${{ secrets.STAGING_AWS_ACCOUNT_ID }}
+  AWS_DEFAULT_REGION: ca-central-1
+  ECS_CLUSTER: performance_test_cluster
+  ECS_TASK_FAMILY: performance_test_cluster
+  CONTAINER_NAME: performance-tests-container
+
+permissions:
+  id-token: write  # Required for OIDC
+  contents: read
+
+jobs:
+  run-failure-scenarios:
+    runs-on: ubuntu-latest
+    # Generous timeout: 5 scenarios × (run time + 30 min cooldown) can exceed 3 hours
+    timeout-minutes: 360
+
+    steps:
+      - name: Configure AWS credentials using OIDC
+        uses: aws-actions/configure-aws-credentials@ececac1a45f3b08a01d2dd070d28d111c5fe6722 # v4.1.0
+        with:
+          role-to-assume: arn:aws:iam::${{ env.ACCOUNT_ID }}:role/notification-api-apply
+          role-session-name: NotifyApiFailureScenarios
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
+
+      - name: Fetch network configuration from existing CloudWatch event target
+        id: network-config
+        run: |
+          set -euo pipefail
+
+          # Read the network config straight from the scheduled event target so
+          # we don't duplicate subnet/SG values anywhere else.
+          NETWORK_CONFIG=$(aws events list-targets-by-rule \
+            --rule perf_test_event_rule \
+            --query 'Targets[0].EcsParameters.NetworkConfiguration' \
+            --output json)
+
+          SUBNETS=$(echo "$NETWORK_CONFIG" | jq -r '.awsvpcConfiguration.subnets | join(",")')
+          SECURITY_GROUPS=$(echo "$NETWORK_CONFIG" | jq -r '.awsvpcConfiguration.securityGroups | join(",")')
+          ASSIGN_PUBLIC_IP=$(echo "$NETWORK_CONFIG" | jq -r '.awsvpcConfiguration.assignPublicIp')
+
+          echo "subnets=$SUBNETS"               >> "$GITHUB_OUTPUT"
+          echo "security_groups=$SECURITY_GROUPS" >> "$GITHUB_OUTPUT"
+          echo "assign_public_ip=$ASSIGN_PUBLIC_IP" >> "$GITHUB_OUTPUT"
+
+      - name: Run failure scenario ECS task
+        id: run-task
+        run: |
+          set -euo pipefail
+
+          OVERRIDES=$(cat <<EOF
+          {
+            "containerOverrides": [
+              {
+                "name": "${{ env.CONTAINER_NAME }}",
+                "entryPoint": ["tests_nightly_performance/run_failure_scenarios.sh"],
+                "environment": [
+                  {"name": "COOLDOWN",         "value": "${{ inputs.cooldown }}"},
+                  {"name": "ERROR_THRESHOLD",  "value": "${{ inputs.error_threshold }}"},
+                  {"name": "MIN_REQUESTS",     "value": "${{ inputs.min_requests }}"},
+                  {"name": "SPIKE_USERS",      "value": "${{ inputs.spike_users }}"}
+                ]
+              }
+            ]
+          }
+          EOF
+          )
+
+          TASK_ARN=$(aws ecs run-task \
+            --cluster "${{ env.ECS_CLUSTER }}" \
+            --task-definition "${{ env.ECS_TASK_FAMILY }}" \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[${{ steps.network-config.outputs.subnets }}],securityGroups=[${{ steps.network-config.outputs.security_groups }}],assignPublicIp=${{ steps.network-config.outputs.assign_public_ip }}" \
+            --overrides "$OVERRIDES" \
+            --query 'tasks[0].taskArn' \
+            --output text)
+
+          echo "task_arn=$TASK_ARN" >> "$GITHUB_OUTPUT"
+          echo "ECS task started: $TASK_ARN"
+
+      - name: Wait for task to finish
+        run: |
+          set -euo pipefail
+          TASK_ARN="${{ steps.run-task.outputs.task_arn }}"
+
+          echo "Polling task status (checks every 60 s)..."
+          while true; do
+            STATUS=$(aws ecs describe-tasks \
+              --cluster "${{ env.ECS_CLUSTER }}" \
+              --tasks "$TASK_ARN" \
+              --query 'tasks[0].lastStatus' \
+              --output text)
+            echo "  current status: $STATUS"
+            if [ "$STATUS" = "STOPPED" ]; then
+              break
+            fi
+            sleep 60
+          done
+
+      - name: Check container exit code
+        run: |
+          set -euo pipefail
+          TASK_ARN="${{ steps.run-task.outputs.task_arn }}"
+
+          EXIT_CODE=$(aws ecs describe-tasks \
+            --cluster "${{ env.ECS_CLUSTER }}" \
+            --tasks "$TASK_ARN" \
+            --query 'tasks[0].containers[0].exitCode' \
+            --output text)
+
+          STOP_REASON=$(aws ecs describe-tasks \
+            --cluster "${{ env.ECS_CLUSTER }}" \
+            --tasks "$TASK_ARN" \
+            --query 'tasks[0].stoppedReason' \
+            --output text)
+
+          echo "Container exit code : $EXIT_CODE"
+          echo "Stopped reason      : $STOP_REASON"
+
+          if [ "$EXIT_CODE" != "0" ]; then
+            echo "::error::ECS task failed (exit code $EXIT_CODE): $STOP_REASON"
+            exit 1
+          fi
+
+      - name: Notify Slack on failure
+        if: ${{ failure() }}
+        run: |
+          json='{"text":"Failure scenario performance tests failed: <https://github.com/cds-snc/notification-api/actions/runs/${{ github.run_id }}|GitHub Actions>"}'
+          curl -X POST -H 'Content-type: application/json' --data "$json" "${{ secrets.SLACK_WEBHOOK }}"

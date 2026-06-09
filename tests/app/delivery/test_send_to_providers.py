@@ -211,7 +211,7 @@ def test_should_handle_opted_out_phone_numbers_if_using_pinpoint(notify_api, sam
         send_to_providers.send_sms_to_provider(db_notification)
 
         notification = Notification.query.filter_by(id=db_notification.id).one()
-        assert notification.status == "permanent-failure"
+        assert notification.status == "technical-failure"
         assert notification.provider_response == "Phone number is opted out"
 
 

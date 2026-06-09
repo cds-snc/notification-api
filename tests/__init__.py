@@ -8,8 +8,11 @@ from app.dao.services_dao import dao_fetch_service_by_id
 from app.models import KEY_TYPE_NORMAL, ApiKey
 
 
-def create_authorization_header(service_id=None, key_type=KEY_TYPE_NORMAL):
-    if service_id:
+def create_authorization_header(service_id=None, key_type=KEY_TYPE_NORMAL, api_key=None):
+    if api_key is not None:
+        client_id = str(api_key.service_id)
+        secret = api_key.secret
+    elif service_id:
         client_id = str(service_id)
         secrets = ApiKey.query.filter_by(service_id=service_id, key_type=key_type).all()
         if secrets:
