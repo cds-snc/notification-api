@@ -11,13 +11,14 @@ from app.dao.files_dao import (
     dao_get_files_by_template_id,
     dao_update_file,
 )
+from app.dao.permissions_dao import permission_dao
 from app.dao.templates_dao import dao_get_template_by_id
 from app.errors import InvalidRequest, register_errors
 from app.files.files_schema import (
     post_create_file_schema,
     post_update_file_status_schema,
 )
-from app.models import FILE_STATUS_PENDING_VIRUS_SCAN, UPLOAD_DOCUMENT, Files
+from app.models import FILE_STATUS_PENDING_VIRUS_SCAN, MANAGE_TEMPLATES, UPLOAD_DOCUMENT, Files
 from app.notifications.validators import check_service_has_permission, validate_template_exists
 from app.schema_validation import validate
 from app.schemas import files_schema
@@ -30,6 +31,7 @@ register_errors(files_blueprint)
 def create_file(template_id):
     data = request.get_json()
     validate(data, post_create_file_schema)
+    _check_user_has_file_permissions(data["created_by"])
 
     try:
         template = dao_get_template_by_id(template_id)
@@ -45,7 +47,7 @@ def create_file(template_id):
     # try:
     #     uploaded_file = document_download_client.upload_document(service.id, file_data)
     # except DocumentDownloadError as e:
-    #     raise InvalidRequest(e.message, status_code=e.status_code)
+    #     raise Invalid(e.message, status_code=e.status_code)
 
     # current_app.logger.info(f"Uploaded file to S3 for template {template_id} document_id: {uploaded_file["id"]} ")
 
@@ -79,7 +81,7 @@ def get_file_status(template_id, file_id):
 
 @files_blueprint.route("/<uuid:file_id>", methods=["DELETE"])
 def delete_file(template_id, file_id):
-    fetched_file = validate_file_template_match(template_id, file_id)
+    fetched_file = _validate_file_template_match(template_id, file_id)
 
     dao_delete_file(fetched_file)
 
@@ -91,7 +93,7 @@ def delete_file(template_id, file_id):
 # to access via a token. Just including here for now.
 @files_blueprint.route("/<uuid:file_id>/status", methods=["POST"])
 def update_file_status(template_id, file_id):
-    fetched_file = validate_file_template_match(template_id, file_id)
+    fetched_file = _validate_file_template_match(template_id, file_id)
     data = request.get_json()
     validate(data, post_update_file_status_schema)
 
@@ -102,7 +104,7 @@ def update_file_status(template_id, file_id):
     return jsonify(files_schema.dump(fetched_file)), 200
 
 
-def validate_file_template_match(template_id, file_id):
+def _validate_file_template_match(template_id, file_id):
     fetched_file = dao_get_file_by_id(file_id)
 
     if fetched_file.template_id != template_id:
@@ -112,3 +114,10 @@ def validate_file_template_match(template_id, file_id):
         )
 
     return fetched_file
+
+
+def _check_user_has_file_permissions(user_id):
+    permissions = {p.permission for p in permission_dao.get_permissions_by_user_id(user_id)}
+
+    if MANAGE_TEMPLATES not in permissions:
+        raise InvalidRequest(f"User {user_id} does not have {MANAGE_TEMPLATES} permissions.", 403)

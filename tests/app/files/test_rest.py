@@ -1,11 +1,46 @@
 import base64
 
+from app.dao.permissions_dao import permission_dao
 from app.models import FILE_STATUS_UPLOADED
 from tests.app.conftest import create_sample_template
+from tests.app.db import create_user
 
 
 class TestCreateFile:
     def test_create_file(self, mocker, notify_db, notify_db_session, admin_request, sample_service_full_permissions):
+        sample_template = create_sample_template(notify_db, notify_db_session, service=sample_service_full_permissions)
+        current_user_id = str(sample_template.service.users[0].id)
+
+        admin_request.post(
+            "files.create_file",
+            template_id=str(sample_template.id),
+            _data={
+                "template_id": str(sample_template.id),
+                "type": "attach",
+                "name": "test.pdf",
+                "mime_type": "application/pdf",
+                "file_size": 12345,
+                "file_data": base64.b64encode(
+                    b"As I write code by hand, I look back at my AI and wonder, do they miss my prompts?"
+                ).decode("utf-8"),
+                "created_by": current_user_id,
+            },
+            _expected_status=201,
+        )
+
+    def test_create_file_missing_required(self, notify_db, notify_db_session, admin_request, sample_service):
+        sample_template = create_sample_template(notify_db, notify_db_session, service=sample_service)
+
+        admin_request.post(
+            "files.create_file",
+            template_id=str(sample_template.id),
+            _data={},
+            _expected_status=400,
+        )
+
+    def test_create_file_returns_400_when_created_by_missing(
+        self, notify_db, notify_db_session, admin_request, sample_service_full_permissions
+    ):
         sample_template = create_sample_template(notify_db, notify_db_session, service=sample_service_full_permissions)
 
         admin_request.post(
@@ -20,18 +55,58 @@ class TestCreateFile:
                 "file_data": base64.b64encode(
                     b"As I write code by hand, I look back at my AI and wonder, do they miss my prompts?"
                 ).decode("utf-8"),
+                "current_user": str(sample_template.service.users[0].id),
             },
-            _expected_status=201,
+            _expected_status=400,
         )
 
-    def test_create_file_missing_required(self, notify_db, notify_db_session, admin_request, sample_service):
-        sample_template = create_sample_template(notify_db, notify_db_session, service=sample_service)
+    def test_create_file_returns_403_when_user_lacks_manage_templates(
+        self, notify_db, notify_db_session, admin_request, sample_service_full_permissions
+    ):
+        sample_template = create_sample_template(notify_db, notify_db_session, service=sample_service_full_permissions)
+        user_without_permissions = create_user(email="no.file.permission@cds-snc.ca")
 
         admin_request.post(
             "files.create_file",
             template_id=str(sample_template.id),
-            _data={},
-            _expected_status=400,
+            _data={
+                "template_id": str(sample_template.id),
+                "type": "attach",
+                "name": "test.pdf",
+                "mime_type": "application/pdf",
+                "file_size": 12345,
+                "file_data": base64.b64encode(
+                    b"As I write code by hand, I look back at my AI and wonder, do they miss my prompts?"
+                ).decode("utf-8"),
+                "created_by": str(user_without_permissions.id),
+                "current_user": str(user_without_permissions.id),
+            },
+            _expected_status=403,
+        )
+
+    def test_create_file_returns_403_when_manage_templates_removed(
+        self, notify_db, notify_db_session, admin_request, sample_service_full_permissions
+    ):
+        sample_template = create_sample_template(notify_db, notify_db_session, service=sample_service_full_permissions)
+        current_user = sample_template.service.users[0]
+        permission_dao.remove_user_service_permissions_for_all_services(current_user)
+
+        admin_request.post(
+            "files.create_file",
+            template_id=str(sample_template.id),
+            _data={
+                "template_id": str(sample_template.id),
+                "type": "attach",
+                "name": "test.pdf",
+                "mime_type": "application/pdf",
+                "file_size": 12345,
+                "file_data": base64.b64encode(
+                    b"As I write code by hand, I look back at my AI and wonder, do they miss my prompts?"
+                ).decode("utf-8"),
+                "created_by": str(current_user.id),
+                "current_user": str(current_user.id),
+            },
+            _expected_status=403,
         )
 
 

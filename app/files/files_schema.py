@@ -1,6 +1,5 @@
-import uuid
-
 from app.models import FILE_STATUSES, FILE_TYPES
+from app.schema_validation.definitions import uuid
 
 post_create_file_schema = {
     "$schema": "http://json-schema.org/draft-04/schema#",
@@ -15,8 +14,9 @@ post_create_file_schema = {
             "type": "string",
             "binaryEncoding": "base64",
         },
+        "created_by": uuid,
     },
-    "required": ["template_id", "type", "name", "mime_type", "file_size", "file_data"],
+    "required": ["template_id", "type", "name", "mime_type", "file_size", "file_data", "created_by"],
 }
 
 post_update_file_status_schema = {
