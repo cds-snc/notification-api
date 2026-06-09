@@ -105,7 +105,7 @@ def _template_name_over_char_limit(name, content, template_type):
 
 
 def _template_category_error_response(error_type, message):
-    template_categories = dao_get_all_template_categories()
+    template_categories = dao_get_all_template_categories(hidden=False)
 
     errors = [{"error": error_type, "message": message}]
     if not template_categories:
