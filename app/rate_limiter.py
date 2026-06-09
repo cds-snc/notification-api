@@ -181,21 +181,37 @@ class InMemoryRateLimiter(RateLimiter):
 
 _rate_limiter_instance: RateLimiter | None = None
 
+# Registry mapping config name strings to implementation classes.
+# Used by initialize_rate_limiter when no explicit class is provided.
+_LIMITER_CLASSES: dict[str, type[RateLimiter]] = {}
 
-def initialize_rate_limiter(cap_per_minute: int, use_redis: bool = False) -> RateLimiter:
+
+def _build_limiter_registry() -> dict[str, type[RateLimiter]]:
+    """Lazily populate the registry after all classes are defined."""
+    return {
+        "InMemoryRateLimiter": InMemoryRateLimiter,
+        "RedisZSetRateLimiter": RedisZSetRateLimiter,
+        "RedisTokenBucketRateLimiter": RedisTokenBucketRateLimiter,
+    }
+
+
+def initialize_rate_limiter(cap_per_minute: int, limiter_class: type[RateLimiter] | None = None) -> RateLimiter:
     """
     Initialize the global rate limiter instance.
 
     Called during app initialization (see app/__init__.py).
 
-    The backend is chosen based on:
-    1. use_redis parameter (if provided)
-    2. Config value from app.config.SMS_RATE_LIMITER_BACKEND (if set to 'redis')
-    3. Default: InMemoryRateLimiter
+    The backend is chosen in this order:
+    1. limiter_class argument — if provided, instantiated directly.
+    2. SMS_RATE_LIMITER_BACKEND config value — must be the exact class name
+       (e.g. "RedisTokenBucketRateLimiter"). Unknown names fall back to
+       InMemoryRateLimiter with a warning.
+    3. Default: InMemoryRateLimiter.
 
     Args:
         cap_per_minute (int): Maximum SMS parts per minute.
-        use_redis (bool, optional): Force Redis backend if True, in-memory if False.
+        limiter_class (type[RateLimiter] | None): Implementation class to use.
+            If None, the class is resolved from config/default.
 
     Returns:
         RateLimiter: The initialized rate limiter instance.
@@ -206,32 +222,34 @@ def initialize_rate_limiter(cap_per_minute: int, use_redis: bool = False) -> Rat
 
     logger = logging.getLogger(__name__)
 
-    # Determine which backend to use
-    backend = "memory"  # default
-
-    if use_redis is not None:
-        backend = "redis" if use_redis else "memory"
+    if limiter_class is not None:
+        resolved_class = limiter_class
     else:
-        # Check config
+        registry = _build_limiter_registry()
+        class_name = "InMemoryRateLimiter"  # default
         try:
             from app.config import Config
 
-            config_backend = getattr(Config, "SMS_RATE_LIMITER_BACKEND", "memory")
-            if config_backend.lower() == "redis":
-                backend = "redis"
+            class_name = getattr(Config, "SMS_RATE_LIMITER_BACKEND", "InMemoryRateLimiter")
         except (ImportError, AttributeError) as exc:
             logger.warning(
-                "SMS rate limiter: failed to read backend from config; " "falling back to in-memory backend. Error: %s",
+                "SMS rate limiter: failed to read SMS_RATE_LIMITER_BACKEND from config; "
+                "falling back to InMemoryRateLimiter. Error: %s",
                 exc,
             )
 
-    # Create the appropriate backend
-    if backend == "redis":
-        logger.info("SMS rate limiter: initializing with Redis backend")
-        _rate_limiter_instance = RedisZSetRateLimiter(cap_per_minute)
-    else:
-        logger.info("SMS rate limiter: initializing with in-memory backend")
-        _rate_limiter_instance = InMemoryRateLimiter(cap_per_minute)
+        if class_name not in registry:
+            logger.warning(
+                "SMS rate limiter: unknown class name %r in SMS_RATE_LIMITER_BACKEND; "
+                "falling back to InMemoryRateLimiter.",
+                class_name,
+            )
+            resolved_class = InMemoryRateLimiter
+        else:
+            resolved_class = registry[class_name]
+
+    logger.info("SMS rate limiter: initializing with %s", resolved_class.__name__)
+    _rate_limiter_instance = resolved_class(cap_per_minute)
 
     return _rate_limiter_instance
 
@@ -441,3 +459,160 @@ class RedisZSetRateLimiter(RateLimiter):
         self.redis.delete(self.REDIS_KEY_ENTRIES)
 
         current_app.logger.info("SMS rate limiter entries cleared")
+
+
+class RedisTokenBucketRateLimiter(RateLimiter):
+    """
+    Redis-backed SMS parts rate limiter using a token bucket algorithm.
+
+    Key structure:
+    - `sms:rate_limit:token_bucket` (hash)
+      - Field `tokens`: current available capacity (float, stored as string)
+      - Field `last_refill`: timestamp of last refill (float, stored as string)
+
+    Algorithm:
+    - Tokens refill continuously at rate cap_per_minute / 60 per second.
+    - On each request, elapsed time since last refill is computed, tokens are
+      topped up (capped at cap_per_minute), and the requested parts are
+      subtracted atomically in Lua.
+    - If tokens are insufficient, the exact wait time is returned:
+      deficit / (cap_per_minute / 60) seconds.
+    - Burst after idle: if the system is idle, the bucket refills to cap,
+      allowing a full cap's worth of parts to be sent immediately.
+
+    Complexity: O(1) for all operations.
+    """
+
+    REDIS_KEY = "sms:rate_limit:token_bucket"
+
+    def __init__(self, cap_per_minute: int, redis_client=None):
+        """
+        Initialize the Redis token bucket rate limiter.
+
+        Args:
+            cap_per_minute (int): Maximum SMS parts allowed per minute.
+            redis_client: Redis client instance. If None, uses app's redis_store.
+        """
+        self.cap_per_minute = cap_per_minute
+        self.redis_client = redis_client
+        self._lua_scripts: dict[str, object] = {}
+
+    @property
+    def redis(self):
+        # Lazy-load Redis client to avoid circular imports at init time.
+        if self.redis_client is not None:
+            return self.redis_client
+        from app import redis_store
+
+        return redis_store
+
+    def _get_acquire_lua_script(self):
+        if "acquire" not in self._lua_scripts:
+            lua_code = """
+            local key = KEYS[1]
+            local cap = tonumber(ARGV[1])
+            local parts_count = tonumber(ARGV[2])
+            local now = tonumber(ARGV[3])
+            local refill_rate = cap / 60.0
+
+            -- Read current state; default to full bucket on first call
+            local tokens_str = redis.call('HGET', key, 'tokens')
+            local last_refill_str = redis.call('HGET', key, 'last_refill')
+
+            local tokens
+            local last_refill
+            if tokens_str == false then
+                tokens = cap
+                last_refill = now
+            else
+                tokens = tonumber(tokens_str)
+                last_refill = tonumber(last_refill_str)
+            end
+
+            -- Refill tokens based on elapsed time
+            local elapsed = now - last_refill
+            tokens = math.min(cap, tokens + elapsed * refill_rate)
+
+            if tokens >= parts_count then
+                -- Admit: subtract parts and persist new state
+                tokens = tokens - parts_count
+                redis.call('HSET', key, 'tokens', tostring(tokens), 'last_refill', tostring(now))
+                return {1, 0}
+            else
+                -- Reject: compute exact wait time
+                local deficit = parts_count - tokens
+                local seconds_to_wait = math.ceil(deficit / refill_rate)
+                seconds_to_wait = math.max(1, seconds_to_wait)
+                -- Persist refreshed token count and timestamp even on reject
+                redis.call('HSET', key, 'tokens', tostring(tokens), 'last_refill', tostring(now))
+                return {0, seconds_to_wait}
+            end
+            """
+            self._lua_scripts["acquire"] = self.redis.register_script(lua_code)
+
+        return self._lua_scripts["acquire"]
+
+    def acquire_lease(self, parts_count: int) -> Tuple[bool, int]:
+        """
+        Attempt to acquire capacity for SMS parts.
+
+        Args:
+            parts_count (int): Number of parts (fragments) to send.
+
+        Returns:
+            Tuple[bool, int]:
+                - (True, 0) if parts can be sent immediately.
+                - (False, seconds_remaining) if rate limit exhausted;
+                  seconds_remaining is the exact time until enough tokens refill.
+        """
+        if parts_count <= 0:
+            raise ValueError("parts_count must be positive")
+
+        if parts_count > self.cap_per_minute:
+            raise ValueError("parts_count must be smaller than or equal to the cap_per_minute")
+
+        now = time()
+        script = self._get_acquire_lua_script()
+        result = script(
+            keys=[self.REDIS_KEY],
+            args=[self.cap_per_minute, parts_count, now],
+        )
+
+        success, wait_seconds = result[0], result[1]
+
+        if success:
+            current_app.logger.info(f"SMS rate limiter (token bucket): acquired {parts_count} parts.")
+        else:
+            current_app.logger.warning(
+                f"SMS rate limiter (token bucket): capacity exhausted. Requested {parts_count} parts. "
+                f"Will retry in {wait_seconds} seconds."
+            )
+
+        return bool(success), int(wait_seconds)
+
+    def get_current_usage(self) -> int:
+        """
+        Get current consumed capacity equivalent.
+
+        Returns cap minus available tokens after applying any pending refill.
+        This is a non-atomic read — do not rely on it for admission decisions.
+        """
+        now = time()
+        tokens_str = self.redis.hget(self.REDIS_KEY, "tokens")
+        last_refill_str = self.redis.hget(self.REDIS_KEY, "last_refill")
+
+        if tokens_str is None:
+            return 0
+
+        tokens = float(tokens_str if isinstance(tokens_str, str) else tokens_str.decode("utf-8"))
+        last_refill = float(last_refill_str if isinstance(last_refill_str, str) else last_refill_str.decode("utf-8"))
+
+        elapsed = now - last_refill
+        refill_rate = self.cap_per_minute / 60.0
+        tokens = min(self.cap_per_minute, tokens + elapsed * refill_rate)
+
+        return max(0, int(self.cap_per_minute - tokens))
+
+    def reset_limiter(self):
+        self.redis.delete(self.REDIS_KEY)
+        current_app.logger.info("SMS rate limiter (token bucket): reset")
