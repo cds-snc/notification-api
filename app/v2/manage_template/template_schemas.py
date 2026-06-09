@@ -1,6 +1,20 @@
 from app.models import EMAIL_TYPE, SMS_TYPE
 from app.schema_validation.definitions import uuid
 
+patch_manage_template_request = {
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "description": "PATCH schema for updating a manage template",
+    "type": "object",
+    "properties": {
+        "name": {"type": "string"},
+        "content": {"type": "string"},
+        "subject": {"type": "string"},
+        "template_category_id": uuid,
+        "parent_folder_id": uuid,
+    },
+    "additionalProperties": False,
+}
+
 post_manage_template_request = {
     "$schema": "http://json-schema.org/draft-04/schema#",
     "description": "POST schema for creating a manage template",
