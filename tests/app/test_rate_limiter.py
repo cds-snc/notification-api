@@ -3,7 +3,12 @@ from unittest.mock import patch
 import fakeredis
 import pytest
 
-from app.rate_limiter import InMemoryRateLimiter, RedisTokenBucketRateLimiter, RedisZSetRateLimiter, initialize_rate_limiter
+from app.rate_limiter import (
+    InMemoryRateLimiter,
+    RedisSlidingWindowLogRateLimiter,
+    RedisTokenBucketRateLimiter,
+    initialize_rate_limiter,
+)
 
 
 class TestInMemoryRateLimiter:
@@ -196,7 +201,7 @@ class TestRedisRateLimiter:
     @pytest.fixture
     def limiter(self):
         redis_client = fakeredis.FakeRedis()
-        return RedisZSetRateLimiter(cap_per_minute=1000, redis_client=redis_client)
+        return RedisSlidingWindowLogRateLimiter(cap_per_minute=1000, redis_client=redis_client)
 
     def test_acquire_lease_below_capacity_succeeds(self, client, limiter):
         with client.application.app_context():
@@ -488,7 +493,7 @@ class TestInitializeRateLimiter:
             with patch("app.rate_limiter._build_limiter_registry") as mock_registry:
                 mock_registry.return_value = {
                     "InMemoryRateLimiter": InMemoryRateLimiter,
-                    "RedisZSetRateLimiter": RedisZSetRateLimiter,
+                    "RedisZSetRateLimiter": RedisSlidingWindowLogRateLimiter,
                     "RedisTokenBucketRateLimiter": RedisTokenBucketRateLimiter,
                 }
                 with patch("app.rate_limiter.InMemoryRateLimiter", InMemoryRateLimiter):
@@ -501,19 +506,19 @@ class TestInitializeRateLimiter:
             with patch("app.rate_limiter._build_limiter_registry") as mock_registry:
                 mock_registry.return_value = {
                     "InMemoryRateLimiter": InMemoryRateLimiter,
-                    "RedisZSetRateLimiter": RedisZSetRateLimiter,
+                    "RedisZSetRateLimiter": RedisSlidingWindowLogRateLimiter,
                     "RedisTokenBucketRateLimiter": RedisTokenBucketRateLimiter,
                 }
                 with patch("app.config.Config.SMS_RATE_LIMITER_BACKEND", "RedisZSetRateLimiter", create=True):
                     instance = initialize_rate_limiter(1000)
-                    assert isinstance(instance, RedisZSetRateLimiter)
+                    assert isinstance(instance, RedisSlidingWindowLogRateLimiter)
 
     def test_unknown_config_name_falls_back_to_in_memory(self, client):
         with client.application.app_context():
             with patch("app.rate_limiter._build_limiter_registry") as mock_registry:
                 mock_registry.return_value = {
                     "InMemoryRateLimiter": InMemoryRateLimiter,
-                    "RedisZSetRateLimiter": RedisZSetRateLimiter,
+                    "RedisZSetRateLimiter": RedisSlidingWindowLogRateLimiter,
                     "RedisTokenBucketRateLimiter": RedisTokenBucketRateLimiter,
                 }
                 with patch("app.config.Config.SMS_RATE_LIMITER_BACKEND", "UnknownClass", create=True):

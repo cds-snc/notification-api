@@ -14,7 +14,7 @@ import time
 import fakeredis
 import pytest
 
-from app.rate_limiter import RedisTokenBucketRateLimiter, RedisZSetRateLimiter
+from app.rate_limiter import RedisSlidingWindowLogRateLimiter, RedisTokenBucketRateLimiter
 
 # N values to sweep. Each represents the number of prior entries in the
 # ZSet window before the timed call.
@@ -27,7 +27,7 @@ REPS = 20
 CAP = N_VALUES[-1] * 2 + REPS
 
 
-def _prefill_zset(limiter: RedisZSetRateLimiter, n: int) -> None:
+def _prefill_zset(limiter: RedisSlidingWindowLogRateLimiter, n: int) -> None:
     """Add n entries (1 part each) at staggered fake timestamps so none expire."""
     base = time.time()
     for i in range(n):
@@ -61,7 +61,7 @@ def test_scaling_comparison(client):
         for n in N_VALUES:
             # ---- ZSet ----
             zset_redis = fakeredis.FakeRedis()
-            zset = RedisZSetRateLimiter(cap_per_minute=CAP, redis_client=zset_redis)
+            zset = RedisSlidingWindowLogRateLimiter(cap_per_minute=CAP, redis_client=zset_redis)
             _prefill_zset(zset, n)
             zset_us = _time_acquire(zset, REPS)
 

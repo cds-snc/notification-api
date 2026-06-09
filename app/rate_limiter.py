@@ -190,7 +190,7 @@ def _build_limiter_registry() -> dict[str, type[RateLimiter]]:
     """Lazily populate the registry after all classes are defined."""
     return {
         "InMemoryRateLimiter": InMemoryRateLimiter,
-        "RedisZSetRateLimiter": RedisZSetRateLimiter,
+        "RedisZSetRateLimiter": RedisSlidingWindowLogRateLimiter,
         "RedisTokenBucketRateLimiter": RedisTokenBucketRateLimiter,
     }
 
@@ -274,7 +274,7 @@ def get_rate_limiter() -> RateLimiter:
     return _rate_limiter_instance
 
 
-class RedisZSetRateLimiter(RateLimiter):
+class RedisSlidingWindowLogRateLimiter(RateLimiter):
     """
     Redis-backed SMS parts rate limiter using a 60-second sliding window.
 
