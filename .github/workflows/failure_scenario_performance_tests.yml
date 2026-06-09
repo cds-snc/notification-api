@@ -24,7 +24,7 @@ env:
   ACCOUNT_ID: ${{ secrets.STAGING_AWS_ACCOUNT_ID }}
   AWS_DEFAULT_REGION: ca-central-1
   ECS_CLUSTER: performance_test_cluster
-  ECS_TASK_FAMILY: performance_test_cluster
+  ECS_TASK_FAMILY: performance_test_cluster_failure_scenarios
   CONTAINER_NAME: performance-tests-container
 
 permissions:
@@ -57,9 +57,9 @@ jobs:
             --query 'Targets[0].EcsParameters.NetworkConfiguration' \
             --output json)
 
-          SUBNETS=$(echo "$NETWORK_CONFIG" | jq -r '.awsvpcConfiguration.subnets | join(",")')
-          SECURITY_GROUPS=$(echo "$NETWORK_CONFIG" | jq -r '.awsvpcConfiguration.securityGroups | join(",")')
-          ASSIGN_PUBLIC_IP=$(echo "$NETWORK_CONFIG" | jq -r '.awsvpcConfiguration.assignPublicIp')
+          SUBNETS=$(echo "$NETWORK_CONFIG" | jq -r '.awsvpcConfiguration.Subnets | join(",")')
+          SECURITY_GROUPS=$(echo "$NETWORK_CONFIG" | jq -r '.awsvpcConfiguration.SecurityGroups | join(",")')
+          ASSIGN_PUBLIC_IP=$(echo "$NETWORK_CONFIG" | jq -r '.awsvpcConfiguration.AssignPublicIp')
 
           echo "subnets=$SUBNETS"               >> "$GITHUB_OUTPUT"
           echo "security_groups=$SECURITY_GROUPS" >> "$GITHUB_OUTPUT"
@@ -75,7 +75,6 @@ jobs:
             "containerOverrides": [
               {
                 "name": "${{ env.CONTAINER_NAME }}",
-                "entryPoint": ["tests_nightly_performance/run_failure_scenarios.sh"],
                 "environment": [
                   {"name": "COOLDOWN",         "value": "${{ inputs.cooldown }}"},
                   {"name": "ERROR_THRESHOLD",  "value": "${{ inputs.error_threshold }}"},
@@ -92,7 +91,7 @@ jobs:
             --cluster "${{ env.ECS_CLUSTER }}" \
             --task-definition "${{ env.ECS_TASK_FAMILY }}" \
             --launch-type FARGATE \
-            --network-configuration "awsvpcConfiguration={subnets=[${{ steps.network-config.outputs.subnets }}],securityGroups=[${{ steps.network-config.outputs.security_groups }}],assignPublicIp=${{ steps.network-config.outputs.assign_public_ip }}" \
+            --network-configuration "awsvpcConfiguration={subnets=[${{ steps.network-config.outputs.subnets }}],securityGroups=[${{ steps.network-config.outputs.security_groups }}],assignPublicIp=${{ steps.network-config.outputs.assign_public_ip }}}" \
             --overrides "$OVERRIDES" \
             --query 'tasks[0].taskArn' \
             --output text)
