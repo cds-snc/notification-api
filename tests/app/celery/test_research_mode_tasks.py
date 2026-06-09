@@ -16,6 +16,7 @@ from app.aws.mocks import (
     sns_success_callback,
 )
 from app.celery.research_mode_tasks import (
+    aws_pinpoint_callback,
     create_fake_letter_response_file,
     send_email_response,
     send_sms_response,
@@ -73,7 +74,28 @@ def test_make_pinpoint_success_callback(notify_api, mocker, phone_number, pinpoi
     mock_task.apply_async.assert_called_once_with(ANY, queue=QueueNames.RESEARCH_MODE)
     message_celery = mock_task.apply_async.call_args[0][0][0]
     pinpoint_callback_args.update({"reference": some_ref, "destination": phone_number, "timestamp": timestamp})
-    assert message_celery == pinpoint_callback(**pinpoint_callback_args)
+
+    # Build expected body without cost fields (research mode strips them)
+    expected = pinpoint_callback(**pinpoint_callback_args)
+    expected_message = json.loads(expected["Message"])
+    expected_message.pop("totalMessagePrice", None)
+    expected_message.pop("totalCarrierFee", None)
+    expected["Message"] = json.dumps(expected_message)
+
+    assert message_celery == expected
+
+
+@pytest.mark.parametrize(
+    "phone_number",
+    ["+15149301630", "+15149301632", "+15149301633"],
+)
+@freeze_time("2018-01-25 14:00:30")
+def test_aws_pinpoint_callback_strips_cost_data(notify_api, phone_number):
+    some_ref = str(uuid.uuid4())
+    result = aws_pinpoint_callback(some_ref, phone_number)
+    message = json.loads(result["Message"])
+    assert "totalMessagePrice" not in message
+    assert "totalCarrierFee" not in message
 
 
 def test_make_ses_callback(notify_api, mocker):
