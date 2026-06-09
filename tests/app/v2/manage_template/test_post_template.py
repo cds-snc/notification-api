@@ -181,3 +181,24 @@ class TestPostTemplateV2ManageTemplate:
         assert "template_category_id" in data["errors"][0]["message"]
         assert "template_categories" in data
         assert len(data["template_categories"]) > 0
+
+    def test_post_template_deletes_service_templates_cache(
+        self, client, sample_service, sample_template_category, create_api_key_with_manage_api_perm, mocker
+    ):
+        mock_redis_delete = mocker.patch("app.v2.manage_template.post_template.redis_store.delete")
+        auth_header = create_authorization_header(api_key=create_api_key_with_manage_api_perm)
+        payload = {
+            "name": "Cache Bust Template",
+            "template_type": SMS_TYPE,
+            "content": "Hello",
+            "template_category_id": str(sample_template_category.id),
+        }
+
+        response = client.post(
+            "/v2/manage-template",
+            data=json.dumps(payload),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+
+        assert response.status_code == 201
+        mock_redis_delete.assert_called_once_with(f"service-{sample_service.id}-templates")

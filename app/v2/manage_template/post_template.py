@@ -6,7 +6,7 @@ from notifications_utils import EMAIL_CHAR_COUNT_LIMIT, SMS_CHAR_COUNT_LIMIT, TE
 from notifications_utils.template import HTMLEmailTemplate, SMSMessageTemplate
 from sqlalchemy.orm.exc import NoResultFound
 
-from app import api_user, authenticated_service
+from app import api_user, authenticated_service, redis_store
 from app.dao import templates_dao
 from app.dao.template_categories_dao import dao_get_all_template_categories, dao_get_template_category_by_id
 from app.dao.template_folder_dao import dao_get_template_folder_by_id_and_service_id
@@ -56,6 +56,8 @@ def post_manage_template():
     _raise_if_content_or_name_over_limit(template)
 
     templates_dao.dao_create_template(template)
+
+    redis_store.delete(f"service-{authenticated_service.id}-templates")
 
     return jsonify(_serialize_template(template)), 201
 
