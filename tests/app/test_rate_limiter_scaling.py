@@ -1,23 +1,24 @@
 """
-Scaling benchmark: RedisZSetRateLimiter vs RedisTokenBucketRateLimiter.
+Scaling benchmark: RedisSlidingWindowLogRateLimiter vs RedisTokenBucketRateLimiter vs InMemoryRateLimiter.
 
 Measures how acquire_lease() time changes as the number of pre-existing
-ZSet entries grows.  The token bucket is O(1) and unaffected by history;
-the ZSet implementation is O(N) and should grow linearly.
+entries grows.  The sliding window log is O(N); the token bucket and
+in-memory admit path are O(1) and unaffected by history size.
 
 Run explicitly with:
     pytest tests/app/test_rate_limiter_scaling.py -v -s -m scaling
 """
 
 import time
+from unittest.mock import patch
 
 import fakeredis
 import pytest
 
-from app.rate_limiter import RedisSlidingWindowLogRateLimiter, RedisTokenBucketRateLimiter
+from app.rate_limiter import InMemoryRateLimiter, RedisSlidingWindowLogRateLimiter, RedisTokenBucketRateLimiter
 
 # N values to sweep. Each represents the number of prior entries in the
-# ZSet window before the timed call.
+# window before the timed call.
 N_VALUES = [1, 10, 50, 100, 250, 500, 750, 1000]
 
 # Repetitions per N value -- averaged to reduce noise.
@@ -39,6 +40,14 @@ def _prefill_zset(limiter: RedisSlidingWindowLogRateLimiter, n: int) -> None:
         )
 
 
+def _prefill_in_memory(limiter: InMemoryRateLimiter, n: int) -> None:
+    """Fill the deque with n entries by calling acquire_lease() n times at a fixed timestamp."""
+    fixed_time = time.time()
+    with patch("app.rate_limiter.time", return_value=fixed_time):
+        for _ in range(n):
+            limiter.acquire_lease(1)
+
+
 def _time_acquire(limiter, reps: int) -> float:
     """Return mean us for acquire_lease(1) over reps calls."""
     total = 0.0
@@ -52,8 +61,11 @@ def _time_acquire(limiter, reps: int) -> float:
 @pytest.mark.scaling
 def test_scaling_comparison(client):
     """
-    Print a timing table comparing ZSet (O(N)) vs token bucket (O(1))
-    as the number of pre-existing entries grows.
+    Print a timing table comparing all three implementations as prior entry
+    count grows.  Only the sliding window log is O(N); the other two are O(1).
+
+    Note: in-memory has no Redis overhead, so its absolute numbers are lower
+    than the Redis implementations -- compare slopes, not absolute values.
     """
     rows = []
 
@@ -65,26 +77,34 @@ def test_scaling_comparison(client):
             _prefill_zset(zset, n)
             zset_us = _time_acquire(zset, REPS)
 
-            # ---- Token bucket ----
+            # ---- Token bucket (Redis hash) ----
             tb_redis = fakeredis.FakeRedis()
             tb = RedisTokenBucketRateLimiter(cap_per_minute=CAP, redis_client=tb_redis)
             tb_us = _time_acquire(tb, REPS)
 
-            ratio = zset_us / tb_us if tb_us > 0 else float("inf")
-            rows.append((n, zset_us, tb_us, ratio))
+            # ---- In-memory (deque, process-local baseline) ----
+            mem = InMemoryRateLimiter(cap_per_minute=CAP)
+            _prefill_in_memory(mem, n)
+            mem_us = _time_acquire(mem, REPS)
+
+            rows.append((n, zset_us, tb_us, mem_us))
 
     # Print table
-    header = f"\n{'N entries':>10}  {'ZSet (us)':>12}  {'TokenBucket (us)':>18}  {'ratio (ZSet/TB)':>16}"
+    header = (
+        f"\n{'N entries':>10}  {'SlidingLog (us)':>16}  "
+        f"{'TokenBucket (us)':>16}  {'InMemory (us)':>14}  {'ratio (Log/TB)':>14}"
+    )
     separator = "-" * len(header)
     print(header)
     print(separator)
-    for n, zset_us, tb_us, ratio in rows:
-        print(f"{n:>10}  {zset_us:>12.1f}  {tb_us:>18.1f}  {ratio:>16.2f}x")
+    for n, zset_us, tb_us, mem_us in rows:
+        ratio = zset_us / tb_us if tb_us > 0 else float("inf")
+        print(f"{n:>10}  {zset_us:>16.1f}  {tb_us:>16.1f}  {mem_us:>14.1f}  {ratio:>14.2f}x")
 
-    # Soft assertion: ZSet at max N should be slower than token bucket.
+    # Soft assertion: sliding window log at max N should be slower than token bucket.
     # This confirms O(N) vs O(1) divergence is observable even in fakeredis.
     _, zset_max, tb_max, _ = rows[-1]
     assert zset_max > tb_max, (
-        f"Expected ZSet to be slower than token bucket at N={N_VALUES[-1]}, "
-        f"but ZSet={zset_max:.1f}us, TokenBucket={tb_max:.1f}us"
+        f"Expected sliding window log to be slower than token bucket at N={N_VALUES[-1]}, "
+        f"but SlidingLog={zset_max:.1f}us, TokenBucket={tb_max:.1f}us"
     )
