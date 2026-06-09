@@ -29,7 +29,7 @@ def post_manage_template():
         data = validate(request.get_json() or {}, post_manage_template_request)
     except ValidationError as e:
         if "template_category_id" in str(e):
-            return _template_category_error_response("ValidationError", "template_category_id is not a valid UUID")
+            return _template_category_error_response("ValidationError", _get_validation_message(e))
         raise
 
     try:

@@ -62,7 +62,7 @@ class TestPostTemplateV2ManageTemplate:
         data = json.loads(response.get_data(as_text=True))
         assert "manage templates" in data["errors"][0]["message"].lower()
 
-    def test_post_email_or_letter_requires_subject(self, client, sample_template_category, create_api_key_with_manage_api_perm):
+    def test_post_email_requires_subject(self, client, sample_template_category, create_api_key_with_manage_api_perm):
         auth_header = create_authorization_header(api_key=create_api_key_with_manage_api_perm)
 
         response = client.post(
@@ -123,7 +123,7 @@ class TestPostTemplateV2ManageTemplate:
         assert response.status_code == 400
         data = json.loads(response.get_data(as_text=True))
         assert data["errors"][0]["error"] == "ValidationError"
-        assert data["errors"][0]["message"] == "template_category_id is not a valid UUID"
+        assert data["errors"][0]["message"] == "template_category_id is a required property"
         assert "template_categories" in data
         assert len(data["template_categories"]) > 0
         assert "template_category_id" in data["template_categories"][0]
@@ -166,7 +166,7 @@ class TestPostTemplateV2ManageTemplate:
             "name": "Invalid UUID Category",
             "template_type": SMS_TYPE,
             "content": "Hello",
-            "template_category_id": "REPLACE_WITH_CATEGORY_UUID",
+            "template_category_id": "not-a-valid-uuid",
         }
 
         response = client.post(

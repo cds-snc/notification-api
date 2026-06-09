@@ -10,7 +10,6 @@ post_manage_template_request = {
         "template_type": {"enum": [SMS_TYPE, EMAIL_TYPE]},
         "content": {"type": "string"},
         "subject": {"type": "string"},
-        "postage": {"type": "string"},
         "template_category_id": uuid,
         "parent_folder_id": uuid,
     },
