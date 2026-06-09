@@ -118,10 +118,20 @@ class RateLimitError(InvalidRequest):
 class BadRequestError(InvalidRequest):
     message = "An error occurred"
 
-    def __init__(self, fields=[], message=None, status_code=400):
-        self.status_code = status_code
-        self.fields = fields
-        self.message = message if message else self.message
+    def __init__(self, fields=None, message=None, status_code=400):
+        resolved_message = message if message else self.message
+        super().__init__(message=resolved_message, status_code=status_code)
+        self.fields = fields if fields is not None else []
+
+
+class ForbiddenError(InvalidRequest):
+    status_code = 403
+    message = "You do not have permission to perform this action."
+
+    def __init__(self, fields=None, message=None):
+        resolved_message = message if message else self.__class__.message
+        super().__init__(message=resolved_message, status_code=self.__class__.status_code)
+        self.fields = fields if fields is not None else []
 
 
 class PDFNotReadyError(BadRequestError):

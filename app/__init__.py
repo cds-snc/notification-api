@@ -310,8 +310,10 @@ def register_v2_blueprints(application):
         v2_inbound_sms_blueprint as get_inbound_sms,
     )
     from app.v2.manage_template import (  # noqa
+        delete_template,
         get_template,
         get_template_categories,
+        patch_template,
         post_template,
         v2_manage_template_blueprint,
     )
