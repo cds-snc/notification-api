@@ -87,14 +87,13 @@ def on_init(environment, **kwargs):
 
 @events.test_start.add_listener
 def configure_user_classes(environment, **kwargs):
-    """Zero out the weight of whichever user class isn't active so Locust
-    doesn't split spawns between NotifyApiUser and BulkBurstUser."""
+    """Remove whichever user class isn't active so Locust only dispatches to
+    the relevant class. Setting weight=0 causes a math domain error in
+    locust's _kl_generator (log2(0)), so we filter the list instead."""
     if environment.parsed_options.bulk_burst:
-        NotifyApiUser.weight = 0
-        BulkBurstUser.weight = 1
+        environment.user_classes = [BulkBurstUser]
     else:
-        NotifyApiUser.weight = 1
-        BulkBurstUser.weight = 0
+        environment.user_classes = [NotifyApiUser]
 
 
 @events.quitting.add_listener
