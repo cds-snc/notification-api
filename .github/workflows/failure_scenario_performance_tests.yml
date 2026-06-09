@@ -65,6 +65,30 @@ jobs:
           echo "security_groups=$SECURITY_GROUPS" >> "$GITHUB_OUTPUT"
           echo "assign_public_ip=$ASSIGN_PUBLIC_IP" >> "$GITHUB_OUTPUT"
 
+      - name: Register one-off task definition with failure scenario entrypoint
+        id: register-task-def
+        run: |
+          set -euo pipefail
+
+          # Pull the current task definition, swap the entrypoint, register a new revision.
+          TASK_DEF=$(aws ecs describe-task-definition \
+            --task-definition "${{ env.ECS_TASK_FAMILY }}" \
+            --query 'taskDefinition' \
+            --output json)
+
+          NEW_TASK_DEF=$(echo "$TASK_DEF" | jq '
+            del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy) |
+            .containerDefinitions[0].entryPoint = ["tests_nightly_performance/run_failure_scenarios.sh"]
+          ')
+
+          NEW_TASK_ARN=$(aws ecs register-task-definition \
+            --cli-input-json "$NEW_TASK_DEF" \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)
+
+          echo "task_def_arn=$NEW_TASK_ARN" >> "$GITHUB_OUTPUT"
+          echo "Registered temporary task definition: $NEW_TASK_ARN"
+
       - name: Run failure scenario ECS task
         id: run-task
         run: |
@@ -75,7 +99,6 @@ jobs:
             "containerOverrides": [
               {
                 "name": "${{ env.CONTAINER_NAME }}",
-                "entryPoint": ["tests_nightly_performance/run_failure_scenarios.sh"],
                 "environment": [
                   {"name": "COOLDOWN",         "value": "${{ inputs.cooldown }}"},
                   {"name": "ERROR_THRESHOLD",  "value": "${{ inputs.error_threshold }}"},
@@ -90,7 +113,7 @@ jobs:
 
           TASK_ARN=$(aws ecs run-task \
             --cluster "${{ env.ECS_CLUSTER }}" \
-            --task-definition "${{ env.ECS_TASK_FAMILY }}" \
+            --task-definition "${{ steps.register-task-def.outputs.task_def_arn }}" \
             --launch-type FARGATE \
             --network-configuration "awsvpcConfiguration={subnets=[${{ steps.network-config.outputs.subnets }}],securityGroups=[${{ steps.network-config.outputs.security_groups }}],assignPublicIp=${{ steps.network-config.outputs.assign_public_ip }}}" \
             --overrides "$OVERRIDES" \
@@ -143,6 +166,12 @@ jobs:
             echo "::error::ECS task failed (exit code $EXIT_CODE): $STOP_REASON"
             exit 1
           fi
+
+      - name: Deregister temporary task definition
+        if: ${{ always() }}
+        run: |
+          aws ecs deregister-task-definition \
+            --task-definition "${{ steps.register-task-def.outputs.task_def_arn }}" > /dev/null
 
       - name: Notify Slack on failure
         if: ${{ failure() }}
