@@ -194,6 +194,6 @@ log "========================================================"
 log "All scenarios complete."
 log "Results: $OUTPUT_DIR"
 log "S3 path : ${S3_BASE}/"
-log "========================================================" 
+log "========================================================"
 
 notify_slack ":white_check_mark: Blast API failure scenario suite complete — ${S3_BASE}/ :rotating-light-blue:"
