@@ -8,6 +8,8 @@ from app.rate_limiter import (
     RedisSlidingWindowLogRateLimiter,
     RedisTokenBucketRateLimiter,
     initialize_rate_limiter,
+)
+from app.rate_limiter import (
     rate_limiter as rate_limiter_module,
 )
 
