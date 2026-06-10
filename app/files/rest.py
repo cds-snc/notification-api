@@ -138,9 +138,16 @@ def update_file_status():
 
     parsed = _parse_scan_verdict_payload(event)
     document_id = parsed["document_id"]
+    service_id = parsed["service_id"]
     new_status = parsed["new_status"]
 
     fetched_file = dao_get_file_by_document_id(document_id)
+    if str(fetched_file.service_id) != service_id:
+        raise InvalidRequest(
+            f"Requested document_id {fetched_file.document_id} is not associated with service {service_id}",
+            404,
+        )
+
     fetched_file.status = new_status
     dao_update_file(fetched_file)
 
@@ -162,7 +169,11 @@ def _parse_scan_verdict_payload(event):
     )
     normalized_key = object_key.lstrip("/")
     _, service_id, document_id = normalized_key.split("/", 2)
-    new_status = GUARD_DUTY_STATUS_MAP.get(scan_result, FILE_STATUS_VIRUS_SCAN_FAILED)
+
+    if scan_status == "COMPLETED":
+        new_status = GUARD_DUTY_STATUS_MAP.get(scan_result, FILE_STATUS_VIRUS_SCAN_FAILED)
+    else:
+        new_status = GUARD_DUTY_STATUS_MAP.get(scan_status, FILE_STATUS_VIRUS_SCAN_FAILED)
 
     return {
         "status": "ok",

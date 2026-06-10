@@ -169,7 +169,7 @@ def requires_scan_verdict_auth():
     if not hmac.compare_digest(provided_token, expected_token):
         raise AuthError("Unauthorized, invalid scan verdict callback token", 403)
 
-    g.service_id = "scan-verdict-callback"
+    g.service_id = current_app.config.get("SCAN_VERDICT_CALLBACK_USER_NAME")
 
 
 def requires_auth():

@@ -1,13 +1,15 @@
 import base64
+import json
+import uuid
 
-import pytest
-from jsonschema import ValidationError
+from flask import current_app, url_for
 
 from app.dao.permissions_dao import permission_dao
 from app.files.rest import _parse_scan_verdict_payload
-from app.models import FILE_STATUS_UPLOADED
+from app.models import FILE_STATUS_UPLOADED, FILE_STATUS_VIRUS_SCAN_FAILED
 from tests.app.conftest import create_sample_template
 from tests.app.db import create_user
+from tests.conftest import set_config_values
 
 
 class TestCreateFile:
@@ -132,29 +134,100 @@ class TestGetFile:
         )
 
 
-class TestUpdateFileStatus:
-    def test_update_file_status(self, admin_request, sample_file):
-        admin_request.post(
-            "files.update_file_status",
-            template_id=str(sample_file.template_id),
-            file_id=str(sample_file.id),
-            _data={"status": "uploaded"},
-            _expected_status=200,
+SCAN_VERDICT_TOKEN = "test-scan-verdict-token"
+
+
+def _scan_verdict_post(client, data, expected_status=200):
+    """POST to the scan-verdict-callback endpoint with the X-Scan-Callback-Token header."""
+    with set_config_values(current_app, {"SCAN_VERDICT_CALLBACK_TOKEN": SCAN_VERDICT_TOKEN}):
+        resp = client.post(
+            url_for("scan_verdict_callback.update_file_status"),
+            data=json.dumps(data),
+            headers=[
+                ("Content-Type", "application/json"),
+                ("X-Scan-Callback-Token", SCAN_VERDICT_TOKEN),
+            ],
         )
+    assert resp.status_code == expected_status, resp.json
+    return resp.json
+
+
+class TestUpdateFileStatus:
+    def test_update_file_status_clean_scan(self, client, sample_file):
+        data = {
+            "scan_status": "COMPLETED",
+            "scan_result_status": "NO_THREATS_FOUND",
+            "object_key": f"template/{sample_file.service_id}/{sample_file.document_id}",
+            "bucket_name": "test-bucket",
+        }
+        resp = _scan_verdict_post(client, data)
+
+        assert resp["status"] == FILE_STATUS_UPLOADED
         assert sample_file.status == FILE_STATUS_UPLOADED
 
-    def test_update_file_status_returns_404_when_template_file_mismatch(
-        self, notify_db, notify_db_session, admin_request, sample_file, sample_service_full_permissions
-    ):
-        different_template = create_sample_template(notify_db, notify_db_session, service=sample_service_full_permissions)
+    def test_update_file_status_threat_found(self, client, sample_file):
+        data = {
+            "scan_status": "COMPLETED",
+            "scan_result_status": "THREATS_FOUND",
+            "object_key": f"template/{sample_file.service_id}/{sample_file.document_id}",
+            "bucket_name": "test-bucket",
+        }
+        resp = _scan_verdict_post(client, data)
 
-        admin_request.post(
-            "files.update_file_status",
-            template_id=str(different_template.id),
-            file_id=str(sample_file.id),
-            _data={"status": "uploaded"},
-            _expected_status=404,
+        assert resp["status"] == FILE_STATUS_VIRUS_SCAN_FAILED
+        assert sample_file.status == FILE_STATUS_VIRUS_SCAN_FAILED
+
+    def test_update_file_status_scan_failure_maps_to_terminal(self, client, sample_file):
+        data = {
+            "scan_status": "FAILED",
+            "object_key": f"template/{sample_file.service_id}/{sample_file.document_id}",
+            "bucket_name": "test-bucket",
+        }
+        resp = _scan_verdict_post(client, data)
+
+        assert resp["status"] == FILE_STATUS_VIRUS_SCAN_FAILED
+        assert sample_file.status == FILE_STATUS_VIRUS_SCAN_FAILED
+
+    def test_update_file_status_returns_404_for_unknown_document_id(self, client, sample_file):
+        data = {
+            "scan_status": "COMPLETED",
+            "scan_result_status": "NO_THREATS_FOUND",
+            "object_key": f"template/{sample_file.service_id}/{uuid.uuid4()}",
+            "bucket_name": "test-bucket",
+        }
+        _scan_verdict_post(client, data, expected_status=404)
+
+    def test_update_file_status_returns_404_for_service_id_mismatch(self, client, sample_file):
+        wrong_service_id = str(uuid.uuid4())
+        data = {
+            "scan_status": "COMPLETED",
+            "scan_result_status": "NO_THREATS_FOUND",
+            "object_key": f"template/{wrong_service_id}/{sample_file.document_id}",
+            "bucket_name": "test-bucket",
+        }
+        _scan_verdict_post(client, data, expected_status=404)
+
+    def test_update_file_status_returns_400_for_invalid_schema(self, client, sample_file):
+        _scan_verdict_post(client, {"unexpected": "payload"}, expected_status=400)
+
+    def test_update_file_status_returns_401_without_token(self, client, sample_file):
+        resp = client.post(
+            url_for("scan_verdict_callback.update_file_status"),
+            data=json.dumps({"scan_status": "COMPLETED"}),
+            headers=[("Content-Type", "application/json")],
         )
+        assert resp.status_code == 401
+
+    def test_update_file_status_returns_403_for_wrong_token(self, client, sample_file):
+        resp = client.post(
+            url_for("scan_verdict_callback.update_file_status"),
+            data=json.dumps({"scan_status": "COMPLETED"}),
+            headers=[
+                ("Content-Type", "application/json"),
+                ("X-Scan-Callback-Token", "wrong-token"),
+            ],
+        )
+        assert resp.status_code == 401
 
 
 class TestDeleteFile:
@@ -198,17 +271,6 @@ class TestParseScanVerdictPayload:
             "new_status": "uploaded",
         }
 
-    def test_parse_scan_verdict_payload_raises_on_unparseable_object_key(self, client):
-        payload = {
-            "scan_status": "COMPLETED",
-            "scan_result_status": "THREATS_FOUND",
-            "object_key": "bad/key/format",
-            "bucket_name": "my-bucket",
-        }
-
-        with pytest.raises(ValidationError, match="objectKey"):
-            _parse_scan_verdict_payload(payload)
-
     def test_parse_scan_verdict_payload_accepts_object_key_with_leading_slash(self, client):
         payload = {
             "scan_status": "COMPLETED",
@@ -229,6 +291,39 @@ class TestParseScanVerdictPayload:
     def test_parse_scan_verdict_payload_maps_failed_scan_to_terminal_status(self, client):
         payload = {
             "scan_status": "FAILED",
+            "object_key": "template/11111111-1111-1111-1111-111111111111/22222222-2222-2222-2222-222222222222",
+            "bucket_name": "my-bucket",
+        }
+
+        parsed = _parse_scan_verdict_payload(payload)
+
+        assert parsed == {
+            "status": "ok",
+            "service_id": "11111111-1111-1111-1111-111111111111",
+            "document_id": "22222222-2222-2222-2222-222222222222",
+            "new_status": "virus_scan_failed",
+        }
+
+    def test_parse_scan_verdict_payload_completed_with_unknown_scan_result_falls_back_to_terminal_status(self, client):
+        payload = {
+            "scan_status": "COMPLETED",
+            "scan_result_status": "SOMETHING_NEW",
+            "object_key": "template/11111111-1111-1111-1111-111111111111/22222222-2222-2222-2222-222222222222",
+            "bucket_name": "my-bucket",
+        }
+
+        parsed = _parse_scan_verdict_payload(payload)
+
+        assert parsed == {
+            "status": "ok",
+            "service_id": "11111111-1111-1111-1111-111111111111",
+            "document_id": "22222222-2222-2222-2222-222222222222",
+            "new_status": "virus_scan_failed",
+        }
+
+    def test_parse_scan_verdict_payload_completed_without_scan_result_falls_back_to_terminal_status(self, client):
+        payload = {
+            "scan_status": "COMPLETED",
             "object_key": "template/11111111-1111-1111-1111-111111111111/22222222-2222-2222-2222-222222222222",
             "bucket_name": "my-bucket",
         }
