@@ -108,7 +108,7 @@ def get_file_status(template_id, file_id):
 
 @files_blueprint.route("/<uuid:file_id>", methods=["DELETE"])
 def delete_file(template_id, file_id):
-    fetched_file = fetched_file = dao_get_file_by_id(file_id)
+    fetched_file = dao_get_file_by_id(file_id)
 
     if fetched_file.template_id != template_id:
         raise InvalidRequest(
