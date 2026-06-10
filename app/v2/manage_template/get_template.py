@@ -25,6 +25,8 @@ def _serialize_template(template) -> dict:
 
     return {
         "id": str(template.id),
+        "service_id": str(template.service_id),
+        "service_name": template.service.name,
         "name": template.name,
         "type": template.template_type,
         "created_at": template.created_at.strftime(DATETIME_FORMAT),
