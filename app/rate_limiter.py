@@ -601,7 +601,7 @@ class RedisTokenBucketRateLimiter(RateLimiter):
         tokens_str = self.redis.hget(self.REDIS_KEY, "tokens")
         last_refill_str = self.redis.hget(self.REDIS_KEY, "last_refill")
 
-        if tokens_str is None:
+        if tokens_str is None or last_refill_str is None:
             return 0
 
         tokens = float(tokens_str if isinstance(tokens_str, str) else tokens_str.decode("utf-8"))
