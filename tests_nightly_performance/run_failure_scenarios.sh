@@ -104,7 +104,7 @@ run_scenario() {
 notify_slack() {
     local message="$1"
     if [[ -n "${PERF_TEST_SLACK_WEBHOOK:-}" ]]; then
-        curl -s -X POST -H 'Content-type: application/json' \
+        curl -fsS --max-time 10 -X POST -H 'Content-type: application/json' \
             --data "{\"text\":\"$message\"}" \
             "$PERF_TEST_SLACK_WEBHOOK" || log "WARNING: Slack notification failed"
     else
