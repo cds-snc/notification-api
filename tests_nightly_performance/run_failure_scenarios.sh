@@ -137,7 +137,7 @@ log "Cool-down        : ${COOLDOWN}s between scenarios"
 log "Per-scenario cap : ${RUN_TIME}"
 log "========================================================"
 echo ""
-notify_slack ":warning: Blast API failure scenario suite starting — ${S3_BASE}/ :rotating-light-blue:"
+notify_slack ":rotating-light-blue: Blast API Failure Scenario Started :rotating-light-blue:"
 # ---------------------------------------------------------------------------
 # Scenario 1 — Gradual ramp-up of individual sends
 #   Starts at 10 users, steps up by 50 every 120 s until error threshold.
@@ -196,4 +196,4 @@ log "Results: $OUTPUT_DIR"
 log "S3 path : ${S3_BASE}/"
 log "========================================================"
 
-notify_slack ":white_check_mark: Blast API failure scenario suite complete — ${S3_BASE}/ :rotating-light-blue:"
+notify_slack ":rotating-light-blue: Blast API Failure Scenario Complete :rotating-light-blue:"
