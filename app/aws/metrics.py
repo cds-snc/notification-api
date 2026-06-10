@@ -70,6 +70,9 @@ def put_batch_saving_inflight_processed(metrics_logger: MetricsLogger, queue: Re
             {"acknowledged": "True", "notification_type": queue._suffix, "priority": queue._process_type}
         )
         metrics_logger.flush()
+        metrics_logger.put_metric("batch_saving_inflight", count, "Count")
+        metrics_logger.set_dimensions({"acknowledged": "True", "notification_type": "any", "priority": "any"})
+        metrics_logger.flush()
     except ClientError as e:
         message = "Error sending CloudWatch Metric: {}".format(e)
         current_app.logger.warning(message)
