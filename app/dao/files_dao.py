@@ -19,6 +19,10 @@ def dao_get_file_by_id(file_id):
     return Files.query.filter(Files.id == file_id).one()
 
 
+def dao_get_file_by_document_id(document_id):
+    return Files.query.filter(Files.document_id == document_id).one()
+
+
 @transactional
 def dao_create_file(file):
     db.session.add(file)

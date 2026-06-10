@@ -1,6 +1,10 @@
 import base64
 
+import pytest
+from jsonschema import ValidationError
+
 from app.dao.permissions_dao import permission_dao
+from app.files.rest import _parse_scan_verdict_payload
 from app.models import FILE_STATUS_UPLOADED
 from tests.app.conftest import create_sample_template
 from tests.app.db import create_user
@@ -173,3 +177,67 @@ class TestDeleteFile:
             file_id=str(sample_file.id),
             _expected_status=404,
         )
+
+
+class TestParseScanVerdictPayload:
+    def test_parse_scan_verdict_payload_accepts_extra_fields(self, client):
+        payload = {
+            "scan_status": "COMPLETED",
+            "scan_result_status": "NO_THREATS_FOUND",
+            "object_key": "template/11111111-1111-1111-1111-111111111111/22222222-2222-2222-2222-222222222222",
+            "bucket_name": "my-bucket",
+            "top_level": "ignored",
+        }
+
+        parsed = _parse_scan_verdict_payload(payload)
+
+        assert parsed == {
+            "status": "ok",
+            "service_id": "11111111-1111-1111-1111-111111111111",
+            "document_id": "22222222-2222-2222-2222-222222222222",
+            "new_status": "uploaded",
+        }
+
+    def test_parse_scan_verdict_payload_raises_on_unparseable_object_key(self, client):
+        payload = {
+            "scan_status": "COMPLETED",
+            "scan_result_status": "THREATS_FOUND",
+            "object_key": "bad/key/format",
+            "bucket_name": "my-bucket",
+        }
+
+        with pytest.raises(ValidationError, match="objectKey"):
+            _parse_scan_verdict_payload(payload)
+
+    def test_parse_scan_verdict_payload_accepts_object_key_with_leading_slash(self, client):
+        payload = {
+            "scan_status": "COMPLETED",
+            "scan_result_status": "NO_THREATS_FOUND",
+            "object_key": "/template/11111111-1111-1111-1111-111111111111/22222222-2222-2222-2222-222222222222",
+            "bucket_name": "my-bucket",
+        }
+
+        parsed = _parse_scan_verdict_payload(payload)
+
+        assert parsed == {
+            "status": "ok",
+            "service_id": "11111111-1111-1111-1111-111111111111",
+            "document_id": "22222222-2222-2222-2222-222222222222",
+            "new_status": "uploaded",
+        }
+
+    def test_parse_scan_verdict_payload_maps_failed_scan_to_terminal_status(self, client):
+        payload = {
+            "scan_status": "FAILED",
+            "object_key": "template/11111111-1111-1111-1111-111111111111/22222222-2222-2222-2222-222222222222",
+            "bucket_name": "my-bucket",
+        }
+
+        parsed = _parse_scan_verdict_payload(payload)
+
+        assert parsed == {
+            "status": "ok",
+            "service_id": "11111111-1111-1111-1111-111111111111",
+            "document_id": "22222222-2222-2222-2222-222222222222",
+            "new_status": "virus_scan_failed",
+        }
