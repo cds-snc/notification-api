@@ -33,19 +33,19 @@ set -uo pipefail
 # Configurable defaults
 # ---------------------------------------------------------------------------
 TEST_MODE="${TEST_MODE:-false}"          # Set TEST_MODE=true for a fast CI smoke-run
-COOLDOWN="${COOLDOWN:-1800}"
 ERROR_THRESHOLD="${ERROR_THRESHOLD:-3.0}"
 MIN_REQUESTS="${MIN_REQUESTS:-100}"
 SPIKE_USERS="${SPIKE_USERS:-500}"
 PERF_TEST_AWS_S3_BUCKET="${PERF_TEST_AWS_S3_BUCKET:-notify-performance-test-results-staging}"
 
-# In test mode: cap each scenario to 2 minutes and cool-down to 10 seconds
+# In test mode: cap each scenario to 2 minutes and cool-down to 120 seconds
 # so the entire suite finishes in ~20 minutes, suitable for a GitHub Actions job.
 if [[ "$TEST_MODE" == "true" ]]; then
     RUN_TIME="${RUN_TIME:-2m}"
-    COOLDOWN="${COOLDOWN:-10}"
+    COOLDOWN="${COOLDOWN:-120}"
 else
     RUN_TIME="${RUN_TIME:-1h}"
+    COOLDOWN="${COOLDOWN:-1800}"
 fi
 
 current_time=$(date "+%Y.%m.%d-%H.%M.%S")
@@ -137,7 +137,7 @@ log "Cool-down        : ${COOLDOWN}s between scenarios"
 log "Per-scenario cap : ${RUN_TIME}"
 log "========================================================"
 echo ""
-notify_slack ":warning: Blast API failure scenario suite starting — ${S3_BASE}/ :rotating-light-blue:"
+notify_slack ":rotating-light-blue: Blast API Failure Scenario Started :rotating-light-blue:"
 # ---------------------------------------------------------------------------
 # Scenario 1 — Gradual ramp-up of individual sends
 #   Starts at 10 users, steps up by 50 every 120 s until error threshold.
@@ -196,4 +196,4 @@ log "Results: $OUTPUT_DIR"
 log "S3 path : ${S3_BASE}/"
 log "========================================================"
 
-notify_slack ":white_check_mark: Blast API failure scenario suite complete — ${S3_BASE}/ :rotating-light-blue:"
+notify_slack ":rotating-light-blue: Blast API Failure Scenario Complete :rotating-light-blue:"

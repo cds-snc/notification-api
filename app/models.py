@@ -1456,11 +1456,13 @@ class Files(BaseModel):
     mime_type = db.Column(db.Text, nullable=True)
     file_size = db.Column(db.Integer, nullable=True)
     status = db.Column(db.Enum(*FILE_STATUSES, name="notify_file_status_enum"), nullable=False)
+    created_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), index=True, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
 
     template = db.relationship("Template")
     service = db.relationship("Service")
+    created_by = db.relationship("User", foreign_keys=[created_by_id], lazy="select")
 
     @property
     def file_size_mib(self):

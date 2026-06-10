@@ -60,6 +60,7 @@ def create_file(template_id):
         mime_type=data["mime_type"],
         file_size=data["file_size"],
         status=FILE_STATUS_PENDING_VIRUS_SCAN,
+        created_by_id=data["created_by"],
     )
     dao_create_file(file)
 

@@ -20,7 +20,7 @@ on:
         required: false
         default: '500'
       test_mode:
-        description: 'Run each scenario for 2 minutes with 10s cooldowns to verify the pipeline end-to-end (default: false)'
+        description: 'Run each scenario for 2 minutes with 120s cooldowns to verify the pipeline end-to-end (default: false)'
         required: false
         type: boolean
         default: false
@@ -81,7 +81,7 @@ jobs:
               {
                 "name": "${{ env.CONTAINER_NAME }}",
                 "environment": [
-                  {"name": "COOLDOWN",         "value": "${{ inputs.cooldown }}"},
+                  {"name": "COOLDOWN",         "value": "${{ fromJSON(format('{0}', inputs.test_mode)) && '120' || inputs.cooldown }}"},
                   {"name": "ERROR_THRESHOLD",  "value": "${{ inputs.error_threshold }}"},
                   {"name": "MIN_REQUESTS",     "value": "${{ inputs.min_requests }}"},
                   {"name": "SPIKE_USERS",      "value": "${{ inputs.spike_users }}"},
