@@ -481,6 +481,13 @@ class StepLoadShape(LoadTestShape):
         opts = self.runner.environment.parsed_options
         spawn_rate = opts.spawn_rate  # honours -r / locust.conf spawn-rate
 
+        # LoadTestShape normally causes Locust to ignore --run-time entirely.
+        # Re-implement the check here so callers can impose a hard time cap
+        # (e.g. TEST_MODE uses --run-time 2m to keep CI runs short).
+        if opts.run_time and run_time >= opts.run_time:
+            print(f"\n*** Run-time limit of {opts.run_time}s reached — stopping test ***")
+            return None
+
         # --- bulk-burst scenario ---
         if opts.bulk_burst:
             total_duration = opts.burst_count * opts.burst_delay
