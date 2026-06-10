@@ -104,7 +104,7 @@ run_scenario() {
 notify_slack() {
     local message="$1"
     if [[ -n "${PERF_TEST_SLACK_WEBHOOK:-}" ]]; then
-        curl -s -X POST -H 'Content-type: application/json' \
+        curl -fsS --max-time 10 -X POST -H 'Content-type: application/json' \
             --data "{\"text\":\"$message\"}" \
             "$PERF_TEST_SLACK_WEBHOOK" || log "WARNING: Slack notification failed"
     else
@@ -194,6 +194,6 @@ log "========================================================"
 log "All scenarios complete."
 log "Results: $OUTPUT_DIR"
 log "S3 path : ${S3_BASE}/"
-log "========================================================" 
+log "========================================================"
 
 notify_slack ":white_check_mark: Blast API failure scenario suite complete — ${S3_BASE}/ :rotating-light-blue:"
