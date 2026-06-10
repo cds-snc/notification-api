@@ -408,6 +408,7 @@ class TestRedisTokenBucketRateLimiter:
                 allow_send, wait_seconds = limiter.acquire_lease(100)
                 assert allow_send is False
                 import math
+
                 expected = math.ceil(100 / (1000 / 60))
                 assert wait_seconds == expected
 
@@ -474,6 +475,7 @@ class TestInitializeRateLimiter:
     def teardown_method(self):
         # Reset global singleton between tests
         import app.rate_limiter as rl
+
         rl._rate_limiter_instance = None
 
     def test_explicit_class_arg_takes_precedence(self, client):

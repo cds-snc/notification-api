@@ -23,6 +23,9 @@ class RateLimiter(ABC):
     Phase 2 will provide a Redis-backed implementation.
     """
 
+    def __init__(self, cap_per_minute: int) -> None:
+        self.cap_per_minute = cap_per_minute
+
     @abstractmethod
     def acquire_lease(self, parts_count: int) -> Tuple[bool, int]:
         """
@@ -181,10 +184,6 @@ class InMemoryRateLimiter(RateLimiter):
 
 _rate_limiter_instance: RateLimiter | None = None
 
-# Registry mapping config name strings to implementation classes.
-# Used by initialize_rate_limiter when no explicit class is provided.
-_LIMITER_CLASSES: dict[str, type[RateLimiter]] = {}
-
 
 def _build_limiter_registry() -> dict[str, type[RateLimiter]]:
     """Lazily populate the registry after all classes are defined."""
@@ -240,8 +239,7 @@ def initialize_rate_limiter(cap_per_minute: int, limiter_class: type[RateLimiter
 
         if class_name not in registry:
             logger.warning(
-                "SMS rate limiter: unknown class name %r in SMS_RATE_LIMITER_BACKEND; "
-                "falling back to InMemoryRateLimiter.",
+                "SMS rate limiter: unknown class name %r in SMS_RATE_LIMITER_BACKEND; " "falling back to InMemoryRateLimiter.",
                 class_name,
             )
             resolved_class = InMemoryRateLimiter
