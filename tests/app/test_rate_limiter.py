@@ -3,12 +3,12 @@ from unittest.mock import patch
 import fakeredis
 import pytest
 
-import app.rate_limiter as rate_limiter_module
 from app.rate_limiter import (
     InMemoryRateLimiter,
     RedisSlidingWindowLogRateLimiter,
     RedisTokenBucketRateLimiter,
     initialize_rate_limiter,
+    rate_limiter as rate_limiter_module,
 )
 
 
