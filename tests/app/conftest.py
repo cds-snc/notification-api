@@ -17,6 +17,7 @@ from sqlalchemy.orm.session import make_transient
 from app import db
 from app.dao.api_key_dao import save_model_api_key
 from app.dao.fido2_key_dao import save_fido2_key
+from app.dao.files_dao import dao_create_file
 from app.dao.invited_user_dao import save_invited_user
 from app.dao.jobs_dao import dao_create_job
 from app.dao.login_event_dao import save_login_event
@@ -31,6 +32,8 @@ from app.dao.users_dao import create_secret_code, create_user_code
 from app.history_meta import create_history
 from app.models import (
     EMAIL_TYPE,
+    FILE_STATUS_PENDING_VIRUS_SCAN,
+    FILE_TYPE_TEMPLATE_ATTACH,
     INBOUND_SMS_TYPE,
     KEY_TYPE_NORMAL,
     KEY_TYPE_TEAM,
@@ -43,6 +46,7 @@ from app.models import (
     ApiKey,
     ApiKeyPermission,
     Fido2Key,
+    Files,
     InvitedUser,
     Job,
     LoginEvent,
@@ -1769,6 +1773,27 @@ def sample_report(
         status=status,
     )
     return create_report(report)
+
+
+@pytest.fixture(scope="function")
+def sample_file(
+    notify_db,
+    notify_db_session,
+    sample_service_full_permissions,
+    file_type=FILE_TYPE_TEMPLATE_ATTACH,
+    file_status=FILE_STATUS_PENDING_VIRUS_SCAN,
+    name="file1.csv",
+):
+    sample_template = create_sample_template(notify_db, notify_db_session, service=sample_service_full_permissions)
+    file = Files(
+        template_id=sample_template.id,
+        service_id=sample_service_full_permissions.id,
+        document_id=uuid.uuid4(),
+        type=file_type,
+        name=name,
+        status=file_status,
+    )
+    return dao_create_file(file)
 
 
 @pytest.fixture
