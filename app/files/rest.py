@@ -122,7 +122,6 @@ def delete_file(template_id, file_id):
     return "", 204
 
 
-# TODO: This will be pulled out into a separate route later for the eventbridge API destination to call
 @scan_verdict_callback_blueprint.route("", methods=["POST"])
 def update_file_status():
     """Callback endpoints that receives completed scan verdicts from GuardDuty / EventBridge
