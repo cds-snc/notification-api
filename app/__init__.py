@@ -209,6 +209,7 @@ def register_blueprint(application):
     from app.cypress.rest import cypress_blueprint
     from app.email_branding.rest import email_branding_blueprint
     from app.events.rest import events as events_blueprint
+    from app.files.rest import files_blueprint
     from app.inbound_number.rest import inbound_number_blueprint
     from app.inbound_sms.rest import inbound_sms as inbound_sms_blueprint
     from app.invite.rest import invite as invite_blueprint
@@ -243,6 +244,8 @@ def register_blueprint(application):
     register_notify_blueprint(application, status_blueprint, requires_no_auth)
 
     register_notify_blueprint(application, notifications_blueprint, requires_auth)
+
+    register_notify_blueprint(application, files_blueprint, requires_admin_auth)
 
     register_notify_blueprint(application, job_blueprint, requires_admin_auth)
 
@@ -304,9 +307,9 @@ def register_v2_blueprints(application):
         v2_inbound_sms_blueprint as get_inbound_sms,
     )
     from app.v2.manage_template import (  # noqa
-        get_template as get_manage_template,
-    )
-    from app.v2.manage_template import (
+        get_template,
+        get_template_categories,
+        post_template,
         v2_manage_template_blueprint,
     )
     from app.v2.notifications import (  # noqa
