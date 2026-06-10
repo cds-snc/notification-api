@@ -419,7 +419,7 @@ class RedisSlidingWindowLogRateLimiter(RateLimiter):
         success, wait_seconds = result[0], result[1]
 
         if success:
-            current_app.logger.info(f"SMS rate limiter (Redis): acquired {parts_count} parts. " f"Entry ID: {entry_id}")
+            current_app.logger.debug(f"SMS rate limiter (Redis): acquired {parts_count} parts. " f"Entry ID: {entry_id}")
         else:
             current_app.logger.warning(
                 f"SMS rate limiter (Redis): capacity exhausted. Requested {parts_count} parts. "
@@ -523,8 +523,10 @@ class RedisTokenBucketRateLimiter(RateLimiter):
                 tokens = cap
                 last_refill = now
             else
-                tokens = tonumber(tokens_str)
-                last_refill = tonumber(last_refill_str)
+                -- Default to cap or now if tokens and last refill aren't available
+                -- for defensive programming reasons.
+                tokens = tonumber(tokens_str) or cap
+                last_refill = tonumber(last_refill_str) or now
             end
 
             -- Refill tokens based on elapsed time
@@ -579,7 +581,7 @@ class RedisTokenBucketRateLimiter(RateLimiter):
         success, wait_seconds = result[0], result[1]
 
         if success:
-            current_app.logger.info(f"SMS rate limiter (token bucket): acquired {parts_count} parts.")
+            current_app.logger.debug(f"SMS rate limiter (token bucket): acquired {parts_count} parts.")
         else:
             current_app.logger.warning(
                 f"SMS rate limiter (token bucket): capacity exhausted. Requested {parts_count} parts. "
