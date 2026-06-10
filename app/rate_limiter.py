@@ -79,6 +79,7 @@ class InMemoryRateLimiter(RateLimiter):
             cap_per_minute (int): Maximum SMS parts allowed per minute.
                                   E.g., 1000 parts/minute.
         """
+        super().__init__(cap_per_minute)
         self.cap_per_minute = cap_per_minute
         self.window: deque = deque()  # Stores (timestamp, parts_count) tuples
         self.current_usage: int = 0  # Running total of parts in the current window
@@ -296,6 +297,7 @@ class RedisSlidingWindowLogRateLimiter(RateLimiter):
             cap_per_minute (int): Maximum SMS parts allowed per minute.
             redis_client: Redis client instance. If None, uses app's redis_store.
         """
+        super().__init__(cap_per_minute)
         self.cap_per_minute = cap_per_minute
         self.redis_client = redis_client
         self._lua_scripts: dict[str, object] = {}
@@ -491,6 +493,7 @@ class RedisTokenBucketRateLimiter(RateLimiter):
             cap_per_minute (int): Maximum SMS parts allowed per minute.
             redis_client: Redis client instance. If None, uses app's redis_store.
         """
+        super().__init__(cap_per_minute)
         self.cap_per_minute = cap_per_minute
         self.redis_client = redis_client
         self._lua_scripts: dict[str, object] = {}

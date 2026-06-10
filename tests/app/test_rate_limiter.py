@@ -474,14 +474,11 @@ class TestRedisTokenBucketRateLimiter:
 class TestInitializeRateLimiter:
     def teardown_method(self):
         # Reset global singleton between tests
-        import app.rate_limiter as rl
-
-        rl._rate_limiter_instance = None
+        global _rate_limiter_instance
+        _rate_limiter_instance = None
 
     def test_explicit_class_arg_takes_precedence(self, client):
         with client.application.app_context():
-            redis_client = fakeredis.FakeRedis()
-            # Pass class directly; config should be ignored
             instance = initialize_rate_limiter(1000, RedisTokenBucketRateLimiter)
             assert isinstance(instance, RedisTokenBucketRateLimiter)
 
