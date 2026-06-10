@@ -15,7 +15,88 @@ jobs:
             run-tests:
               - '**'
               - '!.github/workflows/!(test).yaml'
-  test:
+
+  lint:
+    needs: changes
+    if: ${{ contains(fromJSON(needs.changes.outputs.changes), 'run-tests') }}
+    runs-on: ubuntu-latest
+    steps:
+    - name: Install libcurl
+      run: sudo apt-get update && sudo apt-get install libssl-dev libcurl4-openssl-dev
+
+    - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+
+    - name: Set up Python 3.12
+      uses: actions/setup-python@b64ffcaf5b410884ad320a9cfac8866006a109aa # v4.8.0
+      with:
+        python-version: '3.12'
+
+    - name: Upgrade pip
+      run: python -m pip install --upgrade pip
+
+    - uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install poetry
+      env:
+        POETRY_VERSION: "1.7.1"
+      run: pip install poetry==${POETRY_VERSION} poetry-plugin-sort && poetry --version
+
+    - name: Check poetry.lock aligns with pyproject.toml
+      run: poetry check --lock
+
+    - name: Install requirements
+      run: poetry install --with test
+
+    - name: Ruff check
+      run: poetry run ruff check .
+
+    - name: Ruff import order check
+      run: poetry run ruff check --select I .
+
+    - name: Ruff format check
+      run: poetry run ruff format --check .
+
+    - name: Type check
+      run: poetry run mypy .
+
+    - name: Make version file
+      run: |
+        printf '__commit_sha__ = "09cfe03100443fb9071bba88d5c8775ff54a9ebc"\n__time__ = "2022-07-25:15:11:05"\n' > version.py
+        cp version.py "${{ github.workspace }}/app/"
+
+    - name: Copy site-packages in workspace
+      working-directory: ${{ github.workspace }}
+      shell: bash
+      run: |
+        mkdir -p "${{ github.workspace }}/env/" && cp -fR $(poetry env list | poetry env info -p)/lib/python3.12/site-packages "${{ github.workspace }}/env/"
+
+    - name: Install development .env file
+      working-directory: ${{ github.workspace }}
+      shell: bash
+      run: |
+        cp -f .env.example .env
+
+    - name: Checks for new endpoints against AWS WAF rules
+      uses: cds-snc/notification-utils/.github/actions/waffles@53.2.21
+      with:
+        app-loc: '/github/workspace'
+        app-libs: '/github/workspace/env/site-packages'
+        flask-mod: 'application'
+        flask-prop: 'application'
+        base-url: 'https://api.staging.notification.cdssandbox.xyz'
+
+    - name: Notify Slack channel if this job fails
+      if: ${{ failure() && github.ref == 'refs/heads/main' }}
+      run: |
+        json='{"text":"Scheduled CI testing failed: <https://github.com/cds-snc/notification-api/actions/runs/'${{ github.run_id }}'|GitHub actions>"}'
+        curl -X POST -H 'Content-type: application/json' --data "$json"  ${{ secrets.SLACK_WEBHOOK }}
+
+  test-serial:
     needs: changes
     if: ${{ contains(fromJSON(needs.changes.outputs.changes), 'run-tests') }}
     env:
@@ -57,53 +138,113 @@ jobs:
       env:
         POETRY_VERSION: "1.7.1"
       run: pip install poetry==${POETRY_VERSION} poetry-plugin-sort && poetry --version
-    - name: Check poetry.lock aligns with pyproject.toml
-      run: poetry check --lock
 
     - name: Install requirements
       run: poetry install --with test
 
-    - name: Run tests
-      run: poetry run make test
+    - name: Generate version file
+      run: make generate-version-file
 
-    - name: Upload pytest logs on failure
+    - name: Run serial tests
+      run: |
+        poetry run py.test --disable-pytest-warnings --cov=app --cov-report=term-missing \
+          tests/ --junitxml=test_results_serial.xml -v --maxfail=10 -m "serial"
+
+    - name: Upload test results on failure
       if: ${{ failure() }}
       uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
       with:
-        name: pytest-logs
+        name: pytest-logs-serial
         path: |
           pytest*.log
+          test_results_serial.xml
 
-    - name: Get python version
+    - name: Notify Slack channel if this job fails
+      if: ${{ failure() && github.ref == 'refs/heads/main' }}
       run: |
-        python_version=$(python  -V | cut -d' ' -f2)
-        echo "python_version=${python_version}" >> $GITHUB_ENV
+        json='{"text":"Scheduled CI testing failed: <https://github.com/cds-snc/notification-api/actions/runs/'${{ github.run_id }}'|GitHub actions>"}'
+        curl -X POST -H 'Content-type: application/json' --data "$json"  ${{ secrets.SLACK_WEBHOOK }}
 
-    - name: Make version file
-      run: |
-        printf '__commit_sha__ = "09cfe03100443fb9071bba88d5c8775ff54a9ebc"\n__time__ = "2022-07-25:15:11:05"\n' > version.py
-        cp version.py "${{ github.workspace }}/app/"
+  test-parallel:
+    needs: changes
+    if: ${{ contains(fromJSON(needs.changes.outputs.changes), 'run-tests') }}
+    env:
+      CYPRESS_USER_PW_SECRET: ${{ secrets.CYPRESS_USER_PW_SECRET }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # dao has ~40 test files — runs alone to balance load
+          - name: dao
+            test-args: "tests/app/dao"
+          # service + v2 together (~27 files)
+          - name: service-v2
+            test-args: "tests/app/service tests/app/v2"
+          # clients + celery together (~26 files)
+          - name: clients-celery
+            test-args: "tests/app/clients tests/app/celery"
+          # everything else (smaller dirs + top-level test files)
+          - name: rest
+            test-args: "tests --ignore=tests/app/dao --ignore=tests/app/service --ignore=tests/app/v2 --ignore=tests/app/clients --ignore=tests/app/celery"
+    services:
+      postgres:
+        image: postgres:16.11-bookworm@sha256:a2420e9555e2224583fe84d0bb3f0b967e69354ae3a0be55a9c14e251388c4eb
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_notification_api
+        ports:
+        - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
 
-    - name: Copy site-packages in workspace
-      working-directory: ${{ github.workspace }}
-      shell: bash
-      run: |
-        mkdir -p "${{ github.workspace }}/env/" && cp -fR $(poetry env list | poetry env info -p)/lib/python3.12/site-packages "${{ github.workspace }}/env/"
+    steps:
+    - name: Install libcurl
+      run: sudo apt-get update && sudo apt-get install libssl-dev libcurl4-openssl-dev
 
-    - name: Install development .env file
-      working-directory: ${{ github.workspace }}
-      shell: bash
-      run: |
-        cp -f .env.example .env
+    - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
 
-    - name: Checks for new endpoints against AWS WAF rules
-      uses: cds-snc/notification-utils/.github/actions/waffles@53.2.21
+    - name: Set up Python 3.12
+      uses: actions/setup-python@b64ffcaf5b410884ad320a9cfac8866006a109aa # v4.8.0
       with:
-        app-loc: '/github/workspace'
-        app-libs: '/github/workspace/env/site-packages'
-        flask-mod: 'application'
-        flask-prop: 'application'
-        base-url: 'https://api.staging.notification.cdssandbox.xyz'
+        python-version: '3.12'
+
+    - name: Upgrade pip
+      run: python -m pip install --upgrade pip
+
+    - uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install poetry
+      env:
+        POETRY_VERSION: "1.7.1"
+      run: pip install poetry==${POETRY_VERSION} poetry-plugin-sort && poetry --version
+
+    - name: Install requirements
+      run: poetry install --with test
+
+    - name: Generate version file
+      run: make generate-version-file
+
+    - name: Run parallel tests (${{ matrix.name }})
+      run: |
+        poetry run py.test --disable-pytest-warnings --cov=app --cov-report=term-missing \
+          --junitxml=test_results_${{ matrix.name }}.xml -v --maxfail=10 \
+          -m "not serial" -n auto \
+          ${{ matrix.test-args }}
+
+    - name: Upload test results on failure
+      if: ${{ failure() }}
+      uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+      with:
+        name: pytest-logs-${{ matrix.name }}
+        path: |
+          pytest*.log
+          test_results_${{ matrix.name }}.xml
 
     - name: Notify Slack channel if this job fails
       if: ${{ failure() && github.ref == 'refs/heads/main' }}
