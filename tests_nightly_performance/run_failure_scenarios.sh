@@ -101,6 +101,17 @@ run_scenario() {
         --include "${slug}*" || log "WARNING: S3 upload failed for scenario $number"
 }
 
+notify_slack() {
+    local message="$1"
+    if [[ -n "${PERF_TEST_SLACK_WEBHOOK:-}" ]]; then
+        curl -s -X POST -H 'Content-type: application/json' \
+            --data "{\"text\":\"$message\"}" \
+            "$PERF_TEST_SLACK_WEBHOOK" || log "WARNING: Slack notification failed"
+    else
+        log "PERF_TEST_SLACK_WEBHOOK not set — skipping Slack notification"
+    fi
+}
+
 cooldown() {
     local next="$1"
     log "Cooling down for ${COOLDOWN}s before scenario $next... (Ctrl-C to skip cool-down)"
@@ -126,7 +137,7 @@ log "Cool-down        : ${COOLDOWN}s between scenarios"
 log "Per-scenario cap : ${RUN_TIME}"
 log "========================================================"
 echo ""
-
+notify_slack ":warning: Blast API failure scenario suite starting — ${S3_BASE}/ :rotating-light-blue:"
 # ---------------------------------------------------------------------------
 # Scenario 1 — Gradual ramp-up of individual sends
 #   Starts at 10 users, steps up by 50 every 120 s until error threshold.
@@ -183,4 +194,6 @@ log "========================================================"
 log "All scenarios complete."
 log "Results: $OUTPUT_DIR"
 log "S3 path : ${S3_BASE}/"
-log "========================================================"
+log "========================================================" 
+
+notify_slack ":white_check_mark: Blast API failure scenario suite complete — ${S3_BASE}/ :rotating-light-blue:"
