@@ -3,14 +3,12 @@ from unittest.mock import patch
 import fakeredis
 import pytest
 
+from app import rate_limiter
 from app.rate_limiter import (
     InMemoryRateLimiter,
     RedisSlidingWindowLogRateLimiter,
     RedisTokenBucketRateLimiter,
     initialize_rate_limiter,
-)
-from app.rate_limiter import (
-    rate_limiter as rate_limiter_module,
 )
 
 
@@ -477,7 +475,7 @@ class TestRedisTokenBucketRateLimiter:
 class TestInitializeRateLimiter:
     def teardown_method(self):
         # Reset global singleton between tests
-        with patch.object(rate_limiter_module, "_rate_limiter_instance", None):
+        with patch.object(rate_limiter, "_rate_limiter_instance", None):
             pass
 
     def test_explicit_class_arg_takes_precedence(self, client):
