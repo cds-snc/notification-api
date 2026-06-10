@@ -190,7 +190,7 @@ def _build_limiter_registry() -> dict[str, type[RateLimiter]]:
     """Lazily populate the registry after all classes are defined."""
     return {
         "InMemoryRateLimiter": InMemoryRateLimiter,
-        "RedisZSetRateLimiter": RedisSlidingWindowLogRateLimiter,
+        "RedisSlidingWindowLogRateLimiter": RedisSlidingWindowLogRateLimiter,
         "RedisTokenBucketRateLimiter": RedisTokenBucketRateLimiter,
     }
 

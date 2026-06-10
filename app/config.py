@@ -607,7 +607,7 @@ class Config(object):
     CELERY_DELIVER_SMS_RATE_LIMIT = os.getenv("CELERY_DELIVER_SMS_RATE_LIMIT", "1/s")
     CELERY_DELIVER_SMS_RATE_LIMIT_PER_MINUTE = env.int("CELERY_DELIVER_SMS_RATE_LIMIT_PER_MINUTE", 6_000)
     # SMS rate limiter backend class name. Must match a key in rate_limiter._LIMITER_CLASSES.
-    # Options: "InMemoryRateLimiter", "RedisZSetRateLimiter", "RedisTokenBucketRateLimiter"
+    # Options: "InMemoryRateLimiter", "RedisSlidingWindowLogRateLimiter", "RedisTokenBucketRateLimiter"
     SMS_RATE_LIMITER_BACKEND = os.getenv("SMS_RATE_LIMITER_BACKEND", "InMemoryRateLimiter")
     AWS_SEND_SMS_BOTO_CALL_LATENCY = os.getenv("AWS_SEND_SMS_BOTO_CALL_LATENCY", 0.06)  # average delay in production
 
