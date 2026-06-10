@@ -16,7 +16,7 @@ jobs:
               - '**'
               - '!.github/workflows/!(test).yaml'
 
-  lint:
+  formatter:
     needs: changes
     if: ${{ contains(fromJSON(needs.changes.outputs.changes), 'run-tests') }}
     runs-on: ubuntu-latest
@@ -61,6 +61,9 @@ jobs:
     - name: Ruff format check
       run: poetry run ruff format --check .
 
+    - name: Generate version file
+      run: make generate-version-file
+
     - name: Type check
       run: poetry run mypy .
 
@@ -97,7 +100,7 @@ jobs:
         curl -X POST -H 'Content-type: application/json' --data "$json"  ${{ secrets.SLACK_WEBHOOK }}
 
   test-serial:
-    needs: changes
+    needs: [changes, formatter]
     if: ${{ contains(fromJSON(needs.changes.outputs.changes), 'run-tests') }}
     env:
       CYPRESS_USER_PW_SECRET: ${{ secrets.CYPRESS_USER_PW_SECRET }}
@@ -112,6 +115,11 @@ jobs:
         ports:
         - 5432:5432
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:6.2
+        ports:
+        - 6380:6379
+        options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
 
     steps:
     - name: Install libcurl
@@ -166,7 +174,7 @@ jobs:
         curl -X POST -H 'Content-type: application/json' --data "$json"  ${{ secrets.SLACK_WEBHOOK }}
 
   test-parallel:
-    needs: changes
+    needs: [changes, formatter]
     if: ${{ contains(fromJSON(needs.changes.outputs.changes), 'run-tests') }}
     env:
       CYPRESS_USER_PW_SECRET: ${{ secrets.CYPRESS_USER_PW_SECRET }}
@@ -197,6 +205,11 @@ jobs:
         ports:
         - 5432:5432
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:6.2
+        ports:
+        - 6380:6379
+        options: --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
 
     steps:
     - name: Install libcurl

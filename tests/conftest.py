@@ -78,14 +78,14 @@ def grant_test_db(writer_uri, uri_db_reader):
     postgres_db = sqlalchemy.create_engine(writer_uri, echo=False, isolation_level="AUTOCOMMIT", client_encoding="utf8")
 
     statements = [
-        f"CREATE ROLE {db_reader} LOGIN PASSWORD '{db_reader_password}';",
+        f"DO $$ BEGIN CREATE ROLE {db_reader} LOGIN PASSWORD '{db_reader_password}'; EXCEPTION WHEN duplicate_object OR unique_violation THEN ALTER ROLE {db_reader} WITH LOGIN PASSWORD '{db_reader_password}'; END $$;",
         f"GRANT USAGE ON SCHEMA {db_schema} TO {db_reader};",
         f"GRANT SELECT ON ALL TABLES IN SCHEMA {db_schema} TO {db_reader};",
     ]
     for statement in statements:
         try:
             postgres_db.execute(sqlalchemy.sql.text(statement)).close()
-        except sqlalchemy.exc.ProgrammingError:
+        except (sqlalchemy.exc.ProgrammingError, sqlalchemy.exc.IntegrityError):
             pass
     postgres_db.dispose()
 

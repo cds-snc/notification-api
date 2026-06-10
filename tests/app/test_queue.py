@@ -420,6 +420,7 @@ class TestRedisQueueMetricUsage:
             redis_queue.acknowledge(receipt)
             assert pbsip_mock.assert_called_with(mock.ANY, mock.ANY, 1) is None
 
+    @pytest.mark.serial
     def test_put_batch_saving_expiry_metric(self, redis, redis_queue, mocker):
         with self.given_inbox_with_many_indexes(redis, redis_queue):
             pbsem_mock = mocker.patch("app.queue.put_batch_saving_expiry_metric")
