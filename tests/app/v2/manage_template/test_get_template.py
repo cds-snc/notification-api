@@ -22,6 +22,8 @@ class TestGetTemplateV2ManageTemplate:
         assert response.status_code == 200
         data = json.loads(response.get_data(as_text=True))
         assert data["id"] == str(template.id)
+        assert data["service_id"] == str(sample_service.id)
+        assert data["service_name"] == sample_service.name
         assert data["name"] == template.name
         assert data["type"] == SMS_TYPE
         assert data["body"] == template.content
@@ -46,6 +48,8 @@ class TestGetTemplateV2ManageTemplate:
         assert "process_type" not in data
 
         assert "id" in data
+        assert "service_id" in data
+        assert "service_name" in data
         assert "name" in data
         assert "type" in data
         assert "body" in data
