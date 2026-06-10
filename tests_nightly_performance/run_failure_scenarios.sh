@@ -32,11 +32,21 @@ set -uo pipefail
 # ---------------------------------------------------------------------------
 # Configurable defaults
 # ---------------------------------------------------------------------------
+TEST_MODE="${TEST_MODE:-false}"          # Set TEST_MODE=true for a fast CI smoke-run
 COOLDOWN="${COOLDOWN:-1800}"
 ERROR_THRESHOLD="${ERROR_THRESHOLD:-3.0}"
 MIN_REQUESTS="${MIN_REQUESTS:-100}"
 SPIKE_USERS="${SPIKE_USERS:-500}"
 PERF_TEST_AWS_S3_BUCKET="${PERF_TEST_AWS_S3_BUCKET:-notify-performance-test-results-staging}"
+
+# In test mode: cap each scenario to 2 minutes and cool-down to 10 seconds
+# so the entire suite finishes in ~20 minutes, suitable for a GitHub Actions job.
+if [[ "$TEST_MODE" == "true" ]]; then
+    RUN_TIME="${RUN_TIME:-2m}"
+    COOLDOWN="${COOLDOWN:-10}"
+else
+    RUN_TIME="${RUN_TIME:-1h}"
+fi
 
 current_time=$(date "+%Y.%m.%d-%H.%M.%S")
 OUTPUT_DIR="${OUTPUT_DIR:-/tmp/blast_scenarios/$current_time}"
@@ -52,11 +62,13 @@ mkdir -p "$OUTPUT_DIR"
 
 # Base locust invocation — overrides run-time from locust.conf so each test
 # runs until the error threshold (or manual interrupt), not a fixed duration.
+# In TEST_MODE the run-time is capped short so the full suite can be validated
+# quickly in CI without waiting for natural failure thresholds.
 LOCUST_BASE=(
     locust
     --config locust.conf
     --locustfile src/blast_api.py
-    --run-time 1h
+    --run-time "$RUN_TIME"
     --error-threshold "$ERROR_THRESHOLD"
     --min-requests "$MIN_REQUESTS"
     --wait-min 0
@@ -105,11 +117,13 @@ cooldown() {
 # ---------------------------------------------------------------------------
 log "========================================================"
 log "Blast API Failure Scenario Suite"
+[[ "$TEST_MODE" == "true" ]] && log "*** TEST MODE — run-time capped at ${RUN_TIME} per scenario ***"
 log "Output directory : $OUTPUT_DIR"
 log "S3 destination   : ${S3_BASE}/<scenario>/"
 log "Error threshold  : ${ERROR_THRESHOLD}%  (min requests: $MIN_REQUESTS)"
 log "Spike user count : $SPIKE_USERS"
 log "Cool-down        : ${COOLDOWN}s between scenarios"
+log "Per-scenario cap : ${RUN_TIME}"
 log "========================================================"
 echo ""
 

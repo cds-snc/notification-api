@@ -19,6 +19,11 @@ on:
         description: 'Concurrent users for spike scenarios 2 & 4 (default: 500)'
         required: false
         default: '500'
+      test_mode:
+        description: 'Run each scenario for 2 minutes with 10s cooldowns to verify the pipeline end-to-end (default: false)'
+        required: false
+        type: boolean
+        default: false
 
 env:
   ACCOUNT_ID: ${{ secrets.STAGING_AWS_ACCOUNT_ID }}
@@ -79,7 +84,8 @@ jobs:
                   {"name": "COOLDOWN",         "value": "${{ inputs.cooldown }}"},
                   {"name": "ERROR_THRESHOLD",  "value": "${{ inputs.error_threshold }}"},
                   {"name": "MIN_REQUESTS",     "value": "${{ inputs.min_requests }}"},
-                  {"name": "SPIKE_USERS",      "value": "${{ inputs.spike_users }}"}
+                  {"name": "SPIKE_USERS",      "value": "${{ inputs.spike_users }}"},
+                  {"name": "TEST_MODE",        "value": "${{ inputs.test_mode }}"}
                 ]
               }
             ]
