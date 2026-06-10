@@ -73,10 +73,13 @@ class TestBatchSavingMetricsFunctions:
         redis_queue._suffix = "foo"
         redis_queue._process_type = "bar"
         put_batch_saving_inflight_processed(metrics_logger_mock, redis_queue, 1)
-        metrics_logger_mock.set_dimensions.assert_called_with(
-            {"acknowledged": "True", "notification_type": "foo", "priority": "bar"}
-        )
         metrics_logger_mock.put_metric.assert_called_with("batch_saving_inflight", 1, "Count")
+        metrics_logger_mock.set_dimensions.assert_has_calls(
+            [
+                call({"acknowledged": "True", "notification_type": "foo", "priority": "bar"}),
+                call({"acknowledged": "True", "notification_type": "any", "priority": "any"}),
+            ]
+        )
 
     def test_put_batch_saving_expiry_metric(self, mocker, metrics_logger_mock):
         redis_queue = mocker.MagicMock()
