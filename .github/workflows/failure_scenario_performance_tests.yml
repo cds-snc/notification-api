@@ -81,7 +81,7 @@ jobs:
               {
                 "name": "${{ env.CONTAINER_NAME }}",
                 "environment": [
-                  {"name": "COOLDOWN",         "value": "${{ inputs.test_mode == true && '120' || inputs.cooldown }}"},
+                  {"name": "COOLDOWN",         "value": "${{ fromJSON(format('{0}', inputs.test_mode)) && '120' || inputs.cooldown }}"},
                   {"name": "ERROR_THRESHOLD",  "value": "${{ inputs.error_threshold }}"},
                   {"name": "MIN_REQUESTS",     "value": "${{ inputs.min_requests }}"},
                   {"name": "SPIKE_USERS",      "value": "${{ inputs.spike_users }}"},
