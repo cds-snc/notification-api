@@ -2,7 +2,7 @@ from datetime import datetime
 
 from flask import jsonify
 
-from app import api_user, authenticated_service
+from app import api_user, authenticated_service, redis_store
 from app.dao import templates_dao
 from app.models import ApiKeyPermission
 from app.schema_validation import validate
@@ -27,5 +27,6 @@ def delete_manage_template(template_id):
     template.archived = True
     template.updated_at = datetime.utcnow()
     templates_dao.dao_update_template(template)
+    redis_store.delete(f"service-{authenticated_service.id}-templates")
 
     return jsonify(_serialize_template(template)), 200
