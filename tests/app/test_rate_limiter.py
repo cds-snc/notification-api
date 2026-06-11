@@ -198,7 +198,7 @@ class TestInMemoryRateLimiter:
                 assert limiter.current_usage == 50
 
 
-class TestRedisRateLimiter:
+class TestRedisSlidingWindowLogRateLimiter:
     @pytest.fixture
     def limiter(self):
         redis_client = fakeredis.FakeRedis()
