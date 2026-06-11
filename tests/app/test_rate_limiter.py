@@ -447,6 +447,20 @@ class TestRedisTokenBucketRateLimiter:
                 allow_send, _ = limiter.acquire_lease(1000)
                 assert allow_send is True
 
+    def test_full_cap_available_slightly_after_60_seconds(self, client, limiter):
+        # Mirrors test_window_slightly_older_than_60_seconds_is_removed: after
+        # depleting all tokens and waiting 60.1 s the bucket is at full cap and
+        # a full-cap request must be granted.
+        with client.application.app_context():
+            with patch("app.rate_limiter.time") as mock_time:
+                base_time = 100.0
+                mock_time.return_value = base_time
+                limiter.acquire_lease(1000)
+
+                mock_time.return_value = base_time + 60.1
+                allow_send, _ = limiter.acquire_lease(1000)
+                assert allow_send is True
+
     def test_reset_clears_bucket(self, client, limiter):
         with client.application.app_context():
             with patch("app.rate_limiter.time") as mock_time:
@@ -470,6 +484,35 @@ class TestRedisTokenBucketRateLimiter:
                 # Bucket now at 0
                 allow_send, _ = limiter.acquire_lease(1)
                 assert allow_send is False
+
+    def test_bucket_not_fully_refilled_after_59_9_seconds(self, client, limiter):
+        # After depleting all tokens, 59.9 s of refill restores only
+        # 1000/60 * 59.9 ≈ 998.3 tokens — not enough to grant 1000.
+        with client.application.app_context():
+            with patch("app.rate_limiter.time") as mock_time:
+                base_time = 100.0
+                mock_time.return_value = base_time
+                limiter.acquire_lease(1000)
+
+                mock_time.return_value = base_time + 59.9
+                allow_send, _ = limiter.acquire_lease(1000)
+                assert allow_send is False
+
+    def test_retry_delay_with_partial_prior_consumption(self, client, limiter):
+        # Two partial acquires leave 100 tokens remaining; requesting 200 creates
+        # a deficit of 100.  wait = ceil(100 / (1000/60)) = ceil(6.0) = 6 s.
+        with client.application.app_context():
+            with patch("app.rate_limiter.time") as mock_time:
+                import math
+
+                mock_time.return_value = 100.0
+                limiter.acquire_lease(500)
+                limiter.acquire_lease(400)
+                # 100 tokens remain; requesting 200 → deficit 100
+                allow_send, wait_seconds = limiter.acquire_lease(200)
+                assert allow_send is False
+                expected = math.ceil(100 / (1000 / 60))
+                assert wait_seconds == expected
 
 
 class TestInitializeRateLimiter:
