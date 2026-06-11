@@ -1,3 +1,5 @@
+import hmac
+
 from flask import current_app, g, request  # type: ignore
 from jwt import PyJWTError
 from notifications_python_client.authentication import (
@@ -149,6 +151,25 @@ def requires_cypress_auth():
         return handle_admin_key(auth_token, current_app.config.get("CYPRESS_AUTH_CLIENT_SECRET"))
     else:
         raise AuthError("Unauthorized, cypress authentication token required", 401)
+
+
+def requires_scan_verdict_auth():
+    request_helper.check_proxy_header_before_request()
+
+    provided_token = request.headers.get("X-Scan-Callback-Token")
+    expected_token = current_app.config.get("SCAN_VERDICT_CALLBACK_TOKEN")
+
+    if not provided_token:
+        raise AuthError("Unauthorized, scan verdict callback token required", 401)
+
+    if not expected_token:
+        current_app.logger.error("SCAN_VERDICT_CALLBACK_TOKEN is not configured")
+        raise AuthError("Unauthorized, scan verdict auth unavailable", 401)
+
+    if not hmac.compare_digest(provided_token, expected_token):
+        raise AuthError("Unauthorized, invalid scan verdict callback token", 403)
+
+    g.service_id = current_app.config.get("SCAN_VERDICT_CALLBACK_USER_NAME")
 
 
 def requires_auth():

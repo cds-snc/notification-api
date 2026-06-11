@@ -201,6 +201,7 @@ def register_blueprint(application):
         requires_cache_clear_auth,
         requires_cypress_auth,
         requires_no_auth,
+        requires_scan_verdict_auth,
         requires_sre_auth,
     )
     from app.billing.rest import billing_blueprint
@@ -209,7 +210,7 @@ def register_blueprint(application):
     from app.cypress.rest import cypress_blueprint
     from app.email_branding.rest import email_branding_blueprint
     from app.events.rest import events as events_blueprint
-    from app.files.rest import files_blueprint
+    from app.files.rest import files_blueprint, scan_verdict_callback_blueprint
     from app.inbound_number.rest import inbound_number_blueprint
     from app.inbound_sms.rest import inbound_sms as inbound_sms_blueprint
     from app.invite.rest import invite as invite_blueprint
@@ -246,6 +247,8 @@ def register_blueprint(application):
     register_notify_blueprint(application, notifications_blueprint, requires_auth)
 
     register_notify_blueprint(application, files_blueprint, requires_admin_auth)
+
+    register_notify_blueprint(application, scan_verdict_callback_blueprint, requires_scan_verdict_auth)
 
     register_notify_blueprint(application, job_blueprint, requires_admin_auth)
 

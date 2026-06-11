@@ -688,6 +688,9 @@ class Config(object):
     CYPRESS_AUTH_USER_NAME = "CYPRESS_AUTH_USER"
     CYPRESS_AUTH_CLIENT_SECRET = os.getenv("CYPRESS_AUTH_CLIENT_SECRET")
     CYPRESS_EMAIL_PREFIX = "notify-ui-tests"
+    # scan files callback auth
+    SCAN_VERDICT_CALLBACK_TOKEN = os.getenv("SCAN_VERDICT_CALLBACK_TOKEN")
+    SCAN_VERDICT_CALLBACK_USER_NAME = "scan-verdict-callback"
 
     @classmethod
     def get_sensitive_config(cls) -> list[str]:

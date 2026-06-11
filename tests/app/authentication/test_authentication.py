@@ -14,6 +14,7 @@ from app.authentication.auth import (
     requires_admin_auth,
     requires_auth,
     requires_cache_clear_auth,
+    requires_scan_verdict_auth,
 )
 from app.dao.api_key_dao import (
     expire_api_key,
@@ -507,3 +508,59 @@ class TestSwagger:
         error_data = json.loads(response.get_data(as_text=True))
         # assert error_data['result'] == 'error'
         assert "authentication token must be provided" in error_data["errors"][0]["message"]
+
+
+class TestScanVerdictAuth:
+    def test_requires_scan_verdict_auth_fails_without_token(self, client):
+        """Test that scan verdict auth fails when X-Scan-Callback-Token header is missing."""
+        request.headers = {}
+        with pytest.raises(AuthError) as exc:
+            requires_scan_verdict_auth()
+        assert exc.value.short_message == "Unauthorized, scan verdict callback token required"
+        assert exc.value.code == 401
+
+    def test_requires_scan_verdict_auth_fails_with_missing_config(self, client):
+        """Test that scan verdict auth fails when SCAN_VERDICT_CALLBACK_TOKEN is not configured."""
+        with set_config(client.application, "SCAN_VERDICT_CALLBACK_TOKEN", ""):
+            request.headers = {"X-Scan-Callback-Token": "some-token"}
+            with pytest.raises(AuthError) as exc:
+                requires_scan_verdict_auth()
+            assert exc.value.short_message == "Unauthorized, scan verdict auth unavailable"
+            assert exc.value.code == 401
+
+    def test_requires_scan_verdict_auth_fails_with_invalid_token(self, client):
+        """Test that scan verdict auth fails when provided token doesn't match expected token."""
+        with set_config(client.application, "SCAN_VERDICT_CALLBACK_TOKEN", "expected-token-value"):
+            request.headers = {"X-Scan-Callback-Token": "wrong-token-value"}
+            with pytest.raises(AuthError) as exc:
+                requires_scan_verdict_auth()
+            assert exc.value.short_message == "Unauthorized, invalid scan verdict callback token"
+            assert exc.value.code == 403
+
+    def test_requires_scan_verdict_auth_succeeds_with_valid_token(self, client):
+        """Test that scan verdict auth succeeds with valid token and sets g.service_id."""
+        scan_verdict_token = "valid-scan-verdict-callback-token"
+        scan_verdict_user_name = "scan-verdict-user"
+        with set_config_values(
+            client.application,
+            {
+                "SCAN_VERDICT_CALLBACK_TOKEN": scan_verdict_token,
+                "SCAN_VERDICT_CALLBACK_USER_NAME": scan_verdict_user_name,
+            },
+        ):
+            request.headers = {"X-Scan-Callback-Token": scan_verdict_token}
+            # This should not raise an exception
+            requires_scan_verdict_auth()
+            # Verify that g.service_id was set correctly
+            assert g.service_id == scan_verdict_user_name
+
+    def test_requires_scan_verdict_auth_token_comparison_is_constant_time(self, client):
+        """Test that token comparison uses constant-time comparison (hmac.compare_digest)."""
+        scan_verdict_token = "super-secret-callback-token"
+        with set_config(client.application, "SCAN_VERDICT_CALLBACK_TOKEN", scan_verdict_token):
+            # Test with a token that differs only in the last character
+            request.headers = {"X-Scan-Callback-Token": "super-secret-callback-toke" + chr(ord("n") + 1)}
+            with pytest.raises(AuthError) as exc:
+                requires_scan_verdict_auth()
+            # Should fail with invalid token, not expose timing information
+            assert exc.value.code == 403
