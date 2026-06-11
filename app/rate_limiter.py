@@ -383,7 +383,7 @@ class RedisSlidingWindowLogRateLimiter(RateLimiter):
                 return {0, seconds_to_wait}
             end
             """
-            self._lua_scripts["acquire"] = self.redis.register_script(lua_code)
+            self._lua_scripts["acquire"] = self.redis.redis_store.register_script(lua_code)
 
         return self._lua_scripts["acquire"]
 
@@ -557,7 +557,7 @@ class RedisTokenBucketRateLimiter(RateLimiter):
                 return {0, seconds_to_wait}
             end
             """
-            self._lua_scripts["acquire"] = self.redis.register_script(lua_code)
+            self._lua_scripts["acquire"] = self.redis.redis_store.register_script(lua_code)
 
         return self._lua_scripts["acquire"]
 
