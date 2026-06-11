@@ -6,6 +6,7 @@ from sqlalchemy.exc import NoResultFound
 from app.dao.files_dao import (
     dao_create_file,
     dao_delete_file,
+    dao_get_file_by_document_id,
     dao_get_file_by_id,
     dao_get_file_status_by_id_and_template_id,
     dao_get_files_by_template_id,
@@ -15,10 +16,17 @@ from app.dao.permissions_dao import permission_dao
 from app.dao.templates_dao import dao_get_template_by_id
 from app.errors import InvalidRequest, register_errors
 from app.files.files_schema import (
+    guardduty_scan_verdict_callback_schema,
     post_create_file_schema,
-    post_update_file_status_schema,
 )
-from app.models import FILE_STATUS_PENDING_VIRUS_SCAN, MANAGE_TEMPLATES, UPLOAD_DOCUMENT, Files
+from app.models import (
+    FILE_STATUS_PENDING_VIRUS_SCAN,
+    FILE_STATUS_UPLOADED,
+    FILE_STATUS_VIRUS_SCAN_FAILED,
+    MANAGE_TEMPLATES,
+    UPLOAD_DOCUMENT,
+    Files,
+)
 from app.notifications.validators import check_service_has_permission, validate_template_exists
 from app.schema_validation import validate
 from app.schemas import files_schema
@@ -26,12 +34,31 @@ from app.schemas import files_schema
 files_blueprint = Blueprint("files", __name__, url_prefix="/templates/<uuid:template_id>/files")
 register_errors(files_blueprint)
 
+scan_verdict_callback_blueprint = Blueprint("scan_verdict_callback", __name__, url_prefix="/templates/scan-verdict-callback")
+register_errors(scan_verdict_callback_blueprint)
+
+GUARD_DUTY_STATUS_MAP = {
+    "NO_THREATS_FOUND": FILE_STATUS_UPLOADED,
+    "THREATS_FOUND": FILE_STATUS_VIRUS_SCAN_FAILED,
+    "RUNNING": FILE_STATUS_PENDING_VIRUS_SCAN,
+    # Leave scan errors terminal so UI can show failure rather than spin forever
+    "UNSUPPORTED": FILE_STATUS_VIRUS_SCAN_FAILED,
+    "ACCESS_DENIED": FILE_STATUS_VIRUS_SCAN_FAILED,
+    "FAILED": FILE_STATUS_VIRUS_SCAN_FAILED,
+    "SKIPPED": FILE_STATUS_VIRUS_SCAN_FAILED,
+}
+
 
 @files_blueprint.route("", methods=["POST"])
 def create_file(template_id):
     data = request.get_json()
     validate(data, post_create_file_schema)
-    _check_user_has_file_permissions(data["created_by"])
+
+    user_id = data["created_by"]
+    permissions = {p.permission for p in permission_dao.get_permissions_by_user_id(data["created_by"])}
+
+    if MANAGE_TEMPLATES not in permissions:
+        raise InvalidRequest(f"User {user_id} does not have {MANAGE_TEMPLATES} permissions.", 403)
 
     try:
         template = dao_get_template_by_id(template_id)
@@ -82,30 +109,6 @@ def get_file_status(template_id, file_id):
 
 @files_blueprint.route("/<uuid:file_id>", methods=["DELETE"])
 def delete_file(template_id, file_id):
-    fetched_file = _validate_file_template_match(template_id, file_id)
-
-    dao_delete_file(fetched_file)
-
-    current_app.logger.info(f"Deleted file: {file_id} template_id {template_id}")
-    return "", 204
-
-
-# TODO: This will be pulled out into a separate route later for the eventbridge lambda
-# to access via a token. Just including here for now.
-@files_blueprint.route("/<uuid:file_id>/status", methods=["POST"])
-def update_file_status(template_id, file_id):
-    fetched_file = _validate_file_template_match(template_id, file_id)
-    data = request.get_json()
-    validate(data, post_update_file_status_schema)
-
-    fetched_file.status = data["status"]
-    dao_update_file(fetched_file)
-
-    current_app.logger.info(f"Updated file status for file: {file_id} template_id: {template_id} to {data['status']}")
-    return jsonify(files_schema.dump(fetched_file)), 200
-
-
-def _validate_file_template_match(template_id, file_id):
     fetched_file = dao_get_file_by_id(file_id)
 
     if fetched_file.template_id != template_id:
@@ -114,11 +117,68 @@ def _validate_file_template_match(template_id, file_id):
             404,
         )
 
-    return fetched_file
+    dao_delete_file(fetched_file)
+
+    current_app.logger.info(f"Deleted file: {file_id} template_id {template_id}")
+    return "", 204
 
 
-def _check_user_has_file_permissions(user_id):
-    permissions = {p.permission for p in permission_dao.get_permissions_by_user_id(user_id)}
+@scan_verdict_callback_blueprint.route("", methods=["POST"])
+def update_file_status():
+    """Callback endpoints that receives completed scan verdicts from GuardDuty / EventBridge
+    and updates the file in the DB with the appropriate scan verdict status.
 
-    if MANAGE_TEMPLATES not in permissions:
-        raise InvalidRequest(f"User {user_id} does not have {MANAGE_TEMPLATES} permissions.", 403)
+    The EventBridge connection calls this endpoint when it receives a file scan verdict event
+    from GuardDuty. Only events meeting the following criteria will be forwarded to this endpoint:
+    1. The scan_status is COMPLETED or FAILED
+    2. The scan was on the `*-document-download-scan-files` bucket
+    3. The scanned key matches `/template/<service_id>/<document_id>`
+    """
+    event = request.get_json()
+    validate(event, guardduty_scan_verdict_callback_schema)
+
+    parsed = _parse_scan_verdict_payload(event)
+    document_id = parsed["document_id"]
+    service_id = parsed["service_id"]
+    new_status = parsed["new_status"]
+
+    fetched_file = dao_get_file_by_document_id(document_id)
+    if str(fetched_file.service_id) != service_id:
+        raise InvalidRequest(
+            f"Requested document_id {fetched_file.document_id} is not associated with service {service_id}",
+            404,
+        )
+
+    fetched_file.status = new_status
+    dao_update_file(fetched_file)
+
+    current_app.logger.info(
+        f"Updated file status to {new_status} for file_id: {fetched_file.id} "
+        f"template_id: {fetched_file.template_id} document_id: {fetched_file.document_id} "
+    )
+    return jsonify(files_schema.dump(fetched_file)), 200
+
+
+def _parse_scan_verdict_payload(event):
+    scan_status = event.get("scan_status")
+    scan_result = event.get("scan_result_status")
+    object_key = event["object_key"]
+    bucket_name = event.get("bucket_name")
+
+    current_app.logger.info(
+        f"Received Scan result: bucket={bucket_name} key={object_key}" f" scanStatus={scan_status} scanResult={scan_result}"
+    )
+    normalized_key = object_key.lstrip("/")
+    _, service_id, document_id = normalized_key.split("/", 2)
+
+    if scan_status == "COMPLETED":
+        new_status = GUARD_DUTY_STATUS_MAP.get(scan_result, FILE_STATUS_VIRUS_SCAN_FAILED)
+    else:
+        new_status = GUARD_DUTY_STATUS_MAP.get(scan_status, FILE_STATUS_VIRUS_SCAN_FAILED)
+
+    return {
+        "status": "ok",
+        "service_id": service_id,
+        "document_id": document_id,
+        "new_status": new_status,
+    }
