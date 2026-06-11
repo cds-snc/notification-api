@@ -134,6 +134,20 @@ class ForbiddenError(InvalidRequest):
         self.fields = fields if fields is not None else []
 
 
+class TemplateCategoryValidationError(BadRequestError):
+    message = "template_category_id must be a valid UUID"
+
+    def __init__(self):
+        super().__init__(message=self.__class__.message)
+
+
+class TemplateCategoryNotFoundError(BadRequestError):
+    message = "template_category_id not found"
+
+    def __init__(self):
+        super().__init__(message=self.__class__.message)
+
+
 class PDFNotReadyError(BadRequestError):
     def __init__(self):
         super().__init__(message="PDF not available yet, try again later", status_code=400)

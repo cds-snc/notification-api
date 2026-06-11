@@ -8,11 +8,15 @@ from app.dao.template_categories_dao import dao_get_template_category_by_id
 from app.dao.template_folder_dao import dao_get_template_folder_by_id_and_service_id
 from app.models import ApiKeyPermission
 from app.schema_validation import validate
-from app.v2.errors import BadRequestError, ForbiddenError
+from app.v2.errors import (
+    BadRequestError,
+    ForbiddenError,
+    TemplateCategoryNotFoundError,
+    TemplateCategoryValidationError,
+)
 from app.v2.manage_template import v2_manage_template_blueprint
 from app.v2.manage_template.get_template import _serialize_template
 from app.v2.manage_template.post_template import (
-    _get_validation_message,
     _raise_if_content_or_name_over_limit,
     _template_category_error_response,
 )
@@ -31,7 +35,10 @@ def patch_manage_template(template_id):
         data = validate(request.get_json() or {}, patch_manage_template_request)
     except ValidationError as e:
         if "template_category_id" in str(e):
-            return _template_category_error_response("ValidationError", _get_validation_message(e))
+            return _template_category_error_response(
+                TemplateCategoryValidationError.__name__,
+                TemplateCategoryValidationError.message,
+            )
         raise
 
     template = templates_dao.dao_get_template_by_id_and_service_id(template_id, authenticated_service.id)
@@ -40,7 +47,10 @@ def patch_manage_template(template_id):
         try:
             dao_get_template_category_by_id(data["template_category_id"])
         except NoResultFound:
-            return _template_category_error_response("InvalidRequest", "template_category_id not found")
+            return _template_category_error_response(
+                TemplateCategoryNotFoundError.__name__,
+                TemplateCategoryNotFoundError.message,
+            )
 
     if "parent_folder_id" in data:
         parent_folder_id = data.pop("parent_folder_id")

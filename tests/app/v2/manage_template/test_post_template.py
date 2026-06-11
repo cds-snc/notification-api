@@ -122,7 +122,7 @@ class TestPostTemplateV2ManageTemplate:
 
         assert response.status_code == 400
         data = json.loads(response.get_data(as_text=True))
-        assert data["errors"][0]["error"] == "ValidationError"
+        assert data["errors"][0]["error"] == "TemplateCategoryValidationError"
         assert data["errors"][0]["message"] == "template_category_id is a required property"
         assert "template_categories" in data
         assert len(data["template_categories"]) > 0
@@ -177,7 +177,7 @@ class TestPostTemplateV2ManageTemplate:
 
         assert response.status_code == 400
         data = json.loads(response.get_data(as_text=True))
-        assert data["errors"][0]["error"] == "ValidationError"
+        assert data["errors"][0]["error"] == "TemplateCategoryValidationError"
         assert "template_category_id" in data["errors"][0]["message"]
         assert "template_categories" in data
         assert len(data["template_categories"]) > 0

@@ -1,5 +1,3 @@
-import json
-
 from flask import jsonify, request
 from jsonschema import ValidationError
 from notifications_utils import EMAIL_CHAR_COUNT_LIMIT, SMS_CHAR_COUNT_LIMIT, TEMPLATE_NAME_CHAR_COUNT_LIMIT
@@ -14,7 +12,12 @@ from app.models import EMAIL_TYPE, SMS_TYPE, ApiKeyPermission, Template
 from app.notifications.validators import service_has_permission
 from app.schema_validation import validate
 from app.utils import get_public_notify_type_text
-from app.v2.errors import BadRequestError, ForbiddenError
+from app.v2.errors import (
+    BadRequestError,
+    ForbiddenError,
+    TemplateCategoryNotFoundError,
+    TemplateCategoryValidationError,
+)
 from app.v2.manage_template import v2_manage_template_blueprint
 from app.v2.manage_template.get_template import _serialize_template
 from app.v2.manage_template.template_schemas import post_manage_template_request
@@ -29,14 +32,17 @@ def post_manage_template():
         data = validate(request.get_json() or {}, post_manage_template_request)
     except ValidationError as e:
         if "template_category_id" in str(e):
-            return _template_category_error_response("ValidationError", _get_validation_message(e))
+            return _template_category_error_response(
+                TemplateCategoryValidationError.__name__,
+                _template_category_validation_message(e),
+            )
         raise
 
     try:
         _validate_template_category_id(data["template_category_id"])
-    except BadRequestError as e:
-        if e.message == "template_category_id not found":
-            return _template_category_error_response("InvalidRequest", e.message)
+    except TemplateCategoryNotFoundError as e:
+        if e.message == TemplateCategoryNotFoundError.message:
+            return _template_category_error_response(TemplateCategoryNotFoundError.__name__, e.message)
         raise
 
     folder = _validate_parent_folder(data)
@@ -66,7 +72,7 @@ def _validate_template_category_id(template_category_id):
     try:
         dao_get_template_category_by_id(template_category_id)
     except NoResultFound:
-        raise BadRequestError(message="template_category_id not found")
+        raise TemplateCategoryNotFoundError()
 
 
 def _validate_parent_folder(data):
@@ -131,17 +137,7 @@ def _template_category_error_response(error_type, message):
     )
 
 
-def _get_validation_message(error):
-    if isinstance(error.message, str):
-        try:
-            parsed_error = json.loads(error.message)
-        except ValueError:
-            return error.message
-
-        errors = parsed_error.get("errors") if isinstance(parsed_error, dict) else None
-        if isinstance(errors, list) and errors:
-            first_error = errors[0]
-            if isinstance(first_error, dict) and "message" in first_error:
-                return first_error["message"]
-
-    return str(error)
+def _template_category_validation_message(error):
+    if "required property" in str(error):
+        return "template_category_id is a required property"
+    return TemplateCategoryValidationError.message
