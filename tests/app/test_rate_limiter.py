@@ -15,7 +15,7 @@ from app.rate_limiter import (
 class TestInMemoryRateLimiter:
     @pytest.fixture
     def limiter(self):
-        return InMemoryRateLimiter(cap_per_minute=1000)
+        return InMemoryRateLimiter(cap_per_minute=1000, namespace="test")
 
     def test_acquire_lease_below_capacity_succeeds(self, client, limiter):
         with client.application.app_context():
@@ -202,7 +202,7 @@ class TestRedisRateLimiter:
     @pytest.fixture
     def limiter(self):
         redis_client = fakeredis.FakeRedis()
-        return RedisSlidingWindowLogRateLimiter(cap_per_minute=1000, redis_client=redis_client)
+        return RedisSlidingWindowLogRateLimiter(cap_per_minute=1000, namespace="test", redis_client=redis_client)
 
     def test_acquire_lease_below_capacity_succeeds(self, client, limiter):
         with client.application.app_context():
@@ -348,7 +348,7 @@ class TestRedisTokenBucketRateLimiter:
     @pytest.fixture
     def limiter(self):
         redis_client = fakeredis.FakeRedis()
-        return RedisTokenBucketRateLimiter(cap_per_minute=1000, redis_client=redis_client)
+        return RedisTokenBucketRateLimiter(cap_per_minute=1000, namespace="test", redis_client=redis_client)
 
     def test_acquire_lease_below_capacity_succeeds(self, client, limiter):
         with client.application.app_context():
@@ -480,12 +480,12 @@ class TestInitializeRateLimiter:
 
     def test_explicit_class_arg_takes_precedence(self, client):
         with client.application.app_context():
-            instance = initialize_rate_limiter(1000, RedisTokenBucketRateLimiter)
+            instance = initialize_rate_limiter(1000, RedisTokenBucketRateLimiter, namespace="test")
             assert isinstance(instance, RedisTokenBucketRateLimiter)
 
     def test_explicit_in_memory_class_arg(self, client):
         with client.application.app_context():
-            instance = initialize_rate_limiter(1000, InMemoryRateLimiter)
+            instance = initialize_rate_limiter(1000, InMemoryRateLimiter, namespace="test")
             assert isinstance(instance, InMemoryRateLimiter)
 
     def test_config_name_resolves_token_bucket(self, client):
@@ -498,7 +498,7 @@ class TestInitializeRateLimiter:
                 }
                 with patch("app.rate_limiter.InMemoryRateLimiter", InMemoryRateLimiter):
                     with patch("app.config.Config.SMS_RATE_LIMITER_BACKEND", "RedisTokenBucketRateLimiter", create=True):
-                        instance = initialize_rate_limiter(1000)
+                        instance = initialize_rate_limiter(1000, namespace="test")
                         assert isinstance(instance, RedisTokenBucketRateLimiter)
 
     def test_config_name_resolves_zset(self, client):
@@ -510,7 +510,7 @@ class TestInitializeRateLimiter:
                     "RedisTokenBucketRateLimiter": RedisTokenBucketRateLimiter,
                 }
                 with patch("app.config.Config.SMS_RATE_LIMITER_BACKEND", "RedisSlidingWindowLogRateLimiter", create=True):
-                    instance = initialize_rate_limiter(1000)
+                    instance = initialize_rate_limiter(1000, namespace="test")
                     assert isinstance(instance, RedisSlidingWindowLogRateLimiter)
 
     def test_unknown_config_name_falls_back_to_in_memory(self, client):
@@ -522,11 +522,11 @@ class TestInitializeRateLimiter:
                     "RedisTokenBucketRateLimiter": RedisTokenBucketRateLimiter,
                 }
                 with patch("app.config.Config.SMS_RATE_LIMITER_BACKEND", "UnknownClass", create=True):
-                    instance = initialize_rate_limiter(1000)
+                    instance = initialize_rate_limiter(1000, namespace="test")
                     assert isinstance(instance, InMemoryRateLimiter)
 
     def test_default_no_args_uses_in_memory(self, client):
         with client.application.app_context():
             with patch("app.config.Config.SMS_RATE_LIMITER_BACKEND", "InMemoryRateLimiter", create=True):
-                instance = initialize_rate_limiter(1000)
+                instance = initialize_rate_limiter(1000, namespace="test")
                 assert isinstance(instance, InMemoryRateLimiter)

@@ -35,7 +35,7 @@ def _prefill_zset(limiter: RedisSlidingWindowLogRateLimiter, n: int) -> None:
         # Spread entries across the 60 s window so none are cleaned on admit
         fake_now = base - 59.0 + (59.0 / max(n, 1)) * i
         limiter._get_acquire_lua_script()(
-            keys=[limiter.REDIS_KEY_ENTRIES],
+            keys=[limiter._entries_key],
             args=[CAP, 1, fake_now, f"prefill-{i}", limiter.WINDOW_SIZE_SECONDS],
         )
 
@@ -73,17 +73,17 @@ def test_scaling_comparison(client):
         for n in N_VALUES:
             # ---- ZSet ----
             zset_redis = fakeredis.FakeRedis()
-            zset = RedisSlidingWindowLogRateLimiter(cap_per_minute=CAP, redis_client=zset_redis)
+            zset = RedisSlidingWindowLogRateLimiter(cap_per_minute=CAP, namespace="test", redis_client=zset_redis)
             _prefill_zset(zset, n)
             zset_us = _time_acquire(zset, REPS)
 
             # ---- Token bucket (Redis hash) ----
             tb_redis = fakeredis.FakeRedis()
-            tb = RedisTokenBucketRateLimiter(cap_per_minute=CAP, redis_client=tb_redis)
+            tb = RedisTokenBucketRateLimiter(cap_per_minute=CAP, namespace="test", redis_client=tb_redis)
             tb_us = _time_acquire(tb, REPS)
 
             # ---- In-memory (deque, process-local baseline) ----
-            mem = InMemoryRateLimiter(cap_per_minute=CAP)
+            mem = InMemoryRateLimiter(cap_per_minute=CAP, namespace="test")
             _prefill_in_memory(mem, n)
             mem_us = _time_acquire(mem, REPS)
 
