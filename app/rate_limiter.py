@@ -245,8 +245,7 @@ def initialize_rate_limiter(
 
         if class_name not in registry:
             logger.warning(
-                "Rate limiter: unknown class name %r in SMS_RATE_LIMITER_BACKEND; "
-                "falling back to InMemoryRateLimiter.",
+                "Rate limiter: unknown class name %r in SMS_RATE_LIMITER_BACKEND; " "falling back to InMemoryRateLimiter.",
                 class_name,
             )
             resolved_class = InMemoryRateLimiter
@@ -428,9 +427,7 @@ class RedisSlidingWindowLogRateLimiter(RateLimiter):
         success, wait_seconds = result[0], result[1]
 
         if success:
-            current_app.logger.debug(
-                f"Rate limiter [{self.namespace}]: acquired {units} units. Entry ID: {entry_id}"
-            )
+            current_app.logger.debug(f"Rate limiter [{self.namespace}]: acquired {units} units. Entry ID: {entry_id}")
         else:
             current_app.logger.warning(
                 f"Rate limiter [{self.namespace}]: capacity exhausted. Requested {units} units. "
