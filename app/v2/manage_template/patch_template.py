@@ -40,7 +40,6 @@ def patch_manage_template(template_id):
                 TemplateCategoryValidationError.message,
             )
         raise
-
     template = templates_dao.dao_get_template_by_id_and_service_id(template_id, authenticated_service.id)
 
     if "template_category_id" in data:
@@ -69,6 +68,7 @@ def patch_manage_template(template_id):
     _raise_if_content_or_name_over_limit(template)
 
     templates_dao.dao_update_template(template)
-    redis_store.delete(f"service-{authenticated_service.id}-templates")
+    redis_store.delete(f"service-{str(template.service_id)}-templates")
+    redis_store.delete(f"template-{str(template_id)}-version-{template.version}")
 
     return jsonify(_serialize_template(template)), 200
