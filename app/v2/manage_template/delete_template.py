@@ -26,6 +26,7 @@ def delete_manage_template(template_id):
 
     template.archived = True
     template.updated_at = datetime.utcnow()
+    template.folder = None
     templates_dao.dao_update_template(template)
     redis_store.delete(f"service-{str(template.service_id)}-templates")
     redis_store.delete(f"template-{str(template_id)}-version-{template.version}")
