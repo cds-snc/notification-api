@@ -429,6 +429,14 @@ class TestRedisQueueMetricUsage:
             redis_queue.poll(10)
             redis_queue.poll(10)
             redis_queue.poll(10)
-            time.sleep(2)
-            redis_queue.expire_inflights()
-            assert pbsem_mock.assert_called_with(mock.ANY, mock.ANY, 3) is None
+            # Expiry uses Redis idletime (`idle > expire_after`) with second-level granularity,
+            # so inflights may expire across more than one pass depending on timing.
+            total_expired = 0
+            for _ in range(5):
+                redis_queue.expire_inflights()
+                total_expired = sum(call.args[2] for call in pbsem_mock.call_args_list)
+                if total_expired >= 3:
+                    break
+                time.sleep(1)
+
+            assert total_expired == 3
