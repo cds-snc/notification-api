@@ -3,13 +3,19 @@ from unittest.mock import patch
 import fakeredis
 import pytest
 
-from app.rate_limiter import InMemoryRateLimiter, RedisZSetRateLimiter
+from app import rate_limiter
+from app.rate_limiter import (
+    InMemoryRateLimiter,
+    RedisSlidingWindowLogRateLimiter,
+    RedisTokenBucketRateLimiter,
+    initialize_rate_limiter,
+)
 
 
 class TestInMemoryRateLimiter:
     @pytest.fixture
     def limiter(self):
-        return InMemoryRateLimiter(cap_per_minute=1000)
+        return InMemoryRateLimiter(cap_per_minute=1000, namespace="test")
 
     def test_acquire_lease_below_capacity_succeeds(self, client, limiter):
         with client.application.app_context():
@@ -192,11 +198,11 @@ class TestInMemoryRateLimiter:
                 assert limiter.current_usage == 50
 
 
-class TestRedisRateLimiter:
+class TestRedisSlidingWindowLogRateLimiter:
     @pytest.fixture
     def limiter(self):
         redis_client = fakeredis.FakeRedis()
-        return RedisZSetRateLimiter(cap_per_minute=1000, redis_client=redis_client)
+        return RedisSlidingWindowLogRateLimiter(cap_per_minute=1000, namespace="test", redis_client=redis_client)
 
     def test_acquire_lease_below_capacity_succeeds(self, client, limiter):
         with client.application.app_context():
@@ -336,3 +342,234 @@ class TestRedisRateLimiter:
 
                 mock_time.return_value = base_time + 59.9
                 assert limiter.get_current_usage() == 50
+
+
+class TestRedisTokenBucketRateLimiter:
+    @pytest.fixture
+    def limiter(self):
+        redis_client = fakeredis.FakeRedis()
+        return RedisTokenBucketRateLimiter(cap_per_minute=1000, namespace="test", redis_client=redis_client)
+
+    def test_acquire_lease_below_capacity_succeeds(self, client, limiter):
+        with client.application.app_context():
+            allow_send, wait_seconds = limiter.acquire_lease(100)
+            assert allow_send is True
+            assert wait_seconds == 0
+
+    def test_acquire_lease_at_capacity_succeeds(self, client, limiter):
+        with client.application.app_context():
+            allow_send, wait_seconds = limiter.acquire_lease(1000)
+            assert allow_send is True
+            assert wait_seconds == 0
+
+    def test_acquire_lease_exceeding_capacity_fails(self, client, limiter):
+        with client.application.app_context():
+            limiter.acquire_lease(1000)
+            allow_send, wait_seconds = limiter.acquire_lease(100)
+            assert allow_send is False
+            assert wait_seconds > 0
+
+    def test_acquire_with_zero_parts_raises_error(self, client, limiter):
+        with client.application.app_context():
+            with pytest.raises(ValueError):
+                limiter.acquire_lease(0)
+
+    def test_acquire_negative_parts_raises_error(self, client, limiter):
+        with client.application.app_context():
+            with pytest.raises(ValueError):
+                limiter.acquire_lease(-10)
+
+    def test_acquire_over_capacity_raises_error(self, client, limiter):
+        with client.application.app_context():
+            with pytest.raises(ValueError):
+                limiter.acquire_lease(limiter.cap_per_minute + 1)
+
+    def test_get_current_usage_returns_consumed_parts(self, client, limiter):
+        with client.application.app_context():
+            with patch("app.rate_limiter.time") as mock_time:
+                mock_time.return_value = 100.0
+                limiter.acquire_lease(150)
+                limiter.acquire_lease(250)
+                # freeze time so no refill occurs during get_current_usage
+                assert limiter.get_current_usage() == 400
+
+    def test_get_current_usage_zero_when_bucket_empty(self, client, limiter):
+        with client.application.app_context():
+            assert limiter.get_current_usage() == 0
+
+    def test_retry_delay_is_precise(self, client, limiter):
+        # Token bucket wait time = ceil(deficit / refill_rate)
+        # refill_rate = 1000 / 60 ≈ 16.67 parts/sec
+        # After consuming 1000/1000, requesting 100 more:
+        # deficit = 100, wait = ceil(100 / 16.67) = ceil(5.999) = 6
+        with client.application.app_context():
+            with patch("app.rate_limiter.time") as mock_time:
+                mock_time.return_value = 100.0
+                limiter.acquire_lease(1000)
+                allow_send, wait_seconds = limiter.acquire_lease(100)
+                assert allow_send is False
+                import math
+
+                expected = math.ceil(100 / (1000 / 60))
+                assert wait_seconds == expected
+
+    def test_capacity_refills_over_time(self, client, limiter):
+        with client.application.app_context():
+            with patch("app.rate_limiter.time") as mock_time:
+                mock_time.return_value = 100.0
+                limiter.acquire_lease(1000)
+
+                # Advance 30 seconds — should have refilled 1000/60 * 30 = 500 tokens
+                mock_time.return_value = 130.0
+                allow_send, _ = limiter.acquire_lease(500)
+                assert allow_send is True
+
+    def test_bucket_does_not_exceed_cap_after_idle(self, client, limiter):
+        with client.application.app_context():
+            with patch("app.rate_limiter.time") as mock_time:
+                mock_time.return_value = 100.0
+                limiter.acquire_lease(500)
+
+                # Advance 120 seconds — bucket should be capped at 1000, not 500 + 1000/60*120
+                mock_time.return_value = 220.0
+                allow_send, _ = limiter.acquire_lease(1000)
+                assert allow_send is True
+
+    def test_burst_after_idle_allows_full_cap(self, client, limiter):
+        with client.application.app_context():
+            with patch("app.rate_limiter.time") as mock_time:
+                mock_time.return_value = 100.0
+                # Use up full capacity
+                limiter.acquire_lease(1000)
+
+                # Advance 60 seconds — bucket fully refilled
+                mock_time.return_value = 160.0
+                allow_send, _ = limiter.acquire_lease(1000)
+                assert allow_send is True
+
+    def test_full_cap_available_slightly_after_60_seconds(self, client, limiter):
+        # Mirrors test_window_slightly_older_than_60_seconds_is_removed: after
+        # depleting all tokens and waiting 60.1 s the bucket is at full cap and
+        # a full-cap request must be granted.
+        with client.application.app_context():
+            with patch("app.rate_limiter.time") as mock_time:
+                base_time = 100.0
+                mock_time.return_value = base_time
+                limiter.acquire_lease(1000)
+
+                mock_time.return_value = base_time + 60.1
+                allow_send, _ = limiter.acquire_lease(1000)
+                assert allow_send is True
+
+    def test_reset_clears_bucket(self, client, limiter):
+        with client.application.app_context():
+            with patch("app.rate_limiter.time") as mock_time:
+                mock_time.return_value = 100.0
+                limiter.acquire_lease(1000)
+                allow_send, _ = limiter.acquire_lease(100)
+                assert allow_send is False
+
+                limiter.reset_limiter()
+                # After reset, bucket is gone; next call initialises fresh full bucket
+                allow_send, _ = limiter.acquire_lease(1000)
+                assert allow_send is True
+
+    def test_multiple_sequential_acquires_deplete_tokens(self, client, limiter):
+        with client.application.app_context():
+            with patch("app.rate_limiter.time") as mock_time:
+                mock_time.return_value = 100.0
+                limiter.acquire_lease(400)
+                limiter.acquire_lease(400)
+                limiter.acquire_lease(200)
+                # Bucket now at 0
+                allow_send, _ = limiter.acquire_lease(1)
+                assert allow_send is False
+
+    def test_bucket_not_fully_refilled_after_59_9_seconds(self, client, limiter):
+        # After depleting all tokens, 59.9 s of refill restores only
+        # 1000/60 * 59.9 ≈ 998.3 tokens — not enough to grant 1000.
+        with client.application.app_context():
+            with patch("app.rate_limiter.time") as mock_time:
+                base_time = 100.0
+                mock_time.return_value = base_time
+                limiter.acquire_lease(1000)
+
+                mock_time.return_value = base_time + 59.9
+                allow_send, _ = limiter.acquire_lease(1000)
+                assert allow_send is False
+
+    def test_retry_delay_with_partial_prior_consumption(self, client, limiter):
+        # Two partial acquires leave 100 tokens remaining; requesting 200 creates
+        # a deficit of 100.  wait = ceil(100 / (1000/60)) = ceil(6.0) = 6 s.
+        with client.application.app_context():
+            with patch("app.rate_limiter.time") as mock_time:
+                import math
+
+                mock_time.return_value = 100.0
+                limiter.acquire_lease(500)
+                limiter.acquire_lease(400)
+                # 100 tokens remain; requesting 200 → deficit 100
+                allow_send, wait_seconds = limiter.acquire_lease(200)
+                assert allow_send is False
+                expected = math.ceil(100 / (1000 / 60))
+                assert wait_seconds == expected
+
+
+class TestInitializeRateLimiter:
+    def teardown_method(self):
+        # Reset global singleton between tests
+        with patch.object(rate_limiter, "_rate_limiter_instance", None):
+            pass
+
+    def test_explicit_class_arg_takes_precedence(self, client):
+        with client.application.app_context():
+            instance = initialize_rate_limiter(1000, RedisTokenBucketRateLimiter, namespace="test")
+            assert isinstance(instance, RedisTokenBucketRateLimiter)
+
+    def test_explicit_in_memory_class_arg(self, client):
+        with client.application.app_context():
+            instance = initialize_rate_limiter(1000, InMemoryRateLimiter, namespace="test")
+            assert isinstance(instance, InMemoryRateLimiter)
+
+    def test_config_name_resolves_token_bucket(self, client):
+        with client.application.app_context():
+            with patch("app.rate_limiter._build_limiter_registry") as mock_registry:
+                mock_registry.return_value = {
+                    "InMemoryRateLimiter": InMemoryRateLimiter,
+                    "RedisSlidingWindowLogRateLimiter": RedisSlidingWindowLogRateLimiter,
+                    "RedisTokenBucketRateLimiter": RedisTokenBucketRateLimiter,
+                }
+                with patch("app.rate_limiter.InMemoryRateLimiter", InMemoryRateLimiter):
+                    with patch("app.config.Config.SMS_RATE_LIMITER_BACKEND", "RedisTokenBucketRateLimiter", create=True):
+                        instance = initialize_rate_limiter(1000, namespace="test")
+                        assert isinstance(instance, RedisTokenBucketRateLimiter)
+
+    def test_config_name_resolves_zset(self, client):
+        with client.application.app_context():
+            with patch("app.rate_limiter._build_limiter_registry") as mock_registry:
+                mock_registry.return_value = {
+                    "InMemoryRateLimiter": InMemoryRateLimiter,
+                    "RedisSlidingWindowLogRateLimiter": RedisSlidingWindowLogRateLimiter,
+                    "RedisTokenBucketRateLimiter": RedisTokenBucketRateLimiter,
+                }
+                with patch("app.config.Config.SMS_RATE_LIMITER_BACKEND", "RedisSlidingWindowLogRateLimiter", create=True):
+                    instance = initialize_rate_limiter(1000, namespace="test")
+                    assert isinstance(instance, RedisSlidingWindowLogRateLimiter)
+
+    def test_unknown_config_name_falls_back_to_in_memory(self, client):
+        with client.application.app_context():
+            with patch("app.rate_limiter._build_limiter_registry") as mock_registry:
+                mock_registry.return_value = {
+                    "InMemoryRateLimiter": InMemoryRateLimiter,
+                    "RedisSlidingWindowLogRateLimiter": RedisSlidingWindowLogRateLimiter,
+                    "RedisTokenBucketRateLimiter": RedisTokenBucketRateLimiter,
+                }
+                with patch("app.config.Config.SMS_RATE_LIMITER_BACKEND", "UnknownClass", create=True):
+                    instance = initialize_rate_limiter(1000, namespace="test")
+                    assert isinstance(instance, InMemoryRateLimiter)
+
+    def test_default_no_args_uses_in_memory(self, client):
+        with client.application.app_context():
+            with patch("app.config.Config.SMS_RATE_LIMITER_BACKEND", "InMemoryRateLimiter", create=True):
+                instance = initialize_rate_limiter(1000, namespace="test")
+                assert isinstance(instance, InMemoryRateLimiter)
