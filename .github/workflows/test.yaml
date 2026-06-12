@@ -1,4 +1,5 @@
 on:
+  pull_request:
   push:
 name: Python tests
 jobs:
@@ -258,6 +259,38 @@ jobs:
         path: |
           pytest*.log
           test_results_${{ matrix.name }}.xml
+
+  test:
+    # Keep a stable required check name (`test`) for branch protection.
+    needs: [changes, formatter, test-serial, test-parallel]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+    - name: Validate upstream test jobs
+      shell: bash
+      env:
+        FORMATTER_RESULT: ${{ needs.formatter.result }}
+        SERIAL_RESULT: ${{ needs.test-serial.result }}
+        PARALLEL_RESULT: ${{ needs.test-parallel.result }}
+      run: |
+        set -euo pipefail
+
+        if [[ "$FORMATTER_RESULT" == "failure" || "$FORMATTER_RESULT" == "cancelled" ]]; then
+          echo "Job 'formatter' finished with result: $FORMATTER_RESULT"
+          exit 1
+        fi
+
+        if [[ "$SERIAL_RESULT" == "failure" || "$SERIAL_RESULT" == "cancelled" ]]; then
+          echo "Job 'test-serial' finished with result: $SERIAL_RESULT"
+          exit 1
+        fi
+
+        if [[ "$PARALLEL_RESULT" == "failure" || "$PARALLEL_RESULT" == "cancelled" ]]; then
+          echo "Job 'test-parallel' finished with result: $PARALLEL_RESULT"
+          exit 1
+        fi
+
+        echo "Required test gate passed."
 
     - name: Notify Slack channel if this job fails
       if: ${{ failure() && github.ref == 'refs/heads/main' }}
