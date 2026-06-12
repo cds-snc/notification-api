@@ -21,6 +21,8 @@ jobs:
     needs: changes
     if: ${{ contains(fromJSON(needs.changes.outputs.changes), 'run-tests') }}
     runs-on: ubuntu-latest
+    env:
+      POETRY_VIRTUALENVS_IN_PROJECT: true
     steps:
     - name: Install libcurl
       run: sudo apt-get update && sudo apt-get install libssl-dev libcurl4-openssl-dev
@@ -38,9 +40,17 @@ jobs:
     - uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        key: ${{ runner.os }}-pip-${{ hashFiles('poetry.lock') }}
         restore-keys: |
           ${{ runner.os }}-pip-
+
+    - uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+      id: venv-cache
+      with:
+        path: .venv
+        key: ${{ runner.os }}-py312-venv-${{ hashFiles('poetry.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-py312-venv-
 
     - name: Install poetry
       env:
@@ -51,7 +61,8 @@ jobs:
       run: poetry check --lock
 
     - name: Install requirements
-      run: poetry install --with test
+      if: steps.venv-cache.outputs.cache-hit != 'true'
+      run: poetry install --with test --no-interaction --no-ansi
 
     - name: Ruff check
       run: poetry run ruff check .
@@ -101,10 +112,11 @@ jobs:
         curl -X POST -H 'Content-type: application/json' --data "$json"  ${{ secrets.SLACK_WEBHOOK }}
 
   test-serial:
-    needs: [changes, formatter]
+    needs: [changes]
     if: ${{ contains(fromJSON(needs.changes.outputs.changes), 'run-tests') }}
     env:
       CYPRESS_USER_PW_SECRET: ${{ secrets.CYPRESS_USER_PW_SECRET }}
+      POETRY_VIRTUALENVS_IN_PROJECT: true
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -139,9 +151,17 @@ jobs:
     - uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        key: ${{ runner.os }}-pip-${{ hashFiles('poetry.lock') }}
         restore-keys: |
           ${{ runner.os }}-pip-
+
+    - uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+      id: venv-cache
+      with:
+        path: .venv
+        key: ${{ runner.os }}-py312-venv-${{ hashFiles('poetry.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-py312-venv-
 
     - name: Install poetry
       env:
@@ -149,7 +169,8 @@ jobs:
       run: pip install poetry==${POETRY_VERSION} poetry-plugin-sort && poetry --version
 
     - name: Install requirements
-      run: poetry install --with test
+      if: steps.venv-cache.outputs.cache-hit != 'true'
+      run: poetry install --with test --no-interaction --no-ansi
 
     - name: Generate version file
       run: make generate-version-file
@@ -175,10 +196,11 @@ jobs:
         curl -X POST -H 'Content-type: application/json' --data "$json"  ${{ secrets.SLACK_WEBHOOK }}
 
   test-parallel:
-    needs: [changes, formatter]
+    needs: [changes]
     if: ${{ contains(fromJSON(needs.changes.outputs.changes), 'run-tests') }}
     env:
       CYPRESS_USER_PW_SECRET: ${{ secrets.CYPRESS_USER_PW_SECRET }}
+      POETRY_VIRTUALENVS_IN_PROJECT: true
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -229,9 +251,17 @@ jobs:
     - uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        key: ${{ runner.os }}-pip-${{ hashFiles('poetry.lock') }}
         restore-keys: |
           ${{ runner.os }}-pip-
+
+    - uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+      id: venv-cache
+      with:
+        path: .venv
+        key: ${{ runner.os }}-py312-venv-${{ hashFiles('poetry.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-py312-venv-
 
     - name: Install poetry
       env:
@@ -239,7 +269,8 @@ jobs:
       run: pip install poetry==${POETRY_VERSION} poetry-plugin-sort && poetry --version
 
     - name: Install requirements
-      run: poetry install --with test
+      if: steps.venv-cache.outputs.cache-hit != 'true'
+      run: poetry install --with test --no-interaction --no-ansi
 
     - name: Generate version file
       run: make generate-version-file
