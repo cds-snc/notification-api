@@ -34,19 +34,19 @@ RUN addgroup -S app && adduser -S -G app -h /app app
 RUN python -m venv ${POETRY_HOME} \
     && ${POETRY_HOME}/bin/pip3 install poetry==${POETRY_VERSION} virtualenv==20.30.0
 
-COPY pyproject.toml poetry.lock /app/
+COPY --chown=app:app pyproject.toml poetry.lock /app/
 
 RUN python -m venv ${APP_VENV} \
     && . ${APP_VENV}/bin/activate \
     && poetry install \
     && poetry add wheel
 
-COPY . /app/
+COPY --chown=app:app . /app/
 
 RUN . ${APP_VENV}/bin/activate \
     && make generate-version-file
 
-RUN chown -R app:app /app
+RUN chown app:app /app
 
 ENV PORT=6011
 
