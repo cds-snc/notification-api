@@ -28,6 +28,8 @@ RUN apk add --no-cache bash \
 RUN set -ex && mkdir /app
 WORKDIR /app
 
+RUN addgroup -S app && adduser -S -G app -h /app app
+
 # Install poetry and isolate it in it's own venv
 RUN python -m venv ${POETRY_HOME} \
     && ${POETRY_HOME}/bin/pip3 install poetry==${POETRY_VERSION} virtualenv==20.30.0
@@ -44,9 +46,13 @@ COPY . /app/
 RUN . ${APP_VENV}/bin/activate \
     && make generate-version-file
 
+RUN chown -R app:app /app
+
 ENV PORT=6011
 
 ARG GIT_SHA
 ENV GIT_SHA ${GIT_SHA}
+
+USER app
 
 CMD ["sh", "-c", "gunicorn -c gunicorn_config.py application"]
