@@ -688,6 +688,462 @@ paths:
         - apiKey: []
 
 
+  /v2/manage-template/template-categories:
+    get:
+      summary: Get manage template categories
+      description: |
+        Retrieve all available template categories for manage template operations.
+
+        This endpoint requires a NEW API key with the manage_permissions permission (manage_templates).
+      operationId: getManageTemplateCategories
+      tags:
+        - Manage Templates
+      responses:
+        '200':
+          description: Template categories retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManageTemplateCategoriesResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                auth_error:
+                  summary: Unauthorized access
+                  value:
+                    status_code: 401
+                    errors:
+                      - error: "AuthError"
+                        message: "Unauthorized, authentication token must be provided"
+        '403':
+          description: Forbidden - NEW API key missing required manage_permissions permission (manage_templates)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                missing_permission:
+                  summary: Missing manage templates permission
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "ForbiddenError"
+                        message: "This API key does not have permission to manage templates."
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+        - apiKey: []
+
+
+  /v2/manage-template/{template-id}:
+    get:
+      summary: Get manage template by ID
+      description: |
+        Retrieve a specific template by ID using manage template permissions.
+
+        This endpoint requires a NEW API key with the manage_permissions permission (manage_templates).
+      operationId: getManageTemplateById
+      tags:
+        - Manage Templates
+      parameters:
+        - name: template-id
+          in: path
+          description: Unique identifier for the template
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '200':
+          description: Template retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManageTemplate'
+        '400':
+          description: Bad request - invalid template ID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 400
+                errors:
+                  - error: "ValidationError"
+                    message: "id is not a valid UUID"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '403':
+          description: Forbidden - NEW API key missing required manage_permissions permission (manage_templates)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                missing_permission:
+                  summary: Missing manage templates permission
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "ForbiddenError"
+                        message: "This API key does not have permission to manage templates."
+        '404':
+          description: Template not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                template_not_found:
+                  summary: Template not found
+                  value:
+                    result: "error"
+                    message: "Template not found in database"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+        - apiKey: []
+
+    patch:
+      summary: Update a manage template
+      description: |
+        Update editable fields on a template, including category and parent folder assignment.
+
+        This endpoint requires a NEW API key with the manage_permissions permission (manage_templates).
+      operationId: patchManageTemplate
+      tags:
+        - Manage Templates
+      parameters:
+        - name: template-id
+          in: path
+          description: Unique identifier for the template
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ManageTemplatePatchRequest'
+            examples:
+              update_name_and_category:
+                summary: Update template name and category
+                value:
+                  name: "Follow-up reminder"
+                  template_category_id: "12345678-1234-1234-1234-123456789012"
+              move_template_to_folder:
+                summary: Move template into a folder
+                value:
+                  parent_folder_id: "87654321-4321-4321-4321-210987654321"
+              remove_from_folder:
+                summary: Remove template from folder
+                value:
+                  parent_folder_id: null
+      responses:
+        '200':
+          description: Template updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManageTemplate'
+        '400':
+          description: Bad request - validation or category errors
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ValidationErrorResponse'
+                  - $ref: '#/components/schemas/ManageTemplateCategoryErrorResponse'
+              examples:
+                invalid_template_id:
+                  summary: Invalid template ID format
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "id is not a valid UUID"
+                invalid_parent_folder:
+                  summary: Parent folder not found
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "parent_folder_id not found"
+                category_not_found:
+                  summary: Template category not found
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "TemplateCategoryNotFoundError"
+                        message: "template_category_id does not match any current template categories"
+                    template_categories:
+                      - template_category_id: "12345678-1234-1234-1234-123456789012"
+                        name: "Updates"
+                category_invalid:
+                  summary: Invalid template category value
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "TemplateCategoryValidationError"
+                        message: "template_category_id does not match any current template categories"
+                    template_categories:
+                      - template_category_id: "12345678-1234-1234-1234-123456789012"
+                        name: "Updates"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '403':
+          description: Forbidden - NEW API key missing required manage_permissions permission (manage_templates)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                missing_permission:
+                  summary: Missing manage templates permission
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "ForbiddenError"
+                        message: "This API key does not have permission to manage templates."
+        '404':
+          description: Template not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+        - apiKey: []
+
+    delete:
+      summary: Archive a manage template
+      description: |
+        Archive a template and remove it from any folder.
+
+        This endpoint requires a NEW API key with the manage_permissions permission (manage_templates).
+      operationId: deleteManageTemplate
+      tags:
+        - Manage Templates
+      parameters:
+        - name: template-id
+          in: path
+          description: Unique identifier for the template
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '200':
+          description: Template archived successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManageTemplate'
+        '400':
+          description: Bad request - invalid ID or already archived
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                invalid_template_id:
+                  summary: Invalid template ID format
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "id is not a valid UUID"
+                already_archived:
+                  summary: Template is already archived
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "Template is already archived."
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '403':
+          description: Forbidden - NEW API key missing required manage_permissions permission (manage_templates)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                missing_permission:
+                  summary: Missing manage templates permission
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "ForbiddenError"
+                        message: "This API key does not have permission to manage templates."
+        '404':
+          description: Template not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+        - apiKey: []
+
+
+  /v2/manage-template:
+    post:
+      summary: Create a manage template
+      description: |
+        Create a new template with a required template category.
+
+        This endpoint requires a NEW API key with the manage_permissions permission (manage_templates).
+      operationId: postManageTemplate
+      tags:
+        - Manage Templates
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ManageTemplatePostRequest'
+            examples:
+              create_sms_template:
+                summary: Create an SMS template
+                value:
+                  name: "Service update"
+                  template_type: "sms"
+                  content: "Hello ((name)), your service update is ready."
+                  template_category_id: "12345678-1234-1234-1234-123456789012"
+              create_email_template:
+                summary: Create an email template
+                value:
+                  name: "Service update email"
+                  template_type: "email"
+                  subject: "Your update"
+                  content: "Hello ((name)), your service update is ready."
+                  template_category_id: "12345678-1234-1234-1234-123456789012"
+                  parent_folder_id: "87654321-4321-4321-4321-210987654321"
+      responses:
+        '201':
+          description: Template created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManageTemplate'
+        '400':
+          description: Bad request - validation, category, or content limits
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ValidationErrorResponse'
+                  - $ref: '#/components/schemas/ManageTemplateCategoryErrorResponse'
+              examples:
+                missing_required_field:
+                  summary: Required field missing
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "template_category_id is a required property"
+                invalid_parent_folder:
+                  summary: Parent folder not found
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "parent_folder_id not found"
+                content_too_long:
+                  summary: Content exceeds character limit
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "Content has a character count greater than the limit of 918"
+                template_name_too_long:
+                  summary: Template name too long
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "Template name must be less than 100 characters"
+                category_not_found:
+                  summary: Template category not found
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "TemplateCategoryNotFoundError"
+                        message: "template_category_id does not match any current template categories"
+                    template_categories:
+                      - template_category_id: "12345678-1234-1234-1234-123456789012"
+                        name: "Updates"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '403':
+          description: Forbidden - NEW API key missing manage_permissions permission (manage_templates) or template type not allowed for service
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                missing_permission:
+                  summary: Missing manage templates permission
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "ForbiddenError"
+                        message: "This API key does not have permission to manage templates."
+                unsupported_type:
+                  summary: Service does not allow this template type
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "ForbiddenError"
+                        message: "Creating email templates is not allowed"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+        - apiKey: []
+
+
   /v2/notifications/bulk:
     post:
       summary: Send a batch of notifications
@@ -1189,6 +1645,153 @@ components:
         - active
         - created_at
 
+    ManageTemplateCategory:
+      type: object
+      properties:
+        template_category_id:
+          $ref: '#/components/schemas/UUID'
+        name:
+          type: string
+      required:
+        - template_category_id
+        - name
+
+    ManageTemplate:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        service_id:
+          $ref: '#/components/schemas/UUID'
+        service_name:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+          enum: [sms, email]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_by:
+          type: string
+          description: Email address of the user who created the template
+        version:
+          type: integer
+        body:
+          type: string
+        subject:
+          type: string
+          nullable: true
+        postage:
+          type: string
+          nullable: true
+        template_category_id:
+          allOf:
+            - $ref: '#/components/schemas/UUID'
+          nullable: true
+        template_category_name:
+          type: string
+          nullable: true
+        folder_id:
+          allOf:
+            - $ref: '#/components/schemas/UUID'
+          nullable: true
+        archived:
+          type: boolean
+      required:
+        - id
+        - service_id
+        - service_name
+        - name
+        - type
+        - created_at
+        - created_by
+        - version
+        - body
+        - archived
+
+    ManageTemplateCategoriesResponse:
+      type: object
+      properties:
+        template_categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/ManageTemplateCategory'
+      required:
+        - template_categories
+
+    ManageTemplatePostRequest:
+      type: object
+      description: Subject is required when template_type is email.
+      properties:
+        name:
+          type: string
+        template_type:
+          type: string
+          enum: [sms, email]
+        content:
+          type: string
+        subject:
+          type: string
+        template_category_id:
+          $ref: '#/components/schemas/UUID'
+        parent_folder_id:
+          $ref: '#/components/schemas/UUID'
+      required:
+        - name
+        - template_type
+        - content
+        - template_category_id
+      additionalProperties: false
+
+    ManageTemplatePatchRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        content:
+          type: string
+        subject:
+          type: string
+        template_category_id:
+          $ref: '#/components/schemas/UUID'
+        parent_folder_id:
+          allOf:
+            - $ref: '#/components/schemas/UUID'
+          nullable: true
+      additionalProperties: false
+
+    ManageTemplateCategoryErrorResponse:
+      type: object
+      properties:
+        status_code:
+          type: integer
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              error:
+                type: string
+              message:
+                type: string
+            required:
+              - error
+              - message
+        template_categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/ManageTemplateCategory'
+      required:
+        - status_code
+        - errors
+        - template_categories
+
 
     Links:
       type: object
@@ -1425,3 +2028,5 @@ tags:
     description: Operations related to notifications
   - name: Templates
     description: Operations related to notification templates
+  - name: Manage Templates
+    description: Operations for creating, updating, retrieving, and archiving templates using a NEW API key with manage_permissions permission (manage_templates)
