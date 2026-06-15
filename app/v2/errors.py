@@ -118,10 +118,34 @@ class RateLimitError(InvalidRequest):
 class BadRequestError(InvalidRequest):
     message = "An error occurred"
 
-    def __init__(self, fields=[], message=None, status_code=400):
-        self.status_code = status_code
-        self.fields = fields
-        self.message = message if message else self.message
+    def __init__(self, fields=None, message=None, status_code=400):
+        resolved_message = message if message else self.message
+        super().__init__(message=resolved_message, status_code=status_code)
+        self.fields = fields if fields is not None else []
+
+
+class ForbiddenError(InvalidRequest):
+    status_code = 403
+    message = "You do not have permission to perform this action."
+
+    def __init__(self, fields=None, message=None):
+        resolved_message = message if message else self.__class__.message
+        super().__init__(message=resolved_message, status_code=self.__class__.status_code)
+        self.fields = fields if fields is not None else []
+
+
+class TemplateCategoryValidationError(BadRequestError):
+    message = "template_category_id must be a valid UUID"
+
+    def __init__(self):
+        super().__init__(message=self.__class__.message)
+
+
+class TemplateCategoryNotFoundError(BadRequestError):
+    message = "template_category_id not found"
+
+    def __init__(self):
+        super().__init__(message=self.__class__.message)
 
 
 class PDFNotReadyError(BadRequestError):
@@ -134,7 +158,7 @@ def register_errors(blueprint):
     def invalid_format(error):
         # Please not that InvalidEmailError is re-raised for InvalidEmail or InvalidPhone,
         # work should be done in the utils app to tidy up these errors.
-        current_app.logger.info(error)
+        current_app.logger.info(str(error))
         return (
             jsonify(
                 status_code=400,
@@ -145,13 +169,13 @@ def register_errors(blueprint):
 
     @blueprint.errorhandler(InvalidRequest)
     def invalid_data(error):
-        current_app.logger.info(error)
+        current_app.logger.info(str(error))
         response = jsonify(error.to_dict_v2()), error.status_code
         return response
 
     @blueprint.errorhandler(ValidationError)
     def validation_error(error):
-        current_app.logger.info(error)
+        current_app.logger.info(str(error.message))
         return jsonify(json.loads(error.message)), 400
 
     @blueprint.errorhandler(JobIncompleteError)
@@ -161,7 +185,7 @@ def register_errors(blueprint):
     @blueprint.errorhandler(NoResultFound)
     @blueprint.errorhandler(DataError)
     def no_result_found(e):
-        current_app.logger.info(e)
+        current_app.logger.info(str(e))
         return (
             jsonify(
                 status_code=404,
