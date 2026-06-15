@@ -301,7 +301,7 @@ class RedisSlidingWindowLogRateLimiter(RateLimiter):
             cap_per_minute (int): Maximum units allowed per minute.
             namespace (str): Logical name for this limiter instance (e.g. "sms").
                 Used to construct the Redis key: app.rate_limit:{namespace}:entries.
-            redis_client: Redis client instance. If None, uses app's redis_store.
+            redis_client: Redis client instance. If None, uses app's flask_cache_ops.
         """
         super().__init__(cap_per_minute, namespace)
         self._entries_key = f"app.rate_limit:{namespace}:entries"
@@ -313,9 +313,9 @@ class RedisSlidingWindowLogRateLimiter(RateLimiter):
         # Lazy-load Redis client to avoid circular imports at init time.
         if self.redis_client is not None:
             return self.redis_client
-        from app import redis_store
+        from app import flask_cache_ops
 
-        return redis_store
+        return flask_cache_ops
 
     def _get_acquire_lua_script(self):
         if "acquire" not in self._lua_scripts:
@@ -497,7 +497,7 @@ class RedisTokenBucketRateLimiter(RateLimiter):
             cap_per_minute (int): Maximum units allowed per minute.
             namespace (str): Logical name for this limiter instance (e.g. "sms").
                 Used to construct the Redis key: app.rate_limit:{namespace}:token_bucket.
-            redis_client: Redis client instance. If None, uses app's redis_store.
+            redis_client: Redis client instance. If None, uses app's flask_cache_ops.
         """
         super().__init__(cap_per_minute, namespace)
         self._key = f"app.rate_limit:{namespace}:token_bucket"
@@ -509,9 +509,9 @@ class RedisTokenBucketRateLimiter(RateLimiter):
         # Lazy-load Redis client to avoid circular imports at init time.
         if self.redis_client is not None:
             return self.redis_client
-        from app import redis_store
+        from app import flask_cache_ops
 
-        return redis_store
+        return flask_cache_ops
 
     def _get_acquire_lua_script(self):
         if "acquire" not in self._lua_scripts:
