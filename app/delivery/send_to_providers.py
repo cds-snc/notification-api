@@ -509,6 +509,7 @@ def get_html_email_options(service: Service):
                 "logo_with_background_colour": False,
                 "alt_text_en": None,
                 "alt_text_fr": None,
+                "lang": "fr",
             }
         else:
             return {
@@ -517,6 +518,7 @@ def get_html_email_options(service: Service):
                 "logo_with_background_colour": False,
                 "alt_text_en": None,
                 "alt_text_fr": None,
+                "lang": "en",
             }
 
     logo_url = get_logo_url(service.email_branding.logo) if service.email_branding.logo else None
@@ -531,6 +533,7 @@ def get_html_email_options(service: Service):
         "brand_name": service.email_branding.name,
         "alt_text_en": service.email_branding.alt_text_en,
         "alt_text_fr": service.email_branding.alt_text_fr,
+        "lang": "fr" if service.email_branding.brand_type == BRANDING_BOTH_FR else "en",
     }
 
 

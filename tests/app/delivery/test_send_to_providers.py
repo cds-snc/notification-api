@@ -799,16 +799,16 @@ def test_get_html_email_renderer_should_return_for_normal_service(sample_service
 
 
 @pytest.mark.parametrize(
-    "branding_type, fip_banner_english, fip_banner_french",
+    "branding_type, fip_banner_english, fip_banner_french, expected_lang",
     [
-        (BRANDING_ORG_NEW, False, False),
-        (BRANDING_BOTH_EN, True, False),
-        (BRANDING_BOTH_FR, False, True),
-        (BRANDING_ORG_BANNER_NEW, False, False),
+        (BRANDING_ORG_NEW, False, False, "en"),
+        (BRANDING_BOTH_EN, True, False, "en"),
+        (BRANDING_BOTH_FR, False, True, "fr"),
+        (BRANDING_ORG_BANNER_NEW, False, False, "en"),
     ],
 )
 def test_get_html_email_renderer_with_branding_details(
-    branding_type, fip_banner_english, fip_banner_french, notify_db, sample_service
+    branding_type, fip_banner_english, fip_banner_french, expected_lang, notify_db, sample_service
 ):
     email_branding = EmailBranding(
         brand_type=branding_type,
@@ -829,6 +829,7 @@ def test_get_html_email_renderer_with_branding_details(
     assert options["brand_colour"] == "#000000"
     assert options["brand_text"] == "League of Justice"
     assert options["brand_name"] == "Justice League"
+    assert options["lang"] == expected_lang
 
     if branding_type == BRANDING_ORG_BANNER_NEW:
         assert options["logo_with_background_colour"] is True
@@ -848,6 +849,7 @@ def test_get_html_email_renderer_with_branding_details_and_render_fip_banner_eng
         "logo_with_background_colour": False,
         "alt_text_en": None,
         "alt_text_fr": None,
+        "lang": "en",
     }
 
 
