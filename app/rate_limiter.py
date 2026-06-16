@@ -1,4 +1,6 @@
 # app/rate_limiter.py
+from __future__ import annotations
+
 """
 Rate Limiting Module
 
@@ -50,6 +52,29 @@ class RateLimiter(ABC):
             int: Number of units used in the current window.
         """
         pass
+
+    def buffered(self, size: int) -> BufferedRateLimiter:
+        """
+        Wrap this rate limiter in a BufferedRateLimiter and register it under
+        the same namespace, replacing the current entry in the registry.
+
+        Args:
+            size (int): Number of tokens to pre-fetch from the underlying
+                limiter per Redis call.
+
+        Returns:
+            BufferedRateLimiter: The new buffered wrapper.
+
+        Raises:
+            TypeError: If called on an already-buffered instance.
+        """
+        if isinstance(self, BufferedRateLimiter):
+            raise TypeError(
+                f"Rate limiter [{self.namespace}] is already a BufferedRateLimiter. " "Double-wrapping is not allowed."
+            )
+        buffered_limiter = BufferedRateLimiter(self, size)
+        _rate_limiter_instances[self.namespace] = buffered_limiter
+        return buffered_limiter
 
 
 class InMemoryRateLimiter(RateLimiter):
@@ -171,20 +196,17 @@ class InMemoryRateLimiter(RateLimiter):
 
 
 # ============================================================================
-# Module-level rate limiter instance
+# Module-level rate limiter registry
 # ============================================================================
-# For the in-memory backend, this instance is process-local: it is shared only
-# within the current Python process (for example, one Flask/Celery worker
-# process) and is not coordinated across multiple Celery worker processes,
-# pods, or hosts.
+# Keyed by namespace (e.g. "sms"). Each entry is a RateLimiter instance
+# (possibly a BufferedRateLimiter wrapping a concrete backend).
 #
-# As a result, the in-memory backend does not provide a true global cap unless
-# deployment is constrained so that only a single worker process/pod consumes
-# the relevant queue. A Redis-backed implementation enforces a global
-# cross-process rate limit without changing task code.
+# For the in-memory backend, instances are process-local and not coordinated
+# across multiple Celery worker processes, pods, or hosts.
+# Redis-backed implementations enforce a global cross-process rate limit.
 # ============================================================================
 
-_rate_limiter_instance: RateLimiter | None = None
+_rate_limiter_instances: dict[str, RateLimiter] = {}
 
 
 def _build_limiter_registry() -> dict[str, type[RateLimiter]]:
@@ -200,9 +222,10 @@ def initialize_rate_limiter(
     cap_per_minute: int, limiter_class: type[RateLimiter] | None = None, *, namespace: str
 ) -> RateLimiter:
     """
-    Initialize the global rate limiter instance.
+    Initialize a rate limiter for the given namespace and store it in the registry.
 
-    Called during app initialization (see app/__init__.py).
+    Called during app initialization (see app/__init__.py). Returns the raw
+    limiter instance; chain `.buffered(size)` to wrap it in a BufferedRateLimiter.
 
     The backend is chosen in this order:
     1. limiter_class argument — if provided, instantiated directly.
@@ -216,14 +239,12 @@ def initialize_rate_limiter(
         limiter_class (type[RateLimiter] | None): Implementation class to use.
             If None, the class is resolved from config/default.
         namespace (str): Logical name for this limiter instance (e.g. "sms").
-            Used in Redis key construction and log messages.
+            Used in Redis key construction, log messages, and registry lookup.
 
     Returns:
         RateLimiter: The initialized rate limiter instance.
     """
     import logging
-
-    global _rate_limiter_instance
 
     logger = logging.getLogger(__name__)
 
@@ -253,29 +274,35 @@ def initialize_rate_limiter(
             resolved_class = registry[class_name]
 
     logger.info("Rate limiter [%s]: initializing with %s", namespace, resolved_class.__name__)
-    _rate_limiter_instance = resolved_class(cap_per_minute, namespace)
+    instance = resolved_class(cap_per_minute, namespace)
+    _rate_limiter_instances[namespace] = instance
 
-    return _rate_limiter_instance
+    return instance
 
 
-def get_rate_limiter() -> RateLimiter:
+def get_rate_limiter(namespace: str) -> RateLimiter:
     """
-    Get the global rate limiter instance.
+    Get the rate limiter registered under the given namespace.
 
-    Call this from tasks to access the rate limiter.
-    Raises RuntimeError if initialize_rate_limiter() hasn't been called.
+    If a BufferedRateLimiter was installed via `.buffered()`, that is returned
+    transparently — callers need no awareness of buffering.
+
+    Args:
+        namespace (str): The namespace used during initialization (e.g. "sms").
 
     Returns:
-        RateLimiter: The global rate limiter instance.
+        RateLimiter: The registered rate limiter instance.
 
     Raises:
-        RuntimeError: If the rate limiter hasn't been initialized.
+        RuntimeError: If no limiter has been registered for this namespace.
     """
-    if _rate_limiter_instance is None:
+    instance = _rate_limiter_instances.get(namespace)
+    if instance is None:
         raise RuntimeError(
-            "Rate limiter not initialized. " "Call initialize_rate_limiter() during app startup (app/__init__.py)."
+            f"Rate limiter [{namespace!r}] not initialized. "
+            "Call initialize_rate_limiter() during app startup (app/__init__.py)."
         )
-    return _rate_limiter_instance
+    return instance
 
 
 class RedisSlidingWindowLogRateLimiter(RateLimiter):
@@ -625,3 +652,102 @@ class RedisTokenBucketRateLimiter(RateLimiter):
     def reset_limiter(self):
         self.redis.delete(self._key)
         current_app.logger.info(f"Rate limiter [{self.namespace}]: reset (token bucket)")
+
+
+class BufferedRateLimiter(RateLimiter):
+    """
+    A buffering proxy that wraps any RateLimiter and pre-fetches tokens in
+    configurable batches to reduce calls to the underlying backend (e.g. Redis).
+
+    Each Celery worker process maintains its own local token counter. Tokens are
+    spent locally without hitting the backend; the underlying limiter is only
+    called when the local buffer runs dry.
+
+    Token expiry:
+    Each batch is stamped with ``_acquired_at``. Before spending local tokens,
+    the buffer is checked for staleness: tokens older than 60 seconds are
+    discarded. This prevents tokens from a previous rate-limit window from being
+    consumed after the backend (especially a token bucket) has refilled, which
+    would allow over-consumption up to ``size * num_workers`` beyond the cap.
+
+    Top-up on partial buffer:
+    When ``_local_tokens < units``, the buffer is topped up (not replaced).
+    The underlying limiter is called for ``max(units - _local_tokens, size)``
+    additional tokens. The existing local tokens are combined with the new
+    batch, so already-claimed tokens are never wasted.
+
+    Thread safety:
+    Not needed — Celery prefork runs one task at a time per process, and each
+    worker process owns its own ``BufferedRateLimiter`` instance independently.
+    """
+
+    TOKEN_WINDOW_SECONDS = 60
+
+    def __init__(self, rate_limiter: RateLimiter, size: int) -> None:
+        if size <= 0:
+            raise ValueError("size must be positive")
+        if size > rate_limiter.cap_per_minute:
+            raise ValueError(f"size ({size}) must be <= cap_per_minute ({rate_limiter.cap_per_minute})")
+        super().__init__(rate_limiter.cap_per_minute, rate_limiter.namespace)
+        self._rate_limiter = rate_limiter
+        self._size = size
+        self._local_tokens: int = 0
+        self._acquired_at: float = 0.0
+
+    def acquire_lease(self, units: int) -> Tuple[bool, int]:
+        """
+        Attempt to acquire a lease for the given number of units.
+
+        Spends from the local buffer when possible. Tops up from the underlying
+        rate limiter when the buffer is insufficient, fetching at least ``_size``
+        tokens per Redis call.
+
+        Args:
+            units (int): Number of units to acquire.
+
+        Returns:
+            Tuple[bool, int]:
+                - (True, 0) if units were acquired (locally or via the backend).
+                - (False, seconds_to_wait) if the backend denied the request.
+        """
+        if units <= 0:
+            raise ValueError("units must be positive")
+
+        # Discard stale local tokens to prevent cross-window over-consumption.
+        if self._local_tokens > 0 and time() - self._acquired_at >= self.TOKEN_WINDOW_SECONDS:
+            current_app.logger.debug(
+                f"BufferedRateLimiter [{self.namespace}]: discarding {self._local_tokens} stale local tokens"
+            )
+            self._local_tokens = 0
+
+        if self._local_tokens >= units:
+            self._local_tokens -= units
+            current_app.logger.debug(
+                f"BufferedRateLimiter [{self.namespace}]: spent {units} local tokens " f"(remaining: {self._local_tokens})"
+            )
+            return True, 0
+
+        # Top-up: fetch enough to cover the deficit, at least _size tokens.
+        deficit = units - self._local_tokens
+        batch = max(deficit, self._size)
+
+        acquired, seconds_to_wait = self._rate_limiter.acquire_lease(batch)
+        if not acquired:
+            current_app.logger.warning(
+                f"BufferedRateLimiter [{self.namespace}]: backend denied {batch} token batch. "
+                f"Retry in {seconds_to_wait}s. Local buffer unchanged ({self._local_tokens} tokens)."
+            )
+            return False, seconds_to_wait
+
+        self._acquired_at = time()
+        self._local_tokens += batch
+        self._local_tokens -= units
+        current_app.logger.debug(
+            f"BufferedRateLimiter [{self.namespace}]: fetched {batch} tokens from backend, "
+            f"spent {units}, local buffer now {self._local_tokens}"
+        )
+        return True, 0
+
+    def get_current_usage(self) -> int:
+        """Delegates to the wrapped rate limiter (reflects global consumed capacity)."""
+        return self._rate_limiter.get_current_usage()
