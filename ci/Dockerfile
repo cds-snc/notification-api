@@ -46,7 +46,7 @@ COPY --chown=app:app . /app/
 RUN . ${APP_VENV}/bin/activate \
     && make generate-version-file
 
-RUN chown app:app /app
+RUN chown app:app /app /app/app/version.py
 
 ENV PORT=6011
 

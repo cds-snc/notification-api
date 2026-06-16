@@ -43,7 +43,7 @@ RUN python -m venv ${APP_VENV} \
 
 RUN make generate-version-file
 
-RUN chown app:app /app
+RUN chown app:app /app /app/app/version.py
 
 ENV PORT=6011
 
