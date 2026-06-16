@@ -1642,6 +1642,61 @@ def test_start_fido2_authentication(client, sample_service, mocker):
     assert data["data"]["publicKey"]["rpId"] == "localhost"
 
 
+def test_fido2_authenticate_skips_unreadable_keys(client, sample_service, mocker):
+    """Regression: a single corrupt key must not lock the user out of valid keys."""
+    sample_user = sample_service.users[0]
+    auth_header = create_authorization_header()
+
+    good_cred = mocker.Mock()
+    good_cred.credential_id = b"good_cred_id"
+
+    # First call raises (corrupt key), second call succeeds (good key).
+    mocker.patch(
+        "app.user.rest.deserialize_fido2_key",
+        side_effect=[ValueError("Malformed FIDO2 credential"), good_cred],
+    )
+
+    mock_server = mocker.patch("app.user.rest.Config.FIDO2_SERVER")
+    mock_options = {"publicKey": {"rpId": "localhost"}}
+    mock_server.authenticate_begin.return_value = (mock_options, "state")
+
+    save_fido2_key(Fido2Key(name="bad key", key="bad", user_id=sample_user.id))
+    save_fido2_key(Fido2Key(name="good key", key="good", user_id=sample_user.id))
+
+    response = client.post(
+        url_for("user.fido2_keys_user_authenticate", user_id=sample_user.id),
+        headers=[("Content-Type", "application/json"), auth_header],
+    )
+
+    assert response.status_code == 200
+    # Only the good credential should be passed to authenticate_begin
+    mock_server.authenticate_begin.assert_called_once()
+    passed_credentials = mock_server.authenticate_begin.call_args[0][0]
+    assert passed_credentials == [good_cred]
+
+
+def test_fido2_authenticate_returns_400_when_all_keys_unreadable(client, sample_service, mocker):
+    sample_user = sample_service.users[0]
+    auth_header = create_authorization_header()
+
+    mocker.patch(
+        "app.user.rest.deserialize_fido2_key",
+        side_effect=ValueError("Malformed FIDO2 credential"),
+    )
+    mock_server = mocker.patch("app.user.rest.Config.FIDO2_SERVER")
+
+    save_fido2_key(Fido2Key(name="bad key", key="bad", user_id=sample_user.id))
+
+    response = client.post(
+        url_for("user.fido2_keys_user_authenticate", user_id=sample_user.id),
+        headers=[("Content-Type", "application/json"), auth_header],
+    )
+
+    assert response.status_code == 400
+    assert json.loads(response.get_data(as_text=True))["error"] == "No usable security keys registered"
+    mock_server.authenticate_begin.assert_not_called()
+
+
 def test_fido2_validate_returns_400_when_credential_missing(client, sample_service, mocker):
     """Test that missing credential field returns 400 Bad Request without consuming session."""
     sample_user = sample_service.users[0]

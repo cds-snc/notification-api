@@ -835,7 +835,18 @@ def fido2_keys_user_authenticate(user_id):
             current_app.logger.warning(f"No FIDO2 keys found for user {user_id}")
             return jsonify({"error": "No security keys registered"}), 400
 
-        credentials = [deserialize_fido2_key(k.key) for k in keys]
+        # Deserialize each key individually so a single corrupt/legacy entry does
+        # not lock the user out of authenticating with their other valid keys.
+        credentials = []
+        for k in keys:
+            try:
+                credentials.append(deserialize_fido2_key(k.key))
+            except Exception:
+                current_app.logger.exception(f"Skipping unreadable FIDO2 key id={k.id} for user {user_id}")
+
+        if not credentials:
+            current_app.logger.error(f"All {len(keys)} FIDO2 keys failed to deserialize for user {user_id}")
+            return jsonify({"error": "No usable security keys registered"}), 400
 
         # Log credential info at INFO level for debugging
         from fido2.utils import websafe_encode
