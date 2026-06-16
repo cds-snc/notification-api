@@ -733,7 +733,7 @@ class TestBufferedRateLimiter:
 
     def test_raises_type_error_on_double_wrapping(self, client, raw_limiter):
         with client.application.app_context():
-            # First register the raw limiter so .buffered() can find the registry
+            # Seed the registry so `.buffered()` replaces the existing entry for this namespace
             rate_limiter._rate_limiter_instances["test"] = raw_limiter
             buf = raw_limiter.buffered(10)
             with pytest.raises(TypeError):
