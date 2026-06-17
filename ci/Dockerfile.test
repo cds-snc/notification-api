@@ -41,14 +41,15 @@ RUN python -m venv ${APP_VENV} \
     && poetry install \
     && poetry add wheel
 
-RUN make generate-version-file
+ARG GIT_SHA
+ENV GIT_SHA ${GIT_SHA}
+
+RUN git config --global --add safe.directory /app \
+    && make generate-version-file GIT_COMMIT=${GIT_SHA:-$(git rev-parse HEAD)}
 
 RUN chown app:app /app /app/app/version.py
 
 ENV PORT=6011
-
-ARG GIT_SHA
-ENV GIT_SHA ${GIT_SHA}
 
 USER app
 
