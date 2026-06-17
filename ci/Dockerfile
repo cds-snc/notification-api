@@ -48,7 +48,7 @@ ENV GIT_SHA ${GIT_SHA}
 
 RUN . ${APP_VENV}/bin/activate \
     && git config --global --add safe.directory /app \
-    && make generate-version-file
+    && make generate-version-file GIT_COMMIT=${GIT_SHA:-$(git rev-parse HEAD)}
 
 RUN chown app:app /app /app/app/version.py
 
