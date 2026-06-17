@@ -720,6 +720,7 @@ class BufferedRateLimiter(RateLimiter):
             )
             self._local_tokens = 0
 
+        # Fast path: if the local buffer has enough tokens, spend them without hitting the backend.
         if self._local_tokens >= units:
             self._local_tokens -= units
             current_app.logger.debug(

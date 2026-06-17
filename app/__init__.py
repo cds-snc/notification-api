@@ -142,7 +142,7 @@ def create_app(application, config=None):
         salesforce_client.init_app(application)
 
     # Initialize the rate limiter for SMS delivery tasks, then wrap it in a
-    # BufferedRateLimiter to reduce Redis round-trips per Celery worker.
+    # BufferedRateLimiter to reduce network round-trips per Celery worker.
     initialize_rate_limiter(application.config["CELERY_DELIVER_SMS_RATE_LIMIT_PER_MINUTE"], namespace="sms").buffered(
         application.config["SMS_RATE_LIMITER_BATCH"]
     )
