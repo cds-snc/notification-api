@@ -43,15 +43,16 @@ RUN python -m venv ${APP_VENV} \
 
 COPY --chown=app:app . /app/
 
+ARG GIT_SHA
+ENV GIT_SHA ${GIT_SHA}
+
 RUN . ${APP_VENV}/bin/activate \
+    && git config --global --add safe.directory /app \
     && make generate-version-file
 
 RUN chown app:app /app /app/app/version.py
 
 ENV PORT=6011
-
-ARG GIT_SHA
-ENV GIT_SHA ${GIT_SHA}
 
 USER app
 
