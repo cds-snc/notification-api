@@ -1,13 +1,16 @@
-from unittest.mock import patch
+from time import time
+from unittest.mock import MagicMock, patch
 
 import fakeredis
 import pytest
 
 from app import rate_limiter
 from app.rate_limiter import (
+    BufferedRateLimiter,
     InMemoryRateLimiter,
     RedisSlidingWindowLogRateLimiter,
     RedisTokenBucketRateLimiter,
+    get_rate_limiter,
     initialize_rate_limiter,
 )
 
@@ -517,9 +520,8 @@ class TestRedisTokenBucketRateLimiter:
 
 class TestInitializeRateLimiter:
     def teardown_method(self):
-        # Reset global singleton between tests
-        with patch.object(rate_limiter, "_rate_limiter_instance", None):
-            pass
+        # Reset registry between tests
+        rate_limiter._rate_limiter_instances.clear()
 
     def test_explicit_class_arg_takes_precedence(self, client):
         with client.application.app_context():
@@ -573,3 +575,174 @@ class TestInitializeRateLimiter:
             with patch("app.config.Config.SMS_RATE_LIMITER_BACKEND", "InMemoryRateLimiter", create=True):
                 instance = initialize_rate_limiter(1000, namespace="test")
                 assert isinstance(instance, InMemoryRateLimiter)
+
+
+class TestBufferedRateLimiter:
+    @pytest.fixture
+    def raw_limiter(self):
+        return InMemoryRateLimiter(cap_per_minute=1000, namespace="test")
+
+    @pytest.fixture
+    def buffered(self, raw_limiter):
+        return BufferedRateLimiter(raw_limiter, size=10)
+
+    def test_uses_local_tokens_without_calling_rate_limiter(self, client, raw_limiter):
+        mock_raw = MagicMock(spec=InMemoryRateLimiter)
+        mock_raw.cap_per_minute = 1000
+        mock_raw.namespace = "test"
+        buf = BufferedRateLimiter(mock_raw, size=10)
+        buf._local_tokens = 5
+        buf._acquired_at = time()
+
+        acquired, wait = buf.acquire_lease(3)
+
+        assert acquired is True
+        assert wait == 0
+        assert buf._local_tokens == 2
+        mock_raw.acquire_lease.assert_not_called()
+
+    def test_fetches_batch_when_local_tokens_empty(self, client, buffered):
+        with client.application.app_context():
+            buffered._local_tokens = 0
+            acquired, wait = buffered.acquire_lease(2)
+            assert acquired is True
+            assert wait == 0
+            # fetched batch of 10 (size), spent 2 → 8 remain
+            assert buffered._local_tokens == 8
+
+    def test_tops_up_partial_buffer(self, client, buffered):
+        with client.application.app_context():
+            buffered._local_tokens = 3
+            buffered._acquired_at = time()
+            acquired, wait = buffered.acquire_lease(6)
+            assert acquired is True
+            assert wait == 0
+            # deficit=3, batch=max(3,10)=10 fetched from backend
+            # local = 3 + 10 - 6 = 7
+            assert buffered._local_tokens == 7
+
+    def test_local_tokens_preserved_on_redis_deny(self, client, raw_limiter):
+        mock_raw = MagicMock(spec=InMemoryRateLimiter)
+        mock_raw.cap_per_minute = 1000
+        mock_raw.namespace = "test"
+        mock_raw.acquire_lease.return_value = (False, 30)
+        buf = BufferedRateLimiter(mock_raw, size=10)
+        buf._local_tokens = 3
+        buf._acquired_at = time()
+
+        acquired, wait = buf.acquire_lease(6)
+
+        assert acquired is False
+        assert wait == 30
+        assert buf._local_tokens == 3  # unchanged
+
+    def test_returns_false_with_wait_when_rate_limiter_denies_empty_buffer(self, client, raw_limiter):
+        mock_raw = MagicMock(spec=InMemoryRateLimiter)
+        mock_raw.cap_per_minute = 1000
+        mock_raw.namespace = "test"
+        mock_raw.acquire_lease.return_value = (False, 15)
+        buf = BufferedRateLimiter(mock_raw, size=10)
+
+        with client.application.app_context():
+            acquired, wait = buf.acquire_lease(5)
+
+        assert acquired is False
+        assert wait == 15
+        assert buf._local_tokens == 0
+
+    def test_deficit_larger_than_size_fetches_exact_deficit(self, client, raw_limiter):
+        mock_raw = MagicMock(spec=InMemoryRateLimiter)
+        mock_raw.cap_per_minute = 1000
+        mock_raw.namespace = "test"
+        mock_raw.acquire_lease.return_value = (True, 0)
+        buf = BufferedRateLimiter(mock_raw, size=10)
+        buf._local_tokens = 2
+        buf._acquired_at = time()
+
+        with client.application.app_context():
+            acquired, wait = buf.acquire_lease(20)  # deficit=18 > size=10
+
+        assert acquired is True
+        mock_raw.acquire_lease.assert_called_once_with(18)  # max(18, 10) = 18
+        assert buf._local_tokens == 0  # 2 + 18 - 20 = 0
+
+    def test_remainder_decrements_on_successive_calls(self, client, buffered):
+        with client.application.app_context():
+            buffered._local_tokens = 0
+            # First call fetches batch of 10, spends 3 → 7 remain
+            buffered.acquire_lease(3)
+            assert buffered._local_tokens == 7
+            # Second call spends 4 locally → 3 remain
+            buffered.acquire_lease(4)
+            assert buffered._local_tokens == 3
+
+    def test_stale_tokens_discarded_after_60_seconds(self, client, raw_limiter):
+        mock_raw = MagicMock(spec=InMemoryRateLimiter)
+        mock_raw.cap_per_minute = 1000
+        mock_raw.namespace = "test"
+        mock_raw.acquire_lease.return_value = (True, 0)
+        buf = BufferedRateLimiter(mock_raw, size=10)
+        buf._local_tokens = 50
+        buf._acquired_at = time() - 61  # stale
+
+        with client.application.app_context():
+            buf.acquire_lease(3)
+
+        # Stale tokens discarded; backend called for a fresh batch
+        mock_raw.acquire_lease.assert_called_once()
+        assert buf._local_tokens == 7  # 0 + 10 - 3
+
+    def test_fresh_tokens_not_discarded_within_60_seconds(self, client, raw_limiter):
+        mock_raw = MagicMock(spec=InMemoryRateLimiter)
+        mock_raw.cap_per_minute = 1000
+        mock_raw.namespace = "test"
+        buf = BufferedRateLimiter(mock_raw, size=10)
+        buf._local_tokens = 5
+        buf._acquired_at = time() - 30  # still fresh
+
+        buf.acquire_lease(2)
+
+        mock_raw.acquire_lease.assert_not_called()
+        assert buf._local_tokens == 3
+
+    def test_acquired_at_updated_on_each_redis_fetch(self, client, buffered):
+        with client.application.app_context():
+            before = time()
+            buffered.acquire_lease(1)
+            assert buffered._acquired_at >= before
+
+    def test_get_current_usage_delegates_to_wrapped_limiter(self, client):
+        mock_raw = MagicMock(spec=InMemoryRateLimiter)
+        mock_raw.cap_per_minute = 1000
+        mock_raw.namespace = "test"
+        mock_raw.get_current_usage.return_value = 42
+        buf = BufferedRateLimiter(mock_raw, size=10)
+
+        result = buf.get_current_usage()
+
+        assert result == 42
+        mock_raw.get_current_usage.assert_called_once()
+
+    def test_raises_value_error_when_size_exceeds_cap(self, client, raw_limiter):
+        with pytest.raises(ValueError):
+            BufferedRateLimiter(raw_limiter, size=raw_limiter.cap_per_minute + 1)
+
+    def test_raises_value_error_when_size_is_zero(self, client, raw_limiter):
+        with pytest.raises(ValueError):
+            BufferedRateLimiter(raw_limiter, size=0)
+
+    def test_raises_type_error_on_double_wrapping(self, client, raw_limiter):
+        with client.application.app_context():
+            # Seed the registry so `.buffered()` replaces the existing entry for this namespace
+            rate_limiter._rate_limiter_instances["test"] = raw_limiter
+            buf = raw_limiter.buffered(10)
+            with pytest.raises(TypeError):
+                buf.buffered(10)
+            rate_limiter._rate_limiter_instances.pop("test", None)
+
+    def test_buffered_factory_self_registers_in_registry(self, client, raw_limiter):
+        with client.application.app_context():
+            rate_limiter._rate_limiter_instances["test"] = raw_limiter
+            buf = raw_limiter.buffered(10)
+            assert get_rate_limiter("test") is buf
+            rate_limiter._rate_limiter_instances.pop("test", None)
