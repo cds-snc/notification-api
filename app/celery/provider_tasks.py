@@ -74,7 +74,7 @@ def deliver_sms(self, notification_id):
 )
 @statsd(namespace="tasks")
 def deliver_sms_rate_limited(self, notification_id: str, parts_count: int):
-    acquired, seconds_to_wait = get_rate_limiter().acquire_lease(parts_count)
+    acquired, seconds_to_wait = get_rate_limiter("sms").acquire_lease(parts_count)
     if acquired:
         _deliver_sms(self, notification_id)
     else:

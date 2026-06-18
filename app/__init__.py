@@ -141,8 +141,11 @@ def create_app(application, config=None):
     if application.config["FF_SALESFORCE_CONTACT"]:
         salesforce_client.init_app(application)
 
-    # Initialize the global rate limiter instance with the configured rate limit for SMS delivery tasks.
-    initialize_rate_limiter(application.config["CELERY_DELIVER_SMS_RATE_LIMIT_PER_MINUTE"], namespace="sms")
+    # Initialize the rate limiter for SMS delivery tasks, then wrap it in a
+    # BufferedRateLimiter to reduce network round-trips per Celery worker.
+    initialize_rate_limiter(application.config["CELERY_DELIVER_SMS_RATE_LIMIT_PER_MINUTE"], namespace="sms").buffered(
+        application.config["SMS_RATE_LIMITER_BATCH"]
+    )
 
     flask_redis.init_app(application)
     flask_cache_ops.init_app(application)
