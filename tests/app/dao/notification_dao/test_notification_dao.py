@@ -526,6 +526,26 @@ def test_get_notification_with_personalisation_by_id_no_result(sample_template, 
     assert mock_logger.called
 
 
+def test_get_notification_with_personalisation_uses_reader_bind(mocker, fake_uuid):
+    reader = mocker.Mock()
+    query = mocker.Mock()
+    query_with_filters = mocker.Mock()
+    query_with_template = mocker.Mock()
+
+    mocker.patch("app.dao.notifications_dao.db.on_reader", return_value=reader)
+    reader.query.return_value = query
+    query.filter_by.return_value = query_with_filters
+    query_with_filters.options.return_value = query_with_template
+    query_with_template.one.return_value = mocker.sentinel.notification
+
+    result = get_notification_with_personalisation(fake_uuid, fake_uuid, key_type=None)
+
+    reader.query.assert_called_once_with(Notification)
+    query.filter_by.assert_called_once_with(service_id=fake_uuid, id=fake_uuid)
+    query_with_filters.options.assert_called_once()
+    assert result == mocker.sentinel.notification
+
+
 def test_get_notification_by_id_when_notification_exists(sample_notification):
     notification_from_db = get_notification_by_id(sample_notification.id)
 
