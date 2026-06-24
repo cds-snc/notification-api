@@ -680,3 +680,77 @@ class TestBillableUnitsInSendOneOffNotification:
 
             # Email increment always uses 1, never billable_units
             mock_increment.assert_called_once_with(service, 1)
+
+
+def test_send_one_off_notification_injects_template_attachments_for_email(notify_db, notify_db_session, mocker):
+    """Test that send_one_off_notification injects template attachments into personalisation for EMAIL notifications"""
+    from app import redis_store
+    from app.dao.files_dao import dao_create_file
+    from app.models import FILE_STATUS_UPLOADED, FILE_TYPE_TEMPLATE_ATTACH, Files
+
+    service = create_service()
+    template = create_template(
+        service=service,
+        template_type=EMAIL_TYPE,
+        subject="Test",
+        content="Email with attachment",
+    )
+
+    # Create template attachment
+    attachment = Files(
+        template_id=template.id,
+        service_id=service.id,
+        document_id=uuid.uuid4(),
+        type=FILE_TYPE_TEMPLATE_ATTACH,
+        name="terms.pdf",
+        mime_type="application/pdf",
+        file_size=12345,
+        status=FILE_STATUS_UPLOADED,
+    )
+    dao_create_file(attachment)
+
+    # Mock redis cache to indicate template has attachments
+    cache_key = f"template:{template.id}:has_attachments"
+    redis_store.set(cache_key, "1", ex=86400)
+
+    # Mock the persist and celery functions to inspect the personalisation
+    persisted_personalisation = None
+
+    def capture_personalisation(**kwargs):
+        nonlocal persisted_personalisation
+        persisted_personalisation = kwargs.get("personalisation")
+        mock_notification = Mock(id=uuid.uuid4())
+        return mock_notification
+
+    mocker.patch("app.service.send_notification.persist_notification", side_effect=capture_personalisation)
+    mocker.patch("app.service.send_notification.send_notification_to_queue")
+    mocker.patch(
+        "app.notifications.validators.get_annual_limit_notifications_v2",
+        return_value={
+            "total_email_fiscal_year_to_yesterday": 0,
+            "total_sms_fiscal_year_to_yesterday": 0,
+        },
+    )
+
+    post_data = {
+        "template_id": str(template.id),
+        "to": "test@example.com",
+        "personalisation": {"custom_field": "custom_value"},  # User-provided personalisation
+        "created_by": str(service.created_by_id),
+    }
+
+    send_one_off_notification(service.id, post_data)
+
+    # Verify attachment was injected into personalisation before calling persist_notification
+    assert persisted_personalisation is not None
+    assert "custom_field" in persisted_personalisation  # User personalisation preserved
+    assert "__attachment_1" in persisted_personalisation  # Attachment added
+
+    attachment_data = persisted_personalisation["__attachment_1"]
+    assert attachment_data["status"] == "ok"
+    assert attachment_data["document"]["filename"] == "terms.pdf"
+    assert attachment_data["document"]["mime_type"] == "application/pdf"
+    assert attachment_data["document"]["file_size"] == 12345
+    assert attachment_data["document"]["sending_method"] == "template_attach"
+    assert "file_extension" in attachment_data["document"]
+    assert "url" in attachment_data["document"]

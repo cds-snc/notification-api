@@ -336,3 +336,71 @@ class TestParseScanVerdictPayload:
             "document_id": "22222222-2222-2222-2222-222222222222",
             "new_status": "virus_scan_failed",
         }
+
+
+class TestTemplateAttachmentCache:
+    """Tests for cache management when creating/updating/deleting template attachments"""
+
+    def test_create_template_attachment_updates_cache(
+        self, mocker, notify_db, notify_db_session, admin_request, sample_service_full_permissions
+    ):
+        """Test that creating a template_attach file sets cache"""
+        from app import redis_store
+
+        sample_template = create_sample_template(notify_db, notify_db_session, service=sample_service_full_permissions)
+        current_user_id = str(sample_template.service.users[0].id)
+
+        # Mock redis_store.set to verify it's called
+        redis_set_mock = mocker.patch.object(redis_store, "set")
+
+        admin_request.post(
+            "files.create_file",
+            template_id=str(sample_template.id),
+            _data={
+                "template_id": str(sample_template.id),
+                "type": "template_attach",  # Important: this is a template attachment
+                "name": "terms.pdf",
+                "mime_type": "application/pdf",
+                "file_size": 12345,
+                "file_data": base64.b64encode(b"Terms and conditions content").decode("utf-8"),
+                "created_by": current_user_id,
+            },
+            _expected_status=201,
+        )
+
+        # Verify cache was updated
+        redis_set_mock.assert_called_once()
+        call_args = redis_set_mock.call_args
+        assert call_args[0][0] == f"template:{sample_template.id}:has_attachments"
+        assert call_args[0][1] == "1"
+        assert call_args[1]["ex"] == 86400  # 24 hours
+
+    def test_create_non_template_attachment_does_not_update_cache(
+        self, mocker, notify_db, notify_db_session, admin_request, sample_service_full_permissions
+    ):
+        """Test that creating a non-template_attach file doesn't update cache"""
+        from app import redis_store
+
+        sample_template = create_sample_template(notify_db, notify_db_session, service=sample_service_full_permissions)
+        current_user_id = str(sample_template.service.users[0].id)
+
+        # Mock redis_store.set to verify it's NOT called
+        redis_set_mock = mocker.patch.object(redis_store, "set")
+
+        admin_request.post(
+            "files.create_file",
+            template_id=str(sample_template.id),
+            _data={
+                "template_id": str(sample_template.id),
+                "type": "attach",  # Regular attachment, not template_attach
+                "name": "regular.pdf",
+                "mime_type": "application/pdf",
+                "file_size": 12345,
+                "file_data": base64.b64encode(b"Regular file content").decode("utf-8"),
+                "created_by": current_user_id,
+            },
+            _expected_status=201,
+        )
+
+        # Verify cache was NOT updated
+        redis_set_mock.assert_not_called()

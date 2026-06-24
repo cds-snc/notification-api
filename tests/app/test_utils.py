@@ -7,8 +7,10 @@ from freezegun import freeze_time
 from app.config import QueueNames
 from app.models import EMAIL_TYPE, SMS_TYPE
 from app.utils import (
+    construct_document_url,
     get_delivery_queue_for_template,
     get_document_url,
+    get_file_extension,
     get_fiscal_dates,
     get_fiscal_year,
     get_limit_reset_time_et,
@@ -318,3 +320,33 @@ class TestPrepareBillableUnitsCountsForSeeding:
 
         assert result["sms_billable_units_delivered_today"] == 0
         assert result["sms_billable_units_failed_today"] == 10  # 2 + 3 + 1 + 4
+
+
+@pytest.mark.parametrize(
+    "filename, expected_extension",
+    [
+        ("document.pdf", "pdf"),
+        ("file.txt", "txt"),
+        ("archive.ZIP", "zip"),  # Should be lowercase
+        ("image.JPG", "jpg"),
+        ("file.name.with.dots.docx", "docx"),
+        ("noextension", ""),
+        ("", ""),
+        (".hiddenfile", "hiddenfile"),
+    ],
+)
+def test_get_file_extension(filename, expected_extension):
+    """Test that get_file_extension correctly extracts file extensions"""
+    assert get_file_extension(filename) == expected_extension
+
+
+def test_construct_document_url(notify_api):
+    """Test that construct_document_url builds correct URL"""
+    notify_api.config["DOCUMENT_DOWNLOAD_API_HOST"] = "https://document-download.example.com"
+
+    service_id = "service-123"
+    document_id = "doc-456"
+
+    url = construct_document_url(service_id, document_id)
+
+    assert url == "https://document-download.example.com/services/service-123/documents/doc-456"
