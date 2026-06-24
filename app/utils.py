@@ -393,3 +393,33 @@ def rate_limit_db_calls(key_prefix: str, period_seconds: int = 60) -> Callable:
         return wrapper
 
     return decorator
+
+
+def get_file_extension(filename):
+    """Extract file extension from filename.
+
+    Args:
+        filename: e.g., "terms.pdf" or "file.txt"
+
+    Returns:
+        Extension without dot, e.g., "pdf" or "txt"
+    """
+    if "." in filename:
+        return filename.rsplit(".", 1)[1].lower()
+    return ""
+
+
+def construct_document_url(service_id, document_id):
+    """Construct frontend URL for document access.
+
+    Uses the document-download service URL pattern.
+
+    Args:
+        service_id: UUID of the service
+        document_id: UUID of the document
+
+    Returns:
+        Full URL to access the document
+    """
+    document_download_host = current_app.config.get("DOCUMENT_DOWNLOAD_API_HOST")
+    return f"{document_download_host}/services/{service_id}/documents/{document_id}"
