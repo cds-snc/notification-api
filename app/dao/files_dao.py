@@ -2,12 +2,25 @@ from datetime import datetime, timezone
 
 from app import db
 from app.dao.dao_utils import transactional
-from app.models import Files
+from app.models import FILE_STATUS_UPLOADED, FILE_TYPE_TEMPLATE_ATTACH, Files
 
 
 def dao_get_files_by_template_id(template_id):
     return Files.query.filter(
         Files.template_id == template_id,
+    ).all()
+
+
+def dao_get_template_attachments(template_id):
+    """Get all uploaded template attachments for a template.
+
+    Returns:
+        List of Files objects with type='template_attach' and status='uploaded'
+    """
+    return Files.query.filter(
+        Files.template_id == template_id,
+        Files.type == FILE_TYPE_TEMPLATE_ATTACH,
+        Files.status == FILE_STATUS_UPLOADED,
     ).all()
 
 
