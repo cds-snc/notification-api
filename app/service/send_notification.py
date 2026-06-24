@@ -1,8 +1,12 @@
+import json
+from collections import namedtuple
+
 from flask import current_app
 from sqlalchemy.orm.exc import NoResultFound
 
-from app import create_random_identifier
+from app import create_random_identifier, redis_store
 from app.config import Priorities, QueueNames
+from app.dao.files_dao import dao_get_template_attachments
 from app.dao.notifications_dao import _update_notification_status
 from app.dao.service_email_reply_to_dao import dao_get_reply_to_by_id
 from app.dao.service_sms_sender_dao import dao_get_service_sms_senders_by_id
@@ -34,7 +38,7 @@ from app.notifications.validators import (
     validate_and_format_recipient,
     validate_template,
 )
-from app.utils import get_delivery_queue_for_template
+from app.utils import construct_document_url, get_delivery_queue_for_template, get_file_extension
 from app.v2.errors import BadRequestError
 
 
@@ -95,6 +99,68 @@ def send_one_off_notification(service_id, post_data):
     billable_units = None
     if template.template_type == SMS_TYPE:
         billable_units = number_of_sms_fragments(template, personalisation)
+
+    # Inject template attachment metadata for EMAIL notifications (admin sends only)
+    if template.template_type == EMAIL_TYPE:
+        cache_key = f"template:{template.id}:has_attachments"
+        cached_data = redis_store.get(cache_key)
+
+        attachments = None
+        if cached_data is None:
+            # Cache miss - query DB
+            attachments = dao_get_template_attachments(template.id)
+            if attachments:
+                # Cache the attachment data as JSON
+                attachment_list = [
+                    {
+                        "document_id": str(f.document_id),
+                        "name": f.name,
+                        "mime_type": f.mime_type,
+                        "file_size": f.file_size,
+                    }
+                    for f in attachments
+                ]
+                redis_store.set(cache_key, json.dumps(attachment_list), ex=86400)
+            else:
+                # Cache empty list to prevent repeated queries
+                redis_store.set(cache_key, "[]", ex=86400)
+        else:
+            # Cache hit - deserialize
+            attachment_list = json.loads(cached_data)
+
+            # Convert list to namedtuples
+            if attachment_list:
+                AttachmentData = namedtuple("AttachmentData", ["document_id", "name", "mime_type", "file_size"])
+                attachments = [AttachmentData(**a) for a in attachment_list]
+            else:
+                attachments = None
+
+        if attachments:
+            # Initialize personalisation if None
+            if personalisation is None:
+                personalisation = {}
+            else:
+                # Make a copy to avoid mutating input
+                personalisation = personalisation.copy()
+
+            # Inject each attachment into personalisation
+            for idx, file_obj in enumerate(attachments, start=1):
+                # Use naming convention: __attachment_N
+                key = f"__attachment_{idx}"
+
+                # Match the structure from document_download_client
+                personalisation[key] = {
+                    "status": "ok",
+                    "document": {
+                        "id": str(file_obj.document_id),
+                        "url": construct_document_url(service.id, file_obj.document_id),
+                        "filename": file_obj.name,
+                        "sending_method": "template_attach",  # Distinguish from API attachments
+                        "mime_type": file_obj.mime_type,
+                        "file_size": file_obj.file_size,  # raw bytes
+                        "file_extension": get_file_extension(file_obj.name),
+                    },
+                }
 
     notification = persist_notification(
         template_id=template.id,
