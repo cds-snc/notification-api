@@ -3,6 +3,7 @@ import uuid
 from flask import Blueprint, current_app, jsonify, request
 from sqlalchemy.exc import NoResultFound
 
+from app import redis_store
 from app.dao.files_dao import (
     dao_create_file,
     dao_delete_file,
@@ -23,6 +24,7 @@ from app.models import (
     FILE_STATUS_PENDING_VIRUS_SCAN,
     FILE_STATUS_UPLOADED,
     FILE_STATUS_VIRUS_SCAN_FAILED,
+    FILE_TYPE_TEMPLATE_ATTACH,
     MANAGE_TEMPLATES,
     UPLOAD_DOCUMENT,
     Files,
@@ -47,6 +49,33 @@ GUARD_DUTY_STATUS_MAP = {
     "FAILED": FILE_STATUS_VIRUS_SCAN_FAILED,
     "SKIPPED": FILE_STATUS_VIRUS_SCAN_FAILED,
 }
+
+
+def _update_template_attachment_cache(template_id):
+    """Update cache to indicate whether template has uploaded attachments.
+
+    This cache is used to optimize notification creation by avoiding unnecessary
+    DB queries for templates without attachments.
+
+    Args:
+        template_id: UUID of the template to update cache for
+    """
+    cache_key = f"template:{template_id}:has_attachments"
+
+    # Check if any uploaded template attachments exist
+    has_attachments = (
+        Files.query.filter(
+            Files.template_id == template_id,
+            Files.type == FILE_TYPE_TEMPLATE_ATTACH,
+            Files.status == FILE_STATUS_UPLOADED,
+        ).count()
+        > 0
+    )
+
+    if has_attachments:
+        redis_store.set(cache_key, "1", ex=86400)  # 24 hour cache
+    else:
+        redis_store.delete(cache_key)
 
 
 @files_blueprint.route("", methods=["POST"])
@@ -91,6 +120,10 @@ def create_file(template_id):
     )
     dao_create_file(file)
 
+    # Update cache if this is a template attachment
+    if file.type == FILE_TYPE_TEMPLATE_ATTACH:
+        _update_template_attachment_cache(template_id)
+
     return jsonify(files_schema.dump(file)), 201
 
 
@@ -118,6 +151,7 @@ def delete_file(template_id, file_id):
         )
 
     dao_delete_file(fetched_file)
+    _update_template_attachment_cache(template_id)
 
     current_app.logger.info(f"Deleted file: {file_id} template_id {template_id}")
     return "", 204
@@ -149,8 +183,17 @@ def update_file_status():
             404,
         )
 
+    # Store old status to detect status change
+    old_status = fetched_file.status
+
     fetched_file.status = new_status
     dao_update_file(fetched_file)
+
+    # Update cache if template attachment status changed to/from uploaded
+    if fetched_file.type == FILE_TYPE_TEMPLATE_ATTACH and (
+        old_status == FILE_STATUS_UPLOADED or new_status == FILE_STATUS_UPLOADED
+    ):
+        _update_template_attachment_cache(fetched_file.template_id)
 
     current_app.logger.info(
         f"Updated file status to {new_status} for file_id: {fetched_file.id} "
