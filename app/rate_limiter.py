@@ -718,9 +718,7 @@ class BufferedRateLimiter(RateLimiter):
 
         # Discard stale local tokens to prevent cross-window over-consumption.
         if self._local_tokens > 0 and time() - self._acquired_at >= self.TOKEN_WINDOW_SECONDS:
-            _logger.debug(
-                f"BufferedRateLimiter [{self.namespace}]: discarding {self._local_tokens} stale local tokens"
-            )
+            _logger.debug(f"BufferedRateLimiter [{self.namespace}]: discarding {self._local_tokens} stale local tokens")
             self._local_tokens = 0
 
         # Fast path: if the local buffer has enough tokens, spend them without hitting the backend.

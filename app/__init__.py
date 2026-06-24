@@ -121,6 +121,7 @@ def create_app(application, config=None):
     # for specific loggers.
     if application.config.get("NOTIFY_ENVIRONMENT") == "staging":
         import logging as stdlib_logging
+
         stdlib_logging.getLogger("app.rate_limiter").setLevel(stdlib_logging.DEBUG)
     if application.config.get("OTEL_REQUEST_METRICS_ENABLED", False):
         init_otel_request_metrics(application)
