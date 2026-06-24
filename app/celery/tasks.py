@@ -340,6 +340,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
     except SQLAlchemyError as e:
         signed_and_verified = list(zip(signed_notifications, verified_notifications))
         handle_batch_error_and_forward(self, signed_and_verified, SMS_TYPE, e, receipt, template)
+        return
 
     current_app.logger.debug(f"Sending following sms notifications to AWS: {notification_id_queue.keys()}")
     for notification_obj in saved_notifications:
@@ -458,6 +459,7 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
     except SQLAlchemyError as e:
         signed_and_verified = list(zip(signed_notifications, verified_notifications))
         handle_batch_error_and_forward(self, signed_and_verified, EMAIL_TYPE, e, receipt, template)
+        return
 
     if saved_notifications:
         try_to_send_notifications_to_queue(notification_id_queue, service, saved_notifications, template)
