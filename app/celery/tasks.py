@@ -27,6 +27,7 @@ from app import (
     email_priority,
     metrics_logger,
     notify_celery,
+    redis_store,
     signer_notification,
     sms_bulk,
     sms_normal,
@@ -43,6 +44,7 @@ from app.dao.api_key_dao import update_last_used_api_key
 from app.dao.fact_notification_status_dao import (
     fetch_notification_status_totals_for_service_by_fiscal_year,
 )
+from app.dao.files_dao import dao_get_template_attachments
 from app.dao.inbound_sms_dao import dao_get_inbound_sms_by_id
 from app.dao.jobs_dao import dao_get_in_progress_jobs, dao_get_job_by_id, dao_update_job
 from app.dao.notifications_dao import (
@@ -88,7 +90,13 @@ from app.notifications.process_notifications import (
 from app.report.utils import generate_csv_from_notifications, send_requested_report_ready
 from app.sms_fragment_utils import fetch_todays_requested_sms_count
 from app.types import VerifiedNotification
-from app.utils import get_csv_max_rows, get_delivery_queue_for_template, get_fiscal_year
+from app.utils import (
+    construct_document_url,
+    get_csv_max_rows,
+    get_delivery_queue_for_template,
+    get_file_extension,
+    get_fiscal_year,
+)
 from app.v2.errors import (
     LiveServiceTooManyRequestsError,
     LiveServiceTooManySMSRequestsError,
@@ -180,7 +188,82 @@ def process_rows(rows: List, template: Template, job: Job, service: Service):
     sender_id = str(job.sender_id) if job.sender_id else None
     encrypted_smss: List[SignedNotification] = []
     encrypted_emails: List[SignedNotification] = []
+
+    # For admin-initiated email bulk sends, check if template has attachments (once per batch)
+    should_inject_attachments = False
+    attachments = None
+    if job.api_key_id is None and template_type == EMAIL_TYPE:
+        cache_key = f"template:{template.id}:has_attachments"
+        cached_data = redis_store.get(cache_key)
+
+        if cached_data is None:
+            # Cache miss - query DB
+            attachments = dao_get_template_attachments(template.id)
+            if attachments:
+                # Cache the attachment data as JSON
+                attachment_list = [
+                    {
+                        "document_id": str(f.document_id),
+                        "name": f.name,
+                        "mime_type": f.mime_type,
+                        "file_size": f.file_size,
+                    }
+                    for f in attachments
+                ]
+                redis_store.set(cache_key, json.dumps(attachment_list), ex=86400)
+                should_inject_attachments = True
+            else:
+                # Cache empty list
+                redis_store.set(cache_key, "[]", ex=86400)
+        else:
+            # Cache hit - deserialize
+            attachment_list = json.loads(cached_data)
+            # Handle old cache format (just "1" or "0") - invalidate and re-query
+            if not isinstance(attachment_list, list):
+                attachments = dao_get_template_attachments(template.id)
+                if attachments:
+                    attachment_list = [
+                        {
+                            "document_id": str(f.document_id),
+                            "name": f.name,
+                            "mime_type": f.mime_type,
+                            "file_size": f.file_size,
+                        }
+                        for f in attachments
+                    ]
+                    redis_store.set(cache_key, json.dumps(attachment_list), ex=86400)
+                    should_inject_attachments = True
+                else:
+                    redis_store.set(cache_key, "[]", ex=86400)
+                    attachment_list = []
+
+            # Convert list to namedtuples
+            if attachment_list:
+                AttachmentData = namedtuple("AttachmentData", ["document_id", "name", "mime_type", "file_size"])
+                attachments = [AttachmentData(**a) for a in attachment_list]
+                should_inject_attachments = True
+
     for row in rows:
+        # Prepare personalisation, injecting attachments for admin email bulk sends
+        personalisation = dict(row.personalisation)
+        if should_inject_attachments and attachments:
+            # Make a copy to avoid mutating the row
+            personalisation = personalisation.copy()
+            for idx, file_obj in enumerate(attachments, start=1):
+                key = f"__attachment_{idx}"
+                personalisation[key] = {
+                    "status": "ok",
+                    "document": {
+                        "id": str(file_obj.document_id),
+                        "url": construct_document_url(service.id, file_obj.document_id),
+                        "filename": file_obj.name,
+                        "sending_method": "template_attach",
+                        "mime_type": file_obj.mime_type,
+                        "file_size": file_obj.file_size,
+                        "file_extension": get_file_extension(file_obj.name),
+                    },
+                }
+
         client_reference = row.get("reference", None)
         signed_row = SignedNotification(
             signer_notification.sign(
@@ -192,7 +275,7 @@ def process_rows(rows: List, template: Template, job: Job, service: Service):
                     "job": str(job.id),
                     "to": row.recipient,
                     "row_number": row.index,
-                    "personalisation": dict(row.personalisation),
+                    "personalisation": personalisation,
                     "queue": choose_sending_queue(str(template.process_type), template_type, job.notification_count),
                     "sender_id": sender_id,
                     "client_reference": client_reference.data,  # will return None if missing
