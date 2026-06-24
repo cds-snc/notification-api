@@ -218,24 +218,6 @@ def process_rows(rows: List, template: Template, job: Job, service: Service):
         else:
             # Cache hit - deserialize
             attachment_list = json.loads(cached_data)
-            # Handle old cache format (just "1" or "0") - invalidate and re-query
-            if not isinstance(attachment_list, list):
-                attachments = dao_get_template_attachments(template.id)
-                if attachments:
-                    attachment_list = [
-                        {
-                            "document_id": str(f.document_id),
-                            "name": f.name,
-                            "mime_type": f.mime_type,
-                            "file_size": f.file_size,
-                        }
-                        for f in attachments
-                    ]
-                    redis_store.set(cache_key, json.dumps(attachment_list), ex=86400)
-                    should_inject_attachments = True
-                else:
-                    redis_store.set(cache_key, "[]", ex=86400)
-                    attachment_list = []
 
             # Convert list to namedtuples
             if attachment_list:
