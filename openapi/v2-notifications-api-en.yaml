@@ -945,7 +945,7 @@ paths:
       description: |
         Archive a template and remove it from any folder.
 
-        This endpoint requires a NEW API key with the manage_permissions permission (manage_templates).
+        This endpoint requires a NEW API key with the manage_templates permission.
       operationId: deleteManageTemplate
       tags:
         - Manage Templates
