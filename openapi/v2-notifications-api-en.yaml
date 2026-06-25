@@ -694,7 +694,7 @@ paths:
       description: |
         Retrieve all available template categories for manage template operations.
 
-        This endpoint requires a NEW API key with the manage_permissions permission (manage_templates).
+        This endpoint requires a NEW API key with the manage_templates permission.
       operationId: getManageTemplateCategories
       tags:
         - Manage Templates
