@@ -8,6 +8,7 @@ This module provides a generic rate limiter that enforces a cap on the number
 of units that can be acquired per minute.
 """
 
+import logging
 import math
 from abc import ABC, abstractmethod
 from collections import deque
@@ -15,6 +16,8 @@ from time import time
 from typing import Tuple
 
 from flask import current_app
+
+_logger = logging.getLogger(__name__)
 
 
 class RateLimiter(ABC):
@@ -244,8 +247,6 @@ def initialize_rate_limiter(
     Returns:
         RateLimiter: The initialized rate limiter instance.
     """
-    import logging
-
     logger = logging.getLogger(__name__)
 
     if limiter_class is not None:
@@ -454,7 +455,7 @@ class RedisSlidingWindowLogRateLimiter(RateLimiter):
         success, wait_seconds = result[0], result[1]
 
         if success:
-            current_app.logger.debug(f"Rate limiter [{self.namespace}]: acquired {units} units. Entry ID: {entry_id}")
+            _logger.debug(f"Rate limiter [{self.namespace}]: acquired {units} units. Entry ID: {entry_id}")
         else:
             current_app.logger.warning(
                 f"Rate limiter [{self.namespace}]: capacity exhausted. Requested {units} units. "
@@ -617,7 +618,7 @@ class RedisTokenBucketRateLimiter(RateLimiter):
         success, wait_seconds = result[0], result[1]
 
         if success:
-            current_app.logger.debug(f"Rate limiter [{self.namespace}]: acquired {units} units.")
+            _logger.debug(f"Rate limiter [{self.namespace}]: acquired {units} units.")
         else:
             current_app.logger.warning(
                 f"Rate limiter [{self.namespace}]: capacity exhausted. Requested {units} units. "
@@ -715,15 +716,13 @@ class BufferedRateLimiter(RateLimiter):
 
         # Discard stale local tokens to prevent cross-window over-consumption.
         if self._local_tokens > 0 and time() - self._acquired_at >= self.TOKEN_WINDOW_SECONDS:
-            current_app.logger.debug(
-                f"BufferedRateLimiter [{self.namespace}]: discarding {self._local_tokens} stale local tokens"
-            )
+            _logger.debug(f"BufferedRateLimiter [{self.namespace}]: discarding {self._local_tokens} stale local tokens")
             self._local_tokens = 0
 
         # Fast path: if the local buffer has enough tokens, spend them without hitting the backend.
         if self._local_tokens >= units:
             self._local_tokens -= units
-            current_app.logger.debug(
+            _logger.debug(
                 f"BufferedRateLimiter [{self.namespace}]: spent {units} local tokens " f"(remaining: {self._local_tokens})"
             )
             return True, 0
@@ -743,7 +742,7 @@ class BufferedRateLimiter(RateLimiter):
         self._acquired_at = time()
         self._local_tokens += batch
         self._local_tokens -= units
-        current_app.logger.debug(
+        _logger.debug(
             f"BufferedRateLimiter [{self.namespace}]: fetched {batch} tokens from backend, "
             f"spent {units}, local buffer now {self._local_tokens}"
         )
