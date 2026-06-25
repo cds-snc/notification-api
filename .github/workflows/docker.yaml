@@ -45,7 +45,7 @@ jobs:
         docker pull $DOCKER_SLUG:latest
         docker build \
         --cache-from $DOCKER_SLUG:latest \
-        --build-arg GIT_SHA=${GITHUB_SHA::7} \
+        --build-arg GIT_SHA=${GITHUB_SHA} \
         -t $DOCKER_SLUG:${GITHUB_SHA::7} \
         -t $DOCKER_SLUG:latest \
         -f ci/Dockerfile .

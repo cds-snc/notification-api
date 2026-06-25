@@ -609,6 +609,8 @@ class Config(object):
     # SMS rate limiter backend class name. Must match a key in an implementation class in the rate_limiter module.
     # Options: "InMemoryRateLimiter", "RedisSlidingWindowLogRateLimiter", "RedisTokenBucketRateLimiter"
     SMS_RATE_LIMITER_BACKEND = os.getenv("SMS_RATE_LIMITER_BACKEND", "InMemoryRateLimiter")
+    # Number of tokens to pre-fetch from the underlying rate limiter per Redis call (BufferedRateLimiter batch size).
+    SMS_RATE_LIMITER_BATCH = env.int("SMS_RATE_LIMITER_BATCH", 100)
     AWS_SEND_SMS_BOTO_CALL_LATENCY = os.getenv("AWS_SEND_SMS_BOTO_CALL_LATENCY", 0.06)  # average delay in production
 
     CONTACT_FORM_EMAIL_ADDRESS = os.getenv("CONTACT_FORM_EMAIL_ADDRESS", "helpdesk@cds-snc.ca")
