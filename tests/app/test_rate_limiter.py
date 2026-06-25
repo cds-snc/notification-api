@@ -354,21 +354,24 @@ class TestRedisTokenBucketRateLimiter:
         return RedisTokenBucketRateLimiter(cap_per_minute=1000, namespace="test", redis_client=redis_client)
 
     def test_acquire_lease_below_capacity_succeeds(self, client, limiter):
+        # max_tokens = 1000/60 ≈ 16.67; requesting 10 fits comfortably
         with client.application.app_context():
-            allow_send, wait_seconds = limiter.acquire_lease(100)
+            allow_send, wait_seconds = limiter.acquire_lease(10)
             assert allow_send is True
             assert wait_seconds == 0
 
     def test_acquire_lease_at_capacity_succeeds(self, client, limiter):
+        # max_tokens ≈ 16.67; requesting 16 fits within the ceiling
         with client.application.app_context():
-            allow_send, wait_seconds = limiter.acquire_lease(1000)
+            allow_send, wait_seconds = limiter.acquire_lease(16)
             assert allow_send is True
             assert wait_seconds == 0
 
     def test_acquire_lease_exceeding_capacity_fails(self, client, limiter):
+        # Fill the bucket then request 1 more — must be denied
         with client.application.app_context():
-            limiter.acquire_lease(1000)
-            allow_send, wait_seconds = limiter.acquire_lease(100)
+            limiter.acquire_lease(16)
+            allow_send, wait_seconds = limiter.acquire_lease(1)
             assert allow_send is False
             assert wait_seconds > 0
 
@@ -388,134 +391,138 @@ class TestRedisTokenBucketRateLimiter:
                 limiter.acquire_lease(limiter.cap_per_minute + 1)
 
     def test_get_current_usage_returns_consumed_parts(self, client, limiter):
+        # max_tokens ≈ 16.67; consume 5+8=13, leaving ~3.67 available
         with client.application.app_context():
             with patch("app.rate_limiter.time") as mock_time:
                 mock_time.return_value = 100.0
-                limiter.acquire_lease(150)
-                limiter.acquire_lease(250)
+                limiter.acquire_lease(5)
+                limiter.acquire_lease(8)
                 # freeze time so no refill occurs during get_current_usage
-                assert limiter.get_current_usage() == 400
+                assert limiter.get_current_usage() == 13
 
     def test_get_current_usage_zero_when_bucket_empty(self, client, limiter):
         with client.application.app_context():
             assert limiter.get_current_usage() == 0
 
     def test_retry_delay_is_precise(self, client, limiter):
-        # Token bucket wait time = ceil(deficit / refill_rate)
-        # refill_rate = 1000 / 60 ≈ 16.67 parts/sec
-        # After consuming 1000/1000, requesting 100 more:
-        # deficit = 100, wait = ceil(100 / 16.67) = ceil(5.999) = 6
+        # refill_rate = 1000/60 ≈ 16.67 tokens/sec
+        # Fill the bucket (16 tokens), then request 1 more:
+        # deficit = 1, wait = ceil(1 / 16.67) = 1 s
         with client.application.app_context():
             with patch("app.rate_limiter.time") as mock_time:
                 mock_time.return_value = 100.0
-                limiter.acquire_lease(1000)
-                allow_send, wait_seconds = limiter.acquire_lease(100)
+                limiter.acquire_lease(16)
+                allow_send, wait_seconds = limiter.acquire_lease(1)
                 assert allow_send is False
                 import math
 
-                expected = math.ceil(100 / (1000 / 60))
+                expected = math.ceil(1 / (1000 / 60))
                 assert wait_seconds == expected
 
     def test_capacity_refills_over_time(self, client, limiter):
+        # Fill bucket, advance 0.12 s: refill = 16.67 * 0.12 = 2.0 tokens
         with client.application.app_context():
             with patch("app.rate_limiter.time") as mock_time:
                 mock_time.return_value = 100.0
-                limiter.acquire_lease(1000)
+                limiter.acquire_lease(16)
 
-                # Advance 30 seconds — should have refilled 1000/60 * 30 = 500 tokens
-                mock_time.return_value = 130.0
-                allow_send, _ = limiter.acquire_lease(500)
+                # 0.12 seconds refills ≈ 2 tokens — enough to acquire 2
+                mock_time.return_value = 100.12
+                allow_send, _ = limiter.acquire_lease(2)
                 assert allow_send is True
 
-    def test_bucket_does_not_exceed_cap_after_idle(self, client, limiter):
+    def test_bucket_does_not_exceed_max_burst_after_idle(self, client, limiter):
+        # Even after 120 s of idle, the bucket holds at most refill_rate ≈ 16.67 tokens.
+        # Requesting 16 must succeed, but 17 must fail.
         with client.application.app_context():
             with patch("app.rate_limiter.time") as mock_time:
                 mock_time.return_value = 100.0
-                limiter.acquire_lease(500)
+                limiter.acquire_lease(10)
 
-                # Advance 120 seconds — bucket should be capped at 1000, not 500 + 1000/60*120
+                # Advance 120 seconds — bucket should be capped at ~16.67, not 10 + 16.67*120
                 mock_time.return_value = 220.0
-                allow_send, _ = limiter.acquire_lease(1000)
+                allow_send, _ = limiter.acquire_lease(16)
                 assert allow_send is True
 
-    def test_burst_after_idle_allows_full_cap(self, client, limiter):
+    def test_no_burst_after_idle(self, client, limiter):
+        # After any amount of idle time the bucket never accumulates more than
+        # one second of tokens (≈16.67). A request for 17 must always be denied.
         with client.application.app_context():
             with patch("app.rate_limiter.time") as mock_time:
                 mock_time.return_value = 100.0
-                # Use up full capacity
-                limiter.acquire_lease(1000)
+                # Drain the bucket first
+                limiter.acquire_lease(16)
 
-                # Advance 60 seconds — bucket fully refilled
+                # Advance 60 seconds — old behaviour would refill to 1000, new caps at ≈16.67
                 mock_time.return_value = 160.0
-                allow_send, _ = limiter.acquire_lease(1000)
-                assert allow_send is True
+                with pytest.raises(ValueError):
+                    limiter.acquire_lease(17)  # still above the ceiling
 
-    def test_full_cap_available_slightly_after_60_seconds(self, client, limiter):
-        # Mirrors test_window_slightly_older_than_60_seconds_is_removed: after
-        # depleting all tokens and waiting 60.1 s the bucket is at full cap and
-        # a full-cap request must be granted.
+    def test_bucket_refills_fully_after_one_second(self, client, limiter):
+        # After draining, exactly 1 second of elapsed time refills the ceiling.
         with client.application.app_context():
             with patch("app.rate_limiter.time") as mock_time:
                 base_time = 100.0
                 mock_time.return_value = base_time
-                limiter.acquire_lease(1000)
+                limiter.acquire_lease(16)
 
-                mock_time.return_value = base_time + 60.1
-                allow_send, _ = limiter.acquire_lease(1000)
+                # After 1 second the bucket is back at ≈16.67 — enough for 16
+                mock_time.return_value = base_time + 1.0
+                allow_send, _ = limiter.acquire_lease(16)
                 assert allow_send is True
 
     def test_reset_clears_bucket(self, client, limiter):
         with client.application.app_context():
             with patch("app.rate_limiter.time") as mock_time:
                 mock_time.return_value = 100.0
-                limiter.acquire_lease(1000)
-                allow_send, _ = limiter.acquire_lease(100)
-                assert allow_send is False
-
-                limiter.reset_limiter()
-                # After reset, bucket is gone; next call initialises fresh full bucket
-                allow_send, _ = limiter.acquire_lease(1000)
-                assert allow_send is True
-
-    def test_multiple_sequential_acquires_deplete_tokens(self, client, limiter):
-        with client.application.app_context():
-            with patch("app.rate_limiter.time") as mock_time:
-                mock_time.return_value = 100.0
-                limiter.acquire_lease(400)
-                limiter.acquire_lease(400)
-                limiter.acquire_lease(200)
-                # Bucket now at 0
+                limiter.acquire_lease(16)
                 allow_send, _ = limiter.acquire_lease(1)
                 assert allow_send is False
 
-    def test_bucket_not_fully_refilled_after_59_9_seconds(self, client, limiter):
-        # After depleting all tokens, 59.9 s of refill restores only
-        # 1000/60 * 59.9 ≈ 998.3 tokens — not enough to grant 1000.
+                limiter.reset_limiter()
+                # After reset, bucket reinitialises with one second of tokens
+                allow_send, _ = limiter.acquire_lease(16)
+                assert allow_send is True
+
+    def test_multiple_sequential_acquires_deplete_tokens(self, client, limiter):
+        # max_tokens ≈ 16.67; acquiring 10 + 6 = 16 leaves < 1 token
+        with client.application.app_context():
+            with patch("app.rate_limiter.time") as mock_time:
+                mock_time.return_value = 100.0
+                limiter.acquire_lease(10)
+                limiter.acquire_lease(6)
+                # Bucket now has ≈ 0.67 tokens — not enough for 1
+                allow_send, _ = limiter.acquire_lease(1)
+                assert allow_send is False
+
+    def test_bucket_not_fully_refilled_after_partial_second(self, client, limiter):
+        # After depleting 16 tokens (leaving ≈0.67 tokens), 0.9 s elapses:
+        # refill = 16.67 * 0.9 ≈ 15.0 tokens, total ≈15.67 < 16.
+        # A second full-ceiling request must therefore fail.
         with client.application.app_context():
             with patch("app.rate_limiter.time") as mock_time:
                 base_time = 100.0
                 mock_time.return_value = base_time
-                limiter.acquire_lease(1000)
+                limiter.acquire_lease(16)
 
-                mock_time.return_value = base_time + 59.9
-                allow_send, _ = limiter.acquire_lease(1000)
+                # 0.9 seconds refills ≈15.67 tokens — not enough for another 16
+                mock_time.return_value = base_time + 0.9
+                allow_send, _ = limiter.acquire_lease(16)
                 assert allow_send is False
 
     def test_retry_delay_with_partial_prior_consumption(self, client, limiter):
-        # Two partial acquires leave 100 tokens remaining; requesting 200 creates
-        # a deficit of 100.  wait = ceil(100 / (1000/60)) = ceil(6.0) = 6 s.
+        # max_tokens ≈ 16.67; acquire 8+5=13 leaving ≈3.67 tokens.
+        # Requesting 5 creates a deficit of ≈1.33.
+        # wait = ceil(1.33 / 16.67) = ceil(0.08) = 1 s.
         with client.application.app_context():
             with patch("app.rate_limiter.time") as mock_time:
-                import math
-
                 mock_time.return_value = 100.0
-                limiter.acquire_lease(500)
-                limiter.acquire_lease(400)
-                # 100 tokens remain; requesting 200 → deficit 100
-                allow_send, wait_seconds = limiter.acquire_lease(200)
+                limiter.acquire_lease(8)
+                limiter.acquire_lease(5)
+                # ≈3.67 tokens remain; requesting 5 → deficit ≈1.33
+                allow_send, wait_seconds = limiter.acquire_lease(5)
                 assert allow_send is False
-                expected = math.ceil(100 / (1000 / 60))
-                assert wait_seconds == expected
+                assert wait_seconds == 1
 
 
 class TestInitializeRateLimiter:
