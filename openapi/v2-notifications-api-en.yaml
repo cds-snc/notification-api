@@ -824,7 +824,7 @@ paths:
       description: |
         Update editable fields on a template, including category and parent folder assignment.
 
-        This endpoint requires a NEW API key with the manage_permissions permission (manage_templates).
+        This endpoint requires a NEW API key with the manage_templates permission.
       operationId: patchManageTemplate
       tags:
         - Manage Templates
