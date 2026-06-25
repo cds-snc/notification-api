@@ -690,7 +690,7 @@ paths:
 
   /v2/manage-template/template-categories:
     get:
-      summary: Obtenir les catégories de modèles de gestion
+      summary: Obtenir les catégories de modèles
       description: |
         Récupérer toutes les catégories de modèles disponibles pour les opérations de gestion des modèles.
 
@@ -745,7 +745,7 @@ paths:
 
   /v2/manage-template/{template-id}:
     get:
-      summary: Obtenir un modèle de gestion par ID
+      summary: Obtenir un modèle par ID
       description: |
         Récupérer un modèle spécifique par ID avec les permissions de gestion des modèles.
 
@@ -822,7 +822,7 @@ paths:
         - apiKey: []
 
     patch:
-      summary: Mettre à jour un modèle de gestion
+      summary: Mettre à jour un modèle
       description: |
         Mettre à jour les champs modifiables d’un modèle, y compris la catégorie et l’affectation du dossier parent.
 
@@ -943,7 +943,7 @@ paths:
         - apiKey: []
 
     delete:
-      summary: Archiver un modèle de gestion
+      summary: Archiver un modèle
       description: |
         Archiver un modèle et le retirer de tout dossier.
 
@@ -1024,7 +1024,7 @@ paths:
 
   /v2/manage-template:
     post:
-      summary: Créer un modèle de gestion
+      summary: Créer un modèle
       description: |
         Créer un nouveau modèle avec une catégorie de modèle obligatoire.
 

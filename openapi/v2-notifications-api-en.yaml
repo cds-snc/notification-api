@@ -690,7 +690,7 @@ paths:
 
   /v2/manage-template/template-categories:
     get:
-      summary: Get manage template categories
+      summary: Get template categories
       description: |
         Retrieve all available template categories for manage template operations.
 
@@ -745,7 +745,7 @@ paths:
 
   /v2/manage-template/{template-id}:
     get:
-      summary: Get manage template by ID
+      summary: Get template by ID
       description: |
         Retrieve a specific template by ID using manage template permissions.
 
@@ -822,7 +822,7 @@ paths:
         - apiKey: []
 
     patch:
-      summary: Update a manage template
+      summary: Update a template
       description: |
         Update editable fields on a template, including category and parent folder assignment.
 
@@ -943,7 +943,7 @@ paths:
         - apiKey: []
 
     delete:
-      summary: Archive a manage template
+      summary: Archive a template
       description: |
         Archive a template and remove it from any folder.
 
@@ -1024,7 +1024,7 @@ paths:
 
   /v2/manage-template:
     post:
-      summary: Create a manage template
+      summary: Create a template
       description: |
         Create a new template with a required template category.
 
