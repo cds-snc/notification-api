@@ -688,6 +688,464 @@ paths:
         - apiKey: []
 
 
+  /v2/manage-template/template-categories:
+    get:
+      summary: Obtenir les catégories de modèles
+      description: |
+        Récupérer toutes les catégories de modèles disponibles pour les opérations de gestion des modèles.
+
+        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_permissions (manage_templates).
+      operationId: getManageTemplateCategories
+      tags:
+        - Manage Templates
+      responses:
+        '200':
+          description: Catégories de modèles récupérées avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManageTemplateCategoriesResponse'
+        '401':
+          description: Non autorisé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                auth_error:
+                  summary: Unauthorized access
+                  value:
+                    status_code: 401
+                    errors:
+                      - error: "AuthError"
+                        message: "Unauthorized, authentication token must be provided"
+        '403':
+          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_permissions requise (manage_templates)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                missing_permission:
+                  summary: Permission de gestion des modèles manquante
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "ForbiddenError"
+                        message: "This API key does not have permission to manage templates."
+        '500':
+          description: Erreur interne du serveur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+      security:
+        - apiKey: []
+
+
+  /v2/manage-template/{template-id}:
+    get:
+      summary: Obtenir un modèle par ID
+      description: |
+        Récupérer un modèle spécifique par ID avec les permissions de gestion des modèles.
+
+        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_permissions (manage_templates).
+      operationId: getManageTemplateById
+      tags:
+        - Manage Templates
+      parameters:
+        - name: template-id
+          in: path
+          description: Identifiant unique du modèle
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '200':
+          description: Modèle récupéré avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManageTemplate'
+        '400':
+          description: Mauvaise requête - format d’ID de modèle invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 400
+                errors:
+                  - error: "ValidationError"
+                    message: "id is not a valid UUID"
+        '401':
+          description: Non autorisé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '403':
+          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_permissions requise (manage_templates)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                missing_permission:
+                  summary: Permission de gestion des modèles manquante
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "ForbiddenError"
+                        message: "This API key does not have permission to manage templates."
+        '404':
+          description: Modèle non trouvé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                template_not_found:
+                  summary: Template not found
+                  value:
+                    status_code: 404
+                    errors:
+                      - error: "TemplateNotFoundError"
+                        message: "Template not found in database"
+        '500':
+          description: Erreur interne du serveur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+      security:
+        - apiKey: []
+
+    patch:
+      summary: Mettre à jour un modèle
+      description: |
+        Mettre à jour les champs modifiables d’un modèle, y compris la catégorie et l’affectation du dossier parent.
+
+        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_permissions (manage_templates).
+      operationId: patchManageTemplate
+      tags:
+        - Manage Templates
+      parameters:
+        - name: template-id
+          in: path
+          description: Identifiant unique du modèle
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ManageTemplatePatchRequest'
+            examples:
+              update_name_and_category:
+                summary: Mettre à jour le nom du modèle et la catégorie
+                value:
+                  name: "Rappel de suivi"
+                  template_category_id: "12345678-1234-1234-1234-123456789012"
+              move_template_to_folder:
+                summary: Déplacer le modèle dans un dossier
+                value:
+                  parent_folder_id: "87654321-4321-4321-4321-210987654321"
+              remove_from_folder:
+                summary: Retirer le modèle du dossier
+                value:
+                  parent_folder_id: null
+      responses:
+        '200':
+          description: Modèle mis à jour avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManageTemplate'
+        '400':
+          description: Mauvaise requête - erreurs de validation ou de catégorie
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ValidationErrorResponse'
+                  - $ref: '#/components/schemas/ManageTemplateCategoryErrorResponse'
+              examples:
+                invalid_template_id:
+                  summary: Format d’ID de modèle invalide
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "id is not a valid UUID"
+                invalid_parent_folder:
+                  summary: Dossier parent introuvable
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "parent_folder_id not found"
+                category_not_found:
+                  summary: Catégorie de modèle introuvable
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "TemplateCategoryNotFoundError"
+                        message: "template_category_id not found"
+                    template_categories:
+                      - template_category_id: "12345678-1234-1234-1234-123456789012"
+                        name: "Mises à jour"
+                category_invalid:
+                  summary: Valeur de catégorie de modèle invalide
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "TemplateCategoryValidationError"
+                        message: "template_category_id must be a valid UUID"
+                    template_categories:
+                      - template_category_id: "12345678-1234-1234-1234-123456789012"
+                        name: "Mises à jour"
+        '401':
+          description: Non autorisé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '403':
+          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_permissions requise (manage_templates)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                missing_permission:
+                  summary: Permission de gestion des modèles manquante
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "ForbiddenError"
+                        message: "This API key does not have permission to manage templates."
+        '404':
+          description: Modèle non trouvé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '500':
+          description: Erreur interne du serveur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+      security:
+        - apiKey: []
+
+    delete:
+      summary: Archiver un modèle
+      description: |
+        Archiver un modèle et le retirer de tout dossier.
+
+        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_permissions (manage_templates).
+      operationId: deleteManageTemplate
+      tags:
+        - Manage Templates
+      parameters:
+        - name: template-id
+          in: path
+          description: Identifiant unique du modèle
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '200':
+          description: Modèle archivé avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManageTemplate'
+        '400':
+          description: Mauvaise requête - ID invalide ou déjà archivé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                invalid_template_id:
+                  summary: Format d’ID de modèle invalide
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "id is not a valid UUID"
+                already_archived:
+                  summary: Le modèle est déjà archivé
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "Template is already archived."
+        '401':
+          description: Non autorisé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '403':
+          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_permissions requise (manage_templates)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                missing_permission:
+                  summary: Permission de gestion des modèles manquante
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "ForbiddenError"
+                        message: "This API key does not have permission to manage templates."
+        '404':
+          description: Modèle non trouvé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '500':
+          description: Erreur interne du serveur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+      security:
+        - apiKey: []
+
+
+  /v2/manage-template:
+    post:
+      summary: Créer un modèle
+      description: |
+        Créer un nouveau modèle avec une catégorie de modèle obligatoire.
+
+        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_permissions (manage_templates).
+      operationId: postManageTemplate
+      tags:
+        - Manage Templates
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ManageTemplatePostRequest'
+            examples:
+              create_sms_template:
+                summary: Créer un modèle SMS
+                value:
+                  name: "Mise à jour du service"
+                  template_type: "sms"
+                  content: "Bonjour ((name)), la mise à jour de votre service est prête."
+                  template_category_id: "12345678-1234-1234-1234-123456789012"
+              create_email_template:
+                summary: Créer un modèle courriel
+                value:
+                  name: "Courriel de mise à jour du service"
+                  template_type: "email"
+                  subject: "Votre mise à jour"
+                  content: "Bonjour ((name)), la mise à jour de votre service est prête."
+                  template_category_id: "12345678-1234-1234-1234-123456789012"
+                  parent_folder_id: "87654321-4321-4321-4321-210987654321"
+      responses:
+        '201':
+          description: Modèle créé avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManageTemplate'
+        '400':
+          description: Mauvaise requête - validation, catégorie ou limites de contenu
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/ValidationErrorResponse'
+                  - $ref: '#/components/schemas/ManageTemplateCategoryErrorResponse'
+              examples:
+                missing_required_field:
+                  summary: Champ obligatoire manquant
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "template_category_id is a required property"
+                invalid_parent_folder:
+                  summary: Dossier parent introuvable
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "parent_folder_id not found"
+                content_too_long:
+                  summary: Le contenu dépasse la limite de caractères
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "Content has a character count greater than the limit of 918"
+                template_name_too_long:
+                  summary: Nom du modèle trop long
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "Template name must be less than 100 characters"
+                category_not_found:
+                  summary: Catégorie de modèle introuvable
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "TemplateCategoryNotFoundError"
+                        message: "template_category_id not found"
+                    template_categories:
+                      - template_category_id: "12345678-1234-1234-1234-123456789012"
+                        name: "Mises à jour"
+        '401':
+          description: Non autorisé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '403':
+          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_permissions requise (manage_templates) ou le type de modèle n’est pas autorisé pour le service
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                missing_permission:
+                  summary: Permission de gestion des modèles manquante
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "ForbiddenError"
+                        message: "This API key does not have permission to manage templates."
+                unsupported_type:
+                  summary: Le service n’autorise pas ce type de modèle
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "ForbiddenError"
+                        message: "Creating email templates is not allowed"
+        '500':
+          description: Erreur interne du serveur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+      security:
+        - apiKey: []
+
+
   /v2/notifications/bulk:
     post:
       summary: Envoyer un lot de notifications
@@ -1189,6 +1647,153 @@ components:
         - active
         - created_at
 
+    ManageTemplateCategory:
+      type: object
+      properties:
+        template_category_id:
+          $ref: '#/components/schemas/UUID'
+        name:
+          type: string
+      required:
+        - template_category_id
+        - name
+
+    ManageTemplate:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        service_id:
+          $ref: '#/components/schemas/UUID'
+        service_name:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+          enum: [sms, email]
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_by:
+          type: string
+          description: Adresse courriel de l’utilisateur qui a créé le modèle
+        version:
+          type: integer
+        body:
+          type: string
+        subject:
+          type: string
+          nullable: true
+        postage:
+          type: string
+          nullable: true
+        template_category_id:
+          allOf:
+            - $ref: '#/components/schemas/UUID'
+          nullable: true
+        template_category_name:
+          type: string
+          nullable: true
+        folder_id:
+          allOf:
+            - $ref: '#/components/schemas/UUID'
+          nullable: true
+        archived:
+          type: boolean
+      required:
+        - id
+        - service_id
+        - service_name
+        - name
+        - type
+        - created_at
+        - created_by
+        - version
+        - body
+        - archived
+
+    ManageTemplateCategoriesResponse:
+      type: object
+      properties:
+        template_categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/ManageTemplateCategory'
+      required:
+        - template_categories
+
+    ManageTemplatePostRequest:
+      type: object
+      description: Le champ subject est requis lorsque template_type vaut email.
+      properties:
+        name:
+          type: string
+        template_type:
+          type: string
+          enum: [sms, email]
+        content:
+          type: string
+        subject:
+          type: string
+        template_category_id:
+          $ref: '#/components/schemas/UUID'
+        parent_folder_id:
+          $ref: '#/components/schemas/UUID'
+      required:
+        - name
+        - template_type
+        - content
+        - template_category_id
+      additionalProperties: false
+
+    ManageTemplatePatchRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        content:
+          type: string
+        subject:
+          type: string
+        template_category_id:
+          $ref: '#/components/schemas/UUID'
+        parent_folder_id:
+          allOf:
+            - $ref: '#/components/schemas/UUID'
+          nullable: true
+      additionalProperties: false
+
+    ManageTemplateCategoryErrorResponse:
+      type: object
+      properties:
+        status_code:
+          type: integer
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              error:
+                type: string
+              message:
+                type: string
+            required:
+              - error
+              - message
+        template_categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/ManageTemplateCategory'
+      required:
+        - status_code
+        - errors
+        - template_categories
+
 
     Links:
       type: object
@@ -1424,3 +2029,5 @@ tags:
     description: Opérations liées aux notifications
   - name: Templates
     description: Opérations liées aux modèles de notification
+  - name: Manage Templates
+    description: Opérations pour créer, mettre à jour, récupérer et archiver des modèles avec la permission manage_permissions (manage_templates)

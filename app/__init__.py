@@ -116,6 +116,13 @@ def create_app(application, config=None):
     zendesk_client.init_app(application)
     statsd_client.init_app(application)
     logging.init_app(application, statsd_client)
+    # Ugly temporary hack to get the rate limiter debug logging to work in staging.
+    # This should be removed when we have a better way of configuring logging levels
+    # for specific loggers.
+    if application.config.get("NOTIFY_ENVIRONMENT") == "staging":
+        import logging as stdlib_logging
+
+        stdlib_logging.getLogger("app.rate_limiter").setLevel(stdlib_logging.DEBUG)
     if application.config.get("OTEL_REQUEST_METRICS_ENABLED", False):
         init_otel_request_metrics(application)
     aws_sns_client.init_app(application, statsd_client=statsd_client)
@@ -141,8 +148,11 @@ def create_app(application, config=None):
     if application.config["FF_SALESFORCE_CONTACT"]:
         salesforce_client.init_app(application)
 
-    # Initialize the global rate limiter instance with the configured rate limit for SMS delivery tasks.
-    initialize_rate_limiter(application.config["CELERY_DELIVER_SMS_RATE_LIMIT_PER_MINUTE"], namespace="sms")
+    # Initialize the rate limiter for SMS delivery tasks, then wrap it in a
+    # BufferedRateLimiter to reduce network round-trips per Celery worker.
+    initialize_rate_limiter(application.config["CELERY_DELIVER_SMS_RATE_LIMIT_PER_MINUTE"], namespace="sms").buffered(
+        application.config["SMS_RATE_LIMITER_BATCH"]
+    )
 
     flask_redis.init_app(application)
     flask_cache_ops.init_app(application)
