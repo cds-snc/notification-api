@@ -738,7 +738,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
       security:
         - apiKey: []
 
@@ -803,19 +803,21 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
               example:
                 template_not_found:
                   summary: Template not found
                   value:
-                    result: "error"
-                    message: "Template not found in database"
+                    status_code: 404
+                    errors:
+                      - error: "TemplateNotFoundError"
+                        message: "Template not found in database"
         '500':
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
       security:
         - apiKey: []
 
@@ -891,7 +893,7 @@ paths:
                     status_code: 400
                     errors:
                       - error: "TemplateCategoryNotFoundError"
-                        message: "template_category_id does not match any current template categories"
+                        message: "template_category_id not found"
                     template_categories:
                       - template_category_id: "12345678-1234-1234-1234-123456789012"
                         name: "Updates"
@@ -901,7 +903,7 @@ paths:
                     status_code: 400
                     errors:
                       - error: "TemplateCategoryValidationError"
-                        message: "template_category_id does not match any current template categories"
+                        message: "template_category_id must be a valid UUID"
                     template_categories:
                       - template_category_id: "12345678-1234-1234-1234-123456789012"
                         name: "Updates"
@@ -930,13 +932,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
         '500':
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
       security:
         - apiKey: []
 
@@ -1009,13 +1011,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
         '500':
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
       security:
         - apiKey: []
 
@@ -1103,7 +1105,7 @@ paths:
                     status_code: 400
                     errors:
                       - error: "TemplateCategoryNotFoundError"
-                        message: "template_category_id does not match any current template categories"
+                        message: "template_category_id not found"
                     template_categories:
                       - template_category_id: "12345678-1234-1234-1234-123456789012"
                         name: "Updates"
@@ -1139,7 +1141,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
       security:
         - apiKey: []
 
