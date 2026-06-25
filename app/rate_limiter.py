@@ -10,6 +10,7 @@ of units that can be acquired per minute.
 
 import logging
 import math
+import uuid
 from abc import ABC, abstractmethod
 from collections import deque
 from time import time
@@ -361,12 +362,15 @@ class RedisSlidingWindowLogRateLimiter(RateLimiter):
             -- 1. Remove expired entries
             redis.call('ZREMRANGEBYSCORE', entries_key, '-inf', '(' .. window_start)
 
-            -- 2. Compute current usage by summing units from members
+            -- 2. Fetch all active entries with scores in a single call.
+            --    Scores are timestamps; members encode units as "entry_id:units".
+            --    This result is reused for both usage summation and wait-time
+            --    calculation, avoiding a second ZRANGE on the denied path.
             local current_usage = 0
-            local entries = redis.call('ZRANGE', entries_key, 0, -1)
+            local entries_with_scores = redis.call('ZRANGE', entries_key, 0, -1, 'WITHSCORES')
 
-            for i = 1, #entries do
-                local member = entries[i]
+            for i = 1, #entries_with_scores, 2 do
+                local member = entries_with_scores[i]
                 local sep = string.find(member, ":")
                 local entry_units = tonumber(string.sub(member, sep + 1)) or 0
                 current_usage = current_usage + entry_units
@@ -381,12 +385,11 @@ class RedisSlidingWindowLogRateLimiter(RateLimiter):
 
                 return {1, 0}
             else
-                -- 4. Calculate wait time
+                -- 4. Calculate wait time by iterating the already-fetched entries_with_scores.
+                --    No second ZRANGE needed.
                 local units_needed = current_usage + units - cap_per_minute
                 local units_freed = 0
                 local last_timestamp_to_wait = nil
-
-                local entries_with_scores = redis.call('ZRANGE', entries_key, 0, -1, 'WITHSCORES')
 
                 for i = 1, #entries_with_scores, 2 do
                     local member = entries_with_scores[i]
@@ -435,8 +438,6 @@ class RedisSlidingWindowLogRateLimiter(RateLimiter):
         if units > self.cap_per_minute:
             raise ValueError("units must be smaller than or equal to the cap_per_minute")
 
-        import uuid
-
         now = time()
         entry_id = str(uuid.uuid4())
 
@@ -469,12 +470,12 @@ class RedisSlidingWindowLogRateLimiter(RateLimiter):
         now = time()
         window_start = now - self.WINDOW_SIZE_SECONDS
 
-        # Remove expired entries
-        self.redis.zremrangebyscore(self._entries_key, "-inf", f"({window_start}")
-
-        # Recalculate usage by summing units from members (encoded as "entry_id:units")
+        # Read only the entries still inside the window without mutating the set.
+        # The Lua acquire script removes entries with score < window_start (exclusive
+        # upper bound), so an entry scored exactly at window_start is still live.
+        # Use an inclusive lower bound here to match that semantics.
         current_usage = 0
-        entries = self.redis.zrange(self._entries_key, 0, -1)
+        entries = self.redis.zrangebyscore(self._entries_key, window_start, "+inf")
         for member in entries:
             # Extract unit count from member string format "entry_id:units"
             if isinstance(member, bytes):
