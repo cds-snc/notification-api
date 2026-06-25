@@ -720,7 +720,7 @@ paths:
                       - error: "AuthError"
                         message: "Unauthorized, authentication token must be provided"
         '403':
-          description: Forbidden - NEW API key missing required manage_permissions permission (manage_templates)
+          description: Forbidden - NEW API key missing required manage_templates permission
           content:
             application/json:
               schema:
@@ -993,7 +993,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
         '403':
-          description: Forbidden - NEW API key missing required manage_permissions permission (manage_templates)
+          description: Forbidden - NEW API key missing required manage_templates permission
           content:
             application/json:
               schema:
@@ -1028,7 +1028,7 @@ paths:
       description: |
         Create a new template with a required template category.
 
-        This endpoint requires a NEW API key with the manage_permissions permission (manage_templates).
+        This endpoint requires a NEW API key with the manage_templates permission
       operationId: postManageTemplate
       tags:
         - Manage Templates
@@ -1116,7 +1116,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
         '403':
-          description: Forbidden - NEW API key missing manage_permissions permission (manage_templates) or template type not allowed for service
+          description: Forbidden - NEW API key missing manage_templates permission or template type not allowed for service
           content:
             application/json:
               schema:
@@ -2031,4 +2031,4 @@ tags:
   - name: Templates
     description: Operations related to notification templates
   - name: Manage Templates
-    description: Operations for creating, updating, retrieving, and archiving templates using a NEW API key with manage_permissions permission (manage_templates)
+    description: Operations for creating, updating, retrieving, and archiving templates using a NEW API key with manage_templates permission
