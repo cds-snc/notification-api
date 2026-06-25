@@ -247,8 +247,6 @@ def initialize_rate_limiter(
     Returns:
         RateLimiter: The initialized rate limiter instance.
     """
-    import logging
-
     logger = logging.getLogger(__name__)
 
     if limiter_class is not None:
