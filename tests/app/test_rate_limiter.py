@@ -612,6 +612,7 @@ class TestBufferedRateLimiter:
     def test_uses_local_tokens_without_calling_rate_limiter(self, client, raw_limiter):
         mock_raw = MagicMock(spec=InMemoryRateLimiter)
         mock_raw.cap_per_minute = 1000
+        mock_raw.max_units_per_acquire = 1000
         mock_raw.namespace = "test"
         buf = BufferedRateLimiter(mock_raw, size=10)
         buf._local_tokens = 5
@@ -647,6 +648,7 @@ class TestBufferedRateLimiter:
     def test_local_tokens_preserved_on_redis_deny(self, client, raw_limiter):
         mock_raw = MagicMock(spec=InMemoryRateLimiter)
         mock_raw.cap_per_minute = 1000
+        mock_raw.max_units_per_acquire = 1000
         mock_raw.namespace = "test"
         mock_raw.acquire_lease.return_value = (False, 30)
         buf = BufferedRateLimiter(mock_raw, size=10)
@@ -662,6 +664,7 @@ class TestBufferedRateLimiter:
     def test_returns_false_with_wait_when_rate_limiter_denies_empty_buffer(self, client, raw_limiter):
         mock_raw = MagicMock(spec=InMemoryRateLimiter)
         mock_raw.cap_per_minute = 1000
+        mock_raw.max_units_per_acquire = 1000
         mock_raw.namespace = "test"
         mock_raw.acquire_lease.return_value = (False, 15)
         buf = BufferedRateLimiter(mock_raw, size=10)
@@ -676,6 +679,7 @@ class TestBufferedRateLimiter:
     def test_deficit_larger_than_size_fetches_exact_deficit(self, client, raw_limiter):
         mock_raw = MagicMock(spec=InMemoryRateLimiter)
         mock_raw.cap_per_minute = 1000
+        mock_raw.max_units_per_acquire = 1000
         mock_raw.namespace = "test"
         mock_raw.acquire_lease.return_value = (True, 0)
         buf = BufferedRateLimiter(mock_raw, size=10)
@@ -702,6 +706,7 @@ class TestBufferedRateLimiter:
     def test_stale_tokens_discarded_after_60_seconds(self, client, raw_limiter):
         mock_raw = MagicMock(spec=InMemoryRateLimiter)
         mock_raw.cap_per_minute = 1000
+        mock_raw.max_units_per_acquire = 1000
         mock_raw.namespace = "test"
         mock_raw.acquire_lease.return_value = (True, 0)
         buf = BufferedRateLimiter(mock_raw, size=10)
@@ -718,6 +723,7 @@ class TestBufferedRateLimiter:
     def test_fresh_tokens_not_discarded_within_60_seconds(self, client, raw_limiter):
         mock_raw = MagicMock(spec=InMemoryRateLimiter)
         mock_raw.cap_per_minute = 1000
+        mock_raw.max_units_per_acquire = 1000
         mock_raw.namespace = "test"
         buf = BufferedRateLimiter(mock_raw, size=10)
         buf._local_tokens = 5
@@ -737,6 +743,7 @@ class TestBufferedRateLimiter:
     def test_get_current_usage_delegates_to_wrapped_limiter(self, client):
         mock_raw = MagicMock(spec=InMemoryRateLimiter)
         mock_raw.cap_per_minute = 1000
+        mock_raw.max_units_per_acquire = 1000
         mock_raw.namespace = "test"
         mock_raw.get_current_usage.return_value = 42
         buf = BufferedRateLimiter(mock_raw, size=10)
@@ -749,6 +756,19 @@ class TestBufferedRateLimiter:
     def test_raises_value_error_when_size_exceeds_cap(self, client, raw_limiter):
         with pytest.raises(ValueError):
             BufferedRateLimiter(raw_limiter, size=raw_limiter.cap_per_minute + 1)
+
+    def test_raises_value_error_when_size_exceeds_token_bucket_per_call_ceiling(self, client):
+        # cap_per_minute=600 → max_units_per_acquire = max(1, 600 // 60) = 10
+        # size=11 fits within cap_per_minute (600) but exceeds the per-call ceiling (10)
+        token_bucket = RedisTokenBucketRateLimiter(
+            cap_per_minute=600, namespace="test-tb", redis_client=fakeredis.FakeRedis()
+        )
+        assert token_bucket.max_units_per_acquire == 10
+        with pytest.raises(ValueError):
+            BufferedRateLimiter(token_bucket, size=11)
+        # boundary: size exactly at the ceiling must be accepted
+        buf = BufferedRateLimiter(token_bucket, size=10)
+        assert buf._size == 10
 
     def test_raises_value_error_when_size_is_zero(self, client, raw_limiter):
         with pytest.raises(ValueError):

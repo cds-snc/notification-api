@@ -56,6 +56,16 @@ class RateLimiter(ABC):
         """
         pass
 
+    @property
+    def max_units_per_acquire(self) -> int:
+        """
+        Maximum units that can be requested in a single acquire_lease() call.
+
+        Defaults to cap_per_minute. Implementations with a tighter per-call
+        ceiling (e.g. RedisTokenBucketRateLimiter) should override this.
+        """
+        return self.cap_per_minute
+
     def buffered(self, size: int) -> BufferedRateLimiter:
         """
         Wrap this rate limiter in a BufferedRateLimiter and register it under
@@ -536,6 +546,11 @@ class RedisTokenBucketRateLimiter(RateLimiter):
         self._lua_scripts: dict[str, object] = {}
 
     @property
+    def max_units_per_acquire(self) -> int:
+        """Per-call ceiling: one second of capacity, minimum 1."""
+        return max(1, self.cap_per_minute // 60)
+
+    @property
     def redis(self):
         # Lazy-load Redis client to avoid circular imports at init time.
         if self.redis_client is not None:
@@ -610,11 +625,10 @@ class RedisTokenBucketRateLimiter(RateLimiter):
         if units <= 0:
             raise ValueError("units must be positive")
 
-        max_tokens = max(1, self.cap_per_minute / 60)
-        if units > max_tokens:
+        if units > self.max_units_per_acquire:
             raise ValueError(
-                f"units ({units}) must be <= {max_tokens:.2f} "
-                f"(cap_per_minute={self.cap_per_minute} / 60). "
+                f"units ({units}) must be <= {self.max_units_per_acquire} "
+                f"(max(1, cap_per_minute={self.cap_per_minute} // 60)). "
                 "The bucket ceiling is one second of capacity to prevent burst."
             )
 
@@ -698,8 +712,11 @@ class BufferedRateLimiter(RateLimiter):
     def __init__(self, rate_limiter: RateLimiter, size: int) -> None:
         if size <= 0:
             raise ValueError("size must be positive")
-        if size > rate_limiter.cap_per_minute:
-            raise ValueError(f"size ({size}) must be <= cap_per_minute ({rate_limiter.cap_per_minute})")
+        if size > rate_limiter.max_units_per_acquire:
+            raise ValueError(
+                f"size ({size}) must be <= max_units_per_acquire ({rate_limiter.max_units_per_acquire}) "
+                f"for {type(rate_limiter).__name__}"
+            )
         super().__init__(rate_limiter.cap_per_minute, rate_limiter.namespace)
         self._rate_limiter = rate_limiter
         self._size = size
