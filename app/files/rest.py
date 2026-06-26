@@ -1,8 +1,12 @@
+import base64
 import uuid
+from io import BytesIO
 
 from flask import Blueprint, current_app, jsonify, request
 from sqlalchemy.exc import NoResultFound
 
+from app import document_download_client
+from app.clients.document_download import DocumentDownloadError
 from app.dao.files_dao import (
     dao_create_file,
     dao_delete_file,
@@ -69,19 +73,34 @@ def create_file(template_id):
     check_service_has_permission(UPLOAD_DOCUMENT, service.permissions)
     validate_template_exists(template_id, service)
 
-    # TODO: Uncomment when dd-api has been updated with the correct paths for template file attachments
-    # file_data = data["file_data"]
-    # try:
-    #     uploaded_file = document_download_client.upload_document(service.id, file_data)
-    # except DocumentDownloadError as e:
-    #     raise Invalid(e.message, status_code=e.status_code)
+    # Decode base64 file data and prepare for upload
+    try:
+        file_bytes = base64.b64decode(data["file_data"])
+    except Exception as e:
+        current_app.logger.error(f"Failed to decode base64 file_data: {str(e)}")
+        raise InvalidRequest("Invalid file_data encoding", 400)
 
-    # current_app.logger.info(f"Uploaded file to S3 for template {template_id} document_id: {uploaded_file["id"]} ")
+    # Upload file to S3 via document-download-api
+    try:
+        upload_payload = {
+            "file": BytesIO(file_bytes),
+            "sending_method": data["type"],
+            "filename": data["name"],
+        }
+        uploaded_file_response = document_download_client.upload_document(service.id, upload_payload)
+        document_id = uploaded_file_response["document"]["id"]
+        current_app.logger.info(f"Uploaded file to S3 for template {template_id} document_id: {document_id}")
+    except DocumentDownloadError as e:
+        current_app.logger.error(f"Document upload failed: {e.message}")
+        raise InvalidRequest(e.message, status_code=e.status_code)
+    except (KeyError, TypeError) as e:
+        current_app.logger.error(f"Unexpected response format from document-download-api: {str(e)}")
+        raise InvalidRequest("Failed to upload document", 500)
 
     file = Files(
         template_id=data["template_id"],
         service_id=service.id,
-        document_id=uuid.uuid4(),  # TODO: Use document_id returned by S3
+        document_id=uuid.UUID(document_id),
         type=data["type"],
         name=data["name"],
         mime_type=data["mime_type"],
@@ -117,6 +136,20 @@ def delete_file(template_id, file_id):
             404,
         )
 
+    # Delete from S3 via document-download-api first
+    try:
+        document_download_client.delete_document(fetched_file.service_id, fetched_file.document_id, fetched_file.type)
+        current_app.logger.info(
+            f"Deleted file from S3: document_id {fetched_file.document_id} file_id {file_id} template_id {template_id}"
+        )
+    except DocumentDownloadError as e:
+        current_app.logger.error(f"Failed to delete file from S3 (document_id {fetched_file.document_id}): {e.message}")
+        raise InvalidRequest(f"Failed to delete file from storage: {e.message}", status_code=e.status_code)
+    except Exception as e:
+        current_app.logger.error(f"Unexpected error deleting file from S3 (document_id {fetched_file.document_id}): {str(e)}")
+        raise InvalidRequest("Failed to delete file from storage", 500)
+
+    # Only delete from database if S3 deletion succeeded
     dao_delete_file(fetched_file)
 
     current_app.logger.info(f"Deleted file: {file_id} template_id {template_id}")
