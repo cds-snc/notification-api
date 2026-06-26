@@ -431,6 +431,22 @@ class TestRedisTokenBucketRateLimiter:
                 allow_send, _ = limiter.acquire_lease(2)
                 assert allow_send is True
 
+    def test_capacity_refills_over_more_time(self, client, limiter):
+        # Fill bucket, advance 10s: refill = 16.67 * 10 = 166.7 tokens
+        with client.application.app_context():
+            with patch("app.rate_limiter.time") as mock_time:
+                mock_time.return_value = 100.0
+                limiter.acquire_lease(16)
+
+                # 10 seconds refills ≈ 166.7 tokens — enough to acquire 16 a few times
+                mock_time.return_value = 110.0
+                allow_send, _ = limiter.acquire_lease(16)
+                assert allow_send is True
+
+                # Acquire more but it should fail as internal buckets are 1 second split
+                allow_send, _ = limiter.acquire_lease(16)
+                assert allow_send is False
+
     def test_bucket_does_not_exceed_max_burst_after_idle(self, client, limiter):
         # Even after 120 s of idle, the bucket holds at most refill_rate ≈ 16.67 tokens.
         # Requesting 16 must succeed, but 17 must fail.
