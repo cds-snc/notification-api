@@ -56,6 +56,16 @@ class RateLimiter(ABC):
         """
         pass
 
+    @property
+    def max_units_per_acquire(self) -> int:
+        """
+        Maximum units that can be requested in a single acquire_lease() call.
+
+        Defaults to cap_per_minute. Implementations with a tighter per-call
+        ceiling (e.g. RedisTokenBucketRateLimiter) should override this.
+        """
+        return self.cap_per_minute
+
     def buffered(self, size: int) -> BufferedRateLimiter:
         """
         Wrap this rate limiter in a BufferedRateLimiter and register it under
@@ -507,12 +517,15 @@ class RedisTokenBucketRateLimiter(RateLimiter):
     Algorithm:
     - Tokens refill continuously at rate cap_per_minute / 60 per second.
     - On each request, elapsed time since last refill is computed, tokens are
-      topped up (capped at cap_per_minute), and the requested units are
+      topped up (capped at max(1, cap_per_minute / 60)), and the requested units are
       subtracted atomically in Lua.
     - If tokens are insufficient, the exact wait time is returned:
-      deficit / (cap_per_minute / 60) seconds.
-    - Burst after idle: if the system is idle, the bucket refills to cap,
-      allowing a full cap's worth of units to be acquired immediately.
+      deficit / (max(1, cap_per_minute / 60)) seconds.
+    - No burst after idle: the bucket ceiling is one second of capacity
+      (max(1, cap_per_minute / 60)), so long idle periods never accumulate more than
+      ~1 second worth of tokens. Maximum per-minute throughput cannot exceed
+      cap_per_minute regardless of how long the system was idle.
+    - Maximum units per acquire_lease call: max(1, cap_per_minute / 60) (one second).
 
     Complexity: O(1) for all operations.
     """
@@ -533,6 +546,11 @@ class RedisTokenBucketRateLimiter(RateLimiter):
         self._lua_scripts: dict[str, object] = {}
 
     @property
+    def max_units_per_acquire(self) -> int:
+        """Per-call ceiling: one second of capacity, minimum 1."""
+        return max(1, self.cap_per_minute // 60)
+
+    @property
     def redis(self):
         # Lazy-load Redis client to avoid circular imports at init time.
         if self.redis_client is not None:
@@ -548,27 +566,29 @@ class RedisTokenBucketRateLimiter(RateLimiter):
             local cap = tonumber(ARGV[1])
             local units = tonumber(ARGV[2])
             local now = tonumber(ARGV[3])
-            local refill_rate = cap / 60.0
+            local refill_rate = math.max(1, cap / 60.0)
 
-            -- Read current state; default to full bucket on first call
+            -- Read current state; initialize to one second of tokens on first call.
+            -- Using refill_rate (not cap) as the starting value prevents burst-after-idle:
+            -- a newly created or long-idle bucket holds at most one second of capacity.
             local tokens_str = redis.call('HGET', key, 'tokens')
             local last_refill_str = redis.call('HGET', key, 'last_refill')
 
             local tokens
             local last_refill
             if tokens_str == false then
-                tokens = cap
+                tokens = refill_rate
                 last_refill = now
             else
-                -- Default to cap or now if tokens and last refill aren't available
-                -- for defensive programming reasons.
-                tokens = tonumber(tokens_str) or cap
+                -- Default to 0 if tokens can't be parsed (defensive)
+                tokens = tonumber(tokens_str) or 0
                 last_refill = tonumber(last_refill_str) or now
             end
 
-            -- Refill tokens based on elapsed time
+            -- Refill tokens based on elapsed time, capped at one second's worth.
+            -- This keeps the maximum burst to ~1 second regardless of idle duration.
             local elapsed = now - last_refill
-            tokens = math.min(cap, tokens + elapsed * refill_rate)
+            tokens = math.min(refill_rate, tokens + elapsed * refill_rate)
 
             if tokens >= units then
                 -- Admit: subtract units and persist new state
@@ -605,8 +625,12 @@ class RedisTokenBucketRateLimiter(RateLimiter):
         if units <= 0:
             raise ValueError("units must be positive")
 
-        if units > self.cap_per_minute:
-            raise ValueError("units must be smaller than or equal to the cap_per_minute")
+        if units > self.max_units_per_acquire:
+            raise ValueError(
+                f"units ({units}) must be <= {self.max_units_per_acquire} "
+                f"(max(1, cap_per_minute={self.cap_per_minute} // 60)). "
+                "The bucket ceiling is one second of capacity to prevent burst."
+            )
 
         now = time()
         script = self._get_acquire_lua_script()
@@ -645,10 +669,11 @@ class RedisTokenBucketRateLimiter(RateLimiter):
         last_refill = float(last_refill_str if isinstance(last_refill_str, str) else last_refill_str.decode("utf-8"))
 
         elapsed = now - last_refill
-        refill_rate = self.cap_per_minute / 60.0
-        tokens = min(self.cap_per_minute, tokens + elapsed * refill_rate)
+        refill_rate = max(1.0, self.cap_per_minute / 60.0)
+        max_tokens = refill_rate  # ceiling matches Lua: one second of capacity
+        tokens = min(max_tokens, tokens + elapsed * refill_rate)
 
-        return max(0, int(self.cap_per_minute - tokens))
+        return max(0, round(max_tokens - tokens))
 
     def reset_limiter(self):
         self.redis.delete(self._key)
@@ -687,8 +712,11 @@ class BufferedRateLimiter(RateLimiter):
     def __init__(self, rate_limiter: RateLimiter, size: int) -> None:
         if size <= 0:
             raise ValueError("size must be positive")
-        if size > rate_limiter.cap_per_minute:
-            raise ValueError(f"size ({size}) must be <= cap_per_minute ({rate_limiter.cap_per_minute})")
+        if size > rate_limiter.max_units_per_acquire:
+            raise ValueError(
+                f"size ({size}) must be <= max_units_per_acquire ({rate_limiter.max_units_per_acquire}) "
+                f"for {type(rate_limiter).__name__}"
+            )
         super().__init__(rate_limiter.cap_per_minute, rate_limiter.namespace)
         self._rate_limiter = rate_limiter
         self._size = size
