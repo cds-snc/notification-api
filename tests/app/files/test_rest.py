@@ -7,7 +7,7 @@ from flask import current_app, url_for
 from app.dao.permissions_dao import permission_dao
 from app.files.rest import _parse_scan_verdict_payload
 from app.models import FILE_STATUS_UPLOADED, FILE_STATUS_VIRUS_SCAN_FAILED
-from tests.app.conftest import create_sample_template
+from tests.app.conftest import create_sample_template, document_download_response
 from tests.app.db import create_user
 from tests.conftest import set_config_values
 
@@ -17,7 +17,12 @@ class TestCreateFile:
         sample_template = create_sample_template(notify_db, notify_db_session, service=sample_service_full_permissions)
         current_user_id = str(sample_template.service.users[0].id)
 
-        admin_request.post(
+        # Mock the document_download_client with a valid UUID
+        expected_document_id = str(uuid.uuid4())
+        mock_upload = mocker.patch("app.files.rest.document_download_client.upload_document")
+        mock_upload.return_value = document_download_response({"id": expected_document_id})
+
+        response = admin_request.post(
             "files.create_file",
             template_id=str(sample_template.id),
             _data={
@@ -34,8 +39,21 @@ class TestCreateFile:
             _expected_status=201,
         )
 
-    def test_create_file_missing_required(self, notify_db, notify_db_session, admin_request, sample_service):
+        # Verify the upload was called with correct parameters
+        assert mock_upload.called
+        call_args = mock_upload.call_args
+        assert call_args[0][0] == sample_service_full_permissions.id
+        assert call_args[0][1]["sending_method"] == "attach"
+        assert call_args[0][1]["filename"] == "test.pdf"
+
+        # Verify the response includes the document_id from the mock
+        assert response["document_id"] == expected_document_id
+
+    def test_create_file_missing_required(self, mocker, notify_db, notify_db_session, admin_request, sample_service):
         sample_template = create_sample_template(notify_db, notify_db_session, service=sample_service)
+
+        # Mock the document_download_client (even though it won't be called)
+        mocker.patch("app.files.rest.document_download_client.upload_document")
 
         admin_request.post(
             "files.create_file",
@@ -45,9 +63,12 @@ class TestCreateFile:
         )
 
     def test_create_file_returns_400_when_created_by_missing(
-        self, notify_db, notify_db_session, admin_request, sample_service_full_permissions
+        self, mocker, notify_db, notify_db_session, admin_request, sample_service_full_permissions
     ):
         sample_template = create_sample_template(notify_db, notify_db_session, service=sample_service_full_permissions)
+
+        # Mock the document_download_client (even though it won't be called)
+        mocker.patch("app.files.rest.document_download_client.upload_document")
 
         admin_request.post(
             "files.create_file",
@@ -67,10 +88,13 @@ class TestCreateFile:
         )
 
     def test_create_file_returns_403_when_user_lacks_manage_templates(
-        self, notify_db, notify_db_session, admin_request, sample_service_full_permissions
+        self, mocker, notify_db, notify_db_session, admin_request, sample_service_full_permissions
     ):
         sample_template = create_sample_template(notify_db, notify_db_session, service=sample_service_full_permissions)
         user_without_permissions = create_user(email="no.file.permission@cds-snc.ca")
+
+        # Mock the document_download_client (even though it won't be called)
+        mocker.patch("app.files.rest.document_download_client.upload_document")
 
         admin_request.post(
             "files.create_file",
@@ -91,11 +115,14 @@ class TestCreateFile:
         )
 
     def test_create_file_returns_403_when_manage_templates_removed(
-        self, notify_db, notify_db_session, admin_request, sample_service_full_permissions
+        self, mocker, notify_db, notify_db_session, admin_request, sample_service_full_permissions
     ):
         sample_template = create_sample_template(notify_db, notify_db_session, service=sample_service_full_permissions)
         current_user = sample_template.service.users[0]
         permission_dao.remove_user_service_permissions_for_all_services(current_user)
+
+        # Mock the document_download_client (even though it won't be called)
+        mocker.patch("app.files.rest.document_download_client.upload_document")
 
         admin_request.post(
             "files.create_file",
@@ -231,7 +258,10 @@ class TestUpdateFileStatus:
 
 
 class TestDeleteFile:
-    def test_delete_file(self, admin_request, sample_file):
+    def test_delete_file(self, mocker, admin_request, sample_file):
+        # Mock the document_download_client
+        mock_delete = mocker.patch("app.files.rest.document_download_client.delete_document")
+
         admin_request.delete(
             "files.delete_file",
             template_id=str(sample_file.template_id),
@@ -239,9 +269,15 @@ class TestDeleteFile:
             _expected_status=204,
         )
 
+        # Verify S3 delete was called with sending_method
+        mock_delete.assert_called_once_with(sample_file.service_id, sample_file.document_id, sample_file.type)
+
     def test_delete_file_returns_404_when_template_file_mismatch(
-        self, notify_db, notify_db_session, admin_request, sample_file, sample_service_full_permissions
+        self, mocker, notify_db, notify_db_session, admin_request, sample_file, sample_service_full_permissions
     ):
+        # Mock the document_download_client (shouldn't be called due to 404)
+        mock_delete = mocker.patch("app.files.rest.document_download_client.delete_document")
+
         different_template = create_sample_template(notify_db, notify_db_session, service=sample_service_full_permissions)
 
         admin_request.delete(
@@ -250,6 +286,37 @@ class TestDeleteFile:
             file_id=str(sample_file.id),
             _expected_status=404,
         )
+
+        # Verify S3 delete was NOT called (failed before reaching that code)
+        mock_delete.assert_not_called()
+
+    def test_delete_file_fails_when_s3_deletion_fails(self, mocker, notify_db_session, admin_request, sample_file):
+        # Mock the document_download_client to raise an error
+        from app.clients.document_download import DocumentDownloadError
+
+        mock_delete = mocker.patch("app.files.rest.document_download_client.delete_document")
+        mock_delete.side_effect = DocumentDownloadError("S3 deletion failed", 500)
+
+        # Attempt to delete should fail
+        response = admin_request.delete(
+            "files.delete_file",
+            template_id=str(sample_file.template_id),
+            file_id=str(sample_file.id),
+            _expected_status=500,
+        )
+
+        # Verify the error message
+        assert "Failed to delete file from storage" in response["message"]
+
+        # Verify S3 delete was attempted with sending_method
+        mock_delete.assert_called_once_with(sample_file.service_id, sample_file.document_id, sample_file.type)
+
+        # Verify the file still exists in the database
+        from app.dao.files_dao import dao_get_file_by_id
+
+        db_file = dao_get_file_by_id(sample_file.id)
+        assert db_file is not None
+        assert db_file.id == sample_file.id
 
 
 class TestParseScanVerdictPayload:
