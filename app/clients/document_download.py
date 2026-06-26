@@ -51,6 +51,24 @@ class DocumentDownloadClient:
             raise error
         return response.json()
 
+    def delete_document(self, service_id, document_id, sending_method):
+        try:
+            url = f"{self.api_host}/services/{service_id}/documents/{document_id}"
+            response = requests.delete(
+                url,
+                headers={
+                    "Authorization": f"Bearer {self.auth_token}",
+                },
+                params={
+                    "sending_method": sending_method,
+                },
+            )
+            response.raise_for_status()
+        except requests.RequestException as e:
+            error = DocumentDownloadError.from_exception(e)
+            current_app.logger.warning(f"Document delete request failed with error: {error.message}")
+            raise error
+
     def check_scan_verdict(self, service_id, document_id, sending_method):
         url = f"{self.api_host}/services/{service_id}/documents/{document_id}/scan-verdict"
         response = requests.post(
