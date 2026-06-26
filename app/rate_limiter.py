@@ -508,15 +508,15 @@ class RedisTokenBucketRateLimiter(RateLimiter):
     Algorithm:
     - Tokens refill continuously at rate cap_per_minute / 60 per second.
     - On each request, elapsed time since last refill is computed, tokens are
-      topped up (capped at cap_per_minute / 60), and the requested units are
+      topped up (capped at max(1, cap_per_minute / 60)), and the requested units are
       subtracted atomically in Lua.
     - If tokens are insufficient, the exact wait time is returned:
-      deficit / (cap_per_minute / 60) seconds.
+      deficit / (max(1, cap_per_minute / 60)) seconds.
     - No burst after idle: the bucket ceiling is one second of capacity
-      (cap_per_minute / 60), so long idle periods never accumulate more than
+      (max(1, cap_per_minute / 60)), so long idle periods never accumulate more than
       ~1 second worth of tokens. Maximum per-minute throughput cannot exceed
       cap_per_minute regardless of how long the system was idle.
-    - Maximum units per acquire_lease call: cap_per_minute / 60 (one second).
+    - Maximum units per acquire_lease call: max(1, cap_per_minute / 60) (one second).
 
     Complexity: O(1) for all operations.
     """
@@ -552,7 +552,7 @@ class RedisTokenBucketRateLimiter(RateLimiter):
             local cap = tonumber(ARGV[1])
             local units = tonumber(ARGV[2])
             local now = tonumber(ARGV[3])
-            local refill_rate = cap / 60.0
+            local refill_rate = math.max(1, cap / 60.0)
 
             -- Read current state; initialize to one second of tokens on first call.
             -- Using refill_rate (not cap) as the starting value prevents burst-after-idle:
@@ -611,7 +611,7 @@ class RedisTokenBucketRateLimiter(RateLimiter):
         if units <= 0:
             raise ValueError("units must be positive")
 
-        max_tokens = self.cap_per_minute / 60
+        max_tokens = max(1, self.cap_per_minute / 60)
         if units > max_tokens:
             raise ValueError(
                 f"units ({units}) must be <= {max_tokens:.2f} "
@@ -656,7 +656,7 @@ class RedisTokenBucketRateLimiter(RateLimiter):
         last_refill = float(last_refill_str if isinstance(last_refill_str, str) else last_refill_str.decode("utf-8"))
 
         elapsed = now - last_refill
-        refill_rate = self.cap_per_minute / 60.0
+        refill_rate = max(1.0, self.cap_per_minute / 60.0)
         max_tokens = refill_rate  # ceiling matches Lua: one second of capacity
         tokens = min(max_tokens, tokens + elapsed * refill_rate)
 
