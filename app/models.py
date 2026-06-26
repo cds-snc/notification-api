@@ -2,7 +2,7 @@ import datetime
 import itertools
 import uuid
 from enum import Enum, StrEnum
-from typing import Any, Iterable, Literal
+from typing import Any, Iterable, Literal, Optional
 
 from flask import current_app, url_for
 from flask_sqlalchemy.model import DefaultMeta
@@ -1816,6 +1816,53 @@ NOTIFICATION_SOFT_BOUNCE_TYPES = [
 NOTIFICATION_UNKNOWN_BOUNCE_SUBTYPE = "unknown-bounce-subtype"
 
 
+def compute_formatted_status(
+    template_type: str,
+    status: str,
+    feedback_subtype: Optional[str] = None,
+    feedback_reason: Optional[str] = None,
+) -> str:
+    """Compute the human-readable notification status string from scalar values.
+
+    Accepts plain scalars so callers (e.g. _timeout_notifications) do not need to hydrate a full ORM object.
+    """
+    permanent_failure_status = (
+        {
+            "suppressed": "Blocked",
+            "on-account-suppression-list": "Blocked",
+        }.get(feedback_subtype, "No such address")
+        if feedback_subtype
+        else "No such address"
+    )
+
+    provider_failure_status = (
+        {
+            "NO_ORIGINATION_IDENTITIES_FOUND": "Can't send to this international number",
+            "DESTINATION_COUNTRY_BLOCKED": "Can't send to this international number",
+        }.get(feedback_reason, "No such number")
+        if feedback_reason
+        else "No such number"
+    )
+
+    return {
+        "email": {
+            **EMAIL_STATUS_FORMATTED,
+            "permanent-failure": permanent_failure_status,
+        },
+        "sms": {
+            **SMS_STATUS_FORMATTED,
+            "provider-failure": provider_failure_status,
+        },
+        "letter": {
+            "technical-failure": "Technical failure",
+            "sending": "Accepted",
+            "created": "Accepted",
+            "delivered": "Received",
+            "returned-letter": "Returned",
+        },
+    }[template_type].get(status, status)
+
+
 class NotificationStatusTypes(BaseModel):
     __tablename__ = "notification_status_types"
 
@@ -2008,45 +2055,12 @@ class Notification(BaseModel):
 
     @property
     def formatted_status(self):
-        def _getStatusByBounceSubtype():
-            """Return the status of a notification based on the bounce sub type"""
-            # note: if this function changes, update the report query in app/report/utils.py::build_notifications_query
-            if self.feedback_subtype:
-                return {
-                    "suppressed": "Blocked",
-                    "on-account-suppression-list": "Blocked",
-                }.get(self.feedback_subtype, "No such address")
-            else:
-                return "No such address"
-
-        def _get_sms_status_by_feedback_reason():
-            """Return the status of a notification based on the feedback reason"""
-            # note: if this function changes, update the report query in app/report/utils.py::build_notifications_query
-            if self.feedback_reason:
-                return {
-                    "NO_ORIGINATION_IDENTITIES_FOUND": "Can't send to this international number",
-                    "DESTINATION_COUNTRY_BLOCKED": "Can't send to this international number",
-                }.get(self.feedback_reason, "No such number")
-            else:
-                return "No such number"
-
-        return {
-            "email": {
-                **EMAIL_STATUS_FORMATTED,
-                "permanent-failure": _getStatusByBounceSubtype(),
-            },
-            "sms": {
-                **SMS_STATUS_FORMATTED,
-                "provider-failure": _get_sms_status_by_feedback_reason(),
-            },
-            "letter": {
-                "technical-failure": "Technical failure",
-                "sending": "Accepted",
-                "created": "Accepted",
-                "delivered": "Received",
-                "returned-letter": "Returned",
-            },
-        }[self.template.template_type].get(self.status, self.status)
+        return compute_formatted_status(
+            self.template.template_type,
+            self.status,
+            self.feedback_subtype,
+            self.feedback_reason,
+        )
 
     def get_letter_status(self):
         """
