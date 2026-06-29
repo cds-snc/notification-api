@@ -1,8 +1,8 @@
-import uuid
-
 from flask import Blueprint, current_app, jsonify, request
 from sqlalchemy.exc import NoResultFound
 
+from app import document_download_client
+from app.clients.document_download import DocumentDownloadError
 from app.dao.files_dao import (
     dao_create_file,
     dao_delete_file,
@@ -69,19 +69,21 @@ def create_file(template_id):
     check_service_has_permission(UPLOAD_DOCUMENT, service.permissions)
     validate_template_exists(template_id, service)
 
-    # TODO: Uncomment when dd-api has been updated with the correct paths for template file attachments
-    # file_data = data["file_data"]
-    # try:
-    #     uploaded_file = document_download_client.upload_document(service.id, file_data)
-    # except DocumentDownloadError as e:
-    #     raise Invalid(e.message, status_code=e.status_code)
+    file_data = data["file_data"]
+    filename = data["name"]
+    mime_type = data["mime_type"]
+    try:
+        uploaded_file = document_download_client.upload_template_attachment(service.id, file_data, filename, mime_type)
+    except DocumentDownloadError as e:
+        raise InvalidRequest(e.message, status_code=e.status_code)
 
-    # current_app.logger.info(f"Uploaded file to S3 for template {template_id} document_id: {uploaded_file["id"]} ")
+    document_id = uploaded_file["document"]["id"]
+    current_app.logger.info(f"Uploaded file to S3 for template {template_id} document_id: {document_id}")
 
     file = Files(
         template_id=data["template_id"],
         service_id=service.id,
-        document_id=uuid.uuid4(),  # TODO: Use document_id returned by S3
+        document_id=document_id,
         type=data["type"],
         name=data["name"],
         mime_type=data["mime_type"],
