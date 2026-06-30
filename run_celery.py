@@ -1,5 +1,15 @@
 #!/usr/bin/env python
 
+import os
+
+# Gevent monkey-patching must happen before any other imports so that stdlib
+# modules (socket, threading, ssl, etc.) are patched before psycopg2, boto3,
+# and urllib3 import them. Controlled by CELERY_POOL (default: gevent).
+if os.getenv("CELERY_POOL", "gevent") == "gevent":
+    from gevent import monkey
+
+    monkey.patch_all()
+
 from dotenv import load_dotenv
 from environs import Env
 from flask import Flask
