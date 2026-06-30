@@ -761,6 +761,7 @@ class TestBufferedRateLimiter:
         # cap_per_minute=600 → max_units_per_acquire = max(1, 600 // 60) = 10
         # size=11 fits within cap_per_minute (600) but exceeds the per-call ceiling (10)
         token_bucket = RedisTokenBucketRateLimiter(cap_per_minute=600, namespace="test-tb", redis_client=fakeredis.FakeRedis())
+
         assert token_bucket.max_units_per_acquire == 10
         with pytest.raises(ValueError):
             BufferedRateLimiter(token_bucket, size=11)
