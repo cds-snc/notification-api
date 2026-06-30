@@ -1,3 +1,6 @@
+import base64
+import binascii
+
 from flask import Blueprint, current_app, jsonify, request
 from sqlalchemy.exc import NoResultFound
 
@@ -69,11 +72,13 @@ def create_file(template_id):
     check_service_has_permission(UPLOAD_DOCUMENT, service.permissions)
     validate_template_exists(template_id, service)
 
-    file_data = data["file_data"]
     filename = data["name"]
     mime_type = data["mime_type"]
     try:
+        file_data = base64.b64decode(data["file_data"])
         uploaded_file = document_download_client.upload_template_attachment(service.id, file_data, filename, mime_type)
+    except (binascii.Error, ValueError):
+        raise InvalidRequest("file_data is not valid base64", status_code=400)
     except DocumentDownloadError as e:
         raise InvalidRequest(e.message, status_code=e.status_code)
 

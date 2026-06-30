@@ -36,9 +36,10 @@ def _mock_upload_template_attachment(mocker, document_id=MOCK_DOCUMENT_ID):
 
 class TestCreateFile:
     def test_create_file(self, mocker, notify_db, notify_db_session, admin_request, sample_service_full_permissions):
-        _mock_upload_template_attachment(mocker)
+        mock_upload = _mock_upload_template_attachment(mocker)
         sample_template = create_sample_template(notify_db, notify_db_session, service=sample_service_full_permissions)
         current_user_id = str(sample_template.service.users[0].id)
+        raw_content = b"As I write code by hand, I look back at my AI and wonder, do they miss my prompts!"
 
         response = admin_request.post(
             "files.create_file",
@@ -49,23 +50,23 @@ class TestCreateFile:
                 "name": "test.pdf",
                 "mime_type": "application/pdf",
                 "file_size": 12345,
-                "file_data": base64.b64encode(
-                    b"As I write code by hand, I look back at my AI and wonder, do they miss my prompts?"
-                ).decode("utf-8"),
+                "file_data": base64.b64encode(raw_content).decode("utf-8"),
                 "created_by": current_user_id,
             },
             _expected_status=201,
         )
         assert response["document_id"] == MOCK_DOCUMENT_ID
+        mock_upload.assert_called_once_with(sample_template.service.id, raw_content, "test.pdf", "application/pdf")
 
     def test_create_file_stores_document_id_from_dd_api(
         self, mocker, notify_db, notify_db_session, admin_request, sample_service_full_permissions
     ):
         """Verify the document_id stored in DB comes from dd-api, not locally generated."""
         custom_doc_id = str(uuid.uuid4())
-        _mock_upload_template_attachment(mocker, document_id=custom_doc_id)
+        mock_upload = _mock_upload_template_attachment(mocker, document_id=custom_doc_id)
         sample_template = create_sample_template(notify_db, notify_db_session, service=sample_service_full_permissions)
         current_user_id = str(sample_template.service.users[0].id)
+        raw_content = b"test content"
 
         response = admin_request.post(
             "files.create_file",
@@ -76,12 +77,13 @@ class TestCreateFile:
                 "name": "test.pdf",
                 "mime_type": "application/pdf",
                 "file_size": 12345,
-                "file_data": base64.b64encode(b"test content").decode("utf-8"),
+                "file_data": base64.b64encode(raw_content).decode("utf-8"),
                 "created_by": current_user_id,
             },
             _expected_status=201,
         )
         assert response["document_id"] == custom_doc_id
+        mock_upload.assert_called_once_with(sample_template.service.id, raw_content, "test.pdf", "application/pdf")
 
     def test_create_file_returns_503_when_dd_api_fails(
         self, mocker, notify_db, notify_db_session, admin_request, sample_service_full_permissions
