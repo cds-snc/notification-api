@@ -4,7 +4,12 @@ from unittest.mock import Mock, patch
 import pytest
 from requests import HTTPError
 
-from app.clients.airtable.models import AirtableTableMixin, LatestNewsletterTemplate, NewsletterSubscriber
+from app.clients.airtable.models import (
+    AirtableTableMixin,
+    GrowthNewsletterSubscriber,
+    LatestNewsletterTemplate,
+    NewsletterSubscriber,
+)
 from tests.conftest import set_config_values
 
 
@@ -358,3 +363,48 @@ class TestLatestNewsletterTemplate:
         actual_default = notify_api.config.get("AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME", "Newsletter Templates")
 
         assert LatestNewsletterTemplate.Meta.table_name() == actual_default
+
+
+class TestGrowthNewsletterSubscriber:
+    def test_init_default_values(self):
+        subscriber = GrowthNewsletterSubscriber(email="test@example.com")
+
+        assert subscriber.language == GrowthNewsletterSubscriber.Languages.EN.value
+        assert subscriber.status == GrowthNewsletterSubscriber.Statuses.UNCONFIRMED.value
+        assert subscriber.product == GrowthNewsletterSubscriber.DEFAULT_PRODUCT_NAME
+
+    def test_get_table_schema_structure(self, notify_api):
+        schema = GrowthNewsletterSubscriber.get_table_schema()
+
+        assert schema["name"] == GrowthNewsletterSubscriber.Meta.table_name()
+        assert len(schema["fields"]) == 8
+
+        field_names = [field["name"] for field in schema["fields"]]
+        expected_fields = [
+            "Email",
+            "Product",
+            "Language",
+            "Status",
+            "Created At",
+            "Confirmed At",
+            "Unsubscribed At",
+            "Has Resubscribed",
+        ]
+
+        for field_name in expected_fields:
+            assert field_name in field_names
+
+    def test_meta_class_environment_variables(self, notify_api, mocker):
+        mocker.patch.object(GrowthNewsletterSubscriber, "_flask_app", notify_api)
+
+        with set_config_values(
+            notify_api,
+            {
+                "AIRTABLE_API_KEY": "test_key",
+                "AIRTABLE_NEWSLETTER_BASE_ID": "test_base",
+                "AIRTABLE_NEWSLETTER_GROWTH_TABLE_NAME": "test_growth_name",
+            },
+        ):
+            assert GrowthNewsletterSubscriber.Meta.api_key() == "test_key"
+            assert GrowthNewsletterSubscriber.Meta.base_id() == "test_base"
+            assert GrowthNewsletterSubscriber.Meta.table_name() == "test_growth_name"
