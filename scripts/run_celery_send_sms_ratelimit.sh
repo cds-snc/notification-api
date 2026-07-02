@@ -7,4 +7,4 @@ set -e
 
 echo "Start celery SMS rate-limit worker, concurrency: ${CELERY_CONCURRENCY-4}"
 
-celery -A run_celery.notify_celery worker --pidfile="/tmp/celery.pid" --loglevel=INFO --pool="${CELERY_POOL:-gevent}" --concurrency="${CELERY_CONCURRENCY-4}" -Q send-sms-fair
+celery -A run_celery.notify_celery worker --pidfile="/tmp/celery.pid" --loglevel=INFO --pool="${CELERY_POOL:-prefork}" --concurrency="${CELERY_CONCURRENCY-4}" -Q send-sms-fair
