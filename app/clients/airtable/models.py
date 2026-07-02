@@ -266,11 +266,11 @@ class GrowthNewsletterSubscriber(AirtableTableMixin, Model):
 
         @staticmethod
         def base_id():
-            return GrowthNewsletterSubscriber._app().config.get("AIRTABLE_NEWSLETTER_BASE_ID")
+            return GrowthNewsletterSubscriber._app().config.get("AIRTABLE_CDS_PLATFORM_BASE_ID")
 
         @staticmethod
         def table_name():
-            return GrowthNewsletterSubscriber._app().config.get("AIRTABLE_NEWSLETTER_GROWTH_TABLE_NAME")
+            return GrowthNewsletterSubscriber._app().config.get("AIRTABLE_CDS_PLATFORM_TABLE_NAME")
 
     def save_unconfirmed_subscriber(self) -> SaveResult:
         self.status = self.Statuses.UNCONFIRMED.value

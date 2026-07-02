@@ -401,8 +401,8 @@ class TestGrowthNewsletterSubscriber:
             notify_api,
             {
                 "AIRTABLE_API_KEY": "test_key",
-                "AIRTABLE_NEWSLETTER_BASE_ID": "test_base",
-                "AIRTABLE_NEWSLETTER_GROWTH_TABLE_NAME": "test_growth_name",
+                "AIRTABLE_CDS_PLATFORM_BASE_ID": "test_base",
+                "AIRTABLE_CDS_PLATFORM_TABLE_NAME": "test_growth_name",
             },
         ):
             assert GrowthNewsletterSubscriber.Meta.api_key() == "test_key"

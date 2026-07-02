@@ -314,6 +314,8 @@ def _upsert_growth_subscriber(subscriber):
 
 
 def _is_growth_table_configured():
-    return bool(current_app.config.get("AIRTABLE_NEWSLETTER_GROWTH_TABLE_NAME")) and bool(
-        current_app.config.get("AIRTABLE_API_KEY")
+    return (
+        bool(current_app.config.get("AIRTABLE_CDS_PLATFORM_BASE_ID"))
+        and bool(current_app.config.get("AIRTABLE_CDS_PLATFORM_TABLE_NAME"))
+        and bool(current_app.config.get("AIRTABLE_API_KEY"))
     )
