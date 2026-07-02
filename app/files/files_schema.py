@@ -45,7 +45,7 @@ guardduty_scan_verdict_callback_schema = {
         "bucket_name": {"type": "string"},
         "object_key": {
             "type": "string",
-            "pattern": r"^/?template/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            "pattern": r"^/?template_attachments/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
         },
         "scan_status": {"type": "string", "enum": ["COMPLETED", "FAILED"]},
         "scan_result_status": {"type": "string"},
