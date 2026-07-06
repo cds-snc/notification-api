@@ -310,7 +310,10 @@ class TestUpdateFileStatus:
 
 
 class TestDeleteFile:
-    def test_delete_file(self, admin_request, sample_file):
+    def test_delete_file(self, mocker, admin_request, sample_file):
+        # Mock the document_download_client
+        mock_delete = mocker.patch("app.files.rest.document_download_client.delete_document")
+
         admin_request.delete(
             "files.delete_file",
             template_id=str(sample_file.template_id),
@@ -318,9 +321,15 @@ class TestDeleteFile:
             _expected_status=204,
         )
 
+        # Verify S3 delete was called with sending_method
+        mock_delete.assert_called_once_with(sample_file.service_id, sample_file.document_id, sample_file.type)
+
     def test_delete_file_returns_404_when_template_file_mismatch(
-        self, notify_db, notify_db_session, admin_request, sample_file, sample_service_full_permissions
+        self, mocker, notify_db, notify_db_session, admin_request, sample_file, sample_service_full_permissions
     ):
+        # Mock the document_download_client (shouldn't be called due to 404)
+        mock_delete = mocker.patch("app.files.rest.document_download_client.delete_document")
+
         different_template = create_sample_template(notify_db, notify_db_session, service=sample_service_full_permissions)
 
         admin_request.delete(
@@ -329,6 +338,37 @@ class TestDeleteFile:
             file_id=str(sample_file.id),
             _expected_status=404,
         )
+
+        # Verify S3 delete was NOT called (failed before reaching that code)
+        mock_delete.assert_not_called()
+
+    def test_delete_file_fails_when_s3_deletion_fails(self, mocker, notify_db_session, admin_request, sample_file):
+        # Mock the document_download_client to raise an error
+        from app.clients.document_download import DocumentDownloadError
+
+        mock_delete = mocker.patch("app.files.rest.document_download_client.delete_document")
+        mock_delete.side_effect = DocumentDownloadError("S3 deletion failed", 500)
+
+        # Attempt to delete should fail
+        response = admin_request.delete(
+            "files.delete_file",
+            template_id=str(sample_file.template_id),
+            file_id=str(sample_file.id),
+            _expected_status=500,
+        )
+
+        # Verify the error message
+        assert "Failed to delete file from storage" in response["message"]
+
+        # Verify S3 delete was attempted with sending_method
+        mock_delete.assert_called_once_with(sample_file.service_id, sample_file.document_id, sample_file.type)
+
+        # Verify the file still exists in the database
+        from app.dao.files_dao import dao_get_file_by_id
+
+        db_file = dao_get_file_by_id(sample_file.id)
+        assert db_file is not None
+        assert db_file.id == sample_file.id
 
 
 class TestParseScanVerdictPayload:
