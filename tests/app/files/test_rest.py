@@ -116,9 +116,6 @@ class TestCreateFile:
     def test_create_file_missing_required(self, mocker, notify_db, notify_db_session, admin_request, sample_service):
         sample_template = create_sample_template(notify_db, notify_db_session, service=sample_service)
 
-        # Mock the document_download_client (even though it won't be called)
-        mocker.patch("app.files.rest.document_download_client.upload_document")
-
         admin_request.post(
             "files.create_file",
             template_id=str(sample_template.id),
@@ -130,9 +127,6 @@ class TestCreateFile:
         self, mocker, notify_db, notify_db_session, admin_request, sample_service_full_permissions
     ):
         sample_template = create_sample_template(notify_db, notify_db_session, service=sample_service_full_permissions)
-
-        # Mock the document_download_client (even though it won't be called)
-        mocker.patch("app.files.rest.document_download_client.upload_document")
 
         admin_request.post(
             "files.create_file",
@@ -152,13 +146,10 @@ class TestCreateFile:
         )
 
     def test_create_file_returns_403_when_user_lacks_manage_templates(
-        self, mocker, notify_db, notify_db_session, admin_request, sample_service_full_permissions
+        self, notify_db, notify_db_session, admin_request, sample_service_full_permissions
     ):
         sample_template = create_sample_template(notify_db, notify_db_session, service=sample_service_full_permissions)
         user_without_permissions = create_user(email="no.file.permission@cds-snc.ca")
-
-        # Mock the document_download_client (even though it won't be called)
-        mocker.patch("app.files.rest.document_download_client.upload_document")
 
         admin_request.post(
             "files.create_file",
@@ -179,14 +170,11 @@ class TestCreateFile:
         )
 
     def test_create_file_returns_403_when_manage_templates_removed(
-        self, mocker, notify_db, notify_db_session, admin_request, sample_service_full_permissions
+        self, notify_db, notify_db_session, admin_request, sample_service_full_permissions
     ):
         sample_template = create_sample_template(notify_db, notify_db_session, service=sample_service_full_permissions)
         current_user = sample_template.service.users[0]
         permission_dao.remove_user_service_permissions_for_all_services(current_user)
-
-        # Mock the document_download_client (even though it won't be called)
-        mocker.patch("app.files.rest.document_download_client.upload_document")
 
         admin_request.post(
             "files.create_file",
