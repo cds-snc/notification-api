@@ -31,7 +31,7 @@ def create_unconfirmed_subscription():
         existing_subscriber.language = language
         _save_newsletter_with_retry(
             existing_subscriber.save,
-            "Failed to create unconfirmed mailing list subscriber.",
+            "Failed to update existing newsletter subscriber.",
             f"Failed to update existing newsletter subscriber for email: {email}. Record was not saved",
         )
         _sync_growth_subscriber_best_effort(existing_subscriber)
@@ -238,20 +238,33 @@ def _save_newsletter_with_retry(save_operation, failure_message, error_log_messa
     last_error = None
 
     for attempt in range(1, NEWSLETTER_AIRTABLE_WRITE_MAX_ATTEMPTS + 1):
+        should_retry = True
         try:
             result = save_operation()
             if getattr(result, "saved", True):
                 return result
-            last_error = RuntimeError("Record was not saved")
+            last_error = getattr(result, "error", None) or RuntimeError("Record was not saved")
+            if isinstance(last_error, HTTPError):
+                status_code = getattr(last_error.response, "status_code", None)
+                if status_code and status_code < 500 and status_code != 429:
+                    should_retry = False
+        except HTTPError as error:
+            status_code = getattr(error.response, "status_code", None)
+            last_error = error
+            if status_code and status_code < 500 and status_code != 429:
+                should_retry = False
         except Exception as error:
             last_error = error
 
-        if attempt < NEWSLETTER_AIRTABLE_WRITE_MAX_ATTEMPTS:
+        if attempt < NEWSLETTER_AIRTABLE_WRITE_MAX_ATTEMPTS and should_retry:
             current_app.logger.warning(
                 "Retrying newsletter Airtable write (%s/%s)",
                 attempt + 1,
                 NEWSLETTER_AIRTABLE_WRITE_MAX_ATTEMPTS,
             )
+
+        if not should_retry:
+            break
 
     current_app.logger.error(error_log_message)
     if last_error:
@@ -267,21 +280,34 @@ def _sync_growth_subscriber_best_effort(subscriber):
     last_error = None
 
     for attempt in range(1, NEWSLETTER_AIRTABLE_WRITE_MAX_ATTEMPTS + 1):
+        should_retry = True
         try:
             result = _upsert_growth_subscriber(subscriber)
             if getattr(result, "saved", True):
                 return
-            last_error = RuntimeError("Record was not saved")
+            last_error = getattr(result, "error", None) or RuntimeError("Record was not saved")
+            if isinstance(last_error, HTTPError):
+                status_code = getattr(last_error.response, "status_code", None)
+                if status_code and status_code < 500 and status_code != 429:
+                    should_retry = False
+        except HTTPError as error:
+            status_code = getattr(error.response, "status_code", None)
+            last_error = error
+            if status_code and status_code < 500 and status_code != 429:
+                should_retry = False
         except Exception as error:
             last_error = error
 
-        if attempt < NEWSLETTER_AIRTABLE_WRITE_MAX_ATTEMPTS:
+        if attempt < NEWSLETTER_AIRTABLE_WRITE_MAX_ATTEMPTS and should_retry:
             current_app.logger.warning(
                 "Retrying growth Airtable write for %s (%s/%s)",
                 subscriber.email,
                 attempt + 1,
                 NEWSLETTER_AIRTABLE_WRITE_MAX_ATTEMPTS,
             )
+
+        if not should_retry:
+            break
 
     current_app.logger.warning(
         "Best-effort growth Airtable sync failed for %s: %s",

@@ -175,7 +175,8 @@ class NewsletterSubscriber(AirtableTableMixin, Model):
         """
         if not cls.table_exists():
             cls.create_table()
-        results = cls.all(formula=f"{{Email}} = '{email}'")
+        safe_email = email.replace("\\", "\\\\").replace("'", "\\'")
+        results = cls.all(formula=f"{{Email}} = '{safe_email}'")
         if not results:
             response = Response()
             response.status_code = 404
@@ -315,7 +316,8 @@ class GrowthNewsletterSubscriber(AirtableTableMixin, Model):
     def from_email(cls, email: str):
         if not cls.table_exists():
             cls.create_table()
-        results = cls.all(formula=f"{{Email}} = '{email}'")
+        safe_email = email.replace("\\", "\\\\").replace("'", "\\'")
+        results = cls.all(formula=f"{{Email}} = '{safe_email}'")
         if not results:
             response = Response()
             response.status_code = 404

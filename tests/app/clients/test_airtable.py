@@ -116,6 +116,16 @@ class TestNewsletterSubscriber:
         assert result == mock_subscriber
         mock_all.assert_called_once_with(formula="{Email} = 'test@example.com'")
 
+    def test_from_email_escapes_formula_characters(self, mocker):
+        mock_subscriber = Mock()
+        mocker.patch.object(NewsletterSubscriber, "table_exists", return_value=True)
+        mock_all = mocker.patch.object(NewsletterSubscriber, "all", return_value=[mock_subscriber])
+
+        result = NewsletterSubscriber.from_email("te'st\\@example.com")
+
+        assert result == mock_subscriber
+        mock_all.assert_called_once_with(formula="{Email} = 'te\\'st\\\\@example.com'")
+
     def test_from_email_not_found(self, mocker):
         """Test from_email raises HTTPError when not found."""
         from requests import HTTPError
@@ -408,3 +418,13 @@ class TestGrowthNewsletterSubscriber:
             assert GrowthNewsletterSubscriber.Meta.api_key() == "test_key"
             assert GrowthNewsletterSubscriber.Meta.base_id() == "test_base"
             assert GrowthNewsletterSubscriber.Meta.table_name() == "test_growth_name"
+
+    def test_from_email_escapes_formula_characters(self, mocker):
+        mock_subscriber = Mock()
+        mocker.patch.object(GrowthNewsletterSubscriber, "table_exists", return_value=True)
+        mock_all = mocker.patch.object(GrowthNewsletterSubscriber, "all", return_value=[mock_subscriber])
+
+        result = GrowthNewsletterSubscriber.from_email("te'st\\@example.com")
+
+        assert result == mock_subscriber
+        mock_all.assert_called_once_with(formula="{Email} = 'te\\'st\\\\@example.com'")

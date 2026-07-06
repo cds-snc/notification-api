@@ -129,6 +129,21 @@ class TestCreateUnconfirmedSubscription:
         # Confirmation email should be resent for existing subscriber with updated language preference
         mock_send_email.assert_called_once_with("rec123456", "test@example.com", "fr")
 
+    def test_create_unconfirmed_subscription_existing_subscriber_save_fails(self, admin_request, mocker, mock_subscriber):
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_email", return_value=mock_subscriber)
+        mock_save = mocker.patch.object(mock_subscriber, "save", return_value=MockSaveResult(saved=False, error="bad request"))
+        mock_send_email = mocker.patch("app.newsletter.rest.send_confirmation_email")
+        mock_growth_sync = mocker.patch("app.newsletter.rest._sync_growth_subscriber_best_effort")
+
+        data = {"email": "test@example.com", "language": "fr"}
+        response = admin_request.post("newsletter.create_unconfirmed_subscription", _data=data, _expected_status=500)
+
+        assert response["result"] == "error"
+        assert response["message"] == "Failed to update existing newsletter subscriber."
+        assert mock_save.call_count == 3
+        mock_send_email.assert_not_called()
+        mock_growth_sync.assert_not_called()
+
     def test_create_unconfirmed_subscription_api_error(self, admin_request, mocker):
         mock_response = Response()
         mock_response.status_code = 500
@@ -409,3 +424,43 @@ class TestGetSubscriber:
 
         assert response["result"] == "error"
         assert response["message"] == "Subscriber ID or email is required"
+
+
+class TestRetryHelpers:
+    def test_save_newsletter_with_retry_does_not_retry_non_transient_http_error(self, notify_api, mocker):
+        from app.newsletter.rest import _save_newsletter_with_retry
+
+        call_count = {"count": 0}
+        mock_logger = mocker.patch.object(notify_api, "logger")
+
+        def save_operation():
+            call_count["count"] += 1
+            response = Response()
+            response.status_code = 400
+            raise HTTPError(response=response)
+
+        with pytest.raises(Exception):
+            _save_newsletter_with_retry(save_operation, "failure", "log")
+
+        assert call_count["count"] == 1
+        mock_logger.warning.assert_called_with(
+            "Last newsletter Airtable write error: %s",
+            "",
+        )
+
+    def test_sync_growth_subscriber_does_not_retry_non_transient_http_error(self, notify_api, mocker):
+        from app.newsletter import rest as newsletter_rest
+
+        mocker.patch.object(newsletter_rest, "_is_growth_table_configured", return_value=True)
+        mock_upsert = mocker.patch.object(newsletter_rest, "_upsert_growth_subscriber")
+
+        response = Response()
+        response.status_code = 400
+        mock_upsert.side_effect = HTTPError(response=response)
+
+        subscriber = Mock()
+        subscriber.email = "test@example.com"
+
+        newsletter_rest._sync_growth_subscriber_best_effort(subscriber)
+
+        assert mock_upsert.call_count == 1
