@@ -7,20 +7,39 @@ from flask import current_app, url_for
 from app.dao.permissions_dao import permission_dao
 from app.files.rest import _parse_scan_verdict_payload
 from app.models import FILE_STATUS_UPLOADED, FILE_STATUS_VIRUS_SCAN_FAILED
-from tests.app.conftest import create_sample_template, document_download_response
+from tests.app.conftest import create_sample_template
 from tests.app.db import create_user
 from tests.conftest import set_config_values
+
+MOCK_DOCUMENT_ID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+
+
+def _mock_upload_template_attachment(mocker, document_id=MOCK_DOCUMENT_ID):
+    """Mock document_download_client.upload_template_attachment to return a fake document response."""
+    return mocker.patch(
+        "app.files.rest.document_download_client.upload_template_attachment",
+        return_value={
+            "status": "ok",
+            "document": {
+                "id": document_id,
+                "direct_file_url": "http://localhost:7000/services/test/documents/test",
+                "url": "http://localhost:7000/d/test/test",
+                "filename": "test.pdf",
+                "sending_method": "template_attach",
+                "mime_type": "application/pdf",
+                "file_size": 12345,
+                "file_extension": "pdf",
+            },
+        },
+    )
 
 
 class TestCreateFile:
     def test_create_file(self, mocker, notify_db, notify_db_session, admin_request, sample_service_full_permissions):
+        mock_upload = _mock_upload_template_attachment(mocker)
         sample_template = create_sample_template(notify_db, notify_db_session, service=sample_service_full_permissions)
         current_user_id = str(sample_template.service.users[0].id)
-
-        # Mock the document_download_client with a valid UUID
-        expected_document_id = str(uuid.uuid4())
-        mock_upload = mocker.patch("app.files.rest.document_download_client.upload_document")
-        mock_upload.return_value = document_download_response({"id": expected_document_id})
+        raw_content = b"As I write code by hand, I look back at my AI and wonder, do they miss my prompts!"
 
         response = admin_request.post(
             "files.create_file",
@@ -31,23 +50,68 @@ class TestCreateFile:
                 "name": "test.pdf",
                 "mime_type": "application/pdf",
                 "file_size": 12345,
-                "file_data": base64.b64encode(
-                    b"As I write code by hand, I look back at my AI and wonder, do they miss my prompts?"
-                ).decode("utf-8"),
+                "file_data": base64.b64encode(raw_content).decode("utf-8"),
                 "created_by": current_user_id,
             },
             _expected_status=201,
         )
+        assert response["document_id"] == MOCK_DOCUMENT_ID
+        mock_upload.assert_called_once_with(sample_template.service.id, raw_content, "test.pdf", "application/pdf")
 
-        # Verify the upload was called with correct parameters
-        assert mock_upload.called
-        call_args = mock_upload.call_args
-        assert call_args[0][0] == sample_service_full_permissions.id
-        assert call_args[0][1]["sending_method"] == "attach"
-        assert call_args[0][1]["filename"] == "test.pdf"
+    def test_create_file_stores_document_id_from_dd_api(
+        self, mocker, notify_db, notify_db_session, admin_request, sample_service_full_permissions
+    ):
+        """Verify the document_id stored in DB comes from dd-api, not locally generated."""
+        custom_doc_id = str(uuid.uuid4())
+        mock_upload = _mock_upload_template_attachment(mocker, document_id=custom_doc_id)
+        sample_template = create_sample_template(notify_db, notify_db_session, service=sample_service_full_permissions)
+        current_user_id = str(sample_template.service.users[0].id)
+        raw_content = b"test content"
 
-        # Verify the response includes the document_id from the mock
-        assert response["document_id"] == expected_document_id
+        response = admin_request.post(
+            "files.create_file",
+            template_id=str(sample_template.id),
+            _data={
+                "template_id": str(sample_template.id),
+                "type": "attach",
+                "name": "test.pdf",
+                "mime_type": "application/pdf",
+                "file_size": 12345,
+                "file_data": base64.b64encode(raw_content).decode("utf-8"),
+                "created_by": current_user_id,
+            },
+            _expected_status=201,
+        )
+        assert response["document_id"] == custom_doc_id
+        mock_upload.assert_called_once_with(sample_template.service.id, raw_content, "test.pdf", "application/pdf")
+
+    def test_create_file_returns_503_when_dd_api_fails(
+        self, mocker, notify_db, notify_db_session, admin_request, sample_service_full_permissions
+    ):
+        """Verify that a DocumentDownloadError from dd-api results in an error response."""
+        from app.clients.document_download import DocumentDownloadError
+
+        mocker.patch(
+            "app.files.rest.document_download_client.upload_template_attachment",
+            side_effect=DocumentDownloadError(message="Upload failed", status_code=503),
+        )
+        sample_template = create_sample_template(notify_db, notify_db_session, service=sample_service_full_permissions)
+        current_user_id = str(sample_template.service.users[0].id)
+
+        admin_request.post(
+            "files.create_file",
+            template_id=str(sample_template.id),
+            _data={
+                "template_id": str(sample_template.id),
+                "type": "attach",
+                "name": "test.pdf",
+                "mime_type": "application/pdf",
+                "file_size": 12345,
+                "file_data": base64.b64encode(b"test content").decode("utf-8"),
+                "created_by": current_user_id,
+            },
+            _expected_status=503,
+        )
 
     def test_create_file_missing_required(self, mocker, notify_db, notify_db_session, admin_request, sample_service):
         sample_template = create_sample_template(notify_db, notify_db_session, service=sample_service)
@@ -184,7 +248,7 @@ class TestUpdateFileStatus:
         data = {
             "scan_status": "COMPLETED",
             "scan_result_status": "NO_THREATS_FOUND",
-            "object_key": f"template/{sample_file.service_id}/{sample_file.document_id}",
+            "object_key": f"template_attachments/{sample_file.service_id}/{sample_file.document_id}",
             "bucket_name": "test-bucket",
         }
         resp = _scan_verdict_post(client, data)
@@ -196,7 +260,7 @@ class TestUpdateFileStatus:
         data = {
             "scan_status": "COMPLETED",
             "scan_result_status": "THREATS_FOUND",
-            "object_key": f"template/{sample_file.service_id}/{sample_file.document_id}",
+            "object_key": f"template_attachments/{sample_file.service_id}/{sample_file.document_id}",
             "bucket_name": "test-bucket",
         }
         resp = _scan_verdict_post(client, data)
@@ -207,7 +271,7 @@ class TestUpdateFileStatus:
     def test_update_file_status_scan_failure_maps_to_terminal(self, client, sample_file):
         data = {
             "scan_status": "FAILED",
-            "object_key": f"template/{sample_file.service_id}/{sample_file.document_id}",
+            "object_key": f"template_attachments/{sample_file.service_id}/{sample_file.document_id}",
             "bucket_name": "test-bucket",
         }
         resp = _scan_verdict_post(client, data)
@@ -219,7 +283,7 @@ class TestUpdateFileStatus:
         data = {
             "scan_status": "COMPLETED",
             "scan_result_status": "NO_THREATS_FOUND",
-            "object_key": f"template/{sample_file.service_id}/{uuid.uuid4()}",
+            "object_key": f"template_attachments/{sample_file.service_id}/{uuid.uuid4()}",
             "bucket_name": "test-bucket",
         }
         _scan_verdict_post(client, data, expected_status=404)
@@ -229,7 +293,7 @@ class TestUpdateFileStatus:
         data = {
             "scan_status": "COMPLETED",
             "scan_result_status": "NO_THREATS_FOUND",
-            "object_key": f"template/{wrong_service_id}/{sample_file.document_id}",
+            "object_key": f"template_attachments/{wrong_service_id}/{sample_file.document_id}",
             "bucket_name": "test-bucket",
         }
         _scan_verdict_post(client, data, expected_status=404)
@@ -324,7 +388,7 @@ class TestParseScanVerdictPayload:
         payload = {
             "scan_status": "COMPLETED",
             "scan_result_status": "NO_THREATS_FOUND",
-            "object_key": "template/11111111-1111-1111-1111-111111111111/22222222-2222-2222-2222-222222222222",
+            "object_key": "template_attachments/11111111-1111-1111-1111-111111111111/22222222-2222-2222-2222-222222222222",
             "bucket_name": "my-bucket",
             "top_level": "ignored",
         }
@@ -342,7 +406,7 @@ class TestParseScanVerdictPayload:
         payload = {
             "scan_status": "COMPLETED",
             "scan_result_status": "NO_THREATS_FOUND",
-            "object_key": "/template/11111111-1111-1111-1111-111111111111/22222222-2222-2222-2222-222222222222",
+            "object_key": "/template_attachments/11111111-1111-1111-1111-111111111111/22222222-2222-2222-2222-222222222222",
             "bucket_name": "my-bucket",
         }
 
@@ -358,7 +422,7 @@ class TestParseScanVerdictPayload:
     def test_parse_scan_verdict_payload_maps_failed_scan_to_terminal_status(self, client):
         payload = {
             "scan_status": "FAILED",
-            "object_key": "template/11111111-1111-1111-1111-111111111111/22222222-2222-2222-2222-222222222222",
+            "object_key": "template_attachments/11111111-1111-1111-1111-111111111111/22222222-2222-2222-2222-222222222222",
             "bucket_name": "my-bucket",
         }
 
@@ -375,7 +439,7 @@ class TestParseScanVerdictPayload:
         payload = {
             "scan_status": "COMPLETED",
             "scan_result_status": "SOMETHING_NEW",
-            "object_key": "template/11111111-1111-1111-1111-111111111111/22222222-2222-2222-2222-222222222222",
+            "object_key": "template_attachments/11111111-1111-1111-1111-111111111111/22222222-2222-2222-2222-222222222222",
             "bucket_name": "my-bucket",
         }
 

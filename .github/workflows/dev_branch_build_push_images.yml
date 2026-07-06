@@ -17,11 +17,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    name: Build ${{ matrix.target }} image
-    strategy:
-      fail-fast: false
-      matrix:
-        target: ["lambda", "k8s"]
+    name: Build k8s image
 
     steps:
       - name: Checkout
@@ -29,35 +25,24 @@ jobs:
         with:
           ref: dev
 
-      - name: Set image parameters
-        id: img
-        run: |
-          if [ "${{ matrix.target }}" = "lambda" ]; then
-            echo "image=api-lambda" >> "$GITHUB_OUTPUT"
-            echo "dockerfile=ci/Dockerfile.lambda" >> "$GITHUB_OUTPUT"
-          else
-            echo "image=api" >> "$GITHUB_OUTPUT"
-            echo "dockerfile=ci/Dockerfile" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Build container image
         run: |
           docker build \
             --build-arg GIT_SHA=${GITHUB_SHA::7} \
-            -t ${{ steps.img.outputs.image }}:${GITHUB_SHA::7} \
-            -f ${{ steps.img.outputs.dockerfile }} \
+            -t api:${GITHUB_SHA::7} \
+            -f ci/Dockerfile \
             .
 
       - name: Save image as tarball
         run: |
-          docker save ${{ steps.img.outputs.image }}:${GITHUB_SHA::7} \
-            -o /tmp/${{ steps.img.outputs.image }}.tar
+          docker save api:${GITHUB_SHA::7} \
+            -o /tmp/api.tar
 
       - name: Upload image artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.img.outputs.image }}-image
-          path: /tmp/${{ steps.img.outputs.image }}.tar
+          name: api-image
+          path: /tmp/api.tar
           retention-days: 1
 
   push-k8s-dev:
@@ -73,22 +58,9 @@ jobs:
     secrets:
       account-id: ${{ secrets.DEV_AWS_ACCOUNT_ID }}
 
-  push-lambda-dev:
-    name: Push Lambda image to Dev ECR
-    needs: build
-    uses: ./.github/workflows/reusable_push_ecr.yml
-    with:
-      image-name: api-lambda
-      image-tag-sha: ${{ github.sha }}
-      aws-region: ca-central-1
-      branch-name: ${{ github.ref_name }}
-      env-name: dev
-    secrets:
-      account-id: ${{ secrets.DEV_AWS_ACCOUNT_ID }}
-
   update-manifest:
     name: Update Manifests Dev Image Tag
-    needs: [push-k8s-dev, push-lambda-dev]
+    needs: push-k8s-dev
     runs-on: ubuntu-latest
     steps:
       - name: Update Dev Image Tag in Manifests Repo

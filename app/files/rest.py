@@ -1,6 +1,5 @@
 import base64
-import uuid
-from io import BytesIO
+import binascii
 
 from flask import Blueprint, current_app, jsonify, request
 from sqlalchemy.exc import NoResultFound
@@ -73,34 +72,23 @@ def create_file(template_id):
     check_service_has_permission(UPLOAD_DOCUMENT, service.permissions)
     validate_template_exists(template_id, service)
 
-    # Decode base64 file data and prepare for upload
+    filename = data["name"]
+    mime_type = data["mime_type"]
     try:
-        file_bytes = base64.b64decode(data["file_data"])
-    except Exception as e:
-        current_app.logger.error(f"Failed to decode base64 file_data: {str(e)}")
-        raise InvalidRequest("Invalid file_data encoding", 400)
-
-    # Upload file to S3 via document-download-api
-    try:
-        upload_payload = {
-            "file": BytesIO(file_bytes),
-            "sending_method": data["type"],
-            "filename": data["name"],
-        }
-        uploaded_file_response = document_download_client.upload_document(service.id, upload_payload)
-        document_id = uploaded_file_response["document"]["id"]
-        current_app.logger.info(f"Uploaded file to S3 for template {template_id} document_id: {document_id}")
+        file_data = base64.b64decode(data["file_data"])
+        uploaded_file = document_download_client.upload_template_attachment(service.id, file_data, filename, mime_type)
+    except (binascii.Error, ValueError):
+        raise InvalidRequest("file_data is not valid base64", status_code=400)
     except DocumentDownloadError as e:
-        current_app.logger.error(f"Document upload failed: {e.message}")
         raise InvalidRequest(e.message, status_code=e.status_code)
-    except (KeyError, TypeError) as e:
-        current_app.logger.error(f"Unexpected response format from document-download-api: {str(e)}")
-        raise InvalidRequest("Failed to upload document", 500)
+
+    document_id = uploaded_file["document"]["id"]
+    current_app.logger.info(f"Uploaded file to S3 for template {template_id} document_id: {document_id}")
 
     file = Files(
         template_id=data["template_id"],
         service_id=service.id,
-        document_id=uuid.UUID(document_id),
+        document_id=document_id,
         type=data["type"],
         name=data["name"],
         mime_type=data["mime_type"],
