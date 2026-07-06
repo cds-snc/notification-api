@@ -15,7 +15,7 @@ _signal_logger = logging.getLogger(__name__)
 
 @worker_process_shutdown.connect  # type: ignore
 def worker_process_shutdown(sender, signal, pid, exitcode, **kwargs):
-    current_app.logger.info("worker shutdown: PID: {} Exitcode: {}".format(pid, exitcode))
+    _signal_logger.info("worker shutdown: PID: {} Exitcode: {}".format(pid, exitcode))
 
 
 def make_task(app):
