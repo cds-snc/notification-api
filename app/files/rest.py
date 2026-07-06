@@ -126,7 +126,7 @@ def delete_file(template_id, file_id):
 
     # Delete from S3 via document-download-api first
     try:
-        document_download_client.delete_document(fetched_file.service_id, fetched_file.document_id, fetched_file.type)
+        document_download_client.delete_document(fetched_file.service_id, fetched_file.document_id, "template_attach")
         current_app.logger.info(
             f"Deleted file from S3: document_id {fetched_file.document_id} file_id {file_id} template_id {template_id}"
         )
