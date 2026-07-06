@@ -124,6 +124,20 @@ def delete_file(template_id, file_id):
             404,
         )
 
+    # Delete from S3 via document-download-api first
+    try:
+        document_download_client.delete_document(fetched_file.service_id, fetched_file.document_id, "template_attach")
+        current_app.logger.info(
+            f"Deleted file from S3: document_id {fetched_file.document_id} file_id {file_id} template_id {template_id}"
+        )
+    except DocumentDownloadError as e:
+        current_app.logger.error(f"Failed to delete file from S3 (document_id {fetched_file.document_id}): {e.message}")
+        raise InvalidRequest(f"Failed to delete file from storage: {e.message}", status_code=e.status_code)
+    except Exception as e:
+        current_app.logger.error(f"Unexpected error deleting file from S3 (document_id {fetched_file.document_id}): {str(e)}")
+        raise InvalidRequest("Failed to delete file from storage", 500)
+
+    # Only delete from database if S3 deletion succeeded
     dao_delete_file(fetched_file)
 
     current_app.logger.info(f"Deleted file: {file_id} template_id {template_id}")

@@ -51,6 +51,24 @@ class DocumentDownloadClient:
             raise error
         return response.json()
 
+    def delete_document(self, service_id, document_id, sending_method):
+        try:
+            url = f"{self.api_host}/services/{service_id}/documents/{document_id}"
+            response = requests.delete(
+                url,
+                headers={
+                    "Authorization": f"Bearer {self.auth_token}",
+                },
+                params={
+                    "sending_method": sending_method,
+                },
+            )
+            response.raise_for_status()
+        except requests.RequestException as e:
+            error = DocumentDownloadError.from_exception(e)
+            current_app.logger.warning(f"Document delete request failed with error: {error.message}")
+            raise error
+
     def upload_template_attachment(self, service_id, file_data, filename, mime_type):
         """Upload a template file attachment. Returns the document download api response including the document_id"""
         try:
