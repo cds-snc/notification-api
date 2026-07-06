@@ -1,3 +1,4 @@
+import logging
 import time
 
 from environs import Env
@@ -6,6 +7,10 @@ from flask import current_app
 from app.celery.error_registry import classify_error
 from celery import Celery, Task, signals
 from celery.signals import worker_process_shutdown
+
+# Used by Celery signal handlers which fire outside of any Flask app context
+# (e.g. task_retry fires after NotifyTask.__call__'s app_context has exited).
+_signal_logger = logging.getLogger(__name__)
 
 
 @worker_process_shutdown.connect  # type: ignore
@@ -108,7 +113,7 @@ def classify_celery_task_retry(sender=None, reason=None, request=None, einfo=Non
     category, root_exc = classify_error(exception)
     root_exception_type = type(root_exc).__name__ if root_exc else "None"
 
-    current_app.logger.warning(
+    _signal_logger.warning(
         "%s task_name=%s task_id=%s root_exception=%s exception=%s",
         category.value,
         task_name,
@@ -125,7 +130,7 @@ def classify_celery_task_failure(sender=None, task_id=None, exception=None, **kw
     category, root_exc = classify_error(exception)
     root_exception_type = type(root_exc).__name__ if root_exc else "None"
 
-    current_app.logger.warning(
+    _signal_logger.warning(
         "%s task_name=%s task_id=%s root_exception=%s exception=%s",
         category.value,
         task_name,
@@ -142,7 +147,7 @@ def classify_celery_task_internal_error(sender=None, task_id=None, exception=Non
     category, root_exc = classify_error(exception)
     root_exception_type = type(root_exc).__name__ if root_exc else "None"
 
-    current_app.logger.warning(
+    _signal_logger.warning(
         "%s task_name=%s task_id=%s root_exception=%s exception=%s",
         category.value,
         task_name,
@@ -163,7 +168,7 @@ def classify_celery_task_unknown(sender=None, name=None, message=None, **kwargs)
     if message is not None:
         task_id = (getattr(message, "headers", None) or {}).get("id") or "unknown"
 
-    current_app.logger.warning(
+    _signal_logger.warning(
         "%s task_name=%s task_id=%s root_exception=%s",
         category.value,
         name or "unknown",
