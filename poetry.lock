@@ -2869,7 +2869,7 @@ requests = ">=2.0.0"
 
 [[package]]
 name = "notifications-utils"
-version = "53.2.24"
+version = "53.2.27"
 description = "Shared python code for Notification - Provides logging utils etc."
 optional = false
 python-versions = "~3.12.7"
@@ -2900,13 +2900,13 @@ PyYAML = "6.0.3"
 requests = "2.32.3"
 smartypants = "2.0.2"
 statsd = "3.3.0"
-werkzeug = "3.0.6"
+werkzeug = "3.1.6"
 
 [package.source]
 type = "git"
 url = "https://github.com/cds-snc/notifier-utils.git"
-reference = "53.2.24"
-resolved_reference = "4c1b806a12c7690639ce7f24990a32374e803f3f"
+reference = "renovate/pypi-werkzeug-vulnerability"
+resolved_reference = "d49c8ef70f49ceb1c65a8870f4c90fa896367a68"
 
 [[package]]
 name = "opentelemetry-api"
@@ -4850,17 +4850,17 @@ files = [
 
 [[package]]
 name = "werkzeug"
-version = "3.0.6"
+version = "3.1.6"
 description = "The comprehensive WSGI web application library."
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.9"
 files = [
-    {file = "werkzeug-3.0.6-py3-none-any.whl", hash = "sha256:1bc0c2310d2fbb07b1dd1105eba2f7af72f322e1e455f2f93c993bee8c8a5f17"},
-    {file = "werkzeug-3.0.6.tar.gz", hash = "sha256:a8dd59d4de28ca70471a34cba79bed5f7ef2e036a76b3ab0835474246eb41f8d"},
+    {file = "werkzeug-3.1.6-py3-none-any.whl", hash = "sha256:7ddf3357bb9564e407607f988f683d72038551200c704012bb9a4c523d42f131"},
+    {file = "werkzeug-3.1.6.tar.gz", hash = "sha256:210c6bede5a420a913956b4791a7f4d6843a43b6fcee4dfa08a65e93007d0d25"},
 ]
 
 [package.dependencies]
-MarkupSafe = ">=2.1.1"
+markupsafe = ">=2.1.1"
 
 [package.extras]
 watchdog = ["watchdog (>=2.3)"]
@@ -5220,4 +5220,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.12.7"
-content-hash = "fb1aa2623f0c9c087b533290c8d69a5e189ea7fba8e6a2ec448dbf2f1d912f19"
+content-hash = "2758fc6429ca81eca4160dc4f772979ed5ac8d1c318ee0b0e4af954c7478520c"
