@@ -2905,8 +2905,8 @@ werkzeug = "3.1.6"
 [package.source]
 type = "git"
 url = "https://github.com/cds-snc/notifier-utils.git"
-reference = "renovate/pypi-werkzeug-vulnerability"
-resolved_reference = "d49c8ef70f49ceb1c65a8870f4c90fa896367a68"
+reference = "53.2.27"
+resolved_reference = "e001be223c4e06749c2930cc6db360b1065c35a3"
 
 [[package]]
 name = "opentelemetry-api"
@@ -5220,4 +5220,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.12.7"
-content-hash = "2758fc6429ca81eca4160dc4f772979ed5ac8d1c318ee0b0e4af954c7478520c"
+content-hash = "6d553216f37932ca8eb9fb6caa44a2657e610c19829a37549a41cdd3d7723f34"
