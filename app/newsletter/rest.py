@@ -334,7 +334,7 @@ def _upsert_growth_subscriber(subscriber):
     growth_subscriber.has_resubscribed = subscriber.has_resubscribed
 
     if is_new_record and not getattr(growth_subscriber, "product", None):
-        growth_subscriber.product = GrowthNewsletterSubscriber.DEFAULT_PRODUCT_NAME
+        growth_subscriber.product = [GrowthNewsletterSubscriber.DEFAULT_PRODUCT_NAME]
 
     return growth_subscriber.save()
 
