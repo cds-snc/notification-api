@@ -232,18 +232,18 @@ class GrowthNewsletterSubscriber(AirtableTableMixin, Model):
     This mirrors NewsletterSubscriber and includes an additional Product field.
     """
 
-    DEFAULT_PRODUCT_NAME = "GC Notify"
+    DEFAULT_PRODUCT_NAME = "Notify"
 
     def __init__(self, **fields):
         """Initialize a growth newsletter subscriber with default values."""
         fields.setdefault("language", self.Languages.EN.value)
         fields.setdefault("status", self.Statuses.UNCONFIRMED.value)
-        fields.setdefault("product", self.DEFAULT_PRODUCT_NAME)
+        fields.setdefault("product", [self.DEFAULT_PRODUCT_NAME])
 
         super().__init__(**fields)
 
     email = F.RequiredTextField("Email")
-    product = F.RequiredTextField("Product")
+    product = F.MultipleSelectField("Product")
     language = F.RequiredSelectField("Language")
     status = F.RequiredSelectField("Status")
     created_at = F.DatetimeField("Created At")
@@ -331,7 +331,15 @@ class GrowthNewsletterSubscriber(AirtableTableMixin, Model):
             "name": table_name,
             "fields": [
                 {"name": "Email", "type": "singleLineText"},
-                {"name": "Product", "type": "singleLineText"},
+                {
+                    "name": "Product",
+                    "type": "multipleSelects",
+                    "options": {
+                        "choices": [
+                            {"name": cls.DEFAULT_PRODUCT_NAME},
+                        ]
+                    },
+                },
                 {
                     "name": "Language",
                     "type": "singleSelect",
