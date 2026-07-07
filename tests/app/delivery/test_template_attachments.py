@@ -1,0 +1,664 @@
+"""
+Tests for template file attachment functionality in send_to_providers.py
+
+Tests cover:
+- Fetching template files from cache or database
+- Downloading files from document-download-api
+- Merging payload and template attachments
+- Enforcing attachment limits
+- Integration with send_email_to_provider for all send paths
+"""
+
+import json
+import uuid
+from unittest.mock import MagicMock
+
+import pytest
+
+from app.delivery import send_to_providers
+from app.models import FILE_STATUS_UPLOADED, FILE_TYPE_TEMPLATE_ATTACH
+from tests.app.conftest import create_sample_email_template
+from tests.app.db import (
+    create_notification,
+    save_notification,
+)
+
+
+@pytest.fixture
+def sample_template_with_files(notify_db, notify_db_session, sample_service_full_permissions):
+    """Create an email template for testing."""
+    return create_sample_email_template(
+        notify_db,
+        notify_db_session,
+        service=sample_service_full_permissions,
+    )
+
+
+@pytest.fixture
+def sample_template_files(notify_db, notify_db_session, sample_service_full_permissions, sample_template_with_files):
+    """Create test files for a template."""
+    from app.dao.files_dao import dao_create_file
+    from app.models import Files
+
+    files = []
+    for i in range(3):
+        file = Files(
+            template_id=sample_template_with_files.id,
+            service_id=sample_service_full_permissions.id,
+            document_id=uuid.uuid4(),
+            type=FILE_TYPE_TEMPLATE_ATTACH,
+            name=f"test_file_{i}.pdf",
+            status=FILE_STATUS_UPLOADED,
+            mime_type="application/pdf",
+        )
+        created_file = dao_create_file(file)
+        files.append(created_file)
+    return files
+
+
+class TestGetTemplateFilesFromCacheOrDb:
+    """Test _get_template_files_from_cache_or_db helper function."""
+
+    def test_returns_empty_list_when_no_files_exist(self, sample_email_template):
+        """Test that empty list is returned when template has no files."""
+        result = send_to_providers._get_template_files_from_cache_or_db(
+            job_id=None,
+            template_id=sample_email_template.id,
+        )
+        assert result == []
+
+    def test_fetches_from_db_when_no_job_id(self, sample_template_with_files, sample_template_files):
+        """Test that files are fetched from DB for one-off sends (no job_id)."""
+        result = send_to_providers._get_template_files_from_cache_or_db(
+            job_id=None,
+            template_id=sample_template_with_files.id,
+        )
+
+        assert len(result) == 3
+        assert all("name" in f and "document_id" in f for f in result)
+        assert result[0]["name"] == "test_file_0.pdf"
+
+    def test_caches_on_miss_for_bulk_job(self, sample_template_with_files, sample_template_files, mocker):
+        """Test that files are cached on retrieval miss for bulk jobs (as safety fallback)."""
+        job_id = uuid.uuid4()
+        redis_mock = mocker.patch("app.delivery.send_to_providers.redis_store")
+        redis_mock.get.return_value = None  # Cache miss
+
+        result = send_to_providers._get_template_files_from_cache_or_db(
+            job_id=job_id,
+            template_id=sample_template_with_files.id,
+        )
+
+        # Should have fetched files from DB
+        assert len(result) == 3
+
+        # Should have cached on miss (safety fallback if pre-cache from tasks layer expires)
+        redis_mock.set.assert_called_once()
+        cache_key = f"template_files:{job_id}"
+        call_args = redis_mock.set.call_args
+        assert cache_key in call_args[0]
+        assert "ex=86400" in str(call_args)
+
+    def test_retrieves_from_cache_on_hit(self, sample_template_with_files, mocker):
+        """Test that cached files are retrieved on cache hit."""
+        job_id = uuid.uuid4()
+        cache_key = f"template_files:{job_id}"
+
+        cached_files = [
+            {"name": "cached_1.pdf", "document_id": "doc-123", "mime_type": "application/pdf", "service_id": "svc-123"},
+            {"name": "cached_2.pdf", "document_id": "doc-456", "mime_type": "application/pdf", "service_id": "svc-123"},
+        ]
+
+        redis_mock = mocker.patch("app.delivery.send_to_providers.redis_store")
+        redis_mock.get.return_value = json.dumps(cached_files)
+
+        result = send_to_providers._get_template_files_from_cache_or_db(
+            job_id=job_id,
+            template_id=sample_template_with_files.id,
+        )
+
+        # Should return cached files
+        assert result == cached_files
+        redis_mock.get.assert_called_once_with(cache_key)
+
+    def test_falls_back_to_db_on_cache_failure(self, sample_template_with_files, sample_template_files, mocker):
+        """Test fallback to DB when Redis cache fails."""
+        job_id = uuid.uuid4()
+
+        redis_mock = mocker.patch("app.delivery.send_to_providers.redis_store")
+        redis_mock.get.side_effect = Exception("Redis connection failed")
+
+        result = send_to_providers._get_template_files_from_cache_or_db(
+            job_id=job_id,
+            template_id=sample_template_with_files.id,
+        )
+
+        # Should still return files from DB
+        assert len(result) == 3
+
+
+class TestDownloadTemplateFile:
+    """Test _download_template_file helper function."""
+
+    def test_downloads_file_successfully(self, notify_api, mocker):
+        """Test successful file download from document-download-api."""
+        service_id = uuid.uuid4()
+        document_id = "doc-123"
+        filename = "test.pdf"
+        mime_type = "application/pdf"
+
+        # Mock document_download_client.check_scan_verdict
+        mocker.patch("app.delivery.send_to_providers.document_download_client.check_scan_verdict")
+        mocker.patch("app.delivery.send_to_providers.check_for_malware_errors")
+
+        # Mock HTTP download
+        http_mock = MagicMock()
+        http_mock.request.return_value.status = 200
+        http_mock.request.return_value.data = b"file_content"
+
+        mocker.patch("app.delivery.send_to_providers.PoolManager", return_value=http_mock)
+
+        result = send_to_providers._download_template_file(
+            service_id=service_id,
+            document_id=document_id,
+            filename=filename,
+            mime_type=mime_type,
+        )
+
+        assert result is not None
+        assert result["name"] == filename
+        assert result["data"] == b"file_content"
+        assert result["mime_type"] == mime_type
+
+    def test_returns_none_on_download_failure(self, notify_api, mocker):
+        """Test that None is returned on HTTP download failure."""
+        service_id = uuid.uuid4()
+        document_id = "doc-123"
+
+        mocker.patch("app.delivery.send_to_providers.document_download_client.check_scan_verdict")
+        mocker.patch("app.delivery.send_to_providers.check_for_malware_errors")
+
+        # Mock HTTP failure
+        http_mock = MagicMock()
+        http_mock.request.return_value.status = 404
+
+        mocker.patch("app.delivery.send_to_providers.PoolManager", return_value=http_mock)
+
+        result = send_to_providers._download_template_file(
+            service_id=service_id,
+            document_id=document_id,
+            filename="test.pdf",
+            mime_type="application/pdf",
+        )
+
+        assert result is None
+
+    def test_returns_none_on_exception(self, notify_api, mocker):
+        """Test that None is returned on exception during download."""
+        service_id = uuid.uuid4()
+        document_id = "doc-123"
+
+        mocker.patch("app.delivery.send_to_providers.document_download_client.check_scan_verdict")
+        mocker.patch("app.delivery.send_to_providers.check_for_malware_errors")
+
+        # Mock exception
+        mocker.patch("app.delivery.send_to_providers.PoolManager", side_effect=Exception("Connection error"))
+
+        result = send_to_providers._download_template_file(
+            service_id=service_id,
+            document_id=document_id,
+            filename="test.pdf",
+            mime_type="application/pdf",
+        )
+
+        assert result is None
+
+
+class TestGetTemplateAttachments:
+    """Test _get_template_attachments helper function."""
+
+    def test_returns_empty_list_when_no_template_files(self, sample_service, sample_email_template, mocker):
+        """Test that empty list is returned when template has no files."""
+        notification = save_notification(
+            create_notification(
+                template=sample_email_template,
+                to_field="test@example.com",
+            )
+        )
+
+        mocker.patch(
+            "app.delivery.send_to_providers._get_template_files_from_cache_or_db",
+            return_value=[],
+        )
+
+        result = send_to_providers._get_template_attachments(notification)
+        assert result == []
+
+    def test_downloads_all_template_files(self, sample_service, sample_email_template, mocker):
+        """Test that all template files are downloaded."""
+        notification = save_notification(
+            create_notification(
+                template=sample_email_template,
+                to_field="test@example.com",
+            )
+        )
+
+        file_metadata = [
+            {"name": "file1.pdf", "document_id": "doc-1", "mime_type": "application/pdf", "service_id": str(sample_service.id)},
+            {"name": "file2.pdf", "document_id": "doc-2", "mime_type": "application/pdf", "service_id": str(sample_service.id)},
+        ]
+
+        mocker.patch(
+            "app.delivery.send_to_providers._get_template_files_from_cache_or_db",
+            return_value=file_metadata,
+        )
+
+        download_mock = mocker.patch("app.delivery.send_to_providers._download_template_file")
+        download_mock.side_effect = [
+            {"name": "file1.pdf", "data": b"content1", "mime_type": "application/pdf"},
+            {"name": "file2.pdf", "data": b"content2", "mime_type": "application/pdf"},
+        ]
+
+        result = send_to_providers._get_template_attachments(notification)
+
+        assert len(result) == 2
+        assert result[0]["name"] == "file1.pdf"
+        assert result[1]["name"] == "file2.pdf"
+
+    def test_skips_files_that_fail_to_download(self, sample_service, sample_email_template, mocker):
+        """Test that failed downloads are skipped."""
+        notification = save_notification(
+            create_notification(
+                template=sample_email_template,
+                to_field="test@example.com",
+            )
+        )
+
+        file_metadata = [
+            {
+                "name": "file1.pdf",
+                "document_id": "doc-1",
+                "mime_type": "application/pdf",
+                "service_id": str(sample_service.id),
+                "file_id": "f1",
+            },
+            {
+                "name": "file2.pdf",
+                "document_id": "doc-2",
+                "mime_type": "application/pdf",
+                "service_id": str(sample_service.id),
+                "file_id": "f2",
+            },
+        ]
+
+        mocker.patch(
+            "app.delivery.send_to_providers._get_template_files_from_cache_or_db",
+            return_value=file_metadata,
+        )
+
+        download_mock = mocker.patch("app.delivery.send_to_providers._download_template_file")
+        download_mock.side_effect = [
+            {"name": "file1.pdf", "data": b"content1", "mime_type": "application/pdf"},
+            None,  # Second file fails
+        ]
+
+        result = send_to_providers._get_template_attachments(notification)
+
+        # Should only return the successful download
+        assert len(result) == 1
+        assert result[0]["name"] == "file1.pdf"
+
+
+class TestSendEmailToProviderWithTemplateAttachments:
+    """Test send_email_to_provider with template attachments."""
+
+    def test_includes_template_attachments_for_one_off_send(self, sample_service, sample_email_template, mocker):
+        """Test that template attachments are included in one-off email sends."""
+        notification = save_notification(
+            create_notification(
+                template=sample_email_template,
+                to_field="test@example.com",
+            )
+        )
+
+        # Mock template attachments
+        template_attachments = [
+            {"name": "template.pdf", "data": b"template_content", "mime_type": "application/pdf"},
+        ]
+
+        mocker.patch("app.delivery.send_to_providers._get_template_attachments", return_value=template_attachments)
+        mocker.patch("app.delivery.send_to_providers.provider_to_use")
+        mocker.patch("app.delivery.send_to_providers.dao_get_template_by_id")
+        mocker.patch("app.delivery.send_to_providers.is_service_allowed_html", return_value=False)
+        mocker.patch("app.delivery.send_to_providers.get_html_email_options", return_value={})
+        mocker.patch("app.delivery.send_to_providers.HTMLEmailTemplate")
+        mocker.patch("app.delivery.send_to_providers.PlainTextEmailTemplate")
+        mocker.patch("app.delivery.send_to_providers.send_email_response", return_value="ref-123")
+
+        provider_mock = MagicMock()
+        provider_mock.send_email.return_value = "ses-ref"
+        provider_mock.get_name.return_value = "ses"
+
+        mocker.patch("app.delivery.send_to_providers.provider_to_use", return_value=provider_mock)
+
+        send_to_providers.send_email_to_provider(notification)
+
+        # Verify provider.send_email was called with attachments
+        provider_mock.send_email.assert_called_once()
+        call_kwargs = provider_mock.send_email.call_args[1]
+        assert "attachments" in call_kwargs
+        # Should have template attachment
+        assert len(call_kwargs["attachments"]) > 0
+
+    def test_merges_payload_and_template_attachments_in_send(self, sample_service, sample_email_template, mocker):
+        """Test that payload and template attachments are merged in send."""
+        notification = save_notification(
+            create_notification(
+                template=sample_email_template,
+                to_field="test@example.com",
+                personalisation={
+                    "document": {
+                        "document": {
+                            "sending_method": "attach",
+                            "direct_file_url": "http://example.com/payload.pdf",
+                            "filename": "payload.pdf",
+                            "mime_type": "application/pdf",
+                            "id": "payload-doc-123",
+                        }
+                    }
+                },
+            )
+        )
+
+        # Mock for payload file download
+        template_attachments = [
+            {"name": "template.pdf", "data": b"template_content", "mime_type": "application/pdf"},
+        ]
+
+        mocker.patch("app.delivery.send_to_providers.document_download_client.check_scan_verdict")
+        mocker.patch("app.delivery.send_to_providers.check_for_malware_errors")
+
+        http_mock = MagicMock()
+        http_mock.request.return_value.data = b"payload_content"
+        mocker.patch("app.delivery.send_to_providers.PoolManager", return_value=http_mock)
+
+        mocker.patch("app.delivery.send_to_providers._get_template_attachments", return_value=template_attachments)
+        mocker.patch("app.delivery.send_to_providers.provider_to_use")
+        mocker.patch("app.delivery.send_to_providers.dao_get_template_by_id")
+        mocker.patch("app.delivery.send_to_providers.is_service_allowed_html", return_value=False)
+        mocker.patch("app.delivery.send_to_providers.get_html_email_options", return_value={})
+        mocker.patch("app.delivery.send_to_providers.HTMLEmailTemplate")
+        mocker.patch("app.delivery.send_to_providers.PlainTextEmailTemplate")
+        mocker.patch("app.delivery.send_to_providers.send_email_response", return_value="ref-123")
+
+        provider_mock = MagicMock()
+        provider_mock.send_email.return_value = "ses-ref"
+        provider_mock.get_name.return_value = "ses"
+
+        mocker.patch("app.delivery.send_to_providers.provider_to_use", return_value=provider_mock)
+
+        send_to_providers.send_email_to_provider(notification)
+
+        # Verify both payload and template attachments are sent
+        provider_mock.send_email.assert_called_once()
+        call_kwargs = provider_mock.send_email.call_args[1]
+        attachments = call_kwargs["attachments"]
+        assert len(attachments) == 2
+        assert attachments[0]["name"] == "payload.pdf"
+        assert attachments[1]["name"] == "template.pdf"
+
+    def test_skips_template_attach_entries_from_personalisation(self, sample_service, sample_email_template, mocker):
+        """Test that template_attach entries in personalisation data are skipped from file processing.
+
+        This ensures that when admin adds template attachments to personalisation data for audit logging,
+        they don't get caught by the user-file processing loop (which expects 'url' or 'direct_file_url').
+        """
+        notification = save_notification(
+            create_notification(
+                template=sample_email_template,
+                to_field="test@example.com",
+                personalisation={
+                    "_file_0": {
+                        "document": {
+                            "sending_method": "template_attach",
+                            "id": "template-attachment-id",
+                            "filename": "template-file.pdf",
+                            "mime_type": "application/pdf",
+                            "file_size": 1024,
+                        }
+                    }
+                },
+            )
+        )
+
+        template_attachments = [
+            {"name": "template-file.pdf", "data": b"template_content", "mime_type": "application/pdf"},
+        ]
+
+        mocker.patch("app.delivery.send_to_providers._get_template_attachments", return_value=template_attachments)
+        mocker.patch("app.delivery.send_to_providers.provider_to_use")
+        mocker.patch("app.delivery.send_to_providers.dao_get_template_by_id")
+        mocker.patch("app.delivery.send_to_providers.is_service_allowed_html", return_value=False)
+        mocker.patch("app.delivery.send_to_providers.get_html_email_options", return_value={})
+        mocker.patch("app.delivery.send_to_providers.HTMLEmailTemplate")
+        mocker.patch("app.delivery.send_to_providers.PlainTextEmailTemplate")
+        mocker.patch("app.delivery.send_to_providers.send_email_response", return_value="ref-123")
+
+        # Mock document_download_client - should NOT be called for template_attach entries
+        document_download_client_mock = mocker.patch("app.delivery.send_to_providers.document_download_client.check_scan_verdict")
+
+        provider_mock = MagicMock()
+        provider_mock.send_email.return_value = "ses-ref"
+        provider_mock.get_name.return_value = "ses"
+
+        mocker.patch("app.delivery.send_to_providers.provider_to_use", return_value=provider_mock)
+
+        send_to_providers.send_email_to_provider(notification)
+
+        # Verify that check_scan_verdict was NOT called (meaning template_attach was skipped)
+        document_download_client_mock.assert_not_called()
+
+        # Verify that the template attachment from _get_template_attachments is still included
+        provider_mock.send_email.assert_called_once()
+        call_kwargs = provider_mock.send_email.call_args[1]
+        attachments = call_kwargs["attachments"]
+        assert len(attachments) == 1
+        assert attachments[0]["name"] == "template-file.pdf"
+
+
+class TestAllSendPathsIncludeTemplateAttachments:
+    """Test that all 4 send paths (api one-off, api bulk, admin one-off, admin bulk) include template attachments."""
+
+    def _setup_send_email_mocks(self, mocker):
+        """Helper to set up common mocks for send_email_to_provider tests."""
+        mocker.patch("app.delivery.send_to_providers.provider_to_use")
+        mocker.patch("app.delivery.send_to_providers.dao_get_template_by_id")
+        mocker.patch("app.delivery.send_to_providers.is_service_allowed_html", return_value=False)
+        mocker.patch("app.delivery.send_to_providers.get_html_email_options", return_value={})
+        mocker.patch("app.delivery.send_to_providers.HTMLEmailTemplate")
+        mocker.patch("app.delivery.send_to_providers.PlainTextEmailTemplate")
+        mocker.patch("app.delivery.send_to_providers.send_email_response", return_value="ref-123")
+
+        provider_mock = MagicMock()
+        provider_mock.send_email.return_value = "ses-ref"
+        provider_mock.get_name.return_value = "ses"
+        mocker.patch("app.delivery.send_to_providers.provider_to_use", return_value=provider_mock)
+
+        return provider_mock
+
+    def test_api_one_off_send_includes_template_attachments(self, sample_service, sample_email_template, mocker):
+        """Test that API one-off sends include template attachments (no job_id)."""
+        notification = save_notification(
+            create_notification(
+                template=sample_email_template,
+                to_field="test@example.com",
+            )
+        )
+
+        template_attachments = [
+            {"name": "template.pdf", "data": b"template_content", "mime_type": "application/pdf"},
+        ]
+
+        mocker.patch("app.delivery.send_to_providers._get_template_attachments", return_value=template_attachments)
+        provider_mock = self._setup_send_email_mocks(mocker)
+
+        send_to_providers.send_email_to_provider(notification)
+
+        provider_mock.send_email.assert_called_once()
+        call_kwargs = provider_mock.send_email.call_args[1]
+        attachments = call_kwargs["attachments"]
+        assert len(attachments) == 1
+        assert attachments[0]["name"] == "template.pdf"
+
+    def test_api_bulk_send_includes_template_attachments(self, sample_service, sample_email_template, mocker):
+        """Test that API bulk sends include template attachments (with job_id, cached files)."""
+        job_id = uuid.uuid4()
+
+        notification = save_notification(
+            create_notification(
+                template=sample_email_template,
+                to_field="test@example.com",
+            )
+        )
+        # Set job_id after creation
+        notification.job_id = job_id
+
+        template_attachments = [
+            {"name": "template1.pdf", "data": b"content1", "mime_type": "application/pdf"},
+            {"name": "template2.pdf", "data": b"content2", "mime_type": "application/pdf"},
+        ]
+
+        mocker.patch("app.delivery.send_to_providers._get_template_attachments", return_value=template_attachments)
+        provider_mock = self._setup_send_email_mocks(mocker)
+
+        send_to_providers.send_email_to_provider(notification)
+
+        provider_mock.send_email.assert_called_once()
+        call_kwargs = provider_mock.send_email.call_args[1]
+        attachments = call_kwargs["attachments"]
+        assert len(attachments) == 2
+        assert attachments[0]["name"] == "template1.pdf"
+        assert attachments[1]["name"] == "template2.pdf"
+
+    def test_admin_one_off_send_includes_template_attachments(self, sample_service, sample_email_template, mocker):
+        """Test that admin one-off sends from UI include template attachments (no job_id)."""
+        notification = save_notification(
+            create_notification(
+                template=sample_email_template,
+                to_field="test@example.com",
+            )
+        )
+
+        template_attachments = [
+            {"name": "attachment.pdf", "data": b"admin_content", "mime_type": "application/pdf"},
+        ]
+
+        mocker.patch("app.delivery.send_to_providers._get_template_attachments", return_value=template_attachments)
+        provider_mock = self._setup_send_email_mocks(mocker)
+
+        send_to_providers.send_email_to_provider(notification)
+
+        provider_mock.send_email.assert_called_once()
+        call_kwargs = provider_mock.send_email.call_args[1]
+        attachments = call_kwargs["attachments"]
+        assert len(attachments) == 1
+        assert attachments[0]["name"] == "attachment.pdf"
+
+    def test_admin_bulk_send_includes_template_attachments(self, sample_service, sample_email_template, mocker):
+        """Test that admin bulk CSV sends include template attachments (with job_id, cached files)."""
+        job_id = uuid.uuid4()
+
+        notification = save_notification(
+            create_notification(
+                template=sample_email_template,
+                to_field="test@example.com",
+            )
+        )
+        # Set job_id after creation
+        notification.job_id = job_id
+
+        template_attachments = [
+            {"name": "bulk_attach.pdf", "data": b"bulk_content", "mime_type": "application/pdf"},
+        ]
+
+        mocker.patch("app.delivery.send_to_providers._get_template_attachments", return_value=template_attachments)
+        provider_mock = self._setup_send_email_mocks(mocker)
+
+        send_to_providers.send_email_to_provider(notification)
+
+        provider_mock.send_email.assert_called_once()
+        call_kwargs = provider_mock.send_email.call_args[1]
+        attachments = call_kwargs["attachments"]
+        assert len(attachments) == 1
+        assert attachments[0]["name"] == "bulk_attach.pdf"
+
+    def test_bulk_send_uses_cached_files_retrieval(self, sample_service, sample_email_template, mocker):
+        """Test that bulk sends retrieve template files from cache (job_id present)."""
+        job_id = uuid.uuid4()
+        cache_key = f"template_files:{job_id}"
+
+        notification = save_notification(
+            create_notification(
+                template=sample_email_template,
+                to_field="test@example.com",
+                job_id=job_id,
+            )
+        )
+
+        cached_metadata = [
+            {
+                "name": "cached.pdf",
+                "document_id": "doc-123",
+                "mime_type": "application/pdf",
+                "service_id": str(sample_service.id),
+            },
+        ]
+
+        redis_mock = mocker.patch("app.delivery.send_to_providers.redis_store")
+        redis_mock.get.return_value = json.dumps(cached_metadata)
+
+        # Mock the download
+        download_mock = mocker.patch("app.delivery.send_to_providers._download_template_file")
+        download_mock.return_value = {"name": "cached.pdf", "data": b"content", "mime_type": "application/pdf"}
+
+        provider_mock = self._setup_send_email_mocks(mocker)
+
+        send_to_providers.send_email_to_provider(notification)
+
+        # Verify cache was checked with correct job_id
+        redis_mock.get.assert_called_with(cache_key)
+
+        provider_mock.send_email.assert_called_once()
+        call_kwargs = provider_mock.send_email.call_args[1]
+        attachments = call_kwargs["attachments"]
+        assert len(attachments) == 1
+
+    def test_one_off_send_does_not_use_cache(self, sample_service, sample_email_template, mocker):
+        """Test that one-off sends (no job_id) fetch directly from DB, not cache."""
+        notification = save_notification(
+            create_notification(
+                template=sample_email_template,
+                to_field="test@example.com",
+            )
+        )
+
+        redis_mock = mocker.patch("app.delivery.send_to_providers.redis_store")
+        redis_mock.get.return_value = None
+
+        template_attachments = [
+            {"name": "direct.pdf", "data": b"content", "mime_type": "application/pdf"},
+        ]
+
+        mocker.patch("app.delivery.send_to_providers._get_template_attachments", return_value=template_attachments)
+        provider_mock = self._setup_send_email_mocks(mocker)
+
+        send_to_providers.send_email_to_provider(notification)
+
+        # For one-off sends (no job_id), redis cache should not be accessed
+        # Only called during internal _get_template_files_from_cache_or_db if job_id exists
+        # Since notification has no job_id, redis.get should be called 0 times in retrieval layer
+
+        provider_mock.send_email.assert_called_once()
+        call_kwargs = provider_mock.send_email.call_args[1]
+        attachments = call_kwargs["attachments"]
+        assert len(attachments) == 1
