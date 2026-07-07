@@ -51,6 +51,7 @@ class TestCreateUnconfirmedSubscription:
 
         mock_subscriber_class = mocker.patch("app.newsletter.rest.NewsletterSubscriber", return_value=mock_subscriber)
         mock_send_email = mocker.patch("app.newsletter.rest.send_confirmation_email")
+        mock_growth_sync = mocker.patch("app.newsletter.rest._sync_growth_subscriber_best_effort")
         mock_response = Response()
         mock_response.status_code = 404
         mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_email", side_effect=HTTPError(response=mock_response))
@@ -64,6 +65,7 @@ class TestCreateUnconfirmedSubscription:
             email=response["subscriber"]["email"], language=response["subscriber"]["language"]
         )
         mock_subscriber.save_unconfirmed_subscriber.assert_called_once()
+        mock_growth_sync.assert_called_once_with(mock_subscriber)
         mock_send_email.assert_called_once_with(
             response["subscriber"]["id"], response["subscriber"]["email"], response["subscriber"]["language"]
         )
@@ -95,6 +97,7 @@ class TestCreateUnconfirmedSubscription:
 
         mocker.patch("app.newsletter.rest.NewsletterSubscriber", return_value=mock_subscriber)
         mock_send_email = mocker.patch("app.newsletter.rest.send_confirmation_email")
+        mock_growth_sync = mocker.patch("app.newsletter.rest._sync_growth_subscriber_best_effort")
         mock_response = Response()
         mock_response.status_code = 404
         mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_email", side_effect=HTTPError(response=mock_response))
@@ -105,11 +108,13 @@ class TestCreateUnconfirmedSubscription:
         assert response["message"] == "Failed to create unconfirmed mailing list subscriber."
         # Email should not be sent if save fails
         mock_send_email.assert_not_called()
+        mock_growth_sync.assert_not_called()
 
     def test_create_unconfirmed_subscription_existing_subscriber(self, admin_request, mocker, mock_subscriber):
         mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_email", return_value=mock_subscriber)
         mock_send_email = mocker.patch("app.newsletter.rest.send_confirmation_email")
         mock_save = mocker.patch.object(mock_subscriber, "save")
+        mock_growth_sync = mocker.patch("app.newsletter.rest._sync_growth_subscriber_best_effort")
 
         data = {"email": "test@example.com", "language": "fr"}
         response = admin_request.post("newsletter.create_unconfirmed_subscription", _data=data, _expected_status=200)
@@ -120,8 +125,24 @@ class TestCreateUnconfirmedSubscription:
         # Language preference should be updated
         assert mock_subscriber.language == "fr"
         mock_save.assert_called_once()
+        mock_growth_sync.assert_called_once_with(mock_subscriber)
         # Confirmation email should be resent for existing subscriber with updated language preference
         mock_send_email.assert_called_once_with("rec123456", "test@example.com", "fr")
+
+    def test_create_unconfirmed_subscription_existing_subscriber_save_fails(self, admin_request, mocker, mock_subscriber):
+        mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_email", return_value=mock_subscriber)
+        mock_save = mocker.patch.object(mock_subscriber, "save", return_value=MockSaveResult(saved=False, error="bad request"))
+        mock_send_email = mocker.patch("app.newsletter.rest.send_confirmation_email")
+        mock_growth_sync = mocker.patch("app.newsletter.rest._sync_growth_subscriber_best_effort")
+
+        data = {"email": "test@example.com", "language": "fr"}
+        response = admin_request.post("newsletter.create_unconfirmed_subscription", _data=data, _expected_status=500)
+
+        assert response["result"] == "error"
+        assert response["message"] == "Failed to update existing newsletter subscriber."
+        assert mock_save.call_count == 3
+        mock_send_email.assert_not_called()
+        mock_growth_sync.assert_not_called()
 
     def test_create_unconfirmed_subscription_api_error(self, admin_request, mocker):
         mock_response = Response()
@@ -141,6 +162,7 @@ class TestConfirmSubscription:
         mock_subscriber.confirm_subscription.return_value = MockSaveResult(saved=True)
 
         mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
+        mock_growth_sync = mocker.patch("app.newsletter.rest._sync_growth_subscriber_best_effort")
 
         response = admin_request.get("newsletter.confirm_subscription", subscriber_id=mock_subscriber.id, _expected_status=200)
 
@@ -149,6 +171,7 @@ class TestConfirmSubscription:
         assert response["subscriber"] == mock_subscriber.to_dict
 
         mock_subscriber.confirm_subscription.assert_called_once()
+        mock_growth_sync.assert_called_once_with(mock_subscriber)
 
     def test_confirm_subscription_already_confirmed(self, admin_request, mocker, mock_subscriber):
         mock_subscriber.status = NewsletterSubscriber.Statuses.SUBSCRIBED.value
@@ -163,6 +186,7 @@ class TestConfirmSubscription:
         mock_subscriber.confirm_subscription.return_value = MockSaveResult(saved=True)
 
         mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
+        mock_growth_sync = mocker.patch("app.newsletter.rest._sync_growth_subscriber_best_effort")
 
         response = admin_request.get("newsletter.confirm_subscription", subscriber_id=mock_subscriber.id, _expected_status=200)
 
@@ -172,6 +196,7 @@ class TestConfirmSubscription:
 
         # Verify that confirm_subscription was called with has_resubscribed=True
         mock_subscriber.confirm_subscription.assert_called_once_with(has_resubscribed=True)
+        mock_growth_sync.assert_called_once_with(mock_subscriber)
 
     def test_confirm_subscription_subscriber_not_found(self, admin_request, mocker):
         mock_response = Response()
@@ -189,11 +214,13 @@ class TestConfirmSubscription:
         mock_subscriber.confirm_subscription.return_value = MockSaveResult(saved=False, error="Database error")
 
         mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
+        mock_growth_sync = mocker.patch("app.newsletter.rest._sync_growth_subscriber_best_effort")
 
         response = admin_request.get("newsletter.confirm_subscription", subscriber_id="rec123456", _expected_status=500)
 
         assert response["result"] == "error"
         assert response["message"] == "Subscription confirmation failed"
+        mock_growth_sync.assert_not_called()
 
 
 class TestUnsubscribe:
@@ -201,6 +228,7 @@ class TestUnsubscribe:
         mock_subscriber.unsubscribe_user.return_value = MockSaveResult(saved=True)
 
         mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
+        mock_growth_sync = mocker.patch("app.newsletter.rest._sync_growth_subscriber_best_effort")
 
         response = admin_request.get("newsletter.unsubscribe", subscriber_id=mock_subscriber.id, _expected_status=200)
 
@@ -209,6 +237,7 @@ class TestUnsubscribe:
         assert response["subscriber"] == mock_subscriber.to_dict
 
         mock_subscriber.unsubscribe_user.assert_called_once()
+        mock_growth_sync.assert_called_once_with(mock_subscriber)
 
     def test_unsubscribe_already_unsubscribed(self, admin_request, mocker, mock_subscriber):
         mock_subscriber.status = NewsletterSubscriber.Statuses.UNSUBSCRIBED.value
@@ -234,11 +263,13 @@ class TestUnsubscribe:
         mock_subscriber.unsubscribe_user.return_value = MockSaveResult(saved=False, error="Database error")
 
         mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
+        mock_growth_sync = mocker.patch("app.newsletter.rest._sync_growth_subscriber_best_effort")
 
         response = admin_request.get("newsletter.unsubscribe", subscriber_id="rec123456", _expected_status=500)
 
         assert response["result"] == "error"
         assert response["message"] == "Unsubscription failed"
+        mock_growth_sync.assert_not_called()
 
 
 class TestUpdateLanguagePreferences:
@@ -246,6 +277,7 @@ class TestUpdateLanguagePreferences:
         mock_subscriber.update_language.return_value = MockSaveResult(saved=True)
         mock_subscriber.language = "fr"
         mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
+        mock_growth_sync = mocker.patch("app.newsletter.rest._sync_growth_subscriber_best_effort")
 
         data = {"language": "fr"}
         response = admin_request.post(
@@ -260,6 +292,7 @@ class TestUpdateLanguagePreferences:
         assert response["subscriber"] == mock_subscriber.to_dict
 
         mock_subscriber.update_language.assert_called_once_with("fr")
+        mock_growth_sync.assert_called_once_with(mock_subscriber)
 
     def test_update_language_missing_language(self, admin_request):
         data = {}
@@ -289,6 +322,7 @@ class TestUpdateLanguagePreferences:
         mock_subscriber.update_language.return_value = MockSaveResult(saved=False, error="Database error")
 
         mocker.patch("app.newsletter.rest.NewsletterSubscriber.from_id", return_value=mock_subscriber)
+        mock_growth_sync = mocker.patch("app.newsletter.rest._sync_growth_subscriber_best_effort")
 
         data = {"language": "fr"}
         response = admin_request.post(
@@ -297,6 +331,7 @@ class TestUpdateLanguagePreferences:
 
         assert response["result"] == "error"
         assert response["message"] == "Language update failed"
+        mock_growth_sync.assert_not_called()
 
 
 class TestSendLatestNewsletter:
@@ -389,3 +424,43 @@ class TestGetSubscriber:
 
         assert response["result"] == "error"
         assert response["message"] == "Subscriber ID or email is required"
+
+
+class TestRetryHelpers:
+    def test_save_newsletter_with_retry_does_not_retry_non_transient_http_error(self, notify_api, mocker):
+        from app.newsletter.rest import _save_newsletter_with_retry
+
+        call_count = {"count": 0}
+        mock_logger = mocker.patch.object(notify_api, "logger")
+
+        def save_operation():
+            call_count["count"] += 1
+            response = Response()
+            response.status_code = 400
+            raise HTTPError(response=response)
+
+        with pytest.raises(Exception):
+            _save_newsletter_with_retry(save_operation, "failure", "log")
+
+        assert call_count["count"] == 1
+        mock_logger.warning.assert_called_with(
+            "Last newsletter Airtable write error: %s",
+            "",
+        )
+
+    def test_sync_growth_subscriber_does_not_retry_non_transient_http_error(self, notify_api, mocker):
+        from app.newsletter import rest as newsletter_rest
+
+        mocker.patch.object(newsletter_rest, "_is_growth_table_configured", return_value=True)
+        mock_upsert = mocker.patch.object(newsletter_rest, "_upsert_growth_subscriber")
+
+        response = Response()
+        response.status_code = 400
+        mock_upsert.side_effect = HTTPError(response=response)
+
+        subscriber = Mock()
+        subscriber.email = "test@example.com"
+
+        newsletter_rest._sync_growth_subscriber_best_effort(subscriber)
+
+        assert mock_upsert.call_count == 1

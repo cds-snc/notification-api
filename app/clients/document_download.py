@@ -51,6 +51,47 @@ class DocumentDownloadClient:
             raise error
         return response.json()
 
+    def delete_document(self, service_id, document_id, sending_method):
+        try:
+            url = f"{self.api_host}/services/{service_id}/documents/{document_id}"
+            response = requests.delete(
+                url,
+                headers={
+                    "Authorization": f"Bearer {self.auth_token}",
+                },
+                params={
+                    "sending_method": sending_method,
+                },
+            )
+            response.raise_for_status()
+        except requests.RequestException as e:
+            error = DocumentDownloadError.from_exception(e)
+            current_app.logger.warning(f"Document delete request failed with error: {error.message}")
+            raise error
+
+    def upload_template_attachment(self, service_id, file_data, filename, mime_type):
+        """Upload a template file attachment. Returns the document download api response including the document_id"""
+        try:
+            response = requests.post(
+                self.get_upload_url(service_id),
+                headers={
+                    "Authorization": "Bearer {}".format(self.auth_token),
+                },
+                data={
+                    "filename": filename,
+                    "sending_method": "template_attach",
+                },
+                files={
+                    "document": (filename, file_data, mime_type),
+                },
+            )
+            response.raise_for_status()
+        except requests.RequestException as e:
+            error = DocumentDownloadError.from_exception(e)
+            current_app.logger.warning("Document download request failed with error: {}".format(error.message))
+            raise error
+        return response.json()
+
     def check_scan_verdict(self, service_id, document_id, sending_method):
         url = f"{self.api_host}/services/{service_id}/documents/{document_id}/scan-verdict"
         response = requests.post(

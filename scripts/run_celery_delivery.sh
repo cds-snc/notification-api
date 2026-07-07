@@ -6,4 +6,4 @@ set -e
 
 echo "Start celery, concurrency: ${CELERY_CONCURRENCY-4}"
 
-celery -A run_celery.notify_celery worker --pidfile="/tmp/celery.pid" --loglevel=INFO --concurrency="${CELERY_CONCURRENCY-4}" -Q delivery-receipts
+celery -A run_celery.notify_celery worker --pidfile="/tmp/celery.pid" --loglevel=INFO --pool="${CELERY_POOL:-prefork}" --concurrency="${CELERY_CONCURRENCY-4}" -Q delivery-receipts
