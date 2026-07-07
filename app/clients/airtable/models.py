@@ -175,7 +175,8 @@ class NewsletterSubscriber(AirtableTableMixin, Model):
         """
         if not cls.table_exists():
             cls.create_table()
-        results = cls.all(formula=f"{{Email}} = '{email}'")
+        safe_email = email.replace("\\", "\\\\").replace("'", "\\'")
+        results = cls.all(formula=f"{{Email}} = '{safe_email}'")
         if not results:
             response = Response()
             response.status_code = 404
@@ -189,6 +190,156 @@ class NewsletterSubscriber(AirtableTableMixin, Model):
             "name": table_name,
             "fields": [
                 {"name": "Email", "type": "singleLineText"},
+                {
+                    "name": "Language",
+                    "type": "singleSelect",
+                    "options": {"choices": [{"name": cls.Languages.EN.value}, {"name": cls.Languages.FR.value}]},
+                },
+                {
+                    "name": "Status",
+                    "type": "singleSelect",
+                    "options": {
+                        "choices": [
+                            {"name": cls.Statuses.UNCONFIRMED.value, "color": "yellowBright"},
+                            {"name": cls.Statuses.SUBSCRIBED.value, "color": "greenBright"},
+                            {"name": cls.Statuses.UNSUBSCRIBED.value, "color": "redBright"},
+                        ]
+                    },
+                },
+                {
+                    "name": "Created At",
+                    "type": "dateTime",
+                    "options": {"dateFormat": {"name": "iso"}, "timeFormat": {"name": "24hour"}, "timeZone": "utc"},
+                },
+                {
+                    "name": "Confirmed At",
+                    "type": "dateTime",
+                    "options": {"dateFormat": {"name": "iso"}, "timeFormat": {"name": "24hour"}, "timeZone": "utc"},
+                },
+                {
+                    "name": "Unsubscribed At",
+                    "type": "dateTime",
+                    "options": {"dateFormat": {"name": "iso"}, "timeFormat": {"name": "24hour"}, "timeZone": "utc"},
+                },
+                {"name": "Has Resubscribed", "type": "checkbox", "options": {"icon": "check", "color": "grayBright"}},
+            ],
+        }
+
+
+class GrowthNewsletterSubscriber(AirtableTableMixin, Model):
+    """
+    Model representing a newsletter subscriber in the growth Airtable table.
+    This mirrors NewsletterSubscriber and includes an additional Product field.
+    """
+
+    DEFAULT_PRODUCT_NAME = "Notify"
+
+    def __init__(self, **fields):
+        """Initialize a growth newsletter subscriber with default values."""
+        fields.setdefault("language", self.Languages.EN.value)
+        fields.setdefault("status", self.Statuses.UNCONFIRMED.value)
+        fields.setdefault("product", [self.DEFAULT_PRODUCT_NAME])
+
+        super().__init__(**fields)
+
+    email = F.RequiredTextField("Email")
+    product = F.MultipleSelectField("Product")
+    language = F.RequiredSelectField("Language")
+    status = F.RequiredSelectField("Status")
+    created_at = F.DatetimeField("Created At")
+    confirmed_at = F.DatetimeField("Confirmed At")
+    unsubscribed_at = F.DatetimeField("Unsubscribed At")
+    has_resubscribed = F.CheckboxField("Has Resubscribed")
+
+    class Languages(Enum):
+        EN = "en"
+        FR = "fr"
+
+    class Statuses(Enum):
+        UNCONFIRMED = "unconfirmed"
+        SUBSCRIBED = "subscribed"
+        UNSUBSCRIBED = "unsubscribed"
+
+    class Meta:
+        @staticmethod
+        def api_key():
+            return GrowthNewsletterSubscriber._app().config.get("AIRTABLE_API_KEY")
+
+        @staticmethod
+        def base_id():
+            return GrowthNewsletterSubscriber._app().config.get("AIRTABLE_CDS_PLATFORM_BASE_ID")
+
+        @staticmethod
+        def table_name():
+            return GrowthNewsletterSubscriber._app().config.get("AIRTABLE_CDS_PLATFORM_TABLE_NAME")
+
+    def save_unconfirmed_subscriber(self) -> SaveResult:
+        self.status = self.Statuses.UNCONFIRMED.value
+        self.created_at = datetime.now()
+        return self.save()
+
+    def confirm_subscription(self, has_resubscribed=False) -> SaveResult:
+        self.status = self.Statuses.SUBSCRIBED.value
+        self.confirmed_at = datetime.now()
+        if has_resubscribed:
+            self.has_resubscribed = True
+        return self.save()
+
+    def unsubscribe_user(self) -> SaveResult:
+        self.status = self.Statuses.UNSUBSCRIBED.value
+        self.unsubscribed_at = datetime.now()
+        self.confirmed_at = None
+        return self.save()
+
+    def update_language(self, new_language: str) -> SaveResult:
+        if new_language not in [lang.value for lang in self.Languages]:
+            raise ValueError(f"Invalid language: {new_language}")
+
+        self.language = new_language
+        return self.save()
+
+    @property
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "email": self.email,
+            "product": self.product,
+            "language": self.language,
+            "status": self.status,
+            "created_at": self.created_at,
+            "confirmed_at": self.confirmed_at,
+            "unsubscribed_at": self.unsubscribed_at,
+            "has_resubscribed": self.has_resubscribed,
+        }
+
+    @classmethod
+    def from_email(cls, email: str):
+        if not cls.table_exists():
+            cls.create_table()
+        safe_email = email.replace("\\", "\\\\").replace("'", "\\'")
+        results = cls.all(formula=f"{{Email}} = '{safe_email}'")
+        if not results:
+            response = Response()
+            response.status_code = 404
+            raise HTTPError(response=response)
+        return results[0]
+
+    @classmethod
+    def get_table_schema(cls) -> Dict[str, Any]:
+        table_name = cls.meta.table_name
+        return {
+            "name": table_name,
+            "fields": [
+                {"name": "Email", "type": "singleLineText"},
+                {
+                    "name": "Product",
+                    "type": "multipleSelects",
+                    "options": {
+                        "choices": [
+                            {"name": cls.DEFAULT_PRODUCT_NAME},
+                        ]
+                    },
+                },
                 {
                     "name": "Language",
                     "type": "singleSelect",

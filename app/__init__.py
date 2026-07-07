@@ -24,7 +24,7 @@ from app.aws.metrics_logger import MetricsLogger
 from app.celery.celery import NotifyCelery
 from app.clients import Clients
 from app.clients.airtable.airtable_client import AirtableClient
-from app.clients.airtable.models import LatestNewsletterTemplate, NewsletterSubscriber
+from app.clients.airtable.models import GrowthNewsletterSubscriber, LatestNewsletterTemplate, NewsletterSubscriber
 from app.clients.document_download import DocumentDownloadClient
 from app.clients.email.aws_ses import AwsSesClient
 from app.clients.performance_platform.performance_platform_client import (
@@ -130,6 +130,7 @@ def create_app(application, config=None):
     aws_ses_client.init_app(application.config["AWS_REGION"], statsd_client=statsd_client)
     notify_celery.init_app(application)
     NewsletterSubscriber.init_app(application)
+    GrowthNewsletterSubscriber.init_app(application)
     LatestNewsletterTemplate.init_app(application)
 
     signer_notification.init_app(application, secret_key=application.config["SECRET_KEY"], salt="notification")
@@ -173,22 +174,29 @@ def create_app(application, config=None):
     email_normal.init_app(flask_cache_ops, metrics_logger)
     email_priority.init_app(flask_cache_ops, metrics_logger)
 
-    register_blueprint(application)
-    register_v2_blueprints(application)
+    # Celery worker pods never serve HTTP and have no need for REST API blueprints
+    # or CLI commands. Skipping them avoids importing ~30 blueprint modules, their
+    # schemas, and view functions, which saves a significant amount of RAM per pod.
+    is_celery_worker = application.name == "celery"
+
+    if not is_celery_worker:
+        register_blueprint(application)
+        register_v2_blueprints(application)
 
     # Log the application configuration
     application.logger.info(f"Notify config: {config.get_safe_config()}")
 
-    # avoid circular imports by importing these files later
-    from app.commands.bulk_db import setup_bulk_db_commands
-    from app.commands.deprecated import setup_deprecated_commands
-    from app.commands.support import setup_support_commands
-    from app.commands.test_data import setup_test_data_commands
+    if not is_celery_worker:
+        # avoid circular imports by importing these files later
+        from app.commands.bulk_db import setup_bulk_db_commands
+        from app.commands.deprecated import setup_deprecated_commands
+        from app.commands.support import setup_support_commands
+        from app.commands.test_data import setup_test_data_commands
 
-    setup_support_commands(application)
-    setup_bulk_db_commands(application)
-    setup_test_data_commands(application)
-    setup_deprecated_commands(application)
+        setup_support_commands(application)
+        setup_bulk_db_commands(application)
+        setup_test_data_commands(application)
+        setup_deprecated_commands(application)
 
     return application
 
