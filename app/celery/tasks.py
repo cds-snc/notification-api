@@ -27,6 +27,7 @@ from app import (
     email_priority,
     metrics_logger,
     notify_celery,
+    redis_store,
     signer_notification,
     sms_bulk,
     sms_normal,
@@ -43,6 +44,7 @@ from app.dao.api_key_dao import update_last_used_api_key
 from app.dao.fact_notification_status_dao import (
     fetch_notification_status_totals_for_service_by_fiscal_year,
 )
+from app.dao.files_dao import dao_get_ready_files_by_template_id
 from app.dao.inbound_sms_dao import dao_get_inbound_sms_by_id
 from app.dao.jobs_dao import dao_get_in_progress_jobs, dao_get_job_by_id, dao_update_job
 from app.dao.notifications_dao import (
@@ -110,6 +112,42 @@ def update_in_progress_jobs():
             dao_update_job(job)
 
 
+def _cache_template_files_for_job(job_id: UUID, template_id: UUID) -> None:
+    """
+    Pre-cache template file attachments in Redis for a bulk job.
+    This ensures files are downloaded once per job, not once per notification.
+    """
+    try:
+        cache_key = f"template_files:{job_id}"
+
+        # Fetch ready files from database
+        ready_files = dao_get_ready_files_by_template_id(template_id)
+        if not ready_files:
+            current_app.logger.info(f"No template files to cache for job {job_id}")
+            return
+
+        # Build file metadata
+        file_metadata = []
+        for file in ready_files:
+            file_metadata.append(
+                {
+                    "name": file.name,
+                    "document_id": str(file.document_id),
+                    "mime_type": file.mime_type,
+                    "service_id": str(file.service_id),
+                    "file_id": str(file.id),
+                }
+            )
+
+        # Cache in Redis for 24 hours
+        redis_store.set(cache_key, json.dumps(file_metadata), ex=86400)
+        current_app.logger.info(f"Cached {len(file_metadata)} template files for job {job_id}")
+
+    except Exception as e:
+        current_app.logger.warning(f"Failed to pre-cache template files for job {job_id}: {e}")
+        # Don't fail the job - caching is optional, files will be fetched on demand
+
+
 @notify_celery.task(name="process-job")
 @statsd(namespace="tasks")
 def process_job(job_id):
@@ -142,6 +180,10 @@ def process_job(job_id):
     template.process_type = db_template.process_type
 
     current_app.logger.info("Starting job {} processing {} notifications".format(job_id, job.notification_count))
+
+    # Pre-cache template file attachments for email jobs
+    if db_template.template_type == EMAIL_TYPE:
+        _cache_template_files_for_job(job_id, job.template_id)
 
     csv = get_recipient_csv(job, template)
 
