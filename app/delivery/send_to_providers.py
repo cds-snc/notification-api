@@ -1,8 +1,9 @@
 import base64
+import json
 import os
 import re
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse
 from uuid import UUID
 
@@ -26,11 +27,13 @@ from app import (
     clients,
     create_uuid,
     document_download_client,
+    redis_store,
     statsd_client,
 )
 from app.celery.research_mode_tasks import send_email_response, send_sms_response
 from app.clients.sms import SmsSendingVehicles
 from app.config import Config
+from app.dao.files_dao import dao_get_ready_files_by_template_id
 from app.dao.notifications_dao import dao_update_notification
 from app.dao.provider_details_dao import (
     dao_toggle_sms_provider,
@@ -66,6 +69,124 @@ from app.models import (
     Service,
 )
 from app.utils import get_logo_url, is_blank
+
+
+def _get_template_files_from_cache_or_db(job_id: Optional[UUID], template_id: UUID) -> List[Dict[str, Any]]:
+    """
+    Fetch template file attachments from cache (for bulk sends) or from DB.
+
+    For bulk sends (job_id is set): Retrieves from Redis cache (pre-cached by process_job).
+    For one-off sends (no job_id): Fetches from DB directly.
+
+    Returns a list of attachment dicts: [{"name": str, "document_id": UUID, "mime_type": str, "service_id": UUID}, ...]
+    """
+    # Try to get from cache if this is a bulk send
+    if job_id:
+        cache_key = f"template_files:{job_id}"
+        try:
+            cached = redis_store.get(cache_key)
+            if cached:
+                current_app.logger.info(f"Retrieved template files from Redis cache for job {job_id}")
+                return json.loads(cached)
+        except Exception as e:
+            current_app.logger.warning(f"Failed to retrieve template files from cache for job {job_id}: {e}")
+
+    # Fetch from database (for one-off sends or cache miss)
+    ready_files = dao_get_ready_files_by_template_id(template_id)
+    file_metadata = []
+
+    for file in ready_files:
+        file_metadata.append(
+            {
+                "name": file.name,
+                "document_id": str(file.document_id),
+                "mime_type": file.mime_type,
+                "service_id": str(file.service_id),
+                "file_id": str(file.id),
+            }
+        )
+
+    # Cache on miss for bulk sends (safety measure if job_id cache expires or fails)
+    # Even cache empty list to prevent repeated DB queries for templates with no attachments
+    if job_id:
+        cache_key = f"template_files:{job_id}"
+        try:
+            redis_store.set(cache_key, json.dumps(file_metadata), ex=86400)
+            current_app.logger.info(f"Cached {len(file_metadata)} template files for job {job_id} on retrieval miss")
+        except Exception as e:
+            current_app.logger.warning(f"Failed to cache template files for job {job_id}: {e}")
+
+    return file_metadata
+
+
+def _download_template_file(
+    service_id: UUID, document_id: str, filename: str, mime_type: Optional[str]
+) -> Optional[Dict[str, Any]]:
+    """
+    Download a template file from document-download-api.
+
+    Files are only included if they have status='uploaded', meaning they have already
+    passed the malware scan, so no additional scan check is needed.
+
+    Returns: {"name": str, "data": bytes, "mime_type": str} or None if download fails
+    """
+    try:
+        current_app.logger.info(f"Downloading template file: document_id={document_id}, service_id={service_id}")
+        # Construct download URL with query parameter
+        url = f"{current_app.config.get('DOCUMENT_DOWNLOAD_API_HOST')}/services/{service_id}/documents/{document_id}?sending_method=template_attach"
+        auth_header = f"Bearer {current_app.config.get('DOCUMENT_DOWNLOAD_API_KEY')}"
+        retries = Retry(total=5)
+        http = PoolManager(retries=retries)
+        response = http.request(
+            "GET",
+            url=url,
+            headers={"Authorization": auth_header},
+        )
+
+        if response.status != 200:
+            current_app.logger.error(f"Failed to download template file {document_id}: HTTP {response.status}")
+            return None
+
+        return {
+            "name": filename,
+            "data": response.data,
+            "mime_type": mime_type or "application/octet-stream",
+        }
+
+    except Exception as e:
+        current_app.logger.error(f"Could not download template file {document_id}: {e}")
+        return None
+
+
+def _get_template_attachments(notification: Notification) -> List[Dict[str, Any]]:
+    """
+    Fetch and download template file attachments for a notification.
+
+    Returns list of attachment dicts: [{"name": str, "data": bytes, "mime_type": str}, ...]
+    """
+    template_attachments = []
+
+    # Get file metadata from cache or DB
+    file_metadata = _get_template_files_from_cache_or_db(notification.job_id, notification.template_id)
+
+    if not file_metadata:
+        return []
+
+    service_id = notification.service.id
+
+    for file_info in file_metadata:
+        attachment = _download_template_file(
+            service_id,
+            file_info["document_id"],
+            file_info["name"],
+            file_info["mime_type"],
+        )
+        if attachment:
+            template_attachments.append(attachment)
+        else:
+            current_app.logger.warning(f"Skipping template file {file_info['file_id']} for notification {notification.id}")
+
+    return template_attachments
 
 
 def send_sms_to_provider(notification):
@@ -302,8 +423,12 @@ def send_email_to_provider(notification: Notification):
 
     provider = provider_to_use(EMAIL_TYPE, notification.id)
 
-    # Extract any file objects from the personalization
-    file_keys = [k for k, v in (notification.personalisation or {}).items() if isinstance(v, dict) and "document" in v]
+    # Extract any file objects from the personalization (but exclude template attachments)
+    file_keys = [
+        k
+        for k, v in (notification.personalisation or {}).items()
+        if isinstance(v, dict) and "document" in v and v["document"].get("sending_method") != "template_attach"
+    ]
     attachments = []
 
     personalisation_data = notification.personalisation.copy()
@@ -340,6 +465,10 @@ def send_email_to_provider(notification: Notification):
 
         else:
             personalisation_data[key] = personalisation_data[key]["document"]["url"]
+
+    # Fetch and merge template file attachments
+    template_attachments = _get_template_attachments(notification)
+    attachments = attachments + template_attachments
 
     template_obj = dao_get_template_by_id(notification.template_id, notification.template_version)
     template_dict = template_obj.__dict__

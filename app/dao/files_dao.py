@@ -2,12 +2,21 @@ from datetime import datetime, timezone
 
 from app import db
 from app.dao.dao_utils import transactional
-from app.models import Files
+from app.models import FILE_STATUS_UPLOADED, Files
 
 
 def dao_get_files_by_template_id(template_id):
     return Files.query.filter(
         Files.template_id == template_id,
+    ).all()
+
+
+def dao_get_ready_files_by_template_id(template_id):
+    """Get all files for a template that have been scanned and are ready to send."""
+    return Files.query.filter(
+        Files.template_id == template_id,
+        Files.type == "template_attach",
+        Files.status == FILE_STATUS_UPLOADED,
     ).all()
 
 

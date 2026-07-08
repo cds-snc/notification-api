@@ -37,6 +37,7 @@ from app import (
 )
 from app.celery import provider_tasks, tasks
 from app.celery.tasks import (
+    _cache_template_files_for_job,
     acknowledge_receipt,
     choose_database_queue,
     generate_report,
@@ -2369,3 +2370,76 @@ class TestGenerateReport:
         # Assert report is marked as error
         # Should have called update_report twice (once to mark as generating, once as error)
         assert update_report_mock.call_count == 2
+
+
+class TestCacheTemplateFilesForJob:
+    """Test _cache_template_files_for_job function."""
+
+    def test_caches_empty_list_when_no_template_files(self, sample_email_template, mocker):
+        """Test that empty list is cached when template has no files (prevents repeated DB queries)."""
+        job_id = uuid.uuid4()
+        redis_mock = mocker.patch("app.celery.tasks.redis_store")
+
+        _cache_template_files_for_job(job_id, sample_email_template.id)
+
+        # Should have cached empty list
+        redis_mock.set.assert_called_once()
+        call_args = redis_mock.set.call_args
+        cache_key = call_args[0][0]
+        cached_value = call_args[0][1]
+
+        assert cache_key == f"template_files:{job_id}"
+        assert cached_value == json.dumps([])
+        assert call_args[1]["ex"] == 86400  # 24 hours TTL
+
+    def test_caches_file_metadata_with_correct_ttl(
+        self, notify_db, notify_db_session, sample_service_full_permissions, sample_email_template, mocker
+    ):
+        """Test that file metadata is cached with correct TTL."""
+        from app.dao.files_dao import dao_create_file
+        from app.models import FILE_STATUS_UPLOADED, FILE_TYPE_TEMPLATE_ATTACH, Files
+
+        # Create a template file
+        file = Files(
+            template_id=sample_email_template.id,
+            service_id=sample_service_full_permissions.id,
+            document_id=uuid.uuid4(),
+            type=FILE_TYPE_TEMPLATE_ATTACH,
+            name="test_file.pdf",
+            status=FILE_STATUS_UPLOADED,
+            mime_type="application/pdf",
+        )
+        dao_create_file(file)
+
+        job_id = uuid.uuid4()
+        redis_mock = mocker.patch("app.celery.tasks.redis_store")
+
+        _cache_template_files_for_job(job_id, sample_email_template.id)
+
+        # Should have cached file metadata
+        redis_mock.set.assert_called_once()
+        call_args = redis_mock.set.call_args
+        cache_key = call_args[0][0]
+        cached_value = json.loads(call_args[0][1])
+
+        assert cache_key == f"template_files:{job_id}"
+        assert len(cached_value) == 1
+        assert cached_value[0]["name"] == "test_file.pdf"
+        assert cached_value[0]["mime_type"] == "application/pdf"
+        assert "document_id" in cached_value[0]
+        assert "service_id" in cached_value[0]
+        assert call_args[1]["ex"] == 86400  # 24 hours TTL
+
+    def test_handles_redis_failure_gracefully(self, sample_email_template, mocker):
+        """Test that Redis failures don't fail the job (caching is optional)."""
+        job_id = uuid.uuid4()
+        redis_mock = mocker.patch("app.celery.tasks.redis_store")
+        redis_mock.set.side_effect = Exception("Redis connection failed")
+        logger_mock = mocker.patch("app.celery.tasks.current_app.logger")
+
+        # Should not raise exception
+        _cache_template_files_for_job(job_id, sample_email_template.id)
+
+        # Should have logged warning
+        logger_mock.warning.assert_called_once()
+        assert "Failed to pre-cache template files" in logger_mock.warning.call_args[0][0]
