@@ -381,7 +381,7 @@ class TestGrowthNewsletterSubscriber:
 
         assert subscriber.language == GrowthNewsletterSubscriber.Languages.EN.value
         assert subscriber.status == GrowthNewsletterSubscriber.Statuses.UNCONFIRMED.value
-        assert subscriber.product == GrowthNewsletterSubscriber.DEFAULT_PRODUCT_NAME
+        assert subscriber.product == [GrowthNewsletterSubscriber.DEFAULT_PRODUCT_NAME]
 
     def test_get_table_schema_structure(self, notify_api):
         schema = GrowthNewsletterSubscriber.get_table_schema()

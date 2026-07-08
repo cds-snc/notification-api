@@ -194,7 +194,7 @@ def test_should_not_allow_invalid_secret(client, sample_api_key, mocker):
     assert mock_logger.call_args.args == (
         "Rejected JWT with invalid signature for service %s, client %s",
         sample_api_key.service_id,
-        "Werkzeug/3.0.6",
+        "Werkzeug/3.1.6",
     )
 
 
@@ -216,7 +216,7 @@ def test_should_reject_token_with_unsupported_algorithm(client, sample_api_key, 
     assert mock_logger.call_args.args == (
         "Rejected JWT with unsupported algorithm for service %s, client %s",
         sample_api_key.service_id,
-        "Werkzeug/3.0.6",
+        "Werkzeug/3.1.6",
     )
 
 

@@ -420,6 +420,7 @@ class TestRedisQueueMetricUsage:
             redis_queue.acknowledge(receipt)
             assert pbsip_mock.assert_called_with(mock.ANY, mock.ANY, 1) is None
 
+    @pytest.mark.serial
     def test_put_batch_saving_expiry_metric(self, redis, redis_queue, mocker):
         with self.given_inbox_with_many_indexes(redis, redis_queue):
             pbsem_mock = mocker.patch("app.queue.put_batch_saving_expiry_metric")
@@ -428,6 +429,14 @@ class TestRedisQueueMetricUsage:
             redis_queue.poll(10)
             redis_queue.poll(10)
             redis_queue.poll(10)
-            time.sleep(2)
-            redis_queue.expire_inflights()
-            assert pbsem_mock.assert_called_with(mock.ANY, mock.ANY, 3) is None
+            # Expiry uses Redis idletime (`idle > expire_after`) with second-level granularity,
+            # so inflights may expire across more than one pass depending on timing.
+            total_expired = 0
+            for _ in range(5):
+                redis_queue.expire_inflights()
+                total_expired = sum(call.args[2] for call in pbsem_mock.call_args_list)
+                if total_expired >= 3:
+                    break
+                time.sleep(1)
+
+            assert total_expired == 3

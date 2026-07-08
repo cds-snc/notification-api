@@ -32,7 +32,7 @@ def create_role_if_not_exist(role):
         DO $$
         BEGIN
         CREATE ROLE {role};
-        EXCEPTION WHEN duplicate_object THEN RAISE NOTICE '%, skipping', SQLERRM USING ERRCODE = SQLSTATE;
+        EXCEPTION WHEN duplicate_object OR unique_violation THEN RAISE NOTICE '%, skipping', SQLERRM;
         END
         $$;
     """
