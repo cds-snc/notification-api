@@ -1456,6 +1456,7 @@ class Files(BaseModel):
     mime_type = db.Column(db.Text, nullable=True)
     file_size = db.Column(db.Integer, nullable=True)
     status = db.Column(db.Enum(*FILE_STATUSES, name="notify_file_status_enum"), nullable=False)
+    archived = db.Column(db.Boolean, nullable=False, default=False)
     created_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), index=True, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
