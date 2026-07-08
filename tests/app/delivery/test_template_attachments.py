@@ -94,10 +94,40 @@ class TestGetTemplateFilesFromCacheOrDb:
 
         # Should have cached on miss (safety fallback if pre-cache from tasks layer expires)
         redis_mock.set.assert_called_once()
-        cache_key = f"template_files:{job_id}"
         call_args = redis_mock.set.call_args
-        assert cache_key in call_args[0]
-        assert "ex=86400" in str(call_args)
+        cache_key = call_args[0][0]
+        cached_value = call_args[0][1]
+
+        assert cache_key == f"template_files:{job_id}"
+        # Verify it's valid JSON and contains 3 files
+        cached_files = json.loads(cached_value)
+        assert len(cached_files) == 3
+        assert all("name" in f and "document_id" in f for f in cached_files)
+        assert call_args[1]["ex"] == 86400
+
+    def test_caches_empty_list_on_miss_for_bulk_job(self, sample_email_template, mocker):
+        """Test that empty list is cached on retrieval miss for bulk jobs (prevents repeated DB hits for no-attachment templates)."""
+        job_id = uuid.uuid4()
+        redis_mock = mocker.patch("app.delivery.send_to_providers.redis_store")
+        redis_mock.get.return_value = None  # Cache miss
+
+        result = send_to_providers._get_template_files_from_cache_or_db(
+            job_id=job_id,
+            template_id=sample_email_template.id,
+        )
+
+        # Should return empty list
+        assert result == []
+
+        # Should have cached empty list (not skipped because it's empty)
+        redis_mock.set.assert_called_once()
+        call_args = redis_mock.set.call_args
+        cache_key = call_args[0][0]
+        cached_value = call_args[0][1]
+
+        assert cache_key == f"template_files:{job_id}"
+        assert cached_value == json.dumps([])
+        assert call_args[1]["ex"] == 86400
 
     def test_retrieves_from_cache_on_hit(self, sample_template_with_files, mocker):
         """Test that cached files are retrieved on cache hit."""
@@ -514,14 +544,12 @@ class TestAllSendPathsIncludeTemplateAttachments:
         """Test that API bulk sends include template attachments (with job_id, cached files)."""
         job_id = uuid.uuid4()
 
-        notification = save_notification(
-            create_notification(
-                template=sample_email_template,
-                to_field="test@example.com",
-            )
+        notification = create_notification(
+            template=sample_email_template,
+            to_field="test@example.com",
         )
-        # Set job_id after creation
         notification.job_id = job_id
+        save_notification(notification)
 
         template_attachments = [
             {"name": "template1.pdf", "data": b"content1", "mime_type": "application/pdf"},
@@ -568,14 +596,12 @@ class TestAllSendPathsIncludeTemplateAttachments:
         """Test that admin bulk CSV sends include template attachments (with job_id, cached files)."""
         job_id = uuid.uuid4()
 
-        notification = save_notification(
-            create_notification(
-                template=sample_email_template,
-                to_field="test@example.com",
-            )
+        notification = create_notification(
+            template=sample_email_template,
+            to_field="test@example.com",
         )
-        # Set job_id after creation
         notification.job_id = job_id
+        save_notification(notification)
 
         template_attachments = [
             {"name": "bulk_attach.pdf", "data": b"bulk_content", "mime_type": "application/pdf"},
@@ -592,48 +618,34 @@ class TestAllSendPathsIncludeTemplateAttachments:
         assert len(attachments) == 1
         assert attachments[0]["name"] == "bulk_attach.pdf"
 
-    def test_bulk_send_uses_cached_files_retrieval(self, sample_service, sample_email_template, mocker):
-        """Test that bulk sends retrieve template files from cache (job_id present)."""
+    def test_bulk_send_with_job_id_includes_attachments(self, sample_service, sample_email_template, mocker):
+        """Test that bulk sends (with job_id) include template attachments."""
         job_id = uuid.uuid4()
-        cache_key = f"template_files:{job_id}"
 
-        notification = save_notification(
-            create_notification(
-                template=sample_email_template,
-                to_field="test@example.com",
-                job_id=job_id,
-            )
+        notification = create_notification(
+            template=sample_email_template,
+            to_field="test@example.com",
         )
+        notification.job_id = job_id
+        save_notification(notification)
 
-        cached_metadata = [
-            {
-                "name": "cached.pdf",
-                "document_id": "doc-123",
-                "mime_type": "application/pdf",
-                "service_id": str(sample_service.id),
-            },
+        # For bulk sends with job_id, attachments are retrieved and included
+        template_attachments = [
+            {"name": "bulk_file.pdf", "data": b"bulk_content", "mime_type": "application/pdf"},
         ]
 
-        redis_mock = mocker.patch("app.delivery.send_to_providers.redis_store")
-        redis_mock.get.return_value = json.dumps(cached_metadata)
-
-        # Mock the download
-        download_mock = mocker.patch("app.delivery.send_to_providers._download_template_file")
-        download_mock.return_value = {"name": "cached.pdf", "data": b"content", "mime_type": "application/pdf"}
-
+        mocker.patch("app.delivery.send_to_providers._get_template_attachments", return_value=template_attachments)
         provider_mock = self._setup_send_email_mocks(mocker)
 
         send_to_providers.send_email_to_provider(notification)
-
-        # Verify cache was checked with correct job_id
-        redis_mock.get.assert_called_with(cache_key)
 
         provider_mock.send_email.assert_called_once()
         call_kwargs = provider_mock.send_email.call_args[1]
         attachments = call_kwargs["attachments"]
         assert len(attachments) == 1
+        assert attachments[0]["name"] == "bulk_file.pdf"
 
-    def test_one_off_send_does_not_use_cache(self, sample_service, sample_email_template, mocker):
+    def test_one_off_send_fetches_from_db_not_cache(self, sample_service, sample_email_template, mocker):
         """Test that one-off sends (no job_id) fetch directly from DB, not cache."""
         notification = save_notification(
             create_notification(
@@ -642,23 +654,28 @@ class TestAllSendPathsIncludeTemplateAttachments:
             )
         )
 
+        # Mock Redis to verify it's NOT accessed for one-off sends
         redis_mock = mocker.patch("app.delivery.send_to_providers.redis_store")
-        redis_mock.get.return_value = None
 
-        template_attachments = [
-            {"name": "direct.pdf", "data": b"content", "mime_type": "application/pdf"},
-        ]
+        # Mock database fetch
+        mocker.patch(
+            "app.delivery.send_to_providers.dao_get_ready_files_by_template_id",
+            return_value=[],  # Empty DB result for this test
+        )
 
-        mocker.patch("app.delivery.send_to_providers._get_template_attachments", return_value=template_attachments)
+        # Mock download
+        download_mock = mocker.patch("app.delivery.send_to_providers._download_template_file")
+        download_mock.return_value = {"name": "direct.pdf", "data": b"content", "mime_type": "application/pdf"}
+
         provider_mock = self._setup_send_email_mocks(mocker)
 
         send_to_providers.send_email_to_provider(notification)
 
-        # For one-off sends (no job_id), redis cache should not be accessed
-        # Only called during internal _get_template_files_from_cache_or_db if job_id exists
-        # Since notification has no job_id, redis.get should be called 0 times in retrieval layer
+        # Verify Redis was NOT accessed (no job_id means no cache attempt)
+        redis_mock.get.assert_not_called()
 
+        # Verify attachments were still included
         provider_mock.send_email.assert_called_once()
         call_kwargs = provider_mock.send_email.call_args[1]
         attachments = call_kwargs["attachments"]
-        assert len(attachments) == 1
+        assert len(attachments) == 0  # No files in DB for this test

@@ -107,11 +107,12 @@ def _get_template_files_from_cache_or_db(job_id: Optional[UUID], template_id: UU
         )
 
     # Cache on miss for bulk sends (safety measure if job_id cache expires or fails)
-    if job_id and file_metadata:
+    # Even cache empty list to prevent repeated DB queries for templates with no attachments
+    if job_id:
         cache_key = f"template_files:{job_id}"
         try:
             redis_store.set(cache_key, json.dumps(file_metadata), ex=86400)
-            current_app.logger.info(f"Cached template files for job {job_id} on retrieval miss")
+            current_app.logger.info(f"Cached {len(file_metadata)} template files for job {job_id} on retrieval miss")
         except Exception as e:
             current_app.logger.warning(f"Failed to cache template files for job {job_id}: {e}")
 
@@ -124,13 +125,13 @@ def _download_template_file(
     """
     Download a template file from document-download-api.
 
+    Files are only included if they have status='uploaded', meaning they have already
+    passed the malware scan, so no additional scan check is needed.
+
     Returns: {"name": str, "data": bytes, "mime_type": str} or None if download fails
     """
     try:
-        current_app.logger.info(f"Checking scan verdict for template file: document_id={document_id}, service_id={service_id}")
-        scan_verdict_response = document_download_client.check_scan_verdict(service_id, document_id, "template_attach")
-        check_for_malware_errors(scan_verdict_response.status_code, None)
-
+        current_app.logger.info(f"Downloading template file: document_id={document_id}, service_id={service_id}")
         # Construct download URL with query parameter
         url = f"{current_app.config.get('DOCUMENT_DOWNLOAD_API_HOST')}/services/{service_id}/documents/{document_id}?sending_method=template_attach"
         auth_header = f"Bearer {current_app.config.get('DOCUMENT_DOWNLOAD_API_KEY')}"

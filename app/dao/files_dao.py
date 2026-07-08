@@ -15,6 +15,7 @@ def dao_get_ready_files_by_template_id(template_id):
     """Get all files for a template that have been scanned and are ready to send."""
     return Files.query.filter(
         Files.template_id == template_id,
+        Files.type == "template_attach",
         Files.status == FILE_STATUS_UPLOADED,
     ).all()
 

@@ -116,17 +116,15 @@ def _cache_template_files_for_job(job_id: UUID, template_id: UUID) -> None:
     """
     Pre-cache template file attachments in Redis for a bulk job.
     This ensures files are downloaded once per job, not once per notification.
+    Even if empty, caching prevents repeated DB queries for templates without files.
     """
     try:
         cache_key = f"template_files:{job_id}"
 
         # Fetch ready files from database
         ready_files = dao_get_ready_files_by_template_id(template_id)
-        if not ready_files:
-            current_app.logger.info(f"No template files to cache for job {job_id}")
-            return
 
-        # Build file metadata
+        # Build file metadata (empty list if no files)
         file_metadata = []
         for file in ready_files:
             file_metadata.append(
@@ -139,7 +137,7 @@ def _cache_template_files_for_job(job_id: UUID, template_id: UUID) -> None:
                 }
             )
 
-        # Cache in Redis for 24 hours
+        # Cache in Redis for 24 hours (even if empty - prevents repeated DB queries)
         redis_store.set(cache_key, json.dumps(file_metadata), ex=86400)
         current_app.logger.info(f"Cached {len(file_metadata)} template files for job {job_id}")
 
