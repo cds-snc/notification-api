@@ -68,8 +68,8 @@ def upgrade():
 
     template = {
         "id": bounce_rate_suspended_template_id,
-        "name": "Service suspended - high bounce rate",
-        "subject": "Action required: ((service_name)) suspended for high bounce rate",
+        "name": "Service suspended - high bounce rate | Service suspendu - taux de rebond eleve",
+        "subject": "Action required: ((service_name)) suspended for high bounce rate | Mesure requise : ((service_name)) suspendu pour taux de rebond eleve",
         "content": _template_content(),
         "template_type": "email",
         "process_type": "normal",
