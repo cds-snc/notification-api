@@ -2,7 +2,6 @@ import base64
 import json
 import uuid
 
-import pytest
 from flask import current_app, url_for
 
 from app.dao.permissions_dao import permission_dao
@@ -233,11 +232,7 @@ def _scan_verdict_post(client, data, expected_status=200):
 
 
 class TestUpdateFileStatus:
-    @pytest.fixture(autouse=True)
-    def mock_delete_document(self, mocker):
-        return mocker.patch("app.files.rest.document_download_client.delete_document")
-
-    def test_update_file_status_clean_scan(self, client, sample_file, mock_delete_document):
+    def test_update_file_status_clean_scan(self, client, sample_file):
         data = {
             "scan_status": "COMPLETED",
             "scan_result_status": "NO_THREATS_FOUND",
@@ -248,7 +243,6 @@ class TestUpdateFileStatus:
 
         assert resp["status"] == FILE_STATUS_UPLOADED
         assert sample_file.status == FILE_STATUS_UPLOADED
-        mock_delete_document.assert_called_once_with(str(sample_file.service_id), str(sample_file.document_id), "template_attach")
 
     def test_update_file_status_threat_found(self, client, sample_file):
         data = {

@@ -173,12 +173,6 @@ def update_file_status():
     fetched_file.status = new_status
     dao_update_file(fetched_file)
 
-    try:
-        document_download_client.delete_document(service_id, document_id, "template_attach")
-        current_app.logger.info(f"Deleted scanned file S3 for document_id: {document_id}")
-    except DocumentDownloadError as e:
-        current_app.logger.warning(f"Failed to delete scanned file from S3 for document_id: {document_id}, error: {e.message}")
-
     current_app.logger.info(
         f"Updated file status to {new_status} for file_id: {fetched_file.id} "
         f"template_id: {fetched_file.template_id} document_id: {fetched_file.document_id} "
