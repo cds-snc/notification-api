@@ -15,7 +15,6 @@ down_revision = "0516_backfill_rte_default"
 
 def upgrade():
     op.add_column("files", sa.Column("archived", sa.Boolean(), nullable=False, server_default=sa.false()))
-    op.alter_column("files", "archived", server_default=None)
 
 
 def downgrade():
