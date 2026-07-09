@@ -52,7 +52,6 @@ def post_manage_template():
             "service": authenticated_service.id,
             "created_by": api_user.created_by_id,
         },
-        folder,
     )
 
     if not service_has_permission(template.template_type, authenticated_service.permissions):
@@ -61,7 +60,7 @@ def post_manage_template():
 
     _raise_if_content_or_name_over_limit(template)
 
-    templates_dao.dao_create_template(template)
+    templates_dao.dao_create_template(template, folder=folder)
 
     redis_store.delete(f"service-{authenticated_service.id}-templates")
 

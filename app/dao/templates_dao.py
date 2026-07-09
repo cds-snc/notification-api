@@ -22,9 +22,16 @@ from app.models import (
 
 @transactional
 @version_class(VersionOptions(Template, history_class=TemplateHistory))
-def dao_create_template(template, redact_personalisation=False):
+def dao_create_template(template, redact_personalisation=False, folder=None):
     # must be set now so version history model can use same id
     template.id = uuid.uuid4()
+
+    # Set folder AFTER id is assigned. Setting it before (e.g. in from_json) causes
+    # the folder backref to add the template to the session prematurely; any subsequent
+    # lazy-load query then triggers autoflush, persisting the template before this
+    # function can assign the id — leading to a PK-changing UPDATE that violates FKs.
+    if folder:
+        template.folder = folder
 
     redacted_dict = {
         "template": template,
