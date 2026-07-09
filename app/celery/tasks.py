@@ -39,6 +39,7 @@ from app.aws.metrics import (
     put_batch_saving_bulk_created,
     put_batch_saving_bulk_processed,
 )
+from app.celery.error_registry import classify_error
 from app.config import Config, Priorities, QueueNames
 from app.dao.api_key_dao import update_last_used_api_key
 from app.dao.fact_notification_status_dao import (
@@ -543,10 +544,13 @@ def handle_batch_error_and_forward(
     receipt: Optional[UUID] = None,
     template: Any = None,
 ):
+    category, _ = classify_error(exception)
     if receipt:
-        current_app.logger.warning(f"Batch saving: could not persist notifications with receipt {receipt}: {str(exception)}")
+        current_app.logger.warning(
+            f"{category.value} Batch saving: could not persist notifications with receipt {receipt}: {str(exception)}"
+        )
     else:
-        current_app.logger.warning(f"Batch saving: could not persist notifications: {str(exception)}")
+        current_app.logger.warning(f"{category.value} Batch saving: could not persist notifications: {str(exception)}")
     process_type = template.process_type if template else None
 
     notifications_in_job: List[str] = []

@@ -40,6 +40,9 @@ class CeleryErrorCategory(str, Enum):
     # Notifications that timed out
     TIMEOUT_NOTIFICATION = "CELERY_KNOWN_ERROR::TIMEOUT_NOTIFICATION"
 
+    # Duplicate notification record — SQS redelivery or concurrent worker processed the same row
+    DUPLICATE_RECORD = "CELERY_KNOWN_ERROR::DUPLICATE_RECORD"
+
     # Unknown / unclassified — these should trigger sensitive alarms
     UNKNOWN = "CELERY_UNKNOWN_ERROR"
 
@@ -64,6 +67,7 @@ _EXCEPTION_CLASS_MAP: dict[str, CeleryErrorCategory] = {
 # Some errors don't have a specific exception class, but can be identified
 # by substrings in their message.
 _MESSAGE_SUBSTRING_MAP: dict[str, CeleryErrorCategory] = {
+    "duplicate key value violates unique constraint": CeleryErrorCategory.DUPLICATE_RECORD,
     "notifications not found for SES references": CeleryErrorCategory.NOTIFICATION_NOT_FOUND,
     "SIGKILL": CeleryErrorCategory.SHUTDOWN,
     "Worker exited prematurely": CeleryErrorCategory.SHUTDOWN,

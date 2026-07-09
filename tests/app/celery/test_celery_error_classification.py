@@ -275,6 +275,18 @@ class TestClassifyError:
         assert category == CeleryErrorCategory.TASK_RETRY
         assert root_exc is exc  # Should return the original exception as root
 
+    def test_duplicate_record_by_message(self):
+        """SQLAlchemy IntegrityError wrapping a Postgres unique-constraint violation is classified as DUPLICATE_RECORD."""
+        from sqlalchemy.exc import IntegrityError
+
+        exc = IntegrityError(
+            statement=None,
+            params=None,
+            orig=Exception('duplicate key value violates unique constraint "notifications_pkey"'),
+        )
+        category, root_exc = classify_error(exc)
+        assert category == CeleryErrorCategory.DUPLICATE_RECORD
+
 
 class TestCelerySignalHandlers:
     def test_task_retry_classifies_throttling(self, notify_api):
