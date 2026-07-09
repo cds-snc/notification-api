@@ -3,8 +3,10 @@ from types import SimpleNamespace
 
 from flask import json
 from tests import create_authorization_header
+from tests.app.db import create_template_folder
 
-from app.models import EMAIL_TYPE, SMS_TYPE
+from app import db
+from app.models import EMAIL_TYPE, SMS_TYPE, template_folder_map
 
 
 class TestPostTemplateV2ManageTemplate:
@@ -202,3 +204,79 @@ class TestPostTemplateV2ManageTemplate:
 
         assert response.status_code == 201
         mock_redis_delete.assert_called_once_with(f"service-{sample_service.id}-templates")
+
+    def test_post_template_with_parent_folder_id_returns_201(
+        self, client, notify_db_session, sample_service, sample_template_category, create_api_key_with_manage_api_perm
+    ):
+        folder = create_template_folder(sample_service, name="My Folder")
+        auth_header = create_authorization_header(api_key=create_api_key_with_manage_api_perm)
+        payload = {
+            "name": "Template In Folder",
+            "template_type": SMS_TYPE,
+            "content": "Hello from folder",
+            "template_category_id": str(sample_template_category.id),
+            "parent_folder_id": str(folder.id),
+        }
+
+        response = client.post(
+            "/v2/manage-template",
+            data=json.dumps(payload),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+
+        assert response.status_code == 201
+        data = json.loads(response.get_data(as_text=True))
+        assert data["name"] == payload["name"]
+        assert data["body"] == payload["content"]
+
+        # Verify the template is associated with the folder in the DB
+        template_id = uuid.UUID(data["id"])
+        mapping = db.session.query(template_folder_map).filter_by(template_id=template_id).one()
+        assert mapping.template_folder_id == folder.id
+
+    def test_post_template_with_invalid_parent_folder_id_returns_400(
+        self, client, sample_template_category, create_api_key_with_manage_api_perm
+    ):
+        auth_header = create_authorization_header(api_key=create_api_key_with_manage_api_perm)
+        payload = {
+            "name": "Bad Folder Template",
+            "template_type": SMS_TYPE,
+            "content": "Hello",
+            "template_category_id": str(sample_template_category.id),
+            "parent_folder_id": str(uuid.uuid4()),
+        }
+
+        response = client.post(
+            "/v2/manage-template",
+            data=json.dumps(payload),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+
+        assert response.status_code == 400
+        data = json.loads(response.get_data(as_text=True))
+        assert "parent_folder_id not found" in data["errors"][0]["message"]
+
+    def test_post_template_without_parent_folder_id_has_no_folder(
+        self, client, sample_service, sample_template_category, create_api_key_with_manage_api_perm
+    ):
+        auth_header = create_authorization_header(api_key=create_api_key_with_manage_api_perm)
+        payload = {
+            "name": "No Folder Template",
+            "template_type": SMS_TYPE,
+            "content": "Hello no folder",
+            "template_category_id": str(sample_template_category.id),
+        }
+
+        response = client.post(
+            "/v2/manage-template",
+            data=json.dumps(payload),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+
+        assert response.status_code == 201
+        data = json.loads(response.get_data(as_text=True))
+
+        # Verify no folder mapping exists
+        template_id = uuid.UUID(data["id"])
+        mapping = db.session.query(template_folder_map).filter_by(template_id=template_id).first()
+        assert mapping is None
