@@ -7,8 +7,8 @@ from sqlalchemy.exc import NoResultFound
 from app import document_download_client
 from app.clients.document_download import DocumentDownloadError
 from app.dao.files_dao import (
+    dao_archive_file,
     dao_create_file,
-    dao_delete_file,
     dao_get_file_by_document_id,
     dao_get_file_by_id,
     dao_get_file_status_by_id_and_template_id,
@@ -137,8 +137,8 @@ def delete_file(template_id, file_id):
         current_app.logger.error(f"Unexpected error deleting file from S3 (document_id {fetched_file.document_id}): {str(e)}")
         raise InvalidRequest("Failed to delete file from storage", 500)
 
-    # Only delete from database if S3 deletion succeeded
-    dao_delete_file(fetched_file)
+    # Only archive in database if S3 deletion succeeded
+    dao_archive_file(fetched_file)
 
     current_app.logger.info(f"Deleted file: {file_id} template_id {template_id}")
     return "", 204
