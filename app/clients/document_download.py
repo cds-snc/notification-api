@@ -71,11 +71,14 @@ class DocumentDownloadClient:
 
     def download_document(self, service_id, document_id):
         try:
-            url = f"{self.api_host}/services/{service_id}/documents/{document_id}?sending_method=template_attach"
+            url = f"{self.api_host}/services/{service_id}/documents/{document_id}"
             response = requests.get(
                 url,
                 headers={
                     "Authorization": f"Bearer {self.auth_token}",
+                },
+                params={
+                    "sending_method": "template_attach",
                 },
             )
             response.raise_for_status()

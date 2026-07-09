@@ -182,15 +182,34 @@ def update_file_status():
 
 @files_blueprint.route("/<uuid:file_id>/download", methods=["GET"])
 def get_file_contents(template_id, file_id):
-    file = dao_get_file_by_id(file_id)
+    fetched_file = dao_get_file_by_id(file_id)
+
+    if fetched_file.template_id != template_id:
+        raise InvalidRequest(
+            f"Requested file_id {file_id} is not associated with template {template_id}",
+            404,
+        )
+
+    if fetched_file.status != FILE_STATUS_UPLOADED:
+        raise InvalidRequest(
+            f"Requested file_id {file_id} is not available for download (status {fetched_file.status})",
+            409,
+        )
+
     try:
-        response = document_download_client.download_document(file.service_id, file.document_id)
-        response.raise_for_status()
+        response = document_download_client.download_document(fetched_file.service_id, fetched_file.document_id)
         file_data = base64.b64encode(response.content).decode("utf-8")
     except DocumentDownloadError as e:
         raise InvalidRequest(f"Failed to retrieve file from storage: {e.message}", status_code=e.status_code)
 
-    return jsonify({"file_data": file_data, "name": file.name, "mime_type": file.mime_type, "file_size": file.file_size})
+    return jsonify(
+        {
+            "file_data": file_data,
+            "name": fetched_file.name,
+            "mime_type": fetched_file.mime_type,
+            "file_size": fetched_file.file_size,
+        }
+    )
 
 
 def _parse_scan_verdict_payload(event):
