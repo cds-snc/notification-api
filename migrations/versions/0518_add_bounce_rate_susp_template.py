@@ -21,7 +21,7 @@ template_ids = [bounce_rate_suspended_template_id]
 def _template_content():
     return "\n".join(
         [
-            "[[fr]](la version francaise suit)[[/fr]]",
+            "[[fr]](la version française suit)[[/fr]]",
             "",
             "[[en]]",
             "We suspended ((service_name)) because its email bounce rate is ((bounce_rate))%, above the 10% limit in our [Terms of Use](https://notification.canada.ca/terms).",
@@ -41,14 +41,14 @@ def _template_content():
             "[[fr]]",
             "Nous avons suspendu ((service_name)) parce que son taux de rebond courriel est de ((bounce_rate)) %, au-dessus de la limite de 10 % de nos [conditions d'utilisation](https://notification.canada.ca/terms).",
             "",
-            "Pour retablir l'envoi :",
-            "- Verifiez les courriels en echec : ((failed_notifications_url))",
+            "Pour rétablir l’envoi :",
+            "- Vérifiez les courriels en échec : ((failed_notifications_url))",
             "- Retirez ou corrigez les adresses invalides",
-            "- Repondez a ce courriel ou [contactez-nous](https://notification.canada.ca/fr/contact) quand ce sera fait",
+            "- Répondez à ce courriel ou [contactez-nous](https://notification.canada.ca/fr/contact) quand ce sera fait",
             "",
             "Tableau de bord du service : ((service_dashboard_url))",
             "",
-            "L'equipe Notification GC",
+            "L’équipe Notification GC",
             "[[/fr]]",
         ]
     )
