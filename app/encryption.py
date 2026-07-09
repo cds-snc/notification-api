@@ -1,31 +1,7 @@
-from typing import Any, List, NewType, Optional, TypedDict, cast
+from typing import Any, List, cast
 
 from flask_bcrypt import check_password_hash, generate_password_hash
 from itsdangerous import URLSafeSerializer
-from typing_extensions import NotRequired  # type: ignore
-
-SignedNotification = NewType("SignedNotification", str)
-SignedNotifications = NewType("SignedNotifications", List[SignedNotification])
-
-
-class NotificationDictToSign(TypedDict):
-    # todo: remove duplicate keys
-    # todo: remove all NotRequired and decide if key should be there or not
-    id: NotRequired[str]
-    template: str  # actually template_id
-    service_id: NotRequired[str]
-    template_version: int
-    to: str  # recipient
-    reply_to_text: NotRequired[str]
-    personalisation: Optional[dict]
-    simulated: NotRequired[bool]
-    api_key: str
-    key_type: str  # should be ApiKeyType but I can't import that here
-    client_reference: Optional[str]
-    queue: Optional[str]
-    sender_id: Optional[str]
-    job: NotRequired[str]  # actually job_id
-    row_number: Optional[Any]  # should this be int or str?
 
 
 class CryptoSigner:
@@ -42,22 +18,22 @@ class CryptoSigner:
         self.serializer = URLSafeSerializer(secret_key)
         self.salt = salt
 
-    def sign(self, to_sign: str | NotificationDictToSign) -> str | bytes:
+    def sign(self, to_sign: str) -> str | bytes:
         """Sign a string or dict with the class secret key and salt.
 
         Args:
-            to_sign (str | NotificationDictToSign): The string or dict to sign.
+            to_sign (str): The string or dict to sign.
 
         Returns:
             str | bytes: The signed string or bytes.
         """
         return self.serializer.dumps(to_sign, salt=self.salt)
 
-    def sign_with_all_keys(self, to_sign: str | NotificationDictToSign) -> List[str | bytes]:
+    def sign_with_all_keys(self, to_sign: str) -> List[str | bytes]:
         """Sign a string or dict with all the individual keys in the class secret key list, and the class salt.
 
         Args:
-            to_sign (str | NotificationDictToSign): The string or dict to sign.
+            to_sign (str): The string or dict to sign.
 
         Returns:
             List[str | bytes]: A list of signed values.

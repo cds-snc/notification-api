@@ -1,10 +1,45 @@
 from functools import wraps
 
-# from flask import current_app
 from inspect import signature
 
-from app import signer_notification
-from app.encryption import SignedNotification, SignedNotifications
+
+def sign_param(func):
+    """
+    A decorator that signs parameters annotated with `PendingNotification` or `VerifiedNotification`
+    before passing them to the decorated function.
+    This decorator inspects the function's signature to find parameters annotated with
+    `PendingNotification` or `VerifiedNotification`. It then uses `signer_notification.sign`
+    to sign these parameters and replaces the original values with the signed values before
+    calling the decorated function.
+    Args:
+        func (Callable): The function to be decorated.
+    Returns:
+        Callable: The wrapped function with signed parameters.
+    """
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        from app import signer_notification
+        from app.queue import QueueMessage
+
+        sig = signature(func)
+
+        # Find the parameter annotated with VerifyAndSign
+        bound_args = sig.bind(*args, **kwargs)
+        bound_args.apply_defaults()
+
+        for param_name, param in sig.parameters.items():
+            if issubclass(param.annotation, QueueMessage):
+                unsigned: QueueMessage = bound_args.arguments[param_name]  # type: ignore
+                signed_param = signer_notification.sign(unsigned.to_dict())
+                # Replace the signed value with the verified value
+                bound_args.arguments[param_name] = signed_param
+
+        # Call the decorated function with the signed value
+        result = func(*bound_args.args, **bound_args.kwargs)
+        return result
+
+    return wrapper
 
 
 def unsign_params(func):
@@ -22,6 +57,9 @@ def unsign_params(func):
 
     @wraps(func)
     def wrapper(*args, **kwargs):
+        from app import signer_notification
+        from app.types import SignedNotification, SignedNotifications
+
         sig = signature(func)
 
         # Find the parameter annotated with VerifyAndSign
@@ -59,6 +97,8 @@ def sign_return(func):
 
     @wraps(func)
     def wrapper(*args, **kwargs):
+        from app import signer_notification
+
         # Call the decorated function with the verified value
         result = func(*args, **kwargs)
 
