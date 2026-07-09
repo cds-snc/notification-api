@@ -16,7 +16,6 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.dependencies]
 python = "~3.12.7"
-apig-wsgi = "2.18.0"
 aws-embedded-metrics = "1.0.8"
 aws-xray-sdk = "2.14.0"
 # PaaS
