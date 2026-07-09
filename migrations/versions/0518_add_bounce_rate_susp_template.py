@@ -1,5 +1,5 @@
 """
-Revision ID: 0518_add_bounce_rate_susp_template
+Revision ID: 0518_add_bounce_susp_template
 Revises: 0517_add_archived_to_files
 Create Date: 2026-07-08
 
@@ -11,7 +11,7 @@ from datetime import datetime
 from alembic import op
 from flask import current_app
 
-revision = "0518_add_bounce_rate_susp_template"
+revision = "0518_add_bounce_susp_template"
 down_revision = "0517_add_archived_to_files"
 
 bounce_rate_suspended_template_id = current_app.config["SERVICE_BOUNCE_RATE_SUSPENDED_TEMPLATE_ID"]
