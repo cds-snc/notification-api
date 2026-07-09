@@ -180,6 +180,19 @@ def update_file_status():
     return jsonify(files_schema.dump(fetched_file)), 200
 
 
+@files_blueprint.route("/<uuid:file_id>/download", methods=["GET"])
+def get_file_contents(template_id, file_id):
+    file = dao_get_file_by_id(file_id)
+    try:
+        response = document_download_client.download_document(file.service_id, file.document_id)
+        response.raise_for_status()
+        file_data = base64.b64encode(response.content).decode("utf-8")
+    except DocumentDownloadError as e:
+        raise InvalidRequest(f"Failed to retrieve file from storage: {e.message}", status_code=e.status_code)
+
+    return jsonify({"file_data": file_data, "name": file.name, "mime_type": file.mime_type, "file_size": file.file_size})
+
+
 def _parse_scan_verdict_payload(event):
     scan_status = event.get("scan_status")
     scan_result = event.get("scan_result_status")
