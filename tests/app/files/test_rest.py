@@ -330,6 +330,12 @@ class TestDeleteFile:
         archived_file = Files.query.filter(Files.id == sample_file.id).one()
         assert archived_file.archived is True
 
+        # Verify archived file no longer appears in the template's file list
+        from app.dao.files_dao import dao_get_files_by_template_id
+
+        visible_files = dao_get_files_by_template_id(sample_file.template_id)
+        assert all(f.id != sample_file.id for f in visible_files)
+
     def test_delete_file_returns_404_when_template_file_mismatch(
         self, mocker, notify_db, notify_db_session, admin_request, sample_file, sample_service_full_permissions
     ):

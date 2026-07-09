@@ -9,7 +9,7 @@ from app.clients.document_download import DocumentDownloadError
 from app.dao.files_dao import (
     dao_archive_file,
     dao_create_file,
-    dao_get_file_by_document_id,
+    dao_get_file_by_document_id_including_archived,
     dao_get_file_by_id,
     dao_get_file_status_by_id_and_template_id,
     dao_get_files_by_template_id,
@@ -140,7 +140,7 @@ def delete_file(template_id, file_id):
     # Only archive in database if S3 deletion succeeded
     dao_archive_file(fetched_file)
 
-    current_app.logger.info(f"Deleted file: {file_id} template_id {template_id}")
+    current_app.logger.info(f"Archived file: {file_id} template_id {template_id}")
     return "", 204
 
 
@@ -163,7 +163,7 @@ def update_file_status():
     service_id = parsed["service_id"]
     new_status = parsed["new_status"]
 
-    fetched_file = dao_get_file_by_document_id(document_id)
+    fetched_file = dao_get_file_by_document_id_including_archived(document_id)
     if str(fetched_file.service_id) != service_id:
         raise InvalidRequest(
             f"Requested document_id {fetched_file.document_id} is not associated with service {service_id}",

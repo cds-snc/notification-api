@@ -48,6 +48,17 @@ def dao_get_file_by_document_id(document_id):
     ).one()
 
 
+def dao_get_file_by_document_id_including_archived(document_id):
+    """Lookup by document_id regardless of archived status.
+
+    Used by the GuardDuty scan verdict callback where the scan result
+    may arrive after a file has already been archived.
+    """
+    return Files.query.filter(
+        Files.document_id == document_id,
+    ).one()
+
+
 @transactional
 def dao_create_file(file):
     db.session.add(file)
