@@ -376,6 +376,9 @@ class Config(object):
     )
     USER_DEACTIVATED_TEMPLATE_ID = "d0fe2b8c-ddcf-4f9b-8bb7-d79006e7cfa7"  # Sent when a user deactivates their own account
     SERVICE_DEACTIVATED_TEMPLATE_ID = "71263145-8606-43b0-9f42-08a2c227523a"  # Sent when a user deactivates a service
+    SERVICE_BOUNCE_RATE_SUSPENDED_TEMPLATE_ID = (
+        "6963bb3c-a717-46a0-9591-68588193696a"  # Sent when a service is suspended for exceeding bounce-rate limits
+    )
 
     # Newsletter templates
     NEWSLETTER_CONFIRMATION_EMAIL_TEMPLATE_ID_EN = "c8ee07a2-7cf4-4a32-9cc2-6763b5bc47a6"

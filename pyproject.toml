@@ -16,7 +16,6 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.dependencies]
 python = "~3.12.7"
-apig-wsgi = "2.18.0"
 aws-embedded-metrics = "1.0.8"
 aws-xray-sdk = "2.14.0"
 # PaaS
@@ -62,7 +61,7 @@ opentelemetry-instrumentation-celery = "0.55b1"
 opentelemetry-instrumentation-flask = "0.55b1"
 opentelemetry-instrumentation-redis = "0.55b1"
 opentelemetry-instrumentation-sqlalchemy = "0.55b1"
-notifications-utils = { git = "https://github.com/cds-snc/notifier-utils.git", tag="53.2.27"}
+notifications-utils = { git = "https://github.com/cds-snc/notifier-utils.git", tag="53.2.29"}
 pre-commit = "^3.7.1"
 psycopg2-binary = "2.9.11"
 pwnedpasswords = "2.0.0"

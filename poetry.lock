@@ -212,17 +212,6 @@ files = [
 ]
 
 [[package]]
-name = "apig-wsgi"
-version = "2.18.0"
-description = "Wrap a WSGI application in an AWS Lambda handler function for running on API Gateway or an ALB."
-optional = false
-python-versions = ">=3.8"
-files = [
-    {file = "apig_wsgi-2.18.0-py3-none-any.whl", hash = "sha256:9132330bd1b1e9d1365cc1873e36b508930db65c5ed4d35f6234d332a6453fb9"},
-    {file = "apig_wsgi-2.18.0.tar.gz", hash = "sha256:7e46eb15b32f644caeb8065ad494beae4f3114dc10009384db9191f2b16eceec"},
-]
-
-[[package]]
 name = "attrs"
 version = "26.1.0"
 description = "Classes Without Boilerplate"
@@ -2079,7 +2068,7 @@ librabbitmq = ["librabbitmq (>=2.0.0)"]
 mongodb = ["pymongo (==4.15.3)"]
 msgpack = ["msgpack (==1.1.2)"]
 pyro = ["pyro4 (==4.82)"]
-qpid = ["qpid-python (==1.36.0-1)", "qpid-tools (==1.36.0-1)"]
+qpid = ["qpid-python (==1.36.0.post1)", "qpid-tools (==1.36.0.post1)"]
 redis = ["redis (>=4.5.2,!=4.5.5,!=5.0.2,<7.1)"]
 slmq = ["softlayer_messaging (>=1.0.3)"]
 sqlalchemy = ["sqlalchemy (>=1.4.48,<2.1)"]
@@ -2872,7 +2861,7 @@ requests = ">=2.0.0"
 
 [[package]]
 name = "notifications-utils"
-version = "53.2.27"
+version = "53.2.29"
 description = "Shared python code for Notification - Provides logging utils etc."
 optional = false
 python-versions = "~3.12.7"
@@ -2908,8 +2897,8 @@ werkzeug = "3.1.6"
 [package.source]
 type = "git"
 url = "https://github.com/cds-snc/notifier-utils.git"
-reference = "53.2.27"
-resolved_reference = "e001be223c4e06749c2930cc6db360b1065c35a3"
+reference = "53.2.29"
+resolved_reference = "a58115657654e6037c598fee1e0a592929c37400"
 
 [[package]]
 name = "opentelemetry-api"
@@ -5223,4 +5212,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.12.7"
-content-hash = "022ed07e087e3204ba0bd7d4296920e4825c66d3024435d16468060e51f801f9"
+content-hash = "8d40c2da7b0dfdbc6a9de22735d1fa721dac5dbbeb2fdbef874534fe685805b0"

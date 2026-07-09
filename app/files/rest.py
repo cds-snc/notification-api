@@ -7,9 +7,9 @@ from sqlalchemy.exc import NoResultFound
 from app import document_download_client
 from app.clients.document_download import DocumentDownloadError
 from app.dao.files_dao import (
+    dao_archive_file,
     dao_create_file,
-    dao_delete_file,
-    dao_get_file_by_document_id,
+    dao_get_file_by_document_id_including_archived,
     dao_get_file_by_id,
     dao_get_file_status_by_id_and_template_id,
     dao_get_files_by_template_id,
@@ -137,10 +137,10 @@ def delete_file(template_id, file_id):
         current_app.logger.error(f"Unexpected error deleting file from S3 (document_id {fetched_file.document_id}): {str(e)}")
         raise InvalidRequest("Failed to delete file from storage", 500)
 
-    # Only delete from database if S3 deletion succeeded
-    dao_delete_file(fetched_file)
+    # Only archive in database if S3 deletion succeeded
+    dao_archive_file(fetched_file)
 
-    current_app.logger.info(f"Deleted file: {file_id} template_id {template_id}")
+    current_app.logger.info(f"Archived file: {file_id} template_id {template_id}")
     return "", 204
 
 
@@ -163,7 +163,7 @@ def update_file_status():
     service_id = parsed["service_id"]
     new_status = parsed["new_status"]
 
-    fetched_file = dao_get_file_by_document_id(document_id)
+    fetched_file = dao_get_file_by_document_id_including_archived(document_id)
     if str(fetched_file.service_id) != service_id:
         raise InvalidRequest(
             f"Requested document_id {fetched_file.document_id} is not associated with service {service_id}",
@@ -178,6 +178,38 @@ def update_file_status():
         f"template_id: {fetched_file.template_id} document_id: {fetched_file.document_id} "
     )
     return jsonify(files_schema.dump(fetched_file)), 200
+
+
+@files_blueprint.route("/<uuid:file_id>/download", methods=["GET"])
+def get_file_contents(template_id, file_id):
+    fetched_file = dao_get_file_by_id(file_id)
+
+    if fetched_file.template_id != template_id:
+        raise InvalidRequest(
+            f"Requested file_id {file_id} is not associated with template {template_id}",
+            404,
+        )
+
+    if fetched_file.status != FILE_STATUS_UPLOADED:
+        raise InvalidRequest(
+            f"Requested file_id {file_id} is not available for download (status {fetched_file.status})",
+            409,
+        )
+
+    try:
+        response = document_download_client.download_document(fetched_file.service_id, fetched_file.document_id)
+        file_data = base64.b64encode(response.content).decode("utf-8")
+    except DocumentDownloadError as e:
+        raise InvalidRequest(f"Failed to retrieve file from storage: {e.message}", status_code=e.status_code)
+
+    return jsonify(
+        {
+            "file_data": file_data,
+            "name": fetched_file.name,
+            "mime_type": fetched_file.mime_type,
+            "file_size": fetched_file.file_size,
+        }
+    )
 
 
 def _parse_scan_verdict_payload(event):
