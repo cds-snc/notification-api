@@ -324,6 +324,18 @@ class TestDeleteFile:
         # Verify S3 delete was called with sending_method
         mock_delete.assert_called_once_with(sample_file.service_id, sample_file.document_id, sample_file.type)
 
+        # Verify the file is archived (not hard-deleted)
+        from app.models import Files
+
+        archived_file = Files.query.filter(Files.id == sample_file.id).one()
+        assert archived_file.archived is True
+
+        # Verify archived file no longer appears in the template's file list
+        from app.dao.files_dao import dao_get_files_by_template_id
+
+        visible_files = dao_get_files_by_template_id(sample_file.template_id)
+        assert all(f.id != sample_file.id for f in visible_files)
+
     def test_delete_file_returns_404_when_template_file_mismatch(
         self, mocker, notify_db, notify_db_session, admin_request, sample_file, sample_service_full_permissions
     ):
@@ -363,12 +375,13 @@ class TestDeleteFile:
         # Verify S3 delete was attempted with sending_method
         mock_delete.assert_called_once_with(sample_file.service_id, sample_file.document_id, sample_file.type)
 
-        # Verify the file still exists in the database
+        # Verify the file still exists in the database and is not archived
         from app.dao.files_dao import dao_get_file_by_id
 
         db_file = dao_get_file_by_id(sample_file.id)
         assert db_file is not None
         assert db_file.id == sample_file.id
+        assert db_file.archived is False
 
 
 class TestParseScanVerdictPayload:
