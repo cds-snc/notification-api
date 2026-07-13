@@ -51,6 +51,8 @@ def patch_manage_template(template_id):
                 TemplateCategoryNotFoundError.message,
             )
 
+    old_category_id = str(template.template_category_id) if template.template_category_id else None
+
     if "parent_folder_id" in data:
         parent_folder_id = data.pop("parent_folder_id")
         if parent_folder_id:
@@ -69,6 +71,14 @@ def patch_manage_template(template_id):
 
     templates_dao.dao_update_template(template)
     redis_store.delete(f"service-{str(template.service_id)}-templates")
-    redis_store.delete(f"template-{str(template_id)}-version-{template.version}")
+    redis_store.delete(f"template-{str(template_id)}-version-None")
+    redis_store.delete(f"template-{str(template_id)}-versions")
+
+    if "template_category_id" in data:
+        new_category_id = data["template_category_id"]
+        if old_category_id:
+            redis_store.delete(f"template_category-{old_category_id}")
+        redis_store.delete(f"template_category-{new_category_id}")
+        redis_store.delete("template_categories")
 
     return jsonify(_serialize_template(template)), 200

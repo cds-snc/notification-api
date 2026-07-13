@@ -29,6 +29,7 @@ def delete_manage_template(template_id):
     template.folder = None
     templates_dao.dao_update_template(template)
     redis_store.delete(f"service-{str(template.service_id)}-templates")
-    redis_store.delete(f"template-{str(template_id)}-version-{template.version}")
+    redis_store.delete(f"template-{str(template_id)}-version-None")
+    redis_store.delete(f"template-{str(template_id)}-versions")
 
     return jsonify(_serialize_template(template)), 200
