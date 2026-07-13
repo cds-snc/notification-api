@@ -67,7 +67,7 @@ _EXCEPTION_CLASS_MAP: dict[str, CeleryErrorCategory] = {
 # Some errors don't have a specific exception class, but can be identified
 # by substrings in their message.
 _MESSAGE_SUBSTRING_MAP: dict[str, CeleryErrorCategory] = {
-    "duplicate key value violates unique constraint \"notifications_pkey\"": CeleryErrorCategory.DUPLICATE_RECORD,
+    'duplicate key value violates unique constraint "notifications_pkey"': CeleryErrorCategory.DUPLICATE_RECORD,
     "notifications not found for SES references": CeleryErrorCategory.NOTIFICATION_NOT_FOUND,
     "SIGKILL": CeleryErrorCategory.SHUTDOWN,
     "Worker exited prematurely": CeleryErrorCategory.SHUTDOWN,
