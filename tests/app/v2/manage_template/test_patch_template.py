@@ -1,6 +1,7 @@
 import uuid
 
 from flask import json
+from notifications_utils.clients.redis import template_version_cache_key
 from sqlalchemy.orm.exc import NoResultFound
 from tests import create_authorization_header
 from tests.app.db import create_template
@@ -181,7 +182,7 @@ class TestPatchTemplateV2ManageTemplate:
         assert response.status_code == 200
         deleted_keys = [call.args[0] for call in mock_redis_delete.call_args_list]
         assert f"service-{sample_service.id}-templates" in deleted_keys
-        assert f"template-{template.id}-version-None" in deleted_keys
+        assert template_version_cache_key(template.id) in deleted_keys
         assert f"template-{template.id}-versions" in deleted_keys
 
     def test_patch_template_clears_category_cache_when_category_updated(
