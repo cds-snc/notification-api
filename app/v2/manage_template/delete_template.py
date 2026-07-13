@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from flask import jsonify
+from notifications_utils.clients.redis import template_version_cache_key
 
 from app import api_user, authenticated_service, redis_store
 from app.dao import templates_dao
@@ -29,6 +30,7 @@ def delete_manage_template(template_id):
     template.folder = None
     templates_dao.dao_update_template(template)
     redis_store.delete(f"service-{str(template.service_id)}-templates")
-    redis_store.delete(f"template-{str(template_id)}-version-{template.version}")
+    redis_store.delete(template_version_cache_key(template_id))
+    redis_store.delete(f"template-{str(template_id)}-versions")
 
     return jsonify(_serialize_template(template)), 200
