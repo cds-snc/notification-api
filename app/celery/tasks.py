@@ -225,6 +225,7 @@ def process_rows(rows: List, template: Template, job: Job, service: Service):
         signed_row = SignedNotification(
             signer_notification.sign(
                 {
+                    "id": create_uuid(),
                     "api_key": job.api_key_id and str(job.api_key_id),  # type: ignore
                     "key_type": job.api_key.key_type if job.api_key else KEY_TYPE_NORMAL,
                     "template": str(template.id),

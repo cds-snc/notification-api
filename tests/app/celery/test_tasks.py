@@ -197,6 +197,29 @@ class TestBatchSaving:
         assert persisted_notification[0].status == "created"
         assert persisted_notification[0].notification_type == "email"
 
+    def test_save_emails_is_idempotent_when_same_message_delivered_twice(self, notify_db_session, mocker):
+        # Simulates SQS delivering the same batch twice (or two workers picking up
+        # the same message). Because process_rows now assigns a stable notification
+        # id that is carried in the signed payload, the second delivery must not
+        # create a duplicate notification row or send the email a second time.
+        service = create_service()
+        template = create_template(service=service, template_type="email")
+
+        notification = _notification_json(template, to="dup@test.com")
+        notification["id"] = str(uuid.uuid4())
+        signed = signer_notification.sign(notification)
+
+        deliver_mock = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
+
+        # First delivery persists and sends.
+        save_emails(str(template.service_id), [signed], None)
+        # Second (duplicate) delivery must be a no-op.
+        save_emails(str(template.service_id), [signed], None)
+
+        assert Notification.query.count() == 1
+        assert Notification.query.one().id == uuid.UUID(notification["id"])
+        assert deliver_mock.call_count == 1
+
     def test_should_save_smss(self, sample_template_with_placeholders, mocker):
         notification1 = _notification_json(
             sample_template_with_placeholders,
@@ -923,6 +946,7 @@ class TestProcessRows:
         )
         signer_mock.assert_called_once_with(
             {
+                "id": "noti_uuid",
                 "api_key": None if api_key_id is None else str(api_key_id),
                 "key_type": job.api_key.key_type,
                 "template": "template_id",
@@ -1109,6 +1133,7 @@ class TestProcessRows:
         )
         signer_mock.assert_called_once_with(
             {
+                "id": "noti_uuid",
                 "api_key": None if api_key_id is None else str(api_key_id),
                 "key_type": KEY_TYPE_NORMAL,
                 "template": "template_id",
