@@ -914,7 +914,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
         '403':
-          description: Forbidden - NEW API key missing required manage_templates permission```
+          description: Forbidden - NEW API key missing required manage_templates permission
           content:
             application/json:
               schema:
