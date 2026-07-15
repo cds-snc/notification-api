@@ -5,7 +5,7 @@ def test_cors_headers_set_on_api_request(notify_api):
     with notify_api.test_request_context():
         with notify_api.test_client() as client:
             allow_headers = "Content-Type,Authorization"
-            allow_methods = "GET,PUT,POST,DELETE"
+            allow_methods = "GET,PUT,POST,PATCH,DELETE"
 
             # Making a GET request to healthcheck which should be unrestricted
             response = client.get(
@@ -40,7 +40,7 @@ def test_cors_headers_work_with_options_method(notify_api):
     with notify_api.test_request_context():
         with notify_api.test_client() as client:
             allow_headers = "Content-Type,Authorization"
-            allow_methods = "GET,PUT,POST,DELETE"
+            allow_methods = "GET,PUT,POST,PATCH,DELETE"
 
             # Making an OPTIONS request to healthcheck
             response = client.options(
@@ -60,7 +60,7 @@ def test_cors_headers_with_auth_protected_route(notify_api, sample_service):
     with notify_api.test_request_context():
         with notify_api.test_client() as client:
             allow_headers = "Content-Type,Authorization"
-            allow_methods = "GET,PUT,POST,DELETE"
+            allow_methods = "GET,PUT,POST,PATCH,DELETE"
 
             # Create auth header
             auth_header = create_authorization_header()
@@ -81,7 +81,7 @@ def test_cors_options_with_auth_protected_route(notify_api, sample_service):
     with notify_api.test_request_context():
         with notify_api.test_client() as client:
             allow_headers = "Content-Type,Authorization"
-            allow_methods = "GET,PUT,POST,DELETE"
+            allow_methods = "GET,PUT,POST,PATCH,DELETE"
 
             # Making an OPTIONS request to an auth-protected endpoint
             # Note: OPTIONS requests should work without authentication
