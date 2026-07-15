@@ -225,9 +225,13 @@ class TestSuspendCallbackApi:
     [
         "https://localhost/callback",
         "https://localhost:8080/callback",
+        "https://localhost./callback",
         "https://127.0.0.1/callback",
         "https://127.0.0.1:443/callback",
+        "https://127.0.0.2/callback",
+        "https://127.255.255.255/callback",
         "https://[::1]/callback",
+        "https://[0:0:0:0:0:0:0:1]/callback",
         "https://sub.localhost/callback",
     ],
 )

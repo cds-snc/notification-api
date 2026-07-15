@@ -1,3 +1,4 @@
+import ipaddress
 from urllib.parse import urlparse
 
 from flask import Blueprint, jsonify, request
@@ -185,8 +186,14 @@ def _validate_not_localhost(url):
     if url:
         try:
             parsed = urlparse(url)
-            hostname = parsed.hostname or ""
-            if hostname in ("localhost", "127.0.0.1", "::1") or hostname.endswith(".localhost"):
+            hostname = (parsed.hostname or "").rstrip(".")
+            is_loopback = hostname == "localhost" or hostname.endswith(".localhost")
+            if not is_loopback:
+                try:
+                    is_loopback = ipaddress.ip_address(hostname).is_loopback
+                except ValueError:
+                    pass
+            if is_loopback:
                 raise InvalidRequest("Callback URL must not point to localhost", status_code=400)
         except InvalidRequest:
             raise
