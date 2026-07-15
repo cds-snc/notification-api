@@ -496,6 +496,11 @@ class TestSwagger:
         assert "Content-Type" in response.headers["Access-Control-Allow-Headers"]
         assert "Authorization" in response.headers["Access-Control-Allow-Headers"]
         assert "Access-Control-Allow-Methods" in response.headers
+        allowed_methods = response.headers["Access-Control-Allow-Methods"]
+        for method in ["GET", "PUT", "POST", "PATCH", "DELETE"]:
+            assert (
+                method in allowed_methods
+            ), "PATCH must be in Access-Control-Allow-Methods for browser-based Swagger UI requests to work"
 
     def test_get_request_to_protected_route_should_require_auth(self, client):
         """Test that GET requests to the same endpoint still require authentication."""
