@@ -3,6 +3,7 @@ import uuid
 import pytest
 
 from app.models import ServiceCallbackApi, ServiceInboundApi
+from app.service.callback_rest import _validate_not_localhost
 from tests.app.db import create_service_callback_api, create_service_inbound_api
 
 
@@ -217,3 +218,77 @@ class TestSuspendCallbackApi:
         callback = ServiceCallbackApi.query.get(service_callback_api.id)
         assert callback.is_suspended is suspend_unsuspend
         assert callback.updated_by_id == sample_service.users[0].id
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://localhost/callback",
+        "https://localhost:8080/callback",
+        "https://127.0.0.1/callback",
+        "https://127.0.0.1:443/callback",
+        "https://[::1]/callback",
+        "https://sub.localhost/callback",
+    ],
+)
+def test_validate_not_localhost_rejects_localhost_urls(url):
+    from app.errors import InvalidRequest
+
+    with pytest.raises(InvalidRequest):
+        _validate_not_localhost(url)
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://example.com/callback",
+        "https://my-service.gc.ca/callback",
+        None,
+    ],
+)
+def test_validate_not_localhost_allows_valid_urls(url):
+    _validate_not_localhost(url)  # should not raise
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://localhost/callback",
+        "https://127.0.0.1/callback",
+    ],
+)
+def test_create_inbound_api_rejects_localhost(admin_request, sample_service, url):
+    data = {
+        "url": url,
+        "bearer_token": "some-unique-string",
+        "updated_by_id": str(sample_service.users[0].id),
+    }
+    resp_json = admin_request.post(
+        "service_callback.create_service_inbound_api",
+        service_id=sample_service.id,
+        _data=data,
+        _expected_status=400,
+    )
+    assert "localhost" in resp_json["message"].lower()
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://localhost/callback",
+        "https://127.0.0.1/callback",
+    ],
+)
+def test_create_callback_api_rejects_localhost(admin_request, sample_service, url):
+    data = {
+        "url": url,
+        "bearer_token": "some-unique-string",
+        "updated_by_id": str(sample_service.users[0].id),
+    }
+    resp_json = admin_request.post(
+        "service_callback.create_service_callback_api",
+        service_id=sample_service.id,
+        _data=data,
+        _expected_status=400,
+    )
+    assert "localhost" in resp_json["message"].lower()
