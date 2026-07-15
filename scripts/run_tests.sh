@@ -35,6 +35,9 @@ display_result $? 1 "Code format check"
 mypy .
 display_result $? 1 "Type check"
 
+python scripts/validate_openapi_specs.py
+display_result $? 1 "OpenAPI spec check"
+
 # Run tests that need serial execution.
 if ! docker info > /dev/null 2>&1; then
   echo "This test uses docker, and it isn't running - please start docker and try again."
