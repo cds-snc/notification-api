@@ -382,7 +382,7 @@ def init_app(app):
         if origin in ALLOWED_ORIGINS:
             response.headers["Access-Control-Allow-Origin"] = origin
         response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
-        response.headers.add("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE")
+        response.headers.add("Access-Control-Allow-Methods", "GET,PUT,POST,PATCH,DELETE")
         return response
 
     @app.errorhandler(Exception)
