@@ -192,6 +192,8 @@ def _validate_not_localhost(url):
                 try:
                     is_loopback = ipaddress.ip_address(hostname).is_loopback
                 except ValueError:
+                    # Hostname is not an IP literal (for example, a normal DNS name);
+                    # keep `is_loopback` as determined by localhost-name checks above.
                     pass
             if is_loopback:
                 raise InvalidRequest("Callback URL must not point to localhost", status_code=400)
