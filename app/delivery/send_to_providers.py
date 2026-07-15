@@ -41,6 +41,7 @@ from app.dao.provider_details_dao import (
 )
 from app.dao.template_categories_dao import dao_get_template_category_by_id
 from app.dao.templates_dao import dao_get_template_by_id
+from app.delivery.bounce_rate import check_service_over_bounce_rate
 from app.exceptions import (
     DocumentDownloadException,
     InvalidUrlException,
@@ -64,7 +65,6 @@ from app.models import (
     PINPOINT_PROVIDER,
     SMS_TYPE,
     SNS_PROVIDER,
-    BounceRateStatus,
     Notification,
     Service,
 )
@@ -327,24 +327,6 @@ def check_for_malware_errors(document_download_response_code, notification):
     # unexpected response code
     else:
         document_download_internal_error(notification=notification)
-
-
-def check_service_over_bounce_rate(service_id: str):
-    bounce_rate = bounce_rate_client.get_bounce_rate(service_id)
-    bounce_rate_status = bounce_rate_client.check_bounce_rate_status(service_id)
-    debug_data = bounce_rate_client.get_debug_data(service_id)
-    current_app.logger.debug(
-        f"Service id: {service_id} Bounce Rate: {bounce_rate} Bounce Status: {bounce_rate_status}, Debug Data: {debug_data}"
-    )
-    if bounce_rate_status == BounceRateStatus.CRITICAL.value:
-        # TODO: Bounce Rate V2, raise a BadRequestError when bounce rate meets or exceeds critical threshold
-        current_app.logger.warning(
-            f"Service: {service_id} has met or exceeded a critical bounce rate threshold of 10%. Bounce rate: {bounce_rate}"
-        )
-    elif bounce_rate_status == BounceRateStatus.WARNING.value:
-        current_app.logger.warning(
-            f"Service: {service_id} has met or exceeded a warning bounce rate threshold of 5%. Bounce rate: {bounce_rate}"
-        )
 
 
 def mime_encoded_word_syntax(encoded_text="", charset="utf-8", encoding="B") -> str:
