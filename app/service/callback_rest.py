@@ -190,5 +190,5 @@ def _validate_not_localhost(url):
                 raise InvalidRequest("Callback URL must not point to localhost", status_code=400)
         except InvalidRequest:
             raise
-        except Exception:
-            pass
+        except Exception as e:
+            raise InvalidRequest("Invalid callback URL", status_code=400) from e
