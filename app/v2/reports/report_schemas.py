@@ -8,9 +8,10 @@ post_report_request = {
     "title": "POST v2/reports request",
     "properties": {
         "report_type": {"type": "string", "enum": [rt.value for rt in ReportType]},
+        "language": {"type": "string", "enum": ["en", "fr"]},
         "job_id": nullable_uuid,
     },
-    "required": ["report_type"],
+    "required": ["report_type", "language"],
     "additionalProperties": False,
     "if": {"properties": {"report_type": {"const": "job"}}},
     "then": {"required": ["job_id"]},
