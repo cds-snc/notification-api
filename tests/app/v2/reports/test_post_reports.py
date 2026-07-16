@@ -31,6 +31,34 @@ def test_post_report_returns_202(client, sample_service, mocker):
     mock_task.assert_called_once()
 
 
+def test_post_job_report_requires_job_id(client, sample_service, mocker):
+    mocker.patch("app.v2.reports.post_reports.generate_report.apply_async")
+    auth_header = create_authorization_header(service_id=sample_service.id)
+
+    response = client.post(
+        path="/v2/reports",
+        data=json.dumps({"report_type": "job"}),
+        headers=[("Content-Type", "application/json"), auth_header],
+    )
+
+    assert response.status_code == 400
+
+
+def test_post_job_report_with_job_id_returns_202(client, sample_job, mocker):
+    mocker.patch("app.v2.reports.post_reports.generate_report.apply_async")
+    auth_header = create_authorization_header(service_id=sample_job.service_id)
+
+    response = client.post(
+        path="/v2/reports",
+        data=json.dumps({"report_type": "job", "job_id": str(sample_job.id)}),
+        headers=[("Content-Type", "application/json"), auth_header],
+    )
+
+    assert response.status_code == 202
+    report = get_report_by_id(json.loads(response.get_data(as_text=True))["report_id"])
+    assert str(report.job_id) == str(sample_job.id)
+
+
 def test_post_report_rejects_invalid_report_type(client, sample_service, mocker):
     mocker.patch("app.v2.reports.post_reports.generate_report.apply_async")
     auth_header = create_authorization_header(service_id=sample_service.id)

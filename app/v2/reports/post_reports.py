@@ -22,6 +22,7 @@ def post_report():
         service_id=authenticated_service.id,
         status=ReportStatus.REQUESTED.value,
         requesting_user_id=None,
+        job_id=data.get("job_id"),
     )
     created_report = create_report(report)
 
