@@ -51,6 +51,8 @@ GUARD_DUTY_STATUS_MAP = {
     "SKIPPED": FILE_STATUS_VIRUS_SCAN_FAILED,
 }
 
+MAX_TOTAL_FILE_SIZE = 6 * 1024 * 1024  # 6MB
+
 
 @files_blueprint.route("", methods=["POST"])
 def create_file(template_id):
@@ -71,6 +73,20 @@ def create_file(template_id):
     service = template.service
     check_service_has_permission(UPLOAD_DOCUMENT, service.permissions)
     validate_template_exists(template_id, service)
+
+    existing_files = dao_get_files_by_template_id(template_id)
+    existing_size = sum(f.file_size or 0 for f in existing_files)
+    total_size = existing_size + data["file_size"]
+    if total_size > MAX_TOTAL_FILE_SIZE:
+        raise InvalidRequest(
+            {
+                "error": "Total file size exceeds the 6MB limit.",
+                "current_usage": existing_size,
+                "requested": data["file_size"],
+                "limit": MAX_TOTAL_FILE_SIZE,
+            },
+            status_code=400,
+        )
 
     filename = data["name"]
     mime_type = data["mime_type"]

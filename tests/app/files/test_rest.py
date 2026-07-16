@@ -194,6 +194,161 @@ class TestCreateFile:
             _expected_status=403,
         )
 
+    def test_create_file_returns_400_when_total_size_exceeds_6mb(
+        self, mocker, notify_db, notify_db_session, admin_request, sample_service_full_permissions
+    ):
+        from app.dao.files_dao import dao_create_file
+        from app.files.rest import MAX_TOTAL_FILE_SIZE
+        from app.models import FILE_STATUS_PENDING_VIRUS_SCAN, Files
+
+        sample_template = create_sample_template(notify_db, notify_db_session, service=sample_service_full_permissions)
+        current_user_id = str(sample_template.service.users[0].id)
+
+        # Create an existing file that uses most of the 6MB budget
+        existing_file = Files(
+            template_id=sample_template.id,
+            service_id=sample_service_full_permissions.id,
+            document_id=uuid.uuid4(),
+            type="attach",
+            name="existing.pdf",
+            mime_type="application/pdf",
+            file_size=MAX_TOTAL_FILE_SIZE - 1000,
+            status=FILE_STATUS_PENDING_VIRUS_SCAN,
+            created_by_id=current_user_id,
+        )
+        dao_create_file(existing_file)
+
+        # Attempt to add a file that would push us over the limit
+        response = admin_request.post(
+            "files.create_file",
+            template_id=str(sample_template.id),
+            _data={
+                "template_id": str(sample_template.id),
+                "type": "attach",
+                "name": "too_large.pdf",
+                "mime_type": "application/pdf",
+                "file_size": 1001,
+                "file_data": base64.b64encode(b"test content").decode("utf-8"),
+                "created_by": current_user_id,
+            },
+            _expected_status=400,
+        )
+        assert response["message"]["error"] == "Total file size exceeds the 6MB limit."
+        assert response["message"]["current_usage"] == MAX_TOTAL_FILE_SIZE - 1000
+        assert response["message"]["requested"] == 1001
+        assert response["message"]["limit"] == MAX_TOTAL_FILE_SIZE
+
+    def test_create_file_succeeds_when_total_size_exactly_at_6mb(
+        self, mocker, notify_db, notify_db_session, admin_request, sample_service_full_permissions
+    ):
+        from app.dao.files_dao import dao_create_file
+        from app.files.rest import MAX_TOTAL_FILE_SIZE
+        from app.models import FILE_STATUS_PENDING_VIRUS_SCAN, Files
+
+        _mock_upload_template_attachment(mocker)
+        sample_template = create_sample_template(notify_db, notify_db_session, service=sample_service_full_permissions)
+        current_user_id = str(sample_template.service.users[0].id)
+
+        # Create an existing file
+        existing_file = Files(
+            template_id=sample_template.id,
+            service_id=sample_service_full_permissions.id,
+            document_id=uuid.uuid4(),
+            type="attach",
+            name="existing.pdf",
+            mime_type="application/pdf",
+            file_size=MAX_TOTAL_FILE_SIZE - 1000,
+            status=FILE_STATUS_PENDING_VIRUS_SCAN,
+            created_by_id=current_user_id,
+        )
+        dao_create_file(existing_file)
+
+        # Adding exactly 1000 bytes should succeed (total == 6MB exactly)
+        admin_request.post(
+            "files.create_file",
+            template_id=str(sample_template.id),
+            _data={
+                "template_id": str(sample_template.id),
+                "type": "attach",
+                "name": "fits.pdf",
+                "mime_type": "application/pdf",
+                "file_size": 1000,
+                "file_data": base64.b64encode(b"test content").decode("utf-8"),
+                "created_by": current_user_id,
+            },
+            _expected_status=201,
+        )
+
+    def test_create_file_returns_400_when_single_file_exceeds_6mb(
+        self, mocker, notify_db, notify_db_session, admin_request, sample_service_full_permissions
+    ):
+        from app.files.rest import MAX_TOTAL_FILE_SIZE
+
+        sample_template = create_sample_template(notify_db, notify_db_session, service=sample_service_full_permissions)
+        current_user_id = str(sample_template.service.users[0].id)
+
+        # A single file larger than 6MB should be rejected even with no existing files
+        response = admin_request.post(
+            "files.create_file",
+            template_id=str(sample_template.id),
+            _data={
+                "template_id": str(sample_template.id),
+                "type": "attach",
+                "name": "huge.pdf",
+                "mime_type": "application/pdf",
+                "file_size": MAX_TOTAL_FILE_SIZE + 1,
+                "file_data": base64.b64encode(b"test content").decode("utf-8"),
+                "created_by": current_user_id,
+            },
+            _expected_status=400,
+        )
+        assert response["message"]["error"] == "Total file size exceeds the 6MB limit."
+        assert response["message"]["current_usage"] == 0
+        assert response["message"]["requested"] == MAX_TOTAL_FILE_SIZE + 1
+        assert response["message"]["limit"] == MAX_TOTAL_FILE_SIZE
+
+    def test_create_file_ignores_archived_files_in_size_calculation(
+        self, mocker, notify_db, notify_db_session, admin_request, sample_service_full_permissions
+    ):
+        from app.dao.files_dao import dao_archive_file, dao_create_file
+        from app.files.rest import MAX_TOTAL_FILE_SIZE
+        from app.models import FILE_STATUS_PENDING_VIRUS_SCAN, Files
+
+        _mock_upload_template_attachment(mocker)
+        sample_template = create_sample_template(notify_db, notify_db_session, service=sample_service_full_permissions)
+        current_user_id = str(sample_template.service.users[0].id)
+
+        # Create a large file and archive it
+        archived_file = Files(
+            template_id=sample_template.id,
+            service_id=sample_service_full_permissions.id,
+            document_id=uuid.uuid4(),
+            type="attach",
+            name="archived.pdf",
+            mime_type="application/pdf",
+            file_size=MAX_TOTAL_FILE_SIZE,
+            status=FILE_STATUS_PENDING_VIRUS_SCAN,
+            created_by_id=current_user_id,
+        )
+        dao_create_file(archived_file)
+        dao_archive_file(archived_file)
+
+        # Should succeed because archived files don't count toward the limit
+        admin_request.post(
+            "files.create_file",
+            template_id=str(sample_template.id),
+            _data={
+                "template_id": str(sample_template.id),
+                "type": "attach",
+                "name": "new.pdf",
+                "mime_type": "application/pdf",
+                "file_size": 1000,
+                "file_data": base64.b64encode(b"test content").decode("utf-8"),
+                "created_by": current_user_id,
+            },
+            _expected_status=201,
+        )
+
 
 class TestGetFile:
     def test_get_file_status(self, admin_request, sample_file):
