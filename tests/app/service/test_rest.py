@@ -16,7 +16,6 @@ from notifications_utils.clients.redis import (
     over_email_daily_limit_cache_key,
 )
 
-from app.clients.salesforce.salesforce_engagement import ENGAGEMENT_STAGE_LIVE
 from app.dao.organisation_dao import dao_add_service_to_organisation
 from app.dao.service_sms_sender_dao import dao_get_sms_senders_by_service_id
 from app.dao.service_user_dao import dao_get_service_user
@@ -377,8 +376,6 @@ def test_create_service(admin_request, sample_user, platform_admin, expected_cou
         "created_by": str(sample_user.id),
     }
 
-    mocked_salesforce_client = mocker.patch("app.service.rest.salesforce_client")
-
     json_resp = admin_request.post("service.create_service", _data=data, _expected_status=201)
 
     assert json_resp["data"]["id"]
@@ -388,7 +385,6 @@ def test_create_service(admin_request, sample_user, platform_admin, expected_cou
     assert json_resp["data"]["rate_limit"] == 1000
     assert json_resp["data"]["letter_branding"] is None
     assert json_resp["data"]["count_as_live"] is expected_count_as_live
-    mocked_salesforce_client.engagement_create.assert_called_once()
 
     service_db = Service.query.get(json_resp["data"]["id"])
     assert service_db.name == "created service"
@@ -1487,7 +1483,6 @@ def test_add_unknown_user_to_service_returns404(notify_api, notify_db, notify_db
 
 
 def test_remove_user_from_service(notify_db, notify_db_session, client, sample_user_service_permission, mocker):
-    mocked_salesforce_client = mocker.patch("app.service.rest.salesforce_client")
     third_user = create_user(email="new@digital.cabinet-office.gov.uk")
     fourth_user = create_user(email="new@cds-snc.ca")
     # Simulates successfully adding a user to the service
@@ -1501,7 +1496,6 @@ def test_remove_user_from_service(notify_db, notify_db_session, client, sample_u
     auth_header = create_authorization_header()
     resp = client.delete(endpoint, headers=[("Content-Type", "application/json"), auth_header])
     assert resp.status_code == 204
-    mocked_salesforce_client.engagement_delete_contact_role.assert_called_with(third_permission.service, third_permission.user)
 
 
 def test_remove_user_from_service_only_user_with_manage_perm(
@@ -2191,7 +2185,6 @@ def test_update_service_calls_send_notification_as_service_becomes_live(
 
     data = {"restricted": False}
 
-    mocked_salesforce_client = mocker.patch("app.service.rest.salesforce_client")
     mocked_fetch_service_creator = mocker.patch("app.service.rest.dao_fetch_service_creator", return_value=user_1)
     mocked_get_user_by_id = mocker.patch("app.service.rest.get_user_by_id", return_value=user_2)
 
@@ -2217,10 +2210,6 @@ def test_update_service_calls_send_notification_as_service_becomes_live(
         include_user_fields=["name"],
     )
 
-    engagement_user = user_2 if set_go_live_user else user_1
-    mocked_salesforce_client.engagement_update.assert_called_once_with(
-        restricted_service, engagement_user, {"StageName": ENGAGEMENT_STAGE_LIVE}
-    )
     if set_go_live_user:
         mocked_fetch_service_creator.assert_not_called()
         mocked_get_user_by_id.assert_called_once_with(restricted_service.go_live_user_id)
@@ -2350,24 +2339,6 @@ def test_update_service_does_not_call_send_notification_when_restricted_not_chan
 
     assert resp.status_code == 200
     assert not send_notification_mock.called
-
-
-def test_update_service_name_updates_salesforce_engagement(sample_service, client, mocker):
-    user = create_user(email="active1@foo.com", state="active")
-    mocked_salesforce_client = mocker.patch("app.service.rest.salesforce_client")
-    mocker.patch("app.service.rest.dao_fetch_service_creator", return_value=user)
-
-    data = {"name": "New service name"}
-
-    auth_header = create_authorization_header()
-    resp = client.post(
-        "service/{}".format(sample_service.id),
-        data=json.dumps(data),
-        headers=[auth_header],
-        content_type="application/json",
-    )
-    assert resp.status_code == 200
-    mocked_salesforce_client.engagement_update.assert_called_once_with(sample_service, user, {"Name": "New service name"})
 
 
 def test_search_for_notification_by_to_field_filters_by_status(client, notify_db, notify_db_session):

@@ -18,9 +18,8 @@ from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm.exc import NoResultFound
 
-from app import redis_store, salesforce_client
+from app import redis_store
 from app.annual_limit_utils import get_annual_limit_notifications_v2
-from app.clients.salesforce.salesforce_engagement import ENGAGEMENT_STAGE_LIVE
 from app.config import QueueNames
 from app.dao import fact_notification_status_dao, notifications_dao
 from app.dao.api_key_dao import (
@@ -76,7 +75,6 @@ from app.dao.services_dao import (
     dao_fetch_all_services_by_user,
     dao_fetch_live_services_data,
     dao_fetch_service_by_id,
-    dao_fetch_service_creator,
     dao_fetch_service_ids_of_sensitive_services,
     dao_fetch_todays_stats_for_all_services,
     dao_fetch_todays_stats_for_service,
@@ -270,12 +268,6 @@ def create_service():
 
     dao_create_service(valid_service, user, organisation_id=organisation_id)
 
-    if current_app.config["FF_SALESFORCE_CONTACT"]:
-        try:
-            salesforce_client.engagement_create(valid_service, user)
-        except Exception as e:
-            current_app.logger.exception(e)
-
     return jsonify(data=service_schema.dump(valid_service)), 201
 
 
@@ -286,7 +278,6 @@ def update_service(service_id):
     fetched_service = dao_fetch_service_by_id(service_id)
     # Capture the status change here as Marshmallow changes this later
     service_going_live = fetched_service.restricted and not req_json.get("restricted", True)
-    service_name_changed = fetched_service.name != req_json.get("name", fetched_service.name)
     message_limit_changed = fetched_service.message_limit != req_json.get("message_limit", fetched_service.message_limit)
     sms_limit_changed = fetched_service.sms_daily_limit != req_json.get("sms_daily_limit", fetched_service.sms_daily_limit)
     email_annual_limit_changed = fetched_service.email_annual_limit != req_json.get(
@@ -340,24 +331,6 @@ def update_service(service_id):
 
     if service_going_live:
         _warn_services_users_about_going_live(service_id, current_data)
-
-    if current_app.config["FF_SALESFORCE_CONTACT"]:
-        try:
-            if service_going_live:
-                # Two scenarios, if there is a user that has requested to go live, we will use that user
-                # to create a Contact/Engagment pair between Notify and Salesforce.
-                # If by any chance there is no tracked request to a user, Notify will try to identify the user
-                # that created the service and then create a Contact/Engagment relationship.
-                if service.go_live_user_id:
-                    user = get_user_by_id(service.go_live_user_id)
-                else:
-                    user = dao_fetch_service_creator(service.id)
-                salesforce_client.engagement_update(service, user, {"StageName": ENGAGEMENT_STAGE_LIVE})
-            elif service_name_changed:
-                user = dao_fetch_service_creator(service.id)
-                salesforce_client.engagement_update(service, user, {"Name": service.name})
-        except Exception as e:
-            current_app.logger.exception(e)
 
     return jsonify(data=service_schema.dump(fetched_service)), 200
 
@@ -518,12 +491,6 @@ def add_user_to_service(service_id, user_id):
 
     data = service_schema.dump(service)
 
-    if current_app.config["FF_SALESFORCE_CONTACT"]:
-        try:
-            salesforce_client.engagement_add_contact_role(service, user)
-        except Exception as e:
-            current_app.logger.exception(e)
-
     return jsonify(data=data), 201
 
 
@@ -550,12 +517,6 @@ def remove_user_from_service(service_id, user_id):
         raise CannotRemoveUserError(message=error)
 
     dao_remove_user_from_service(service, user)
-
-    if current_app.config["FF_SALESFORCE_CONTACT"]:
-        try:
-            salesforce_client.engagement_delete_contact_role(service, user)
-        except Exception as e:
-            current_app.logger.exception(e)
 
     return jsonify({}), 204
 
@@ -812,12 +773,6 @@ def archive_service(service_id):
             )
         except Exception as e:
             current_app.logger.exception(e)
-
-        if current_app.config["FF_SALESFORCE_CONTACT"]:
-            try:
-                salesforce_client.engagement_close(service)
-            except Exception as e:
-                current_app.logger.exception(e)
 
     return "", 204
 
