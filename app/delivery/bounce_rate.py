@@ -28,7 +28,7 @@ def check_service_over_bounce_rate(service_id: str):
     )
 
     if bounce_rate_status == BounceRateStatus.CRITICAL.value:
-        min_volume = current_app.config["MIN_EMAILS_BOUNCE_RATE_SUSPENSION"]
+        min_volume = current_app.config["BR_VOLUME_MINIMUM"]
 
         if total_notifications >= min_volume:
             # Volume threshold met and bounce rate is critical — suspend the service
