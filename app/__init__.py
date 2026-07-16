@@ -340,6 +340,11 @@ def register_v2_blueprints(application):
         post_notifications,
         v2_notification_blueprint,
     )
+    from app.v2.reports import (  # noqa
+        post_reports,
+        reports_api_enabled,
+        v2_reports_blueprint,
+    )
     from app.v2.template import (  # noqa
         get_template,
         post_template,
@@ -358,6 +363,9 @@ def register_v2_blueprints(application):
     register_notify_blueprint(application, get_inbound_sms, requires_auth)
 
     register_notify_blueprint(application, v2_api_spec_blueprint, requires_no_auth)
+
+    if reports_api_enabled(application.config["NOTIFY_ENVIRONMENT"]):
+        register_notify_blueprint(application, v2_reports_blueprint, requires_auth)
 
 
 def init_app(app):
