@@ -41,7 +41,7 @@ def check_service_over_bounce_rate(service_id: str):
                 dao_suspend_service(service_id)
                 notify_celery.send_task(
                     "send-bounce-rate-suspension-email",
-                    kwargs={"service_id": service_id, "bounce_rate": bounce_rate},
+                    kwargs={"service_id": str(service_id), "bounce_rate": bounce_rate},
                     queue=QueueNames.NOTIFY,
                 )
                 redis_store.set(cache_key, datetime.utcnow().isoformat(), ex=TWENTY_FOUR_HOURS_IN_SECONDS)
@@ -55,7 +55,7 @@ def check_service_over_bounce_rate(service_id: str):
                 )
                 notify_celery.send_task(
                     "send-bounce-rate-warning-email",
-                    kwargs={"service_id": service_id, "bounce_rate": bounce_rate},
+                    kwargs={"service_id": str(service_id), "bounce_rate": bounce_rate},
                     queue=QueueNames.NOTIFY,
                 )
                 redis_store.set(cache_key, datetime.utcnow().isoformat(), ex=TWENTY_FOUR_HOURS_IN_SECONDS)
