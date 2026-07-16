@@ -1081,6 +1081,7 @@ class ApiKeyPermission(StrEnum):
     """
 
     MANAGE_TEMPLATES = "manage_templates"
+    MANAGE_REPORTS = "manage_reports"
 
 
 API_KEY_PERMISSION_TYPES: frozenset[str] = frozenset(p.value for p in ApiKeyPermission)

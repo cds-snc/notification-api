@@ -286,6 +286,15 @@ class TestApiKeyPermissions:
         fetched = ApiKey.query.get(api_key.id)
         assert fetched.permissions == ["manage_templates"]
 
+    def test_can_persist_and_round_trip_manage_reports_permission(self, sample_service):
+        from app.models import API_KEY_PERMISSION_TYPES, ApiKeyPermission
+
+        assert "manage_reports" in API_KEY_PERMISSION_TYPES
+        api_key = self._make_key(sample_service, permissions=[ApiKeyPermission.MANAGE_REPORTS])
+        fetched = ApiKey.query.get(api_key.id)
+        assert fetched.permissions == ["manage_reports"]
+        assert fetched.has_permission("manage_reports") is True
+
     def test_unknown_permission_is_rejected(self, sample_service):
         with pytest.raises(ValueError, match="Invalid api key permission"):
             self._make_key(sample_service, permissions=["not_a_real_permission"])
