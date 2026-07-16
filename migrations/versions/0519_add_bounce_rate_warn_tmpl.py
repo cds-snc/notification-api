@@ -72,12 +72,12 @@ def _template_content():
 def upgrade():
     template_insert = """
         INSERT INTO templates (id, name, template_type, created_at, content, archived, service_id, subject,
-        created_by_id, version, process_type, hidden)
+        created_by_id, version, template_category_id, hidden)
         VALUES ('{}', '{}', '{}', '{}', '{}', False, '{}', '{}', '{}', 1, '{}', false)
     """
     template_history_insert = """
         INSERT INTO templates_history (id, name, template_type, created_at, content, archived, service_id, subject,
-        created_by_id, version, process_type, hidden)
+        created_by_id, version, template_category_id, hidden)
         VALUES ('{}', '{}', '{}', '{}', '{}', False, '{}', '{}', '{}', 1, '{}', false)
     """
 
@@ -87,7 +87,7 @@ def upgrade():
         "subject": "Warning: ((service_name)) may be suspended for high bounce rate | Avertissement : ((service_name)) pourrait etre suspendu pour taux de rebond eleve",
         "content": _template_content(),
         "template_type": "email",
-        "process_type": "normal",
+        "template_category_id": "1d8ce435-a7e5-431b-aaa2-a418bc4d14f9"
     }
     escaped_content = template["content"].replace("'", "''")
 
@@ -101,7 +101,7 @@ def upgrade():
             current_app.config["NOTIFY_SERVICE_ID"],
             template["subject"],
             current_app.config["NOTIFY_USER_ID"],
-            template["process_type"],
+            template["template_category_id"],
         )
     )
 
@@ -115,7 +115,7 @@ def upgrade():
             current_app.config["NOTIFY_SERVICE_ID"],
             template["subject"],
             current_app.config["NOTIFY_USER_ID"],
-            template["process_type"],
+            template["template_category_id"],
         )
     )
 
