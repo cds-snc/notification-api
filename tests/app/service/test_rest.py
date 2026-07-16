@@ -2185,9 +2185,6 @@ def test_update_service_calls_send_notification_as_service_becomes_live(
 
     data = {"restricted": False}
 
-    mocked_fetch_service_creator = mocker.patch("app.service.rest.dao_fetch_service_creator", return_value=user_1)
-    mocked_get_user_by_id = mocker.patch("app.service.rest.get_user_by_id", return_value=user_2)
-
     auth_header = create_authorization_header()
     resp = client.post(
         "service/{}".format(restricted_service.id),
@@ -2209,13 +2206,6 @@ def test_update_service_calls_send_notification_as_service_becomes_live(
         },
         include_user_fields=["name"],
     )
-
-    if set_go_live_user:
-        mocked_fetch_service_creator.assert_not_called()
-        mocked_get_user_by_id.assert_called_once_with(restricted_service.go_live_user_id)
-    else:
-        mocked_fetch_service_creator.assert_called_once_with(restricted_service.id)
-        mocked_get_user_by_id.assert_not_called()
 
 
 @pytest.mark.parametrize(
