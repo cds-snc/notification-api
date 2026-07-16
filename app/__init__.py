@@ -30,7 +30,6 @@ from app.clients.email.aws_ses import AwsSesClient
 from app.clients.performance_platform.performance_platform_client import (
     PerformancePlatformClient,
 )
-from app.clients.salesforce.salesforce_client import SalesforceClient
 from app.clients.sms.aws_pinpoint import AwsPinpointClient
 from app.clients.sms.aws_sns import AwsSnsClient
 from app.dbsetup import RoutingSQLAlchemy, enable_sqlalchemy_debug_logging
@@ -72,7 +71,6 @@ email_queue = RedisQueue("email")
 sms_queue = RedisQueue("sms")
 performance_platform_client = PerformancePlatformClient()
 document_download_client = DocumentDownloadClient()
-salesforce_client = SalesforceClient()
 airtable_client = AirtableClient()
 
 clients = Clients()
@@ -145,9 +143,6 @@ def create_app(application, config=None):
     document_download_client.init_app(application)
     airtable_client.init_app(application)
     clients.init_app(sms_clients=[aws_sns_client, aws_pinpoint_client], email_clients=[aws_ses_client])
-
-    if application.config["FF_SALESFORCE_CONTACT"]:
-        salesforce_client.init_app(application)
 
     # Initialize the rate limiter for SMS delivery tasks, then wrap it in a
     # BufferedRateLimiter to reduce network round-trips per Celery worker.
