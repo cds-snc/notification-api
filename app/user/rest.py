@@ -26,6 +26,7 @@ from app.dao.services_dao import (
     dao_archive_service_no_transaction,
     dao_fetch_service_by_id,
     dao_suspend_service_no_transaction,
+    dao_update_service,
 )
 from app.dao.template_folder_dao import dao_get_template_folder_by_id_and_service_id
 from app.dao.templates_dao import dao_get_template_by_id
@@ -505,6 +506,25 @@ def send_contact_request(user_id):
     except NoResultFound:
         # This is perfectly normal if get_user_by_email raises
         pass
+
+    # Add the contact service's department name and update the service if required
+    if contact and contact.is_go_live_request():
+        try:
+            service = dao_fetch_service_by_id(contact.service_id)
+            if not service.organisation_notes:
+                # the service was created before we started requesting the organisation name at creation time
+                if not contact.department_org_name:
+                    # this shouldn't happen, but if it does, we don't want to leave the service with no organisation name
+                    contact.department_org_name = "Unknown"
+                # fall back on the organisation name collected from the go live request
+                service.organisation_notes = contact.department_org_name
+                dao_update_service(service)
+            else:
+                # this is the normal case, where the service has an organisation name collected when it was created
+                contact.department_org_name = service.organisation_notes
+
+        except Exception as e:
+            current_app.logger.exception(e)
 
     # Check if user is member of any ptm services
     if current_app.config.get("FF_PT_SERVICE_SKIP_FRESHDESK", False) and user:
