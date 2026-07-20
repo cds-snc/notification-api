@@ -35,8 +35,8 @@ def check_service_over_bounce_rate(service_id: str):
             cache_key = _bounce_rate_suspension_cache_key(service_id)
             if not redis_store.get(cache_key):
                 current_app.logger.warning(
-                    f"Service: {service_id} has been suspended. Bounce rate {bounce_rate} exceeds critical threshold "
-                    f"with {total_notifications} emails sent (>= {min_volume})."
+                    f"Service: {service_id} has been suspended as it has exceeded a critical bounce rate threshold of 10%. Bounce rate: {bounce_rate}"
+                    f"with {total_notifications} emails sent."
                 )
                 if current_app.config["NOTIFY_ENVIRONMENT"] != "production":
                     dao_suspend_service(service_id)
