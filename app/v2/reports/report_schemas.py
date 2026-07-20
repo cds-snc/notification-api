@@ -1,5 +1,6 @@
 from app.models import ReportType
-from app.schema_validation.definitions import nullable_uuid, uuid as uuid_schema
+from app.schema_validation.definitions import nullable_uuid
+from app.schema_validation.definitions import uuid as uuid_schema
 
 post_report_request = {
     "$schema": "http://json-schema.org/draft-07/schema#",
