@@ -186,6 +186,8 @@ class Config(object):
     FF_CLOUDWATCH_METRICS_ENABLED = env.bool("FF_CLOUDWATCH_METRICS_ENABLED", False)
     FF_IMPROVE_CELERY_WORKER_ISOLATION = env.bool("FF_IMPROVE_CELERY_WORKER_ISOLATION", False)
     FF_PT_SERVICE_SKIP_FRESHDESK = env.bool("FF_PT_SERVICE_SKIP_FRESHDESK", False)
+    # Enables the /v2/reports API endpoints. Off by default so the feature stays hidden in production until launch.
+    FF_REPORT_API = env.bool("FF_REPORT_API", False)
     FF_SALESFORCE_CONTACT = env.bool("FF_SALESFORCE_CONTACT", False)
     FF_SMS_RATELIMIT = env.bool("FF_SMS_RATELIMIT", False)
     FF_USE_BILLABLE_UNITS = env.bool("FF_USE_BILLABLE_UNITS", False)
@@ -815,6 +817,7 @@ class Test(Development):
     FAILED_LOGIN_LIMIT = 0
     GC_ORGANISATIONS_BUCKET_NAME = "test-gc-organisations"
     FF_USE_BILLABLE_UNITS = True
+    FF_REPORT_API = True
 
 
 class Production(Config):
