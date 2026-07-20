@@ -22,9 +22,9 @@ template_ids = [bounce_rate_warning_template_id]
 def _template_content():
     return "\n".join(
         [
-            "[[fr]]"
+            "[[fr]]",
             "",
-            "(la version française suit)"
+            "(la version française suit)",
             "",
             "[[/fr]]",
             "",
