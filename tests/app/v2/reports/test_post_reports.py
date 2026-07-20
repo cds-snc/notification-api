@@ -29,7 +29,7 @@ def test_post_report_returns_202(client, sample_service, mocker):
     assert report.requesting_user_id is None
     assert report.language == "en"
     assert response.headers["Location"] == f"/v2/reports/{report.id}"
-    mock_task.assert_called_once()
+    mock_task.assert_called_once_with([str(report.id), []], queue="generate-reports")
 
 
 def test_post_report_requires_language(client, sample_service, mocker):
