@@ -16,7 +16,7 @@ def send_bounce_rate_suspension_email(service_id: str, bounce_rate: float):
             "bounce_rate": round(bounce_rate * 100, 2),
             "failed_notifications_url_en": f"{current_app.config['ADMIN_BASE_URL']}/services/{service_id}/notifications/email?status=failed",
             "failed_notifications_url_fr": f"{current_app.config['ADMIN_BASE_URL']}/services/{service_id}/notifications/email?status=failed&lang=fr",
-            "service_dashboard_url": f"{current_app.config['ADMIN_BASE_URL']}/services/{service_id}",
+            "service_dashboard_url_en": f"{current_app.config['ADMIN_BASE_URL']}/services/{service_id}",
             "service_dashboard_url_fr": f"{current_app.config['ADMIN_BASE_URL']}/services/{service_id}?lang=fr",
         },
         include_user_fields=["name"],

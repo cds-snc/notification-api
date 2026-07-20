@@ -22,18 +22,22 @@ template_ids = [bounce_rate_warning_template_id]
 def _template_content():
     return "\n".join(
         [
-            "[[fr]](la version française suit)[[/fr]]",
+            "[[fr]]"
+            "",
+            "(la version française suit)"
+            "",
+            "[[/fr]]",
             "",
             "[[en]]",
-            "# Warning: Your service may be suspended",
+            "# Warning: ((service_name)) may be suspended from sending emails",
             "",
             "We've detected that **((service_name))** has an email bounce rate of **((bounce_rate))%** over the last 24 hours. This is above the 10% limit for **problem emails** permitted in our [Terms of Use](https://notification.canada.ca/terms).",
             "",
             "## Why this matters",
-            "A high bounce rate means many of your emails are not reaching recipients. If your bounce rate remains above 10% once your service has sent enough emails, we will suspend your service to protect delivery for all GC Notify users.",
+            "A high bounce rate means many of your emails are not reaching recipients. If your bounce rate remains above 10% once your service has sent enough emails, we will suspend **email sending** for your service to protect delivery for all GC Notify users.",
             "",
             "## What you should do now",
-            "Take action before your service is suspended:",
+            "Take action before email sending is suspended:",
             "",
             "1. [Review your problem emails](((failed_notifications_url_en))) to identify invalid addresses.",
             "2. Remove or correct these addresses in your system before sending again.",
@@ -47,15 +51,15 @@ def _template_content():
             "---",
             "",
             "[[fr]]",
-            "# Avertissement : Votre service pourrait être suspendu",
+            "# Avertissement : l’envoi de courriels pour ((service_name)) pourrait être suspendu",
             "",
             "Nous avons détecté que **((service_name))** a un taux de rebond de courriels de **((bounce_rate)) %** au cours des dernières 24 heures. Cela dépasse la limite de 10 % d'**adresses problématiques** autorisée dans nos [conditions d'utilisation](https://notification.canada.ca/terms).",
             "",
             "## Pourquoi est-ce important?",
-            "Un taux de rebond élevé signifie que bon nombre de vos courriels n'atteignent pas les destinataires. Si votre taux de rebond demeure supérieur à 10 % une fois que votre service aura envoyé suffisamment de courriels, nous suspendrons votre service afin de protéger la livraison pour tous les utilisateurs de Notification GC.",
+            "Un taux de rebond élevé signifie que bon nombre de vos courriels n'atteignent pas les destinataires. Si votre taux de rebond demeure supérieur à 10 % une fois que votre service aura envoyé suffisamment de courriels, nous suspendrons l'envoi de courriels pour votre service afin de protéger la livraison pour tous les utilisateurs de Notification GC.",
             "",
             "## Ce que vous devriez faire maintenant",
-            "Prenez des mesures avant que votre service ne soit suspendu :",
+            "Prenez des mesures avant que l'envoi de courriels ne soit suspendu :",
             "",
             "1. [Vérifiez vos adresses problématiques](((failed_notifications_url_fr))) pour repérer les adresses invalides.",
             "2. Retirez ou corrigez ces adresses dans votre système avant de tenter un nouvel envoi.",
@@ -84,12 +88,13 @@ def upgrade():
     template = {
         "id": bounce_rate_warning_template_id,
         "name": "Service bounce rate warning | Avertissement de taux de rebond du service",
-        "subject": "Warning: ((service_name)) may be suspended for high bounce rate | Avertissement : ((service_name)) pourrait etre suspendu pour taux de rebond eleve",
+        "subject": "Warning: ((service_name)) email sending may be suspended | Avertissement : envoi de courriels pour ((service_name)) pourrait etre suspendu",
         "content": _template_content(),
         "template_type": "email",
         "template_category_id": "1d8ce435-a7e5-431b-aaa2-a418bc4d14f9"
     }
     escaped_content = template["content"].replace("'", "''")
+    escaped_subject = template["subject"].replace("'", "''")
 
     op.execute(
         template_insert.format(
@@ -99,7 +104,7 @@ def upgrade():
             datetime.utcnow(),
             escaped_content,
             current_app.config["NOTIFY_SERVICE_ID"],
-            template["subject"],
+            escaped_subject,
             current_app.config["NOTIFY_USER_ID"],
             template["template_category_id"],
         )
@@ -113,7 +118,7 @@ def upgrade():
             datetime.utcnow(),
             escaped_content,
             current_app.config["NOTIFY_SERVICE_ID"],
-            template["subject"],
+            escaped_subject,
             current_app.config["NOTIFY_USER_ID"],
             template["template_category_id"],
         )
