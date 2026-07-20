@@ -4,7 +4,8 @@ from flask import current_app
 from pytest_mock import MockFixture
 
 from app.delivery import bounce_rate as bounce_rate_module
-from app.models import BounceRateStatus
+from app.models import EMAIL_TYPE, BounceRateStatus
+from tests.conftest import set_config_values
 
 
 class TestCheckServiceOverBounceRate:
@@ -15,13 +16,13 @@ class TestCheckServiceOverBounceRate:
             mocker.patch("app.bounce_rate_client.get_total_notifications", return_value=1500)
             mocker.patch("app.delivery.bounce_rate.redis_store")
             bounce_rate_module.redis_store.get.return_value = None
-            mock_suspend = mocker.patch("app.delivery.bounce_rate.dao_suspend_service")
+            mock_remove_perm = mocker.patch("app.delivery.bounce_rate.dao_remove_service_permission")
             mock_send_task = mocker.patch("app.delivery.bounce_rate.notify_celery.send_task")
             mock_logger = mocker.patch("app.delivery.bounce_rate.current_app.logger.warning")
 
             bounce_rate_module.check_service_over_bounce_rate(fake_uuid)
 
-            mock_suspend.assert_called_once_with(fake_uuid)
+            mock_remove_perm.assert_called_once_with(fake_uuid, EMAIL_TYPE)
             mock_send_task.assert_called_once_with(
                 "send-bounce-rate-suspension-email",
                 kwargs={"service_id": fake_uuid, "bounce_rate": current_app.config["BR_CRITICAL_PERCENTAGE"]},
@@ -37,28 +38,28 @@ class TestCheckServiceOverBounceRate:
             mocker.patch("app.bounce_rate_client.get_total_notifications", return_value=1500)
             mocker.patch("app.delivery.bounce_rate.redis_store")
             bounce_rate_module.redis_store.get.return_value = b"2026-07-15T00:00:00"
-            mock_suspend = mocker.patch("app.delivery.bounce_rate.dao_suspend_service")
+            mock_remove_perm = mocker.patch("app.delivery.bounce_rate.dao_remove_service_permission")
             mock_send_task = mocker.patch("app.delivery.bounce_rate.notify_celery.send_task")
 
             bounce_rate_module.check_service_over_bounce_rate(fake_uuid)
 
-            mock_suspend.assert_not_called()
+            mock_remove_perm.assert_not_called()
             mock_send_task.assert_not_called()
 
     def test_critical_low_volume_warns(self, mocker: MockFixture, notify_api, fake_uuid):
-        with notify_api.app_context():
+        with notify_api.app_context(), set_config_values(notify_api, {"BR_VOLUME_MINIMUM": 1000}):
             mocker.patch("app.bounce_rate_client.check_bounce_rate_status", return_value=BounceRateStatus.CRITICAL.value)
             mocker.patch("app.bounce_rate_client.get_bounce_rate", return_value=current_app.config["BR_CRITICAL_PERCENTAGE"])
             mocker.patch("app.bounce_rate_client.get_total_notifications", return_value=500)
             mocker.patch("app.delivery.bounce_rate.redis_store")
             bounce_rate_module.redis_store.get.return_value = None
-            mock_suspend = mocker.patch("app.delivery.bounce_rate.dao_suspend_service")
+            mock_remove_perm = mocker.patch("app.delivery.bounce_rate.dao_remove_service_permission")
             mock_send_task = mocker.patch("app.delivery.bounce_rate.notify_celery.send_task")
             mock_logger = mocker.patch("app.delivery.bounce_rate.current_app.logger.warning")
 
             bounce_rate_module.check_service_over_bounce_rate(fake_uuid)
 
-            mock_suspend.assert_not_called()
+            mock_remove_perm.assert_not_called()
             mock_send_task.assert_called_once_with(
                 "send-bounce-rate-warning-email",
                 kwargs={"service_id": fake_uuid, "bounce_rate": current_app.config["BR_CRITICAL_PERCENTAGE"]},
@@ -68,7 +69,7 @@ class TestCheckServiceOverBounceRate:
             mock_logger.assert_called_once()
 
     def test_critical_low_volume_already_warned(self, mocker: MockFixture, notify_api, fake_uuid):
-        with notify_api.app_context():
+        with notify_api.app_context(), set_config_values(notify_api, {"BR_VOLUME_MINIMUM": 1000}):
             mocker.patch("app.bounce_rate_client.check_bounce_rate_status", return_value=BounceRateStatus.CRITICAL.value)
             mocker.patch("app.bounce_rate_client.get_bounce_rate", return_value=current_app.config["BR_CRITICAL_PERCENTAGE"])
             mocker.patch("app.bounce_rate_client.get_total_notifications", return_value=500)

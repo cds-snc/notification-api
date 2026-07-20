@@ -4,8 +4,8 @@ from flask import current_app
 
 from app import bounce_rate_client, notify_celery, redis_store
 from app.config import QueueNames
-from app.dao.services_dao import dao_suspend_service
-from app.models import BounceRateStatus
+from app.dao.service_permissions_dao import dao_remove_service_permission
+from app.models import EMAIL_TYPE, BounceRateStatus
 
 TWENTY_FOUR_HOURS_IN_SECONDS = 24 * 60 * 60
 
@@ -35,11 +35,11 @@ def check_service_over_bounce_rate(service_id: str):
             cache_key = _bounce_rate_suspension_cache_key(service_id)
             if not redis_store.get(cache_key):
                 current_app.logger.warning(
-                    f"Service: {service_id} has been suspended as it has exceeded a critical bounce rate threshold of 10%. Bounce rate: {bounce_rate}"
+                    f"Service: {service_id} has had its email permission removed due to exceeding a critical bounce rate threshold of 10%. Bounce rate: {bounce_rate} "
                     f"with {total_notifications} emails sent."
                 )
                 if current_app.config["NOTIFY_ENVIRONMENT"] != "production":
-                    dao_suspend_service(service_id)
+                    dao_remove_service_permission(service_id, EMAIL_TYPE)
                     notify_celery.send_task(
                         "send-bounce-rate-suspension-email",
                         kwargs={"service_id": str(service_id), "bounce_rate": bounce_rate},
