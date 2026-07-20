@@ -234,10 +234,10 @@ class TestCreateFile:
             },
             _expected_status=400,
         )
-        assert response["message"]["error"] == "Total file size exceeds the 6MB limit."
-        assert response["message"]["current_usage"] == MAX_TOTAL_FILE_SIZE - 1000
-        assert response["message"]["requested"] == 1001
-        assert response["message"]["limit"] == MAX_TOTAL_FILE_SIZE
+        assert response["error"] == "over_file_limit"
+        assert response["current_usage"] == MAX_TOTAL_FILE_SIZE - 1000
+        assert response["requested"] == 1001
+        assert response["limit"] == MAX_TOTAL_FILE_SIZE
 
     def test_create_file_succeeds_when_total_size_exactly_at_6mb(
         self, mocker, notify_db, notify_db_session, admin_request, sample_service_full_permissions
@@ -305,10 +305,10 @@ class TestCreateFile:
             },
             _expected_status=400,
         )
-        assert response["message"]["error"] == "Total file size exceeds the 6MB limit."
-        assert response["message"]["current_usage"] == 0
-        assert response["message"]["requested"] == MAX_TOTAL_FILE_SIZE + 1
-        assert response["message"]["limit"] == MAX_TOTAL_FILE_SIZE
+        assert response["error"] == "over_file_limit"
+        assert response["current_usage"] == 0
+        assert response["requested"] == MAX_TOTAL_FILE_SIZE + 1
+        assert response["limit"] == MAX_TOTAL_FILE_SIZE
 
     def test_create_file_ignores_archived_files_in_size_calculation(
         self, mocker, notify_db, notify_db_session, admin_request, sample_service_full_permissions

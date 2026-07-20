@@ -87,15 +87,14 @@ def create_file(template_id):
     actual_file_size = len(file_data)
     total_size = existing_size + actual_file_size
     if total_size > MAX_TOTAL_FILE_SIZE:
-        raise InvalidRequest(
+        return jsonify(
             {
-                "error": "Total file size exceeds the 6MB limit.",
+                "error": "over_file_limit",
                 "current_usage": existing_size,
                 "requested": actual_file_size,
                 "limit": MAX_TOTAL_FILE_SIZE,
-            },
-            status_code=400,
-        )
+            }
+        ), 400
 
     try:
         uploaded_file = document_download_client.upload_template_attachment(service.id, file_data, filename, mime_type)
