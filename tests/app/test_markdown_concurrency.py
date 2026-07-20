@@ -2,103 +2,97 @@
 Regression tests for the mistune concurrency bug.
 
 Mistune 0.8.x Markdown instances hold mutable parse state and are not thread-safe.
-The fix in notification-utils uses threading.local so each thread gets its own
-parser instance. These tests verify that rendering email templates concurrently
-(as Celery workers do) does not produce corrupted output or raise exceptions.
+The fix in notification-utils wraps each renderer in a thread-local factory so
+each thread gets its own parser instance.
+
+The root cause: the old code created module-level mistune.Markdown singletons
+(e.g. `notify_email_markdown = mistune.Markdown(...)`). Under concurrent Celery
+thread-pool workers those shared instances had their parse state overwritten by
+other threads, producing token-mismatch errors in production.
+
+The fix: each renderer is now a plain Python function that lazily creates a
+per-thread mistune.Markdown instance via threading.local.
+
+These tests verify the fix is in place. Note: simply rendering templates
+concurrently is NOT a reliable way to detect this bug — Python's GIL prevents
+true parallelism for pure-Python code, so the race condition rarely triggers in
+tests even with the broken code. Instead we assert properties of the fix
+itself: that the formatters are functions (not shared objects) and that they
+hand each thread an isolated parser instance.
 
 See: fix/mistune-concurrency-issues in notification-utils
 """
 
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import inspect
+import threading
 
+import mistune
 import pytest
-from notifications_utils.template import HTMLEmailTemplate, PlainTextEmailTemplate
+from notifications_utils import formatters
 
-TEMPLATE_SAMPLES = [
-    {
-        "content": "Hello there",
-        "subject": "Simple subject",
-    },
-    {
-        "content": "# Heading\n\nA paragraph with **bold** text.",
-        "subject": "Markdown subject",
-    },
-    {
-        "content": "Here is a list:\n\n* item one\n* item two\n* item three\n",
-        "subject": "List email",
-    },
-    {
-        "content": "Line one\n\nLine two\n\nLine three",
-        "subject": "Multi paragraph",
-    },
-    {
-        "content": "Visit https://example.com for more info.\n\nThanks.",
-        "subject": "Link email",
-    },
+# The four rendering functions that were previously shared Markdown singletons.
+FORMATTER_NAMES = [
+    "notify_email_markdown",
+    "notify_plain_text_email_markdown",
+    "notify_email_preheader_markdown",
+    "notify_letter_preview_markdown",
 ]
 
 
-def _render_html(i):
-    template_dict = TEMPLATE_SAMPLES[i % len(TEMPLATE_SAMPLES)]
-    return str(HTMLEmailTemplate({"content": template_dict["content"], "subject": template_dict["subject"]}))
-
-
-def _render_plain_text(i):
-    template_dict = TEMPLATE_SAMPLES[i % len(TEMPLATE_SAMPLES)]
-    return str(PlainTextEmailTemplate({"content": template_dict["content"], "subject": template_dict["subject"]}))
-
-
-@pytest.mark.parametrize(
-    "render_fn, expected_count",
-    [
-        (_render_html, 200),
-        (_render_plain_text, 200),
-    ],
-    ids=["HTMLEmailTemplate", "PlainTextEmailTemplate"],
-)
-def test_email_template_rendering_is_safe_under_concurrency(render_fn, expected_count):
+@pytest.mark.parametrize("name", FORMATTER_NAMES)
+def test_markdown_formatter_is_a_function_not_a_shared_instance(name):
     """
-    Verify that rendering email templates from multiple threads concurrently does
-    not raise exceptions or produce corrupted results.
+    Before the fix each formatter was a module-level mistune.Markdown object.
+    After the fix each formatter must be a plain Python function that wraps a
+    thread-local Markdown instance.
 
-    Before the fix, shared Mistune Markdown instances caused token-mismatch errors
-    under concurrent load (e.g. from Celery workers).
+    This test FAILS on notification-utils <= 53.2.29 (the buggy release) and
+    PASSES on the fixed release.
     """
-    with ThreadPoolExecutor(max_workers=16) as executor:
-        futures = [executor.submit(render_fn, i) for i in range(expected_count)]
-        results = [f.result() for f in as_completed(futures)]
+    fn = getattr(formatters, name)
+    assert inspect.isfunction(fn), (
+        f"notifications_utils.formatters.{name} is a {type(fn).__name__}, not a function. "
+        "This means a shared mistune.Markdown instance is being used across threads "
+        "(the concurrency bug). Upgrade notification-utils to the version that introduces "
+        "thread-local markdown renderers."
+    )
 
-    assert len(results) == expected_count
-    assert all(isinstance(r, str) and len(r) > 0 for r in results)
 
-
-def test_html_email_template_concurrent_output_is_deterministic():
+@pytest.mark.parametrize("name", FORMATTER_NAMES)
+def test_each_thread_gets_an_isolated_markdown_instance(name):
     """
-    The same input must always produce the same HTML output regardless of
-    which thread renders it.
+    The fix stores a separate mistune.Markdown object per thread in threading.local.
+    Verify that two threads calling the same formatter function never share the
+    same underlying Markdown parser object.
+
+    This test FAILS on the buggy release (there is only one shared instance so
+    both threads see the same id()) and PASSES on the fixed release.
     """
-    template_dict = {"content": "# Hello\n\nThis is **important**.", "subject": "Test"}
+    fn = getattr(formatters, name)
+    collected = {}
+    barrier = threading.Barrier(2)
 
-    def render(_):
-        return str(HTMLEmailTemplate(template_dict))
+    def capture(thread_id):
+        # Warm up the thread-local so the instance is created.
+        fn("hello")
+        barrier.wait()  # ensure both threads are alive at the same time
+        # Read back the instance that was stored for this thread.
+        collected[thread_id] = getattr(formatters._markdown_local, name, None)
 
-    with ThreadPoolExecutor(max_workers=16) as executor:
-        results = list(executor.map(render, range(100)))
+    t1 = threading.Thread(target=capture, args=(1,))
+    t2 = threading.Thread(target=capture, args=(2,))
+    t1.start()
+    t2.start()
+    t1.join()
+    t2.join()
 
-    assert len(set(results)) == 1, "Concurrent renders produced different HTML outputs"
+    instance_1 = collected[1]
+    instance_2 = collected[2]
 
-
-def test_plain_text_email_template_concurrent_output_is_deterministic():
-    """
-    The same input must always produce the same plain-text output regardless of
-    which thread renders it.
-    """
-    template_dict = {"content": "# Hello\n\nThis is **important**.", "subject": "Test"}
-
-    def render(_):
-        return str(PlainTextEmailTemplate(template_dict))
-
-    with ThreadPoolExecutor(max_workers=16) as executor:
-        results = list(executor.map(render, range(100)))
-
-    assert len(set(results)) == 1, "Concurrent renders produced different plain-text outputs"
+    assert instance_1 is not None, f"Thread 1 did not create a {name} instance"
+    assert instance_2 is not None, f"Thread 2 did not create a {name} instance"
+    assert isinstance(instance_1, mistune.Markdown)
+    assert isinstance(instance_2, mistune.Markdown)
+    assert instance_1 is not instance_2, (
+        f"Both threads share the same mistune.Markdown instance for {name}. " "The thread-safety fix is not in place."
+    )
