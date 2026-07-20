@@ -679,3 +679,162 @@ class TestAllSendPathsIncludeTemplateAttachments:
         call_kwargs = provider_mock.send_email.call_args[1]
         attachments = call_kwargs["attachments"]
         assert len(attachments) == 0  # No files in DB for this test
+
+
+class TestPersistTemplateAttachmentMetadata:
+    """Test that template attachment metadata is persisted into notification.personalisation for history display."""
+
+    def test_persists_metadata_for_bulk_send_without_existing_file_keys(self, sample_service, sample_email_template, mocker):
+        """Bulk sends have no _file_N keys in personalisation — metadata should be written."""
+        notification = save_notification(
+            create_notification(
+                template=sample_email_template,
+                to_field="test@example.com",
+                personalisation={"name": "Jo"},
+            )
+        )
+        notification.job_id = uuid.uuid4()
+
+        file_metadata = [
+            {
+                "name": "report.pdf",
+                "document_id": "doc-1",
+                "mime_type": "application/pdf",
+                "service_id": str(sample_service.id),
+                "file_id": "file-1",
+            },
+            {
+                "name": "summary.docx",
+                "document_id": "doc-2",
+                "mime_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                "service_id": str(sample_service.id),
+                "file_id": "file-2",
+            },
+        ]
+
+        mocker.patch(
+            "app.delivery.send_to_providers._get_template_files_from_cache_or_db",
+            return_value=file_metadata,
+        )
+
+        send_to_providers._persist_template_attachment_metadata(notification)
+
+        assert "_file_0" in notification.personalisation
+        assert "_file_1" in notification.personalisation
+        assert notification.personalisation["_file_0"]["document"]["id"] == "doc-1"
+        assert notification.personalisation["_file_0"]["document"]["filename"] == "report.pdf"
+        assert notification.personalisation["_file_0"]["document"]["sending_method"] == "template_attach"
+        assert notification.personalisation["_file_1"]["document"]["id"] == "doc-2"
+        assert notification.personalisation["_file_1"]["document"]["filename"] == "summary.docx"
+        # Original personalisation preserved
+        assert notification.personalisation["name"] == "Jo"
+
+    def test_does_not_overwrite_existing_file_keys_from_one_off_send(self, sample_service, sample_email_template, mocker):
+        """One-off sends already have _file_0 from admin — should not overwrite."""
+        notification = save_notification(
+            create_notification(
+                template=sample_email_template,
+                to_field="test@example.com",
+                personalisation={
+                    "name": "Jo",
+                    "_file_0": {
+                        "document": {
+                            "id": "admin-populated-id",
+                            "filename": "admin-file.pdf",
+                            "mime_type": "application/pdf",
+                            "sending_method": "template_attach",
+                        }
+                    },
+                },
+            )
+        )
+
+        mocker.patch(
+            "app.delivery.send_to_providers._get_template_files_from_cache_or_db",
+            return_value=[
+                {
+                    "name": "different-file.pdf",
+                    "document_id": "doc-99",
+                    "mime_type": "application/pdf",
+                    "service_id": str(sample_service.id),
+                    "file_id": "file-99",
+                },
+            ],
+        )
+
+        send_to_providers._persist_template_attachment_metadata(notification)
+
+        # Should NOT have been overwritten
+        assert notification.personalisation["_file_0"]["document"]["id"] == "admin-populated-id"
+        assert "_file_1" not in notification.personalisation
+
+    def test_does_nothing_when_no_template_files(self, sample_service, sample_email_template, mocker):
+        """No template files means no changes to personalisation."""
+        notification = save_notification(
+            create_notification(
+                template=sample_email_template,
+                to_field="test@example.com",
+                personalisation={"name": "Jo"},
+            )
+        )
+
+        mocker.patch(
+            "app.delivery.send_to_providers._get_template_files_from_cache_or_db",
+            return_value=[],
+        )
+
+        send_to_providers._persist_template_attachment_metadata(notification)
+
+        assert "_file_0" not in notification.personalisation
+        assert notification.personalisation == {"name": "Jo"}
+
+    def test_metadata_persisted_during_send_email_to_provider(self, sample_service, sample_email_template, mocker):
+        """Integration: send_email_to_provider persists metadata and it survives dao_update_notification."""
+        notification = save_notification(
+            create_notification(
+                template=sample_email_template,
+                to_field="test@example.com",
+                personalisation={"name": "Jo"},
+            )
+        )
+        notification.job_id = uuid.uuid4()
+
+        file_metadata = [
+            {
+                "name": "bulk-file.pdf",
+                "document_id": "doc-bulk",
+                "mime_type": "application/pdf",
+                "service_id": str(sample_service.id),
+                "file_id": "file-bulk",
+            },
+        ]
+
+        mocker.patch(
+            "app.delivery.send_to_providers._get_template_files_from_cache_or_db",
+            return_value=file_metadata,
+        )
+        mocker.patch(
+            "app.delivery.send_to_providers._download_template_file",
+            return_value={"name": "bulk-file.pdf", "data": b"content", "mime_type": "application/pdf"},
+        )
+        mocker.patch("app.delivery.send_to_providers.dao_get_template_by_id")
+        mocker.patch("app.delivery.send_to_providers.is_service_allowed_html", return_value=False)
+        mocker.patch("app.delivery.send_to_providers.get_html_email_options", return_value={})
+        mocker.patch("app.delivery.send_to_providers.HTMLEmailTemplate")
+        mocker.patch("app.delivery.send_to_providers.PlainTextEmailTemplate")
+        mocker.patch("app.delivery.send_to_providers.send_email_response", return_value="ref-123")
+
+        provider_mock = MagicMock()
+        provider_mock.send_email.return_value = "ses-ref"
+        provider_mock.get_name.return_value = "ses"
+        mocker.patch("app.delivery.send_to_providers.provider_to_use", return_value=provider_mock)
+
+        send_to_providers.send_email_to_provider(notification)
+
+        # Verify personalisation now has template attachment metadata
+        assert "_file_0" in notification.personalisation
+        assert notification.personalisation["_file_0"]["document"]["id"] == "doc-bulk"
+        assert notification.personalisation["_file_0"]["document"]["filename"] == "bulk-file.pdf"
+        assert notification.personalisation["_file_0"]["document"]["sending_method"] == "template_attach"
+        # Original personalisation preserved
+        assert notification.personalisation["name"] == "Jo"

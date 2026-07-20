@@ -189,6 +189,38 @@ def _get_template_attachments(notification: Notification) -> List[Dict[str, Any]
     return template_attachments
 
 
+def _persist_template_attachment_metadata(notification: Notification) -> None:
+    """
+    This helper method fetches and writes template file attachment metadata into
+    notification -> personalisation so it is available for the notification history page.
+
+    For one-off sends we populate that file metadata before calling the API, we need to
+    do the same for each notification of a bulk send.
+    """
+    personalisation = notification.personalisation or {}
+
+    # If admin already populated template attachment personalisation, skip
+    if "_file_0" in personalisation:
+        return
+
+    file_metadata = _get_template_files_from_cache_or_db(notification.job_id, notification.template_id)
+    if not file_metadata:
+        return
+
+    updated_personalisation = personalisation.copy()
+    for index, file_info in enumerate(file_metadata):
+        updated_personalisation[f"_file_{index}"] = {
+            "document": {
+                "id": file_info["document_id"],
+                "filename": file_info["name"],
+                "mime_type": file_info["mime_type"],
+                "sending_method": "template_attach",
+            }
+        }
+
+    notification.personalisation = updated_personalisation
+
+
 def send_sms_to_provider(notification):
     service = notification.service
 
@@ -469,6 +501,12 @@ def send_email_to_provider(notification: Notification):
     # Fetch and merge template file attachments
     template_attachments = _get_template_attachments(notification)
     attachments = attachments + template_attachments
+
+    # Persist template attachment metadata into notification.personalisation so that
+    # the notification history page can display them later (bulk sends don't have
+    # this info pre-populated by the admin like one-off sends do).
+    if template_attachments:
+        _persist_template_attachment_metadata(notification)
 
     template_obj = dao_get_template_by_id(notification.template_id, notification.template_version)
     template_dict = template_obj.__dict__
