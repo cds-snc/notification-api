@@ -2861,7 +2861,7 @@ requests = ">=2.0.0"
 
 [[package]]
 name = "notifications-utils"
-version = "53.2.29"
+version = "53.2.30"
 description = "Shared python code for Notification - Provides logging utils etc."
 optional = false
 python-versions = "~3.12.7"
@@ -2897,8 +2897,8 @@ werkzeug = "3.1.6"
 [package.source]
 type = "git"
 url = "https://github.com/cds-snc/notifier-utils.git"
-reference = "53.2.29"
-resolved_reference = "a58115657654e6037c598fee1e0a592929c37400"
+reference = "fix/mistune-concurrency-issues"
+resolved_reference = "cb751ff3ebf74347be4e15de3dbfb3a9a564a609"
 
 [[package]]
 name = "opentelemetry-api"
@@ -5212,4 +5212,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.12.7"
-content-hash = "8d40c2da7b0dfdbc6a9de22735d1fa721dac5dbbeb2fdbef874534fe685805b0"
+content-hash = "58619e9765a0031e34ba8bac94303018d32679eb48f03c7715d41b3c4afdc8a7"
