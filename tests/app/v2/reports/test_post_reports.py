@@ -1,19 +1,13 @@
 import json
 
-from app.config import configs
 from app.dao.reports_dao import get_report_by_id
 from app.models import ReportStatus
 from tests import create_authorization_header
 
 
-def test_report_api_disabled_by_default_in_production():
-    # The feature must stay hidden in production unless FF_REPORT_API is explicitly enabled.
-    assert configs["production"].FF_REPORT_API is False
-
-
-def test_post_report_returns_202(client, sample_service, mocker):
+def test_post_report_returns_202(client, sample_service, mocker, create_api_key_with_manage_reports_perm):
     mock_task = mocker.patch("app.v2.reports.post_reports.generate_report.apply_async")
-    auth_header = create_authorization_header(service_id=sample_service.id)
+    auth_header = create_authorization_header(api_key=create_api_key_with_manage_reports_perm)
 
     response = client.post(
         path="/v2/reports",
@@ -32,9 +26,9 @@ def test_post_report_returns_202(client, sample_service, mocker):
     mock_task.assert_called_once_with([str(report.id), []], queue="generate-reports")
 
 
-def test_post_report_requires_language(client, sample_service, mocker):
+def test_post_report_requires_language(client, mocker, create_api_key_with_manage_reports_perm):
     mocker.patch("app.v2.reports.post_reports.generate_report.apply_async")
-    auth_header = create_authorization_header(service_id=sample_service.id)
+    auth_header = create_authorization_header(api_key=create_api_key_with_manage_reports_perm)
 
     response = client.post(
         path="/v2/reports",
@@ -45,9 +39,9 @@ def test_post_report_requires_language(client, sample_service, mocker):
     assert response.status_code == 400
 
 
-def test_post_report_rejects_invalid_language(client, sample_service, mocker):
+def test_post_report_rejects_invalid_language(client, mocker, create_api_key_with_manage_reports_perm):
     mocker.patch("app.v2.reports.post_reports.generate_report.apply_async")
-    auth_header = create_authorization_header(service_id=sample_service.id)
+    auth_header = create_authorization_header(api_key=create_api_key_with_manage_reports_perm)
 
     response = client.post(
         path="/v2/reports",
@@ -58,9 +52,9 @@ def test_post_report_rejects_invalid_language(client, sample_service, mocker):
     assert response.status_code == 400
 
 
-def test_post_job_report_requires_job_id(client, sample_service, mocker):
+def test_post_job_report_requires_job_id(client, mocker, create_api_key_with_manage_reports_perm):
     mocker.patch("app.v2.reports.post_reports.generate_report.apply_async")
-    auth_header = create_authorization_header(service_id=sample_service.id)
+    auth_header = create_authorization_header(api_key=create_api_key_with_manage_reports_perm)
 
     response = client.post(
         path="/v2/reports",
@@ -71,9 +65,9 @@ def test_post_job_report_requires_job_id(client, sample_service, mocker):
     assert response.status_code == 400
 
 
-def test_post_job_report_with_job_id_returns_202(client, sample_job, mocker):
+def test_post_job_report_with_job_id_returns_202(client, sample_job, mocker, create_api_key_with_manage_reports_perm):
     mocker.patch("app.v2.reports.post_reports.generate_report.apply_async")
-    auth_header = create_authorization_header(service_id=sample_job.service_id)
+    auth_header = create_authorization_header(api_key=create_api_key_with_manage_reports_perm)
 
     response = client.post(
         path="/v2/reports",
@@ -86,9 +80,9 @@ def test_post_job_report_with_job_id_returns_202(client, sample_job, mocker):
     assert str(report.job_id) == str(sample_job.id)
 
 
-def test_post_report_rejects_invalid_report_type(client, sample_service, mocker):
+def test_post_report_rejects_invalid_report_type(client, mocker, create_api_key_with_manage_reports_perm):
     mocker.patch("app.v2.reports.post_reports.generate_report.apply_async")
-    auth_header = create_authorization_header(service_id=sample_service.id)
+    auth_header = create_authorization_header(api_key=create_api_key_with_manage_reports_perm)
 
     response = client.post(
         path="/v2/reports",
@@ -97,6 +91,21 @@ def test_post_report_rejects_invalid_report_type(client, sample_service, mocker)
     )
 
     assert response.status_code == 400
+
+
+def test_post_report_returns_403_without_manage_reports_permission(client, mocker, create_api_key_no_perm):
+    mocker.patch("app.v2.reports.post_reports.generate_report.apply_async")
+    auth_header = create_authorization_header(api_key=create_api_key_no_perm)
+
+    response = client.post(
+        path="/v2/reports",
+        data=json.dumps({"report_type": "email", "language": "en"}),
+        headers=[("Content-Type", "application/json"), auth_header],
+    )
+
+    assert response.status_code == 403
+    data = json.loads(response.get_data(as_text=True))
+    assert "manage reports" in data["errors"][0]["message"].lower()
 
 
 def test_post_report_requires_authentication(client):
