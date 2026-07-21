@@ -32,8 +32,7 @@ def post_report():
     created_report = create_report(report)
 
     current_app.logger.info(f"Report {created_report.id} requested via API for service {authenticated_service.id}")
-    generate_report.apply_async([created_report.id, []], queue=QueueNames.GENERATE_REPORTS)
-
+    generate_report.apply_async([str(created_report.id), []], queue=QueueNames.GENERATE_REPORTS)
     response = jsonify(report_id=str(created_report.id), status=created_report.status)
     response.status_code = 202
     response.headers["Location"] = f"/v2/reports/{created_report.id}"

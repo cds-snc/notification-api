@@ -54,6 +54,7 @@ from app.models import (
     KEY_TYPE_TEST,
     LETTER_TYPE,
     SMS_TYPE,
+    UPLOAD_DOCUMENT,
     ApiKey,
     InvitedUser,
     Job,
@@ -646,6 +647,7 @@ def test_create_service_returns_service_with_default_permissions(notify_db_sessi
             SMS_TYPE,
             EMAIL_TYPE,
             INTERNATIONAL_SMS_TYPE,
+            UPLOAD_DOCUMENT,
         ),
     )
 
@@ -658,14 +660,12 @@ def test_create_service_returns_service_with_default_permissions(notify_db_sessi
             (
                 EMAIL_TYPE,
                 INTERNATIONAL_SMS_TYPE,
+                UPLOAD_DOCUMENT,
             ),
         ),
         (
             EMAIL_TYPE,
-            (
-                SMS_TYPE,
-                INTERNATIONAL_SMS_TYPE,
-            ),
+            (SMS_TYPE, INTERNATIONAL_SMS_TYPE, UPLOAD_DOCUMENT),
         ),
     ],
 )
@@ -699,7 +699,7 @@ def test_create_service_by_id_adding_and_removing_letter_returns_service_without
     dao_add_service_permission(service_id=service.id, permission=LETTER_TYPE)
 
     service = dao_fetch_service_by_id(service.id)
-    _assert_service_permissions(service.permissions, (SMS_TYPE, EMAIL_TYPE, INTERNATIONAL_SMS_TYPE, LETTER_TYPE))
+    _assert_service_permissions(service.permissions, (SMS_TYPE, EMAIL_TYPE, INTERNATIONAL_SMS_TYPE, LETTER_TYPE, UPLOAD_DOCUMENT))
 
     dao_remove_service_permission(service_id=service.id, permission=LETTER_TYPE)
     service = dao_fetch_service_by_id(service.id)
@@ -710,6 +710,7 @@ def test_create_service_by_id_adding_and_removing_letter_returns_service_without
             SMS_TYPE,
             EMAIL_TYPE,
             INTERNATIONAL_SMS_TYPE,
+            UPLOAD_DOCUMENT,
         ),
     )
 
@@ -862,6 +863,7 @@ def test_delete_service_and_associated_objects(notify_db_session):
             SMS_TYPE,
             EMAIL_TYPE,
             INTERNATIONAL_SMS_TYPE,
+            UPLOAD_DOCUMENT,
         )
     )
 

@@ -381,6 +381,9 @@ class Config(object):
     SERVICE_BOUNCE_RATE_SUSPENDED_TEMPLATE_ID = (
         "6963bb3c-a717-46a0-9591-68588193696a"  # Sent when a service is suspended for exceeding bounce-rate limits
     )
+    SERVICE_SUSPENDED_WARNING_TEMPLATE_ID = (
+        "5e5952b4-a156-44bc-9cc2-059a3c9a7eb3"  # Sent to warn a service about potential suspension due to high bounce rate
+    )
 
     # Newsletter templates
     NEWSLETTER_CONFIRMATION_EMAIL_TEMPLATE_ID_EN = "c8ee07a2-7cf4-4a32-9cc2-6763b5bc47a6"
@@ -434,6 +437,7 @@ class Config(object):
         "app.celery.reporting_tasks",
         "app.celery.nightly_tasks",
         "app.celery.process_pinpoint_receipts_tasks",
+        "app.celery.bounce_rate_tasks",
     )
     CELERYBEAT_SCHEDULE = {
         # app/celery/scheduled_tasks.py
@@ -683,7 +687,7 @@ class Config(object):
     CLOUDWATCH_AGENT_ENDPOINT = os.getenv("CLOUDWATCH_AGENT_ENDPOINT", f"tcp://{STATSD_HOST}:{CLOUDWATCH_AGENT_EMF_PORT}")
 
     # Bounce Rate parameters
-    BR_VOLUME_MINIMUM = 1000
+    BR_VOLUME_MINIMUM = int(os.getenv("BR_VOLUME_MINIMUM", 1000))
     BR_WARNING_PERCENTAGE = 0.05
     BR_CRITICAL_PERCENTAGE = 0.1
 

@@ -1,5 +1,6 @@
 from app.models import ReportType
 from app.schema_validation.definitions import nullable_uuid
+from app.schema_validation.definitions import uuid as uuid_schema
 
 post_report_request = {
     "$schema": "http://json-schema.org/draft-07/schema#",
@@ -13,6 +14,6 @@ post_report_request = {
     },
     "required": ["report_type", "language"],
     "additionalProperties": False,
-    "if": {"properties": {"report_type": {"const": "job"}}},
-    "then": {"required": ["job_id"]},
+    "if": {"properties": {"report_type": {"const": "job"}}, "required": ["report_type"]},
+    "then": {"properties": {"job_id": uuid_schema}, "required": ["job_id"]},
 }
