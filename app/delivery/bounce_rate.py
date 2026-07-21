@@ -40,14 +40,18 @@ def check_service_over_bounce_rate(service_id: str):
                     f"with {total_notifications} emails sent."
                 )
                 if current_app.config["NOTIFY_ENVIRONMENT"] != "production":
-                    deleted = dao_remove_service_permission(service_id, EMAIL_TYPE)
-                    redis_store.delete(service_cache_key(service_id))
-                    current_app.logger.info(f"dao_remove_service_permission returned {deleted} for service {service_id}")
-                    notify_celery.send_task(
-                        "send-bounce-rate-suspension-email",
-                        kwargs={"service_id": str(service_id), "bounce_rate": bounce_rate},
-                        queue=QueueNames.NOTIFY,
-                    )
+                    try:
+                        deleted = dao_remove_service_permission(service_id, EMAIL_TYPE)
+                        redis_store.delete(service_cache_key(service_id))
+                        current_app.logger.info(f"dao_remove_service_permission returned {deleted} for service {service_id}")
+                        notify_celery.send_task(
+                            "send-bounce-rate-suspension-email",
+                            kwargs={"service_id": str(service_id), "bounce_rate": bounce_rate},
+                            queue=QueueNames.NOTIFY,
+                        )
+                    except Exception:
+                        current_app.logger.exception(f"Failed to suspend service {service_id}, clearing cache key to allow retry")
+                        redis_store.delete(cache_key)
         else:
             # Volume threshold NOT met — warn only
             cache_key = _bounce_rate_warning_cache_key(service_id)
@@ -57,11 +61,17 @@ def check_service_over_bounce_rate(service_id: str):
                     f"{total_notifications} emails (< {min_volume}). Sending warning email."
                 )
                 if current_app.config["NOTIFY_ENVIRONMENT"] != "production":
-                    notify_celery.send_task(
-                        "send-bounce-rate-warning-email",
-                        kwargs={"service_id": str(service_id), "bounce_rate": bounce_rate},
-                        queue=QueueNames.NOTIFY,
-                    )
+                    try:
+                        notify_celery.send_task(
+                            "send-bounce-rate-warning-email",
+                            kwargs={"service_id": str(service_id), "bounce_rate": bounce_rate},
+                            queue=QueueNames.NOTIFY,
+                        )
+                    except Exception:
+                        current_app.logger.exception(
+                            f"Failed to send warning email for service {service_id}, clearing cache key to allow retry"
+                        )
+                        redis_store.delete(cache_key)
 
     elif bounce_rate_status == BounceRateStatus.WARNING.value:
         current_app.logger.warning(
