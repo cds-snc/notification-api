@@ -33,6 +33,7 @@ from app.models import (
     KEY_TYPE_TEST,
     LETTER_TYPE,
     SMS_TYPE,
+    UPLOAD_DOCUMENT,
     EmailBranding,
     InboundNumber,
     Notification,
@@ -295,6 +296,7 @@ def test_get_service_list_has_default_permissions(admin_request, service_factory
                 EMAIL_TYPE,
                 SMS_TYPE,
                 INTERNATIONAL_SMS_TYPE,
+                UPLOAD_DOCUMENT,
             ]
         )
         for json in json_resp["data"]
@@ -309,6 +311,7 @@ def test_get_service_by_id_has_default_service_permissions(admin_request, sample
             EMAIL_TYPE,
             SMS_TYPE,
             INTERNATIONAL_SMS_TYPE,
+            UPLOAD_DOCUMENT,
         ]
     )
 
