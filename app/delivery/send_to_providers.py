@@ -159,19 +159,22 @@ def _download_template_file(
         return None
 
 
-def _get_template_attachments(notification: Notification) -> List[Dict[str, Any]]:
+def _get_template_attachments(notification: Notification) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     """
     Fetch and download template file attachments for a notification.
 
-    Returns list of attachment dicts: [{"name": str, "data": bytes, "mime_type": str}, ...]
+    Returns a tuple of:
+      - downloaded attachments: [{"name": str, "data": bytes, "mime_type": str}, ...]
+      - metadata for successfully downloaded files (for persistence to personalisation)
     """
     template_attachments = []
+    successful_metadata = []
 
     # Get file metadata from cache or DB
     file_metadata = _get_template_files_from_cache_or_db(notification.job_id, notification.template_id)
 
     if not file_metadata:
-        return []
+        return [], []
 
     service_id = notification.service.id
 
@@ -184,23 +187,25 @@ def _get_template_attachments(notification: Notification) -> List[Dict[str, Any]
         )
         if attachment:
             template_attachments.append(attachment)
+            successful_metadata.append(file_info)
         else:
             current_app.logger.warning(f"Skipping template file {file_info['file_id']} for notification {notification.id}")
 
-    return template_attachments
+    return template_attachments, successful_metadata
 
 
-def _persist_template_attachment_metadata(notification: Notification) -> None:
+def _persist_template_attachment_metadata(notification: Notification, file_metadata: List[Dict[str, Any]]) -> None:
     """
     Write template file attachment metadata into notification.personalisation
     so it is available for the notification history page.
 
     For one-off sends, the admin pre-populates _file_N keys before calling the API.
     For bulk sends, this data is missing because the CSV personalisation only contains
-    user-provided columns. This function fills that gap by reading the same file metadata
-    used to download attachments and writing it into the personalisation record.
+    user-provided columns. This function fills that gap using metadata for files that
+    were actually downloaded and attached to the email.
 
     Only writes if _file_0 is not already present (avoids overwriting one-off send data).
+    metadata is persisted once the notification status is updated to `sending`.
     """
     personalisation = notification.personalisation or {}
 
@@ -208,7 +213,6 @@ def _persist_template_attachment_metadata(notification: Notification) -> None:
     if "_file_0" in personalisation:
         return
 
-    file_metadata = _get_template_files_from_cache_or_db(notification.job_id, notification.template_id)
     if not file_metadata:
         return
 
@@ -505,14 +509,14 @@ def send_email_to_provider(notification: Notification):
             personalisation_data[key] = personalisation_data[key]["document"]["url"]
 
     # Fetch and merge template file attachments
-    template_attachments = _get_template_attachments(notification)
+    template_attachments, template_file_metadata = _get_template_attachments(notification)
     attachments = attachments + template_attachments
 
     # Persist template attachment metadata into notification.personalisation so that
     # the notification history page can display them later (bulk sends don't have
     # this info pre-populated by the admin like one-off sends do).
-    if template_attachments:
-        _persist_template_attachment_metadata(notification)
+    if template_file_metadata:
+        _persist_template_attachment_metadata(notification, template_file_metadata)
 
     template_obj = dao_get_template_by_id(notification.template_id, notification.template_version)
     template_dict = template_obj.__dict__
