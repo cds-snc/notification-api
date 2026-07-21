@@ -103,6 +103,7 @@ def _get_template_files_from_cache_or_db(job_id: Optional[UUID], template_id: UU
                 "mime_type": file.mime_type,
                 "service_id": str(file.service_id),
                 "file_id": str(file.id),
+                "file_size": file.file_size,
             }
         )
 
@@ -191,11 +192,15 @@ def _get_template_attachments(notification: Notification) -> List[Dict[str, Any]
 
 def _persist_template_attachment_metadata(notification: Notification) -> None:
     """
-    This helper method fetches and writes template file attachment metadata into
-    notification -> personalisation so it is available for the notification history page.
+    Write template file attachment metadata into notification.personalisation
+    so it is available for the notification history page.
 
-    For one-off sends we populate that file metadata before calling the API, we need to
-    do the same for each notification of a bulk send.
+    For one-off sends, the admin pre-populates _file_N keys before calling the API.
+    For bulk sends, this data is missing because the CSV personalisation only contains
+    user-provided columns. This function fills that gap by reading the same file metadata
+    used to download attachments and writing it into the personalisation record.
+
+    Only writes if _file_0 is not already present (avoids overwriting one-off send data).
     """
     personalisation = notification.personalisation or {}
 
@@ -214,6 +219,7 @@ def _persist_template_attachment_metadata(notification: Notification) -> None:
                 "id": file_info["document_id"],
                 "filename": file_info["name"],
                 "mime_type": file_info["mime_type"],
+                "file_size": file_info.get("file_size"),
                 "sending_method": "template_attach",
             }
         }

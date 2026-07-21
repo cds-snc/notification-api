@@ -702,6 +702,7 @@ class TestPersistTemplateAttachmentMetadata:
                 "mime_type": "application/pdf",
                 "service_id": str(sample_service.id),
                 "file_id": "file-1",
+                "file_size": 102400,
             },
             {
                 "name": "summary.docx",
@@ -709,6 +710,7 @@ class TestPersistTemplateAttachmentMetadata:
                 "mime_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
                 "service_id": str(sample_service.id),
                 "file_id": "file-2",
+                "file_size": 204800,
             },
         ]
 
@@ -724,8 +726,10 @@ class TestPersistTemplateAttachmentMetadata:
         assert notification.personalisation["_file_0"]["document"]["id"] == "doc-1"
         assert notification.personalisation["_file_0"]["document"]["filename"] == "report.pdf"
         assert notification.personalisation["_file_0"]["document"]["sending_method"] == "template_attach"
+        assert notification.personalisation["_file_0"]["document"]["file_size"] == 102400
         assert notification.personalisation["_file_1"]["document"]["id"] == "doc-2"
         assert notification.personalisation["_file_1"]["document"]["filename"] == "summary.docx"
+        assert notification.personalisation["_file_1"]["document"]["file_size"] == 204800
         # Original personalisation preserved
         assert notification.personalisation["name"] == "Jo"
 
@@ -758,6 +762,7 @@ class TestPersistTemplateAttachmentMetadata:
                     "mime_type": "application/pdf",
                     "service_id": str(sample_service.id),
                     "file_id": "file-99",
+                    "file_size": 1024,
                 },
             ],
         )
@@ -806,6 +811,7 @@ class TestPersistTemplateAttachmentMetadata:
                 "mime_type": "application/pdf",
                 "service_id": str(sample_service.id),
                 "file_id": "file-bulk",
+                "file_size": 51200,
             },
         ]
 
@@ -836,5 +842,6 @@ class TestPersistTemplateAttachmentMetadata:
         assert notification.personalisation["_file_0"]["document"]["id"] == "doc-bulk"
         assert notification.personalisation["_file_0"]["document"]["filename"] == "bulk-file.pdf"
         assert notification.personalisation["_file_0"]["document"]["sending_method"] == "template_attach"
+        assert notification.personalisation["_file_0"]["document"]["file_size"] == 51200
         # Original personalisation preserved
         assert notification.personalisation["name"] == "Jo"
