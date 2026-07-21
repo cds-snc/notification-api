@@ -15,7 +15,7 @@ class TestCheckServiceOverBounceRate:
             mocker.patch("app.bounce_rate_client.get_bounce_rate", return_value=current_app.config["BR_CRITICAL_PERCENTAGE"])
             mocker.patch("app.bounce_rate_client.get_total_notifications", return_value=1500)
             mocker.patch("app.delivery.bounce_rate.redis_store")
-            bounce_rate_module.redis_store.get.return_value = None
+            bounce_rate_module.redis_store.set.return_value = True  # nx=True succeeds
             mock_remove_perm = mocker.patch("app.delivery.bounce_rate.dao_remove_service_permission")
             mock_send_task = mocker.patch("app.delivery.bounce_rate.notify_celery.send_task")
             mock_logger = mocker.patch("app.delivery.bounce_rate.current_app.logger.warning")
@@ -37,7 +37,7 @@ class TestCheckServiceOverBounceRate:
             mocker.patch("app.bounce_rate_client.get_bounce_rate", return_value=current_app.config["BR_CRITICAL_PERCENTAGE"])
             mocker.patch("app.bounce_rate_client.get_total_notifications", return_value=1500)
             mocker.patch("app.delivery.bounce_rate.redis_store")
-            bounce_rate_module.redis_store.get.return_value = b"2026-07-15T00:00:00"
+            bounce_rate_module.redis_store.set.return_value = None  # nx=True fails (already set)
             mock_remove_perm = mocker.patch("app.delivery.bounce_rate.dao_remove_service_permission")
             mock_send_task = mocker.patch("app.delivery.bounce_rate.notify_celery.send_task")
 
@@ -52,7 +52,7 @@ class TestCheckServiceOverBounceRate:
             mocker.patch("app.bounce_rate_client.get_bounce_rate", return_value=current_app.config["BR_CRITICAL_PERCENTAGE"])
             mocker.patch("app.bounce_rate_client.get_total_notifications", return_value=500)
             mocker.patch("app.delivery.bounce_rate.redis_store")
-            bounce_rate_module.redis_store.get.return_value = None
+            bounce_rate_module.redis_store.set.return_value = True  # nx=True succeeds
             mock_remove_perm = mocker.patch("app.delivery.bounce_rate.dao_remove_service_permission")
             mock_send_task = mocker.patch("app.delivery.bounce_rate.notify_celery.send_task")
             mock_logger = mocker.patch("app.delivery.bounce_rate.current_app.logger.warning")
@@ -74,7 +74,7 @@ class TestCheckServiceOverBounceRate:
             mocker.patch("app.bounce_rate_client.get_bounce_rate", return_value=current_app.config["BR_CRITICAL_PERCENTAGE"])
             mocker.patch("app.bounce_rate_client.get_total_notifications", return_value=500)
             mocker.patch("app.delivery.bounce_rate.redis_store")
-            bounce_rate_module.redis_store.get.return_value = b"2026-07-15T00:00:00"
+            bounce_rate_module.redis_store.set.return_value = None  # nx=True fails (already set)
             mock_send_task = mocker.patch("app.delivery.bounce_rate.notify_celery.send_task")
 
             bounce_rate_module.check_service_over_bounce_rate(fake_uuid)
