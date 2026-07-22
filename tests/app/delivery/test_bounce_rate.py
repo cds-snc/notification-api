@@ -16,7 +16,7 @@ class TestCheckServiceOverBounceRate:
             mocker.patch("app.bounce_rate_client.get_bounce_rate", return_value=current_app.config["BR_CRITICAL_PERCENTAGE"])
             mocker.patch("app.bounce_rate_client.get_total_notifications", return_value=1500)
             mocker.patch("app.delivery.bounce_rate.redis_store")
-            bounce_rate_module.redis_store.set.return_value = True
+            bounce_rate_module.redis_store.redis_store.set.return_value = True
             mock_remove_perm = mocker.patch("app.delivery.bounce_rate.dao_remove_service_permission")
             mock_send_task = mocker.patch("app.delivery.bounce_rate.notify_celery.send_task")
 
@@ -36,7 +36,7 @@ class TestCheckServiceOverBounceRate:
             mocker.patch("app.bounce_rate_client.get_bounce_rate", return_value=current_app.config["BR_CRITICAL_PERCENTAGE"])
             mocker.patch("app.bounce_rate_client.get_total_notifications", return_value=1500)
             mocker.patch("app.delivery.bounce_rate.redis_store")
-            bounce_rate_module.redis_store.set.return_value = None  # nx=True fails
+            bounce_rate_module.redis_store.redis_store.set.return_value = None  # nx=True fails
             mock_remove_perm = mocker.patch("app.delivery.bounce_rate.dao_remove_service_permission")
             mock_send_task = mocker.patch("app.delivery.bounce_rate.notify_celery.send_task")
 
@@ -52,7 +52,7 @@ class TestCheckServiceOverBounceRate:
             mocker.patch("app.bounce_rate_client.get_bounce_rate", return_value=current_app.config["BR_WARNING_PERCENTAGE"])
             mocker.patch("app.bounce_rate_client.get_total_notifications", return_value=1500)
             mocker.patch("app.delivery.bounce_rate.redis_store")
-            bounce_rate_module.redis_store.set.return_value = True
+            bounce_rate_module.redis_store.redis_store.set.return_value = True
             mock_remove_perm = mocker.patch("app.delivery.bounce_rate.dao_remove_service_permission")
             mock_send_task = mocker.patch("app.delivery.bounce_rate.notify_celery.send_task")
 
@@ -72,7 +72,7 @@ class TestCheckServiceOverBounceRate:
             mocker.patch("app.bounce_rate_client.get_bounce_rate", return_value=current_app.config["BR_WARNING_PERCENTAGE"])
             mocker.patch("app.bounce_rate_client.get_total_notifications", return_value=1500)
             mocker.patch("app.delivery.bounce_rate.redis_store")
-            bounce_rate_module.redis_store.set.return_value = None  # nx=True fails
+            bounce_rate_module.redis_store.redis_store.set.return_value = None  # nx=True fails
             mock_send_task = mocker.patch("app.delivery.bounce_rate.notify_celery.send_task")
 
             bounce_rate_module.check_service_over_bounce_rate(fake_uuid)
