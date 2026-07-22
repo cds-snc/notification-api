@@ -49,10 +49,22 @@ def get_paginated_reports_for_service(service_id, older_than=None, page_size=10)
     filters = [Report.service_id == service_id]
 
     if older_than:
-        older_than_requested_at = db.session.query(Report.requested_at).filter(Report.id == older_than).as_scalar()
-        filters.append(Report.requested_at < older_than_requested_at)
+        older_than_row = db.session.query(Report.requested_at, Report.id).filter(Report.id == older_than).subquery()
+        filters.append(
+            db.or_(
+                Report.requested_at < older_than_row.c.requested_at,
+                db.and_(
+                    Report.requested_at == older_than_row.c.requested_at,
+                    Report.id < older_than_row.c.id,
+                ),
+            )
+        )
 
-    return Report.query.filter(*filters).order_by(desc(Report.requested_at)).paginate(per_page=page_size)
+    return (
+        Report.query.filter(*filters)
+        .order_by(desc(Report.requested_at), desc(Report.id))
+        .paginate(per_page=page_size, count=False)
+    )
 
 
 @transactional
