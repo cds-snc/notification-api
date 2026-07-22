@@ -29,6 +29,7 @@ from app.models import (
     NHS_ORGANISATION_TYPES,
     NON_CROWN_ORGANISATION_TYPES,
     SMS_TYPE,
+    UPLOAD_DOCUMENT,
     AnnualBilling,
     ApiKey,
     FactBilling,
@@ -61,6 +62,7 @@ DEFAULT_SERVICE_PERMISSIONS = [
     SMS_TYPE,
     EMAIL_TYPE,
     INTERNATIONAL_SMS_TYPE,
+    UPLOAD_DOCUMENT,
 ]
 
 
