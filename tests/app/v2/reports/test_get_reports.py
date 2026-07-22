@@ -152,3 +152,11 @@ def test_get_reports_pagination_with_older_than(
     data2 = json.loads(response2.get_data(as_text=True))
     assert len(data2["reports"]) == 1
     assert data2["reports"][0]["id"] != first_id
+
+
+def test_get_reports_returns_400_for_invalid_older_than(client, sample_service, create_api_key_with_manage_reports_perm):
+    auth_header = create_authorization_header(api_key=create_api_key_with_manage_reports_perm)
+
+    response = client.get(path="/v2/reports?older_than=not-a-uuid", headers=[auth_header])
+
+    assert response.status_code == 400
