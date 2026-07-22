@@ -28,6 +28,8 @@ class TestCheckServiceOverBounceRate:
                 kwargs={"service_id": fake_uuid, "bounce_rate": current_app.config["BR_CRITICAL_PERCENTAGE"]},
                 queue=ANY,
             )
+            # Warning key should also be set to prevent a follow-up warning email
+            assert bounce_rate_module.redis_store.redis_store.set.call_count == 2
 
     def test_critical_high_volume_already_sent(self, mocker: MockFixture, notify_api, fake_uuid):
         """>=1000 messages, bounce rate >=10%, but suspension email already sent → no duplicate"""
