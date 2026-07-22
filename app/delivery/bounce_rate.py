@@ -39,9 +39,8 @@ def check_service_over_bounce_rate(service_id: str):
     if bounce_rate >= critical_threshold:
         # Volume threshold met and bounce rate is critical — remove email permission
         cache_key = _bounce_rate_suspension_cache_key(service_id)
-        # The RedisClient.set method calls self.redis_store.set(...) but doesn't return the result,
-        # redis-py set returns True when nx=True succeeds, but the wrapper discards it and implicitly returns None.
-        # Note the below method will return True ONLY the first time it is called, the next time it will return Null.
+        # NOTE: RedisClient.set() does not currently return the underlying redis-py result.
+        # redis-py returns True when `nx=True` succeeds (i.e., the key did not already exist), otherwise None.
         if redis_store.redis_store.set(cache_key, datetime.utcnow().isoformat(), ex=TWENTY_FOUR_HOURS_IN_SECONDS, nx=True):
             current_app.logger.warning(
                 f"Service: {service_id} has had its email permission removed due to exceeding a critical bounce rate threshold of 10%. Bounce rate: {bounce_rate} "
