@@ -20,9 +20,11 @@ def get_reports():
         page_size=current_app.config.get("API_PAGE_SIZE"),
     )
 
+    excluded_fields = {"url"}
+
     return (
         jsonify(
-            reports=[report.serialize() for report in paginated_reports],
+            reports=[{k: v for k, v in report.serialize().items() if k not in excluded_fields} for report in paginated_reports],
             links=_build_links(paginated_reports, older_than),
         ),
         200,
