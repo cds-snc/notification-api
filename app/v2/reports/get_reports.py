@@ -24,8 +24,10 @@ def get_reports():
 
     return (
         jsonify(
-            reports=[{k: v for k, v in report.serialize().items() if k not in excluded_fields} for report in paginated_reports],
-            links=_build_links(paginated_reports, older_than),
+            reports=[
+                {k: v for k, v in report.serialize().items() if k not in excluded_fields} for report in paginated_reports.items
+            ],
+            links=_build_links(paginated_reports.items, older_than),
         ),
         200,
     )
