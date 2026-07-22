@@ -44,7 +44,7 @@
             "name": "Python: Celery",
             "type": "debugpy",
             "request": "launch",
-            "python": "/home/vscode/.venv/workspace/bin/python",
+            "python": "${command:python.interpreterPath}",
             "module": "celery",
             "console": "integratedTerminal",
             "justMyCode": false,
