@@ -1811,6 +1811,20 @@ def create_api_key_with_manage_api_perm(sample_service):
 
 
 @pytest.fixture
+def create_api_key_with_manage_reports_perm(sample_service):
+    data = {
+        "service": sample_service,
+        "name": f"reports test key {uuid.uuid4()}",
+        "created_by": sample_service.created_by,
+        "key_type": KEY_TYPE_NORMAL,
+        "permissions": [ApiKeyPermission.MANAGE_REPORTS],
+    }
+    api_key = ApiKey(**data)
+    save_model_api_key(api_key)
+    return api_key
+
+
+@pytest.fixture
 def create_api_key_no_perm(sample_service):
     data = {
         "service": sample_service,

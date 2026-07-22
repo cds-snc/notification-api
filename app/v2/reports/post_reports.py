@@ -2,18 +2,22 @@ import uuid
 
 from flask import current_app, jsonify, request
 
-from app import authenticated_service
+from app import api_user, authenticated_service
 from app.celery.tasks import generate_report
 from app.config import QueueNames
 from app.dao.reports_dao import create_report
-from app.models import Report, ReportStatus
+from app.models import ApiKeyPermission, Report, ReportStatus
 from app.schema_validation import validate
+from app.v2.errors import ForbiddenError
 from app.v2.reports import v2_reports_blueprint
 from app.v2.reports.report_schemas import post_report_request
 
 
 @v2_reports_blueprint.route("", methods=["POST"])
 def post_report():
+    if not api_user.has_permission(ApiKeyPermission.MANAGE_REPORTS):
+        raise ForbiddenError(message="This API key does not have permission to manage reports.")
+
     data = validate(request.get_json(), post_report_request)
 
     report = Report(
