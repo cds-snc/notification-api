@@ -39,7 +39,9 @@ def check_service_over_bounce_rate(service_id: str):
     if bounce_rate >= critical_threshold:
         # Volume threshold met and bounce rate is critical — remove email permission
         cache_key = _bounce_rate_suspension_cache_key(service_id)
-        if redis_store.set(cache_key, datetime.utcnow().isoformat(), ex=TWENTY_FOUR_HOURS_IN_SECONDS, nx=True):
+        # NOTE: RedisClient.set() does not currently return the underlying redis-py result.
+        # redis-py returns True when `nx=True` succeeds (i.e., the key did not already exist), otherwise None.
+        if redis_store.redis_store.set(cache_key, datetime.utcnow().isoformat(), ex=TWENTY_FOUR_HOURS_IN_SECONDS, nx=True):
             current_app.logger.warning(
                 f"Service: {service_id} has had its email permission removed due to exceeding a critical bounce rate threshold of 10%. Bounce rate: {bounce_rate} "
                 f"with {total_notifications} emails sent."
@@ -54,6 +56,11 @@ def check_service_over_bounce_rate(service_id: str):
                         kwargs={"service_id": str(service_id), "bounce_rate": bounce_rate},
                         queue=QueueNames.NOTIFY,
                     )
+                    # Also set warning key so a warning email won't be sent if bounce rate drops to 5-10%
+                    warning_cache_key = _bounce_rate_warning_cache_key(service_id)
+                    redis_store.redis_store.set(
+                        warning_cache_key, datetime.utcnow().isoformat(), ex=TWENTY_FOUR_HOURS_IN_SECONDS, nx=True
+                    )
                 except Exception:
                     current_app.logger.exception(f"Failed to suspend service {service_id}, clearing cache key to allow retry")
                     redis_store.delete(cache_key)
@@ -61,7 +68,7 @@ def check_service_over_bounce_rate(service_id: str):
     elif bounce_rate >= warning_threshold:
         # Volume threshold met and bounce rate is warning — send warning email
         cache_key = _bounce_rate_warning_cache_key(service_id)
-        if redis_store.set(cache_key, datetime.utcnow().isoformat(), ex=TWENTY_FOUR_HOURS_IN_SECONDS, nx=True):
+        if redis_store.redis_store.set(cache_key, datetime.utcnow().isoformat(), ex=TWENTY_FOUR_HOURS_IN_SECONDS, nx=True):
             current_app.logger.warning(
                 f"Service: {service_id} has a warning bounce rate of {bounce_rate} " f"with {total_notifications} emails sent."
             )
