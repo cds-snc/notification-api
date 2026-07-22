@@ -160,3 +160,88 @@ def test_get_reports_returns_400_for_invalid_older_than(client, sample_service, 
     response = client.get(path="/v2/reports?older_than=not-a-uuid", headers=[auth_header])
 
     assert response.status_code == 400
+
+
+# ---- GET /v2/reports/<report_id> tests ----
+
+
+def test_get_report_by_id_returns_200(client, sample_service, create_api_key_with_manage_reports_perm):
+    auth_header = create_authorization_header(api_key=create_api_key_with_manage_reports_perm)
+    report = _make_report(sample_service.id)
+    create_report(report)
+
+    response = client.get(path=f"/v2/reports/{report.id}", headers=[auth_header])
+
+    assert response.status_code == 200
+
+
+def test_get_report_by_id_returns_report_fields(client, sample_service, create_api_key_with_manage_reports_perm):
+    auth_header = create_authorization_header(api_key=create_api_key_with_manage_reports_perm)
+    report = _make_report(sample_service.id)
+    create_report(report)
+
+    response = client.get(path=f"/v2/reports/{report.id}", headers=[auth_header])
+
+    data = json.loads(response.get_data(as_text=True))
+    assert data["id"] == str(report.id)
+    assert data["report_type"] == report.report_type
+    assert data["status"] == report.status
+    assert data["service_id"] == str(sample_service.id)
+
+
+def test_get_report_by_id_does_not_include_url(client, sample_service, create_api_key_with_manage_reports_perm):
+    auth_header = create_authorization_header(api_key=create_api_key_with_manage_reports_perm)
+    report = _make_report(sample_service.id)
+    create_report(report)
+
+    response = client.get(path=f"/v2/reports/{report.id}", headers=[auth_header])
+
+    data = json.loads(response.get_data(as_text=True))
+    assert "url" not in data
+
+
+def test_get_report_by_id_returns_404_for_nonexistent_id(client, sample_service, create_api_key_with_manage_reports_perm):
+    auth_header = create_authorization_header(api_key=create_api_key_with_manage_reports_perm)
+
+    response = client.get(path=f"/v2/reports/{uuid.uuid4()}", headers=[auth_header])
+
+    assert response.status_code == 404
+
+
+def test_get_report_by_id_returns_404_for_other_services_report(
+    client, sample_service, notify_db_session, create_api_key_with_manage_reports_perm
+):
+    from tests.app.db import create_service
+
+    auth_header = create_authorization_header(api_key=create_api_key_with_manage_reports_perm)
+    other_service = create_service(service_name="other service")
+    other_report = _make_report(other_service.id)
+    create_report(other_report)
+
+    response = client.get(path=f"/v2/reports/{other_report.id}", headers=[auth_header])
+
+    assert response.status_code == 404
+
+
+def test_get_report_by_id_returns_403_without_manage_reports_permission(client, sample_service, create_api_key_no_perm):
+    auth_header = create_authorization_header(api_key=create_api_key_no_perm)
+
+    response = client.get(path=f"/v2/reports/{uuid.uuid4()}", headers=[auth_header])
+
+    assert response.status_code == 403
+    data = json.loads(response.get_data(as_text=True))
+    assert "manage reports" in data["errors"][0]["message"].lower()
+
+
+def test_get_report_by_id_requires_authentication(client):
+    response = client.get(path=f"/v2/reports/{uuid.uuid4()}")
+
+    assert response.status_code == 401
+
+
+def test_get_report_by_id_returns_400_for_invalid_id(client, sample_service, create_api_key_with_manage_reports_perm):
+    auth_header = create_authorization_header(api_key=create_api_key_with_manage_reports_perm)
+
+    response = client.get(path="/v2/reports/not-a-uuid", headers=[auth_header])
+
+    assert response.status_code == 400
