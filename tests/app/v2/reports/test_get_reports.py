@@ -4,6 +4,7 @@ import uuid
 from app.dao.reports_dao import create_report
 from app.models import Report, ReportStatus, ReportType
 from tests import create_authorization_header
+from tests.app.db import create_service
 
 
 def _make_report(
@@ -211,8 +212,6 @@ def test_get_report_by_id_returns_404_for_nonexistent_id(client, sample_service,
 def test_get_report_by_id_returns_404_for_other_services_report(
     client, sample_service, notify_db_session, create_api_key_with_manage_reports_perm
 ):
-    from tests.app.db import create_service
-
     auth_header = create_authorization_header(api_key=create_api_key_with_manage_reports_perm)
     other_service = create_service(service_name="other service")
     other_report = _make_report(other_service.id)
