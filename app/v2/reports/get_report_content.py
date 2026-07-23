@@ -1,5 +1,6 @@
 import botocore.exceptions
 from flask import Response, current_app, jsonify, stream_with_context
+from sqlalchemy.orm.exc import NoResultFound
 
 from app import api_user, authenticated_service
 from app.aws.s3 import stream_report_from_s3
@@ -19,8 +20,6 @@ def get_report_content(report_id):
 
     # Ownership check: return 404 so callers cannot probe for other services' reports
     if str(report.service_id) != str(authenticated_service.id):
-        from sqlalchemy.orm.exc import NoResultFound
-
         raise NoResultFound()
 
     if report.status != ReportStatus.READY.value:
