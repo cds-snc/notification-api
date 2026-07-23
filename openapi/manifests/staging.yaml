@@ -1,0 +1,9 @@
+# Staging manifest — includes unreleased endpoints not yet in production.
+# Each entry corresponds to openapi/src/paths/{name}.{lang}.yaml files.
+# Paths are merged in the order listed here.
+paths:
+  - notifications
+  - templates
+  - manage-templates
+  # Unreleased endpoints — add new path files here before they go to production:
+  # - reports

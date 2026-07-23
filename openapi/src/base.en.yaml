@@ -1,0 +1,23 @@
+openapi: 3.0.3
+info:
+  version: 1.0.0
+  title: Notifications API v2
+  description: API for managing notifications and templates
+  termsOfService: https://notification.canada.ca/terms
+  contact:
+    name: GC Notify Support
+    url: https://notification.canada.ca/contact
+externalDocs:
+  description: Find out more about using the GC Notify API
+  url: https://documentation.notification.canada.ca/en/
+servers:
+- url: https://api.notification.canada.ca/
+  description: GC Notify API server
+tags:
+- name: Notifications
+  description: Operations related to notifications
+- name: Templates
+  description: Operations related to notification templates
+- name: Manage Templates
+  description: Operations for creating, updating, retrieving, and archiving templates
+    using a NEW API key with manage_templates permission

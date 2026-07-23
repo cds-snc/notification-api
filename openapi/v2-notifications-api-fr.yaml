@@ -1,5 +1,8 @@
+# AUTO-GENERATED — do not edit directly.
+# Edit source files in openapi/src/ then run:
+#   python openapi/build.py
+#
 openapi: 3.0.3
-
 info:
   version: 1.0.0
   title: API de Notifications v2
@@ -8,15 +11,20 @@ info:
   contact:
     name: Support GC Notify
     url: https://notification.canada.ca/contact
-
 externalDocs:
-    description: En savoir plus sur l’utilisation de l’API GC Notify
-    url: https://documentation.notification.canada.ca/en/
-
+  description: En savoir plus sur l’utilisation de l’API GC Notify
+  url: https://documentation.notification.canada.ca/en/
 servers:
-  - url: https://api.notification.canada.ca/
-    description: Serveur API GC Notify
-
+- url: https://api.notification.canada.ca/
+  description: Serveur API GC Notify
+tags:
+- name: Notifications
+  description: Opérations liées aux notifications
+- name: Templates
+  description: Opérations liées aux modèles de notification
+- name: Manage Templates
+  description: Opérations pour créer, mettre à jour, récupérer et archiver des modèles
+    avec la permission manage_permissions (manage_templates)
 paths:
   /v2/notifications:
     get:
@@ -24,44 +32,53 @@ paths:
       description: Récupérer une liste paginée de notifications avec filtrage optionnel
       operationId: getNotifications
       tags:
-        - Notifications
+      - Notifications
       parameters:
-        - name: template_type
-          in: query
-          description: Filtrer par type de modèle
-          required: false
-          schema:
+      - name: template_type
+        in: query
+        description: Filtrer par type de modèle
+        required: false
+        schema:
+          type: string
+          enum:
+          - sms
+          - email
+      - name: status
+        in: query
+        description: Filtrer par statut de notification
+        required: false
+        schema:
+          type: array
+          items:
             type: string
-            enum: [sms, email]
-        - name: status
-          in: query
-          description: Filtrer par statut de notification
-          required: false
-          schema:
-            type: array
-            items:
-              type: string
-              enum: [created, in-transit, pending, sent, delivered, failed]
-        - name: reference
-          in: query
-          description: Identifiant de référence pour la notification
-          required: false
-          schema:
-            type: string
-            format: uuid
-        - name: older_than
-          in: query
-          description: Filtrer les notifications plus anciennes que cet ID de notification (UUID)
-          required: false
-          schema:
-            type: string
-            format: uuid
-        - name: include_jobs
-          in: query
-          description: Indique s’il faut inclure les tâches dans la réponse
-          required: false
-          schema:
-            type: boolean
+            enum:
+            - created
+            - in-transit
+            - pending
+            - sent
+            - delivered
+            - failed
+      - name: reference
+        in: query
+        description: Identifiant de référence pour la notification
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: older_than
+        in: query
+        description: Filtrer les notifications plus anciennes que cet ID de notification
+          (UUID)
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: include_jobs
+        in: query
+        description: Indique s’il faut inclure les tâches dans la réponse
+        required: false
+        schema:
+          type: boolean
       responses:
         '200':
           description: Notifications récupérées avec succès
@@ -88,8 +105,9 @@ paths:
                   value:
                     status_code: 401
                     errors:
-                      - error: "AuthError"
-                        message: "Non autorisé, le jeton d'authentification doit être fourni"
+                    - error: AuthError
+                      message: Non autorisé, le jeton d'authentification doit être
+                        fourni
         '404':
           description: Notification non trouvée
           content:
@@ -100,8 +118,8 @@ paths:
                 notification_not_found:
                   summary: Notification non trouvée
                   value:
-                    result: "error"
-                    message: "Notification non trouvée dans la base de données"
+                    result: error
+                    message: Notification non trouvée dans la base de données
         '500':
           description: Erreur interne du serveur
           content:
@@ -112,27 +130,25 @@ paths:
                 internal_server_error:
                   summary: Erreur interne du serveur
                   value:
-                    result: "error"
-                    message: "Erreur interne du serveur"
+                    result: error
+                    message: Erreur interne du serveur
       security:
-        - apiKey: []
-
-
+      - apiKey: []
   /v2/notifications/{notification-id}:
     get:
       summary: Obtenir une notification par ID
       description: Récupérer une notification spécifique par son ID
       operationId: getNotificationById
       tags:
-        - Notifications
+      - Notifications
       parameters:
-        - name: notification-id
-          in: path
-          description: Identifiant unique de la notification
-          required: true
-          schema:
-            type: string
-            format: uuid
+      - name: notification-id
+        in: path
+        description: Identifiant unique de la notification
+        required: true
+        schema:
+          type: string
+          format: uuid
       responses:
         '200':
           description: Notification récupérée avec succès
@@ -149,8 +165,8 @@ paths:
               example:
                 status_code: 400
                 errors:
-                  - error: "ValidationError"
-                    message: "notification_id is not a valid UUID"
+                - error: ValidationError
+                  message: notification_id is not a valid UUID
         '403':
           description: Interdit - erreurs d’authentification ou d’autorisation
           content:
@@ -163,15 +179,16 @@ paths:
                   value:
                     status_code: 403
                     errors:
-                      - error: "AuthError"
-                        message: "Error: Your system clock must be accurate to within 30 seconds"
+                    - error: AuthError
+                      message: 'Error: Your system clock must be accurate to within
+                        30 seconds'
                 invalid_api_key:
                   summary: Invalid API key
                   value:
                     status_code: 403
                     errors:
-                      - error: "AuthError"
-                        message: "Invalid token: Enter your full API key"
+                    - error: AuthError
+                      message: 'Invalid token: Enter your full API key'
         '401':
           description: Non autorisé
           content:
@@ -184,8 +201,8 @@ paths:
                   value:
                     status_code: 401
                     errors:
-                      - error: "AuthError"
-                        message: "Unauthorized, authentication token must be provided"
+                    - error: AuthError
+                      message: Unauthorized, authentication token must be provided
         '404':
           description: Notification non trouvée
           content:
@@ -196,8 +213,8 @@ paths:
                 notification_not_found:
                   summary: Notification not found
                   value:
-                    result: "error"
-                    message: "Notification not found in database"
+                    result: error
+                    message: Notification not found in database
         '500':
           description: Erreur interne du serveur
           content:
@@ -208,18 +225,17 @@ paths:
                 internal_server_error:
                   summary: Internal server error
                   value:
-                    result: "error"
-                    message: "Internal server error"
+                    result: error
+                    message: Internal server error
       security:
-        - apiKey: []
-
+      - apiKey: []
   /v2/notifications/email:
     post:
       summary: Envoyer une notification par courriel
       description: Créer et envoyer une notification par courriel
       operationId: sendEmailNotification
       tags:
-        - Notifications
+      - Notifications
       requestBody:
         required: true
         content:
@@ -230,46 +246,46 @@ paths:
               basic_email:
                 summary: Notification courriel de base
                 value:
-                  email_address: "user@example.com"
-                  template_id: "12345678-1234-1234-1234-123456789012"
+                  email_address: user@example.com
+                  template_id: 12345678-1234-1234-1234-123456789012
               with_personalisation:
                 summary: Courriel avec variable de personnalisation
                 value:
-                  email_address: "user@example.com"
-                  template_id: "12345678-1234-1234-1234-123456789012"
+                  email_address: user@example.com
+                  template_id: 12345678-1234-1234-1234-123456789012
                   personalisation:
-                    first_name: "John"
-                    last_name: "Doe"
+                    first_name: John
+                    last_name: Doe
               with_file_attachment:
                 summary: Courriel avec pièces jointes
                 value:
-                  email_address: "user@example.com"
-                  template_id: "12345678-1234-1234-1234-123456789012"
+                  email_address: user@example.com
+                  template_id: 12345678-1234-1234-1234-123456789012
                   personalisation:
                     application_file:
-                      file: "file as base64 encoded string"
-                      filename: "your_custom_filename.txt"
-                      sending_method: "attach"
+                      file: file as base64 encoded string
+                      filename: your_custom_filename.txt
+                      sending_method: attach
                     other_file:
-                      file: "other file as base64 encoded string"
-                      filename: "file2.txt"
-                      sending_method: "attach"
+                      file: other file as base64 encoded string
+                      filename: file2.txt
+                      sending_method: attach
               with_file_link:
                 summary: Courriel avec lien vers un fichier
                 value:
-                  email_address: "user@example.com"
-                  template_id: "12345678-1234-1234-1234-123456789012"
+                  email_address: user@example.com
+                  template_id: 12345678-1234-1234-1234-123456789012
                   personalisation:
                     link_to_file:
-                      file: "file as base64 encoded string"
-                      filename: "your_custom_filename.pdf"
-                      sending_method: "link"
+                      file: file as base64 encoded string
+                      filename: your_custom_filename.pdf
+                      sending_method: link
               scheduled_email:
                 summary: Notification courriel planifiée
                 value:
-                  email_address: "user@example.com"
-                  template_id: "12345678-1234-1234-1234-123456789012"
-                  scheduled_for: "2025-06-25T15:15:00"
+                  email_address: user@example.com
+                  template_id: 12345678-1234-1234-1234-123456789012
+                  scheduled_for: '2025-06-25T15:15:00'
       responses:
         '201':
           description: Notification courriel créée avec succès
@@ -289,71 +305,76 @@ paths:
                   value:
                     status_code: 400
                     errors:
-                      - error: "BadRequestError"
-                        message: "Can't send to this recipient using a team-only API key"
+                    - error: BadRequestError
+                      message: Can't send to this recipient using a team-only API
+                        key
                 trial_mode_error:
                   summary: Service in trial mode
                   value:
                     status_code: 400
                     errors:
-                      - error: "BadRequestError"
-                        message: "Can't send to this recipient when service is in trial mode"
+                    - error: BadRequestError
+                      message: Can't send to this recipient when service is in trial
+                        mode
                 unsupported_file_type:
                   summary: Unsupported file type
                   value:
                     status_code: 400
                     errors:
-                      - error: "BadRequestError"
-                        message: "Unsupported file type 'exe'. Supported types are: 'pdf, csv, txt, jpeg, png, doc, docx, xls, xlsx, rtf, odt'"
+                    - error: BadRequestError
+                      message: 'Unsupported file type ''exe''. Supported types are:
+                        ''pdf, csv, txt, jpeg, png, doc, docx, xls, xlsx, rtf, odt'''
                 virus_scan_failed:
                   summary: File failed virus scan
                   value:
                     status_code: 400
                     errors:
-                      - error: "BadRequestError"
-                        message: "File did not pass the virus scan"
+                    - error: BadRequestError
+                      message: File did not pass the virus scan
                 missing_sending_method:
                   summary: Missing sending method
                   value:
                     status_code: 400
                     errors:
-                      - error: "ValidationError"
-                        message: "sending_method is a required property"
+                    - error: ValidationError
+                      message: sending_method is a required property
                 missing_filename:
                   summary: Missing filename
                   value:
                     status_code: 400
                     errors:
-                      - error: "ValidationError"
-                        message: "filename is a required property"
+                    - error: ValidationError
+                      message: filename is a required property
                 invalid_sending_method:
                   summary: Invalid sending method
                   value:
                     status_code: 400
                     errors:
-                      - error: "ValidationError"
-                        message: "personalisation application_file sending_method is not one of [attach, link]"
+                    - error: ValidationError
+                      message: personalisation application_file sending_method is
+                        not one of [attach, link]
                 base64_decode_error:
                   summary: Base64 decoding error
                   value:
                     status_code: 400
                     errors:
-                      - error: "ValidationError"
-                        message: "application_file : Incorrect padding : Error decoding base64 field"
+                    - error: ValidationError
+                      message: 'application_file : Incorrect padding : Error decoding
+                        base64 field'
                 filename_too_short:
                   summary: Filename too short
                   value:
                     status_code: 400
                     errors:
-                      - error: "ValidationError"
-                        message: "filename is too short"
+                    - error: ValidationError
+                      message: filename is too short
                 filename_too_long:
                   summary: Filename too long
                   value:
                     status_code: 400
                     errors:
-                      - error: "ValidationError"
-                        message: "filename is too long"
+                    - error: ValidationError
+                      message: filename is too long
         '401':
           description: Non autorisé
           content:
@@ -361,8 +382,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
-                result: "error"
-                message: "Unauthorized"
+                result: error
+                message: Unauthorized
         '403':
           description: Interdit - erreurs d’authentification ou d’autorisation
           content:
@@ -375,15 +396,16 @@ paths:
                   value:
                     status_code: 403
                     errors:
-                      - error: "AuthError"
-                        message: "Error: Your system clock must be accurate to within 30 seconds"
+                    - error: AuthError
+                      message: 'Error: Your system clock must be accurate to within
+                        30 seconds'
                 invalid_api_key:
                   summary: Invalid API key
                   value:
                     status_code: 403
                     errors:
-                      - error: "AuthError"
-                        message: "Invalid token: Enter your full API key"
+                    - error: AuthError
+                      message: 'Invalid token: Enter your full API key'
         '429':
           description: Trop de requêtes - limitation du débit
           content:
@@ -396,15 +418,16 @@ paths:
                   value:
                     status_code: 429
                     errors:
-                      - error: "RateLimitError"
-                        message: "Exceeded rate limit for key type LIVE of 1000 requests per 60 seconds"
+                    - error: RateLimitError
+                      message: Exceeded rate limit for key type LIVE of 1000 requests
+                        per 60 seconds
                 send_limit_exceeded:
                   summary: Daily send limit exceeded
                   value:
                     status_code: 429
                     errors:
-                      - error: "TooManyRequestsError"
-                        message: "Exceeded send limits (250000) for today"
+                    - error: TooManyRequestsError
+                      message: Exceeded send limits (250000) for today
         '500':
           description: Erreur interne du serveur
           content:
@@ -415,19 +438,17 @@ paths:
                 internal_server_error:
                   summary: Internal server error
                   value:
-                    result: "error"
-                    message: "Internal server error"
+                    result: error
+                    message: Internal server error
       security:
-        - apiKey: []
-
-
+      - apiKey: []
   /v2/notifications/sms:
     post:
       summary: Envoyer une notification SMS
       description: Créer et envoyer une notification SMS
       operationId: sendSmsNotification
       tags:
-        - Notifications
+      - Notifications
       requestBody:
         required: true
         content:
@@ -438,24 +459,22 @@ paths:
               basic_sms:
                 summary: Notification SMS de base
                 value:
-                  phone_number: "+1234567890"
-                  template_id: "12345678-1234-1234-1234-123456789012"
-
+                  phone_number: '+1234567890'
+                  template_id: 12345678-1234-1234-1234-123456789012
               sms_with_personalisation:
                 summary: SMS avec variable de personnalisation
                 value:
-                  phone_number: "+1234567890"
-                  template_id: "12345678-1234-1234-1234-123456789012"
+                  phone_number: '+1234567890'
+                  template_id: 12345678-1234-1234-1234-123456789012
                   personalisation:
-                    first_name: "John"
-                    last_name: "Doe"
-
+                    first_name: John
+                    last_name: Doe
               scheduled_sms:
                 summary: Notification SMS planifiée
                 value:
-                  phone_number: "+1234567890"
-                  template_id: "12345678-1234-1234-1234-123456789012"
-                  scheduled_for: "2025-06-25T15:15:00"
+                  phone_number: '+1234567890'
+                  template_id: 12345678-1234-1234-1234-123456789012
+                  scheduled_for: '2025-06-25T15:15:00'
       responses:
         '201':
           description: Notification SMS créée avec succès
@@ -475,15 +494,17 @@ paths:
                   value:
                     status_code: 400
                     errors:
-                      - error: "BadRequestError"
-                        message: "Can't send to this recipient using a team-only API key"
+                    - error: BadRequestError
+                      message: Can't send to this recipient using a team-only API
+                        key
                 trial_mode_error:
                   summary: Service in trial mode
                   value:
                     status_code: 400
                     errors:
-                      - error: "BadRequestError"
-                        message: "Can't send to this recipient when service is in trial mode"
+                    - error: BadRequestError
+                      message: Can't send to this recipient when service is in trial
+                        mode
         '403':
           description: Interdit - erreurs d’authentification ou d’autorisation
           content:
@@ -496,15 +517,16 @@ paths:
                   value:
                     status_code: 403
                     errors:
-                      - error: "AuthError"
-                        message: "Error: Your system clock must be accurate to within 30 seconds"
+                    - error: AuthError
+                      message: 'Error: Your system clock must be accurate to within
+                        30 seconds'
                 invalid_api_key:
                   summary: Invalid API key
                   value:
                     status_code: 403
                     errors:
-                      - error: "AuthError"
-                        message: "Invalid token: Enter your full API key"
+                    - error: AuthError
+                      message: 'Invalid token: Enter your full API key'
         '429':
           description: Trop de requêtes - limitation du débit
           content:
@@ -517,15 +539,16 @@ paths:
                   value:
                     status_code: 429
                     errors:
-                      - error: "RateLimitError"
-                        message: "Exceeded rate limit for key type TEAM/TEST/LIVE of 1000 requests per 60 seconds"
+                    - error: RateLimitError
+                      message: Exceeded rate limit for key type TEAM/TEST/LIVE of
+                        1000 requests per 60 seconds
                 send_limit_exceeded:
                   summary: Daily send limit exceeded
                   value:
                     status_code: 429
                     errors:
-                      - error: "TooManyRequestsError"
-                        message: "Exceeded send limits (LIMIT NUMBER) for today"
+                    - error: TooManyRequestsError
+                      message: Exceeded send limits (LIMIT NUMBER) for today
         '500':
           description: Erreur interne du serveur
           content:
@@ -536,27 +559,257 @@ paths:
                 internal_server_error:
                   summary: Internal server error
                   value:
-                    result: "error"
-                    message: "Internal server error"
+                    result: error
+                    message: Internal server error
       security:
-        - apiKey: []
+      - apiKey: []
+  /v2/notifications/bulk:
+    post:
+      summary: Envoyer un lot de notifications
+      description: 'Envoyez des notifications en masse, jusqu’à 50 000 destinataires
+        à la fois, pour un seul modèle.
 
 
+        Vous pouvez planifier l’envoi de notifications jusqu’à 4 jours à l’avance.
+
+        '
+      operationId: sendBulkNotifications
+      tags:
+      - Notifications
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostBulkRequest'
+            examples:
+              basic_bulk_email_rows:
+                summary: Notification groupée par courriel de base utilisant des lignes
+                value:
+                  template_id: 12345678-1234-1234-1234-123456789012
+                  name: Rappels de rendez-vous de janvier
+                  rows:
+                  - - adresse courriel
+                    - nom
+                  - - alice@example.com
+                    - Alice
+                  - - bob@example.com
+                    - Bob
+              basic_bulk_email_csv:
+                summary: Notification groupée par courriel de base utilisant un fichier
+                  CSV
+                value:
+                  template_id: 12345678-1234-1234-1234-123456789012
+                  name: Rappels de rendez-vous de janvier
+                  csv: 'adresse courriel,nom
+
+                    alice@example.com,Alice
+
+                    bob@example.com,Bob'
+              basic_bulk_sms_rows:
+                summary: Notification groupée par SMS de base utilisant des lignes
+                value:
+                  template_id: 12345678-1234-1234-1234-123456789012
+                  name: Rappels de rendez-vous de janvier
+                  rows:
+                  - - numéro de téléphone
+                    - nom
+                  - - 123-456-7890
+                    - Alice
+                  - - '+112345678901'
+                    - Bob
+              basic_bulk_sms_csv:
+                summary: Notification groupée de base par SMS utilisant un fichier
+                  CSV
+                value:
+                  template_id: 12345678-1234-1234-1234-123456789012
+                  name: Rappels de rendez-vous de janvier
+                  csv: 'numéro de téléphone,nom
+
+                    123-456-7890,Alice
+
+                    +112345678901,Bob'
+              scheduled_bulk_with_ref:
+                summary: Notifications groupées planifiées avec une référence pour
+                  le suivi et une adresse de réponse
+                value:
+                  template_id: 12345678-1234-1234-1234-123456789012
+                  name: Rappels de rendez-vous de janvier
+                  scheduled_for: '2025-06-25T15:15:00'
+                  reference: rappels-janvier
+                  reply_to_id: 12345678-1234-1234-1234-123456789012
+                  rows:
+                  - - adresse courriel
+                    - nom
+                  - - alice@example.com
+                    - Alice
+                  - - bob@example.com
+                    - Bob
+      responses:
+        '201':
+          description: Tâche de notification en masse créée avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostBulkResponse'
+        '400':
+          description: Mauvaise requête
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                missing_rows_or_csv:
+                  summary: Must specify rows or csv
+                  value:
+                    status_code: 400
+                    errors:
+                    - error: BadRequestError
+                      message: You should specify either rows or csv
+                missing_name:
+                  summary: Name is required
+                  value:
+                    status_code: 400
+                    errors:
+                    - error: ValidationError
+                      message: name is a required property
+                scheduled_for_wrong_type:
+                  summary: scheduled_for wrong type
+                  value:
+                    status_code: 400
+                    errors:
+                    - error: ValidationError
+                      message: scheduled_for 42 is not of type string, null
+                scheduled_for_past:
+                  summary: scheduled_for in the past
+                  value:
+                    status_code: 400
+                    errors:
+                    - error: ValidationError
+                      message: scheduled_for datetime cannot be in the past
+                scheduled_for_too_far:
+                  summary: scheduled_for too far in future
+                  value:
+                    status_code: 400
+                    errors:
+                    - error: ValidationError
+                      message: scheduled_for datetime can only be up to 96 hours in
+                        the future
+                scheduled_for_invalid_format:
+                  summary: scheduled_for invalid format
+                  value:
+                    status_code: 400
+                    errors:
+                    - error: ValidationError
+                      message: scheduled_for datetime format is invalid. It must be
+                        a valid ISO8601 date time format, https://en.wikipedia.org/wiki/ISO_8601
+                template_not_found:
+                  summary: Template not found
+                  value:
+                    status_code: 400
+                    errors:
+                    - error: BadRequestError
+                      message: Template not found
+                template_deleted:
+                  summary: Template deleted
+                  value:
+                    status_code: 400
+                    errors:
+                    - error: BadRequestError
+                      message: Template has been deleted
+                service_not_allowed:
+                  summary: Service not allowed to send emails
+                  value:
+                    status_code: 400
+                    errors:
+                    - error: BadRequestError
+                      message: Service is not allowed to send emails
+                missing_column_headers:
+                  summary: Missing column headers
+                  value:
+                    status_code: 400
+                    errors:
+                    - error: BadRequestError
+                      message: 'Missing column headers: name'
+                duplicate_column_headers:
+                  summary: Duplicate column headers
+                  value:
+                    status_code: 400
+                    errors:
+                    - error: BadRequestError
+                      message: 'Duplicate column headers: name, NAME'
+                too_many_rows:
+                  summary: Too many rows
+                  value:
+                    status_code: 400
+                    errors:
+                    - error: BadRequestError
+                      message: Too many rows. Maximum number of rows allowed is 50000
+                team_safelist_api_key:
+                  summary: Team and safelist API key restriction
+                  value:
+                    status_code: 400
+                    errors:
+                    - error: BadRequestError
+                      message: You cannot send to these recipients because you used
+                        a team and safelist API key.
+                trial_mode_restriction:
+                  summary: Trial mode restriction
+                  value:
+                    status_code: 400
+                    errors:
+                    - error: BadRequestError
+                      message: You cannot send to these recipients because your service
+                        is in trial mode. You can only send to members of your team
+                        and your safelist.
+                daily_limit_exceeded:
+                  summary: Daily limit exceeded
+                  value:
+                    status_code: 400
+                    errors:
+                    - error: BadRequestError
+                      message: You only have 50 remaining messages before you reach
+                        your daily limit. You've tried to send 75 messages.
+                row_errors:
+                  summary: Row errors
+                  value:
+                    status_code: 400
+                    errors:
+                    - error: BadRequestError
+                      message: 'Some rows have errors. Row 1 - name: Missing. Row
+                        2 - email address: invalid recipient. Row 3 - name: Missing.
+                        Row 4 - name: Missing.'
+        '500':
+          description: Erreur interne du serveur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                internal_server_error:
+                  summary: Internal server error
+                  value:
+                    result: error
+                    message: Internal server error
+      security:
+      - apiKey: []
   /v2/templates:
     get:
       summary: Obtenir la liste des modèles
       description: Récupérer une liste de modèles. Filtrable par type de modèle
       operationId: getTemplates
       tags:
-        - Templates
+      - Templates
       parameters:
-        - name: type
-          in: query
-          description: Filtrer par type de modèle
-          required: false
-          schema:
-            type: string
-            enum: [sms, email]
+      - name: type
+        in: query
+        description: Filtrer par type de modèle
+        required: false
+        schema:
+          type: string
+          enum:
+          - sms
+          - email
       responses:
         '200':
           description: Modèles récupérés avec succès
@@ -580,8 +833,8 @@ paths:
                   value:
                     status_code: 400
                     errors:
-                      - error: "ValidationError"
-                        message: "Unauthorized, authentication token must be provided"
+                    - error: ValidationError
+                      message: Unauthorized, authentication token must be provided
         '401':
           description: Non autorisé
           content:
@@ -595,24 +848,22 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
       security:
-        - apiKey: []
-
-
+      - apiKey: []
   /v2/template/{template-id}:
     get:
       summary: Obtenir un modèle par ID
       description: Récupérer un modèle spécifique par son ID
       operationId: getTemplate
       tags:
-        - Templates
+      - Templates
       parameters:
-        - name: template-id
-          in: path
-          description: Identifiant unique du modèle
-          required: true
-          schema:
-            type: string
-            format: uuid
+      - name: template-id
+        in: path
+        description: Identifiant unique du modèle
+        required: true
+        schema:
+          type: string
+          format: uuid
       responses:
         '200':
           description: Modèle récupéré avec succès
@@ -629,8 +880,8 @@ paths:
               example:
                 status_code: 400
                 errors:
-                  - error: "ValidationError"
-                    message: "template_id is not a valid UUID"
+                - error: ValidationError
+                  message: template_id is not a valid UUID
         '401':
           description: Non autorisé
           content:
@@ -643,8 +894,8 @@ paths:
                   value:
                     status_code: 401
                     errors:
-                      - error: "AuthError"
-                        message: "Unauthorized, authentication token must be provided"
+                    - error: AuthError
+                      message: Unauthorized, authentication token must be provided
         '403':
           description: Interdit - erreurs d’authentification ou d’autorisation
           content:
@@ -657,15 +908,16 @@ paths:
                   value:
                     status_code: 403
                     errors:
-                      - error: "AuthError"
-                        message: "Error: Your system clock must be accurate to within 30 seconds"
+                    - error: AuthError
+                      message: 'Error: Your system clock must be accurate to within
+                        30 seconds'
                 invalid_api_key:
                   summary: Invalid API key
                   value:
                     status_code: 403
                     errors:
-                      - error: "AuthError"
-                        message: "Invalid token: Enter your full API key"
+                    - error: AuthError
+                      message: 'Invalid token: Enter your full API key'
         '404':
           description: Modèle non trouvé
           content:
@@ -676,8 +928,8 @@ paths:
                 template_not_found:
                   summary: Template not found
                   value:
-                    result: "error"
-                    message: "Template not found in database"
+                    result: error
+                    message: Template not found in database
         '500':
           description: Erreur interne du serveur
           content:
@@ -685,19 +937,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
       security:
-        - apiKey: []
-
-
+      - apiKey: []
   /v2/manage-template/template-categories:
     get:
       summary: Obtenir les catégories de modèles
-      description: |
-        Récupérer toutes les catégories de modèles disponibles pour les opérations de gestion des modèles.
+      description: 'Récupérer toutes les catégories de modèles disponibles pour les
+        opérations de gestion des modèles.
 
-        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_permissions (manage_templates).
+
+        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_permissions
+        (manage_templates).
+
+        '
       operationId: getManageTemplateCategories
       tags:
-        - Manage Templates
+      - Manage Templates
       responses:
         '200':
           description: Catégories de modèles récupérées avec succès
@@ -717,10 +971,11 @@ paths:
                   value:
                     status_code: 401
                     errors:
-                      - error: "AuthError"
-                        message: "Unauthorized, authentication token must be provided"
+                    - error: AuthError
+                      message: Unauthorized, authentication token must be provided
         '403':
-          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_permissions requise (manage_templates)
+          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_permissions
+            requise (manage_templates)
           content:
             application/json:
               schema:
@@ -731,8 +986,8 @@ paths:
                   value:
                     status_code: 403
                     errors:
-                      - error: "ForbiddenError"
-                        message: "This API key does not have permission to manage templates."
+                    - error: ForbiddenError
+                      message: This API key does not have permission to manage templates.
         '500':
           description: Erreur interne du serveur
           content:
@@ -740,26 +995,28 @@ paths:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
       security:
-        - apiKey: []
-
-
+      - apiKey: []
   /v2/manage-template/{template-id}:
     get:
       summary: Obtenir un modèle par ID
-      description: |
-        Récupérer un modèle spécifique par ID avec les permissions de gestion des modèles.
+      description: 'Récupérer un modèle spécifique par ID avec les permissions de
+        gestion des modèles.
 
-        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_permissions (manage_templates).
+
+        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_permissions
+        (manage_templates).
+
+        '
       operationId: getManageTemplateById
       tags:
-        - Manage Templates
+      - Manage Templates
       parameters:
-        - name: template-id
-          in: path
-          description: Identifiant unique du modèle
-          required: true
-          schema:
-            $ref: '#/components/schemas/UUID'
+      - name: template-id
+        in: path
+        description: Identifiant unique du modèle
+        required: true
+        schema:
+          $ref: '#/components/schemas/UUID'
       responses:
         '200':
           description: Modèle récupéré avec succès
@@ -776,8 +1033,8 @@ paths:
               example:
                 status_code: 400
                 errors:
-                  - error: "ValidationError"
-                    message: "id is not a valid UUID"
+                - error: ValidationError
+                  message: id is not a valid UUID
         '401':
           description: Non autorisé
           content:
@@ -785,7 +1042,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
         '403':
-          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_permissions requise (manage_templates)
+          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_permissions
+            requise (manage_templates)
           content:
             application/json:
               schema:
@@ -796,8 +1054,8 @@ paths:
                   value:
                     status_code: 403
                     errors:
-                      - error: "ForbiddenError"
-                        message: "This API key does not have permission to manage templates."
+                    - error: ForbiddenError
+                      message: This API key does not have permission to manage templates.
         '404':
           description: Modèle non trouvé
           content:
@@ -810,8 +1068,8 @@ paths:
                   value:
                     status_code: 404
                     errors:
-                      - error: "TemplateNotFoundError"
-                        message: "Template not found in database"
+                    - error: TemplateNotFoundError
+                      message: Template not found in database
         '500':
           description: Erreur interne du serveur
           content:
@@ -819,24 +1077,27 @@ paths:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
       security:
-        - apiKey: []
-
+      - apiKey: []
     patch:
       summary: Mettre à jour un modèle
-      description: |
-        Mettre à jour les champs modifiables d’un modèle, y compris la catégorie et l’affectation du dossier parent.
+      description: 'Mettre à jour les champs modifiables d’un modèle, y compris la
+        catégorie et l’affectation du dossier parent.
 
-        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_permissions (manage_templates).
+
+        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_permissions
+        (manage_templates).
+
+        '
       operationId: patchManageTemplate
       tags:
-        - Manage Templates
+      - Manage Templates
       parameters:
-        - name: template-id
-          in: path
-          description: Identifiant unique du modèle
-          required: true
-          schema:
-            $ref: '#/components/schemas/UUID'
+      - name: template-id
+        in: path
+        description: Identifiant unique du modèle
+        required: true
+        schema:
+          $ref: '#/components/schemas/UUID'
       requestBody:
         required: true
         content:
@@ -847,12 +1108,12 @@ paths:
               update_name_and_category:
                 summary: Mettre à jour le nom du modèle et la catégorie
                 value:
-                  name: "Rappel de suivi"
-                  template_category_id: "12345678-1234-1234-1234-123456789012"
+                  name: Rappel de suivi
+                  template_category_id: 12345678-1234-1234-1234-123456789012
               move_template_to_folder:
                 summary: Déplacer le modèle dans un dossier
                 value:
-                  parent_folder_id: "87654321-4321-4321-4321-210987654321"
+                  parent_folder_id: 87654321-4321-4321-4321-210987654321
               remove_from_folder:
                 summary: Retirer le modèle du dossier
                 value:
@@ -870,43 +1131,43 @@ paths:
             application/json:
               schema:
                 oneOf:
-                  - $ref: '#/components/schemas/ValidationErrorResponse'
-                  - $ref: '#/components/schemas/ManageTemplateCategoryErrorResponse'
+                - $ref: '#/components/schemas/ValidationErrorResponse'
+                - $ref: '#/components/schemas/ManageTemplateCategoryErrorResponse'
               examples:
                 invalid_template_id:
                   summary: Format d’ID de modèle invalide
                   value:
                     status_code: 400
                     errors:
-                      - error: "ValidationError"
-                        message: "id is not a valid UUID"
+                    - error: ValidationError
+                      message: id is not a valid UUID
                 invalid_parent_folder:
                   summary: Dossier parent introuvable
                   value:
                     status_code: 400
                     errors:
-                      - error: "BadRequestError"
-                        message: "parent_folder_id not found"
+                    - error: BadRequestError
+                      message: parent_folder_id not found
                 category_not_found:
                   summary: Catégorie de modèle introuvable
                   value:
                     status_code: 400
                     errors:
-                      - error: "TemplateCategoryNotFoundError"
-                        message: "template_category_id not found"
+                    - error: TemplateCategoryNotFoundError
+                      message: template_category_id not found
                     template_categories:
-                      - template_category_id: "12345678-1234-1234-1234-123456789012"
-                        name: "Mises à jour"
+                    - template_category_id: 12345678-1234-1234-1234-123456789012
+                      name: Mises à jour
                 category_invalid:
                   summary: Valeur de catégorie de modèle invalide
                   value:
                     status_code: 400
                     errors:
-                      - error: "TemplateCategoryValidationError"
-                        message: "template_category_id must be a valid UUID"
+                    - error: TemplateCategoryValidationError
+                      message: template_category_id must be a valid UUID
                     template_categories:
-                      - template_category_id: "12345678-1234-1234-1234-123456789012"
-                        name: "Mises à jour"
+                    - template_category_id: 12345678-1234-1234-1234-123456789012
+                      name: Mises à jour
         '401':
           description: Non autorisé
           content:
@@ -914,7 +1175,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
         '403':
-          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_permissions requise (manage_templates)
+          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_permissions
+            requise (manage_templates)
           content:
             application/json:
               schema:
@@ -925,8 +1187,8 @@ paths:
                   value:
                     status_code: 403
                     errors:
-                      - error: "ForbiddenError"
-                        message: "This API key does not have permission to manage templates."
+                    - error: ForbiddenError
+                      message: This API key does not have permission to manage templates.
         '404':
           description: Modèle non trouvé
           content:
@@ -940,24 +1202,26 @@ paths:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
       security:
-        - apiKey: []
-
+      - apiKey: []
     delete:
       summary: Archiver un modèle
-      description: |
-        Archiver un modèle et le retirer de tout dossier.
+      description: 'Archiver un modèle et le retirer de tout dossier.
 
-        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_permissions (manage_templates).
+
+        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_permissions
+        (manage_templates).
+
+        '
       operationId: deleteManageTemplate
       tags:
-        - Manage Templates
+      - Manage Templates
       parameters:
-        - name: template-id
-          in: path
-          description: Identifiant unique du modèle
-          required: true
-          schema:
-            $ref: '#/components/schemas/UUID'
+      - name: template-id
+        in: path
+        description: Identifiant unique du modèle
+        required: true
+        schema:
+          $ref: '#/components/schemas/UUID'
       responses:
         '200':
           description: Modèle archivé avec succès
@@ -977,15 +1241,15 @@ paths:
                   value:
                     status_code: 400
                     errors:
-                      - error: "ValidationError"
-                        message: "id is not a valid UUID"
+                    - error: ValidationError
+                      message: id is not a valid UUID
                 already_archived:
                   summary: Le modèle est déjà archivé
                   value:
                     status_code: 400
                     errors:
-                      - error: "BadRequestError"
-                        message: "Template is already archived."
+                    - error: BadRequestError
+                      message: Template is already archived.
         '401':
           description: Non autorisé
           content:
@@ -993,7 +1257,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
         '403':
-          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_permissions requise (manage_templates)
+          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_permissions
+            requise (manage_templates)
           content:
             application/json:
               schema:
@@ -1004,8 +1269,8 @@ paths:
                   value:
                     status_code: 403
                     errors:
-                      - error: "ForbiddenError"
-                        message: "This API key does not have permission to manage templates."
+                    - error: ForbiddenError
+                      message: This API key does not have permission to manage templates.
         '404':
           description: Modèle non trouvé
           content:
@@ -1019,19 +1284,20 @@ paths:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
       security:
-        - apiKey: []
-
-
+      - apiKey: []
   /v2/manage-template:
     post:
       summary: Créer un modèle
-      description: |
-        Créer un nouveau modèle avec une catégorie de modèle obligatoire.
+      description: 'Créer un nouveau modèle avec une catégorie de modèle obligatoire.
 
-        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_permissions (manage_templates).
+
+        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_permissions
+        (manage_templates).
+
+        '
       operationId: postManageTemplate
       tags:
-        - Manage Templates
+      - Manage Templates
       requestBody:
         required: true
         content:
@@ -1042,19 +1308,19 @@ paths:
               create_sms_template:
                 summary: Créer un modèle SMS
                 value:
-                  name: "Mise à jour du service"
-                  template_type: "sms"
-                  content: "Bonjour ((name)), la mise à jour de votre service est prête."
-                  template_category_id: "12345678-1234-1234-1234-123456789012"
+                  name: Mise à jour du service
+                  template_type: sms
+                  content: Bonjour ((name)), la mise à jour de votre service est prête.
+                  template_category_id: 12345678-1234-1234-1234-123456789012
               create_email_template:
                 summary: Créer un modèle courriel
                 value:
-                  name: "Courriel de mise à jour du service"
-                  template_type: "email"
-                  subject: "Votre mise à jour"
-                  content: "Bonjour ((name)), la mise à jour de votre service est prête."
-                  template_category_id: "12345678-1234-1234-1234-123456789012"
-                  parent_folder_id: "87654321-4321-4321-4321-210987654321"
+                  name: Courriel de mise à jour du service
+                  template_type: email
+                  subject: Votre mise à jour
+                  content: Bonjour ((name)), la mise à jour de votre service est prête.
+                  template_category_id: 12345678-1234-1234-1234-123456789012
+                  parent_folder_id: 87654321-4321-4321-4321-210987654321
       responses:
         '201':
           description: Modèle créé avec succès
@@ -1068,47 +1334,48 @@ paths:
             application/json:
               schema:
                 oneOf:
-                  - $ref: '#/components/schemas/ValidationErrorResponse'
-                  - $ref: '#/components/schemas/ManageTemplateCategoryErrorResponse'
+                - $ref: '#/components/schemas/ValidationErrorResponse'
+                - $ref: '#/components/schemas/ManageTemplateCategoryErrorResponse'
               examples:
                 missing_required_field:
                   summary: Champ obligatoire manquant
                   value:
                     status_code: 400
                     errors:
-                      - error: "ValidationError"
-                        message: "template_category_id is a required property"
+                    - error: ValidationError
+                      message: template_category_id is a required property
                 invalid_parent_folder:
                   summary: Dossier parent introuvable
                   value:
                     status_code: 400
                     errors:
-                      - error: "BadRequestError"
-                        message: "parent_folder_id not found"
+                    - error: BadRequestError
+                      message: parent_folder_id not found
                 content_too_long:
                   summary: Le contenu dépasse la limite de caractères
                   value:
                     status_code: 400
                     errors:
-                      - error: "BadRequestError"
-                        message: "Content has a character count greater than the limit of 918"
+                    - error: BadRequestError
+                      message: Content has a character count greater than the limit
+                        of 918
                 template_name_too_long:
                   summary: Nom du modèle trop long
                   value:
                     status_code: 400
                     errors:
-                      - error: "BadRequestError"
-                        message: "Template name must be less than 100 characters"
+                    - error: BadRequestError
+                      message: Template name must be less than 100 characters
                 category_not_found:
                   summary: Catégorie de modèle introuvable
                   value:
                     status_code: 400
                     errors:
-                      - error: "TemplateCategoryNotFoundError"
-                        message: "template_category_id not found"
+                    - error: TemplateCategoryNotFoundError
+                      message: template_category_id not found
                     template_categories:
-                      - template_category_id: "12345678-1234-1234-1234-123456789012"
-                        name: "Mises à jour"
+                    - template_category_id: 12345678-1234-1234-1234-123456789012
+                      name: Mises à jour
         '401':
           description: Non autorisé
           content:
@@ -1116,7 +1383,9 @@ paths:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
         '403':
-          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_permissions requise (manage_templates) ou le type de modèle n’est pas autorisé pour le service
+          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_permissions
+            requise (manage_templates) ou le type de modèle n’est pas autorisé pour
+            le service
           content:
             application/json:
               schema:
@@ -1127,15 +1396,15 @@ paths:
                   value:
                     status_code: 403
                     errors:
-                      - error: "ForbiddenError"
-                        message: "This API key does not have permission to manage templates."
+                    - error: ForbiddenError
+                      message: This API key does not have permission to manage templates.
                 unsupported_type:
                   summary: Le service n’autorise pas ce type de modèle
                   value:
                     status_code: 403
                     errors:
-                      - error: "ForbiddenError"
-                        message: "Creating email templates is not allowed"
+                    - error: ForbiddenError
+                      message: Creating email templates is not allowed
         '500':
           description: Erreur interne du serveur
           content:
@@ -1143,218 +1412,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
       security:
-        - apiKey: []
-
-
-  /v2/notifications/bulk:
-    post:
-      summary: Envoyer un lot de notifications
-      description: |
-        Envoyez des notifications en masse, jusqu’à 50 000 destinataires à la fois, pour un seul modèle.
-
-        Vous pouvez planifier l’envoi de notifications jusqu’à 4 jours à l’avance.
-      operationId: sendBulkNotifications
-      tags:
-        - Notifications
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/PostBulkRequest'
-            examples:
-              basic_bulk_email_rows:
-                summary: Notification groupée par courriel de base utilisant des lignes
-                value:
-                  template_id: "12345678-1234-1234-1234-123456789012"
-                  name: "Rappels de rendez-vous de janvier"
-                  rows:
-                    - ["adresse courriel", "nom"]
-                    - ["alice@example.com", "Alice"]
-                    - ["bob@example.com", "Bob"]
-              basic_bulk_email_csv:
-                summary: Notification groupée par courriel de base utilisant un fichier CSV
-                value:
-                  template_id: "12345678-1234-1234-1234-123456789012"
-                  name: "Rappels de rendez-vous de janvier"
-                  csv: "adresse courriel,nom\nalice@example.com,Alice\nbob@example.com,Bob"
-              basic_bulk_sms_rows:
-                summary: Notification groupée par SMS de base utilisant des lignes
-                value:
-                  template_id: "12345678-1234-1234-1234-123456789012"
-                  name: "Rappels de rendez-vous de janvier"
-                  rows:
-                    - ["numéro de téléphone", "nom"]
-                    - ["123-456-7890", "Alice"]
-                    - ["+112345678901", "Bob"]
-              basic_bulk_sms_csv:
-                summary: Notification groupée de base par SMS utilisant un fichier CSV
-                value:
-                  template_id: "12345678-1234-1234-1234-123456789012"
-                  name: "Rappels de rendez-vous de janvier"
-                  csv: "numéro de téléphone,nom\n123-456-7890,Alice\n+112345678901,Bob"
-              scheduled_bulk_with_ref:
-                summary: Notifications groupées planifiées avec une référence pour le suivi et une adresse de réponse
-                value:
-                  template_id: "12345678-1234-1234-1234-123456789012"
-                  name: "Rappels de rendez-vous de janvier"
-                  scheduled_for: "2025-06-25T15:15:00"
-                  reference: "rappels-janvier"
-                  reply_to_id: "12345678-1234-1234-1234-123456789012"
-                  rows:
-                    - ["adresse courriel", "nom"]
-                    - ["alice@example.com", "Alice"]
-                    - ["bob@example.com", "Bob"]
-      responses:
-        '201':
-          description: Tâche de notification en masse créée avec succès
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PostBulkResponse'
-        '400':
-          description: Mauvaise requête
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidationErrorResponse'
-              examples:
-                missing_rows_or_csv:
-                  summary: Must specify rows or csv
-                  value:
-                    status_code: 400
-                    errors:
-                      - error: "BadRequestError"
-                        message: "You should specify either rows or csv"
-                missing_name:
-                  summary: Name is required
-                  value:
-                    status_code: 400
-                    errors:
-                      - error: "ValidationError"
-                        message: "name is a required property"
-                scheduled_for_wrong_type:
-                  summary: scheduled_for wrong type
-                  value:
-                    status_code: 400
-                    errors:
-                      - error: "ValidationError"
-                        message: "scheduled_for 42 is not of type string, null"
-                scheduled_for_past:
-                  summary: scheduled_for in the past
-                  value:
-                    status_code: 400
-                    errors:
-                      - error: "ValidationError"
-                        message: "scheduled_for datetime cannot be in the past"
-                scheduled_for_too_far:
-                  summary: scheduled_for too far in future
-                  value:
-                    status_code: 400
-                    errors:
-                      - error: "ValidationError"
-                        message: "scheduled_for datetime can only be up to 96 hours in the future"
-                scheduled_for_invalid_format:
-                  summary: scheduled_for invalid format
-                  value:
-                    status_code: 400
-                    errors:
-                      - error: "ValidationError"
-                        message: "scheduled_for datetime format is invalid. It must be a valid ISO8601 date time format, https://en.wikipedia.org/wiki/ISO_8601"
-                template_not_found:
-                  summary: Template not found
-                  value:
-                    status_code: 400
-                    errors:
-                      - error: "BadRequestError"
-                        message: "Template not found"
-                template_deleted:
-                  summary: Template deleted
-                  value:
-                    status_code: 400
-                    errors:
-                      - error: "BadRequestError"
-                        message: "Template has been deleted"
-                service_not_allowed:
-                  summary: Service not allowed to send emails
-                  value:
-                    status_code: 400
-                    errors:
-                      - error: "BadRequestError"
-                        message: "Service is not allowed to send emails"
-                missing_column_headers:
-                  summary: Missing column headers
-                  value:
-                    status_code: 400
-                    errors:
-                      - error: "BadRequestError"
-                        message: "Missing column headers: name"
-                duplicate_column_headers:
-                  summary: Duplicate column headers
-                  value:
-                    status_code: 400
-                    errors:
-                      - error: "BadRequestError"
-                        message: "Duplicate column headers: name, NAME"
-                too_many_rows:
-                  summary: Too many rows
-                  value:
-                    status_code: 400
-                    errors:
-                      - error: "BadRequestError"
-                        message: "Too many rows. Maximum number of rows allowed is 50000"
-                team_safelist_api_key:
-                  summary: Team and safelist API key restriction
-                  value:
-                    status_code: 400
-                    errors:
-                      - error: "BadRequestError"
-                        message: "You cannot send to these recipients because you used a team and safelist API key."
-                trial_mode_restriction:
-                  summary: Trial mode restriction
-                  value:
-                    status_code: 400
-                    errors:
-                      - error: "BadRequestError"
-                        message: "You cannot send to these recipients because your service is in trial mode. You can only send to members of your team and your safelist."
-                daily_limit_exceeded:
-                  summary: Daily limit exceeded
-                  value:
-                    status_code: 400
-                    errors:
-                      - error: "BadRequestError"
-                        message: "You only have 50 remaining messages before you reach your daily limit. You've tried to send 75 messages."
-                row_errors:
-                  summary: Row errors
-                  value:
-                    status_code: 400
-                    errors:
-                      - error: "BadRequestError"
-                        message: "Some rows have errors. Row 1 - name: Missing. Row 2 - email address: invalid recipient. Row 3 - name: Missing. Row 4 - name: Missing."
-        '500':
-          description: Erreur interne du serveur
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              examples:
-                internal_server_error:
-                  summary: Internal server error
-                  value:
-                    result: "error"
-                    message: "Internal server error"
-      security:
-        - apiKey: []
-
-
+      - apiKey: []
 components:
   schemas:
     UUID:
       type: string
       format: uuid
-      pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
-      example: "123e4567-e89b-12d3-a456-426614174000"
-
+      pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
+      example: 123e4567-e89b-12d3-a456-426614174000
     Notification:
       type: object
       properties:
@@ -1393,13 +1458,36 @@ components:
           nullable: true
         type:
           type: string
-          enum: [sms, email]
+          enum:
+          - sms
+          - email
         status:
           type: string
-          enum: [created, sending, pending, delivered, permanent-failure, temporary-failure, technical-failure, pending-virus-check, virus-scan-failed]
+          enum:
+          - created
+          - sending
+          - pending
+          - delivered
+          - permanent-failure
+          - temporary-failure
+          - technical-failure
+          - pending-virus-check
+          - virus-scan-failed
         status_description:
           type: string
-          enum: [En transit, En transit, En transit, Livré, Bloqué, Aucun numéro, Aucune adresse, Problème de contenu ou de boîte de réception, Problème de transporteur, Problème technique, En transit, Pièce jointe infectée]
+          enum:
+          - En transit
+          - En transit
+          - En transit
+          - Livré
+          - Bloqué
+          - Aucun numéro
+          - Aucune adresse
+          - Problème de contenu ou de boîte de réception
+          - Problème de transporteur
+          - Problème technique
+          - En transit
+          - Pièce jointe infectée
         provider_response:
           type: string
           nullable: true
@@ -1431,7 +1519,6 @@ components:
         postage:
           type: string
           nullable: true
-
     NotificationTemplate:
       type: object
       properties:
@@ -1443,10 +1530,9 @@ components:
           type: string
           format: uri
       required:
-        - id
-        - version
-        - uri
-
+      - id
+      - version
+      - uri
     CreateEmailNotificationRequest:
       type: object
       properties:
@@ -1465,9 +1551,9 @@ components:
           description: Variables à substituer dans le modèle et pièces jointes optionnelles
           additionalProperties:
             oneOf:
-              - type: string
-                description: Valeur de la variable du modèle
-              - $ref: '#/components/schemas/FileAttachment'
+            - type: string
+              description: Valeur de la variable du modèle
+            - $ref: '#/components/schemas/FileAttachment'
         scheduled_for:
           type: string
           format: date-time
@@ -1477,9 +1563,8 @@ components:
           $ref: '#/components/schemas/UUID'
           description: ID de l'adresse de réponse à utiliser
       required:
-        - email_address
-        - template_id
-
+      - email_address
+      - template_id
     CreateSmsNotificationRequest:
       type: object
       properties:
@@ -1494,8 +1579,8 @@ components:
           description: Variables à substituer dans le modèle
           additionalProperties:
             oneOf:
-              - type: string
-                description: Valeur de la variable du modèle
+            - type: string
+              description: Valeur de la variable du modèle
         reference:
           type: string
           description: Identifiant de référence optionnel
@@ -1508,9 +1593,8 @@ components:
           $ref: '#/components/schemas/UUID'
           description: ID de l'expéditeur SMS à utiliser
       required:
-        - phone_number
-        - template_id
-
+      - phone_number
+      - template_id
     NotificationResponse:
       type: object
       properties:
@@ -1523,8 +1607,8 @@ components:
           description: Identifiant de référence fourni lors de la création de la notification
         content:
           oneOf:
-            - $ref: '#/components/schemas/EmailContent'
-            - $ref: '#/components/schemas/SmsContent'
+          - $ref: '#/components/schemas/EmailContent'
+          - $ref: '#/components/schemas/SmsContent'
           description: Contenu de la notification
         uri:
           type: string
@@ -1538,11 +1622,10 @@ components:
           nullable: true
           description: Quand la notification est planifiée pour être envoyée
       required:
-        - id
-        - content
-        - uri
-        - template
-
+      - id
+      - content
+      - uri
+      - template
     EmailContent:
       type: object
       properties:
@@ -1557,10 +1640,9 @@ components:
           type: string
           description: Objet du courriel
       required:
-        - from_email
-        - body
-        - subject
-
+      - from_email
+      - body
+      - subject
     SmsContent:
       type: object
       properties:
@@ -1571,9 +1653,8 @@ components:
           type: string
           description: Numéro de l'expéditeur
       required:
-        - body
-        - from_number
-
+      - body
+      - from_number
     FileAttachment:
       type: object
       properties:
@@ -1585,17 +1666,19 @@ components:
           description: Nom de fichier personnalisé pour la pièce jointe
         sending_method:
           type: string
-          enum: [attach, link]
-          description: Comment le fichier doit être envoyé - en pièce jointe ou en lien
+          enum:
+          - attach
+          - link
+          description: Comment le fichier doit être envoyé - en pièce jointe ou en
+            lien
       required:
-        - file
-        - filename
-        - sending_method
+      - file
+      - filename
+      - sending_method
       example:
-        file: "base64encodedfilecontenthere"
-        filename: "document.pdf"
-        sending_method: "attach"
-
+        file: base64encodedfilecontenthere
+        filename: document.pdf
+        sending_method: attach
     Template:
       type: object
       properties:
@@ -1610,7 +1693,9 @@ components:
           description: Description du modèle
         type:
           type: string
-          enum: [sms, email]
+          enum:
+          - sms
+          - email
           description: Type de notification pour ce modèle
         subject:
           type: string
@@ -1623,8 +1708,8 @@ components:
           description: Variables à substituer dans le modèle et pièces jointes optionnelles
           additionalProperties:
             oneOf:
-              - type: string
-                description: Valeur de la variable du modèle
+            - type: string
+              description: Valeur de la variable du modèle
         active:
           type: boolean
           description: Indique si le modèle est actif
@@ -1640,13 +1725,12 @@ components:
           type: string
           description: Utilisateur ayant créé le modèle
       required:
-        - id
-        - name
-        - type
-        - body
-        - active
-        - created_at
-
+      - id
+      - name
+      - type
+      - body
+      - active
+      - created_at
     ManageTemplateCategory:
       type: object
       properties:
@@ -1655,9 +1739,8 @@ components:
         name:
           type: string
       required:
-        - template_category_id
-        - name
-
+      - template_category_id
+      - name
     ManageTemplate:
       type: object
       properties:
@@ -1671,7 +1754,9 @@ components:
           type: string
         type:
           type: string
-          enum: [sms, email]
+          enum:
+          - sms
+          - email
         created_at:
           type: string
           format: date-time
@@ -1694,29 +1779,28 @@ components:
           nullable: true
         template_category_id:
           allOf:
-            - $ref: '#/components/schemas/UUID'
+          - $ref: '#/components/schemas/UUID'
           nullable: true
         template_category_name:
           type: string
           nullable: true
         folder_id:
           allOf:
-            - $ref: '#/components/schemas/UUID'
+          - $ref: '#/components/schemas/UUID'
           nullable: true
         archived:
           type: boolean
       required:
-        - id
-        - service_id
-        - service_name
-        - name
-        - type
-        - created_at
-        - created_by
-        - version
-        - body
-        - archived
-
+      - id
+      - service_id
+      - service_name
+      - name
+      - type
+      - created_at
+      - created_by
+      - version
+      - body
+      - archived
     ManageTemplateCategoriesResponse:
       type: object
       properties:
@@ -1725,8 +1809,7 @@ components:
           items:
             $ref: '#/components/schemas/ManageTemplateCategory'
       required:
-        - template_categories
-
+      - template_categories
     ManageTemplatePostRequest:
       type: object
       description: Le champ subject est requis lorsque template_type vaut email.
@@ -1735,7 +1818,9 @@ components:
           type: string
         template_type:
           type: string
-          enum: [sms, email]
+          enum:
+          - sms
+          - email
         content:
           type: string
         subject:
@@ -1745,12 +1830,11 @@ components:
         parent_folder_id:
           $ref: '#/components/schemas/UUID'
       required:
-        - name
-        - template_type
-        - content
-        - template_category_id
+      - name
+      - template_type
+      - content
+      - template_category_id
       additionalProperties: false
-
     ManageTemplatePatchRequest:
       type: object
       properties:
@@ -1764,10 +1848,9 @@ components:
           $ref: '#/components/schemas/UUID'
         parent_folder_id:
           allOf:
-            - $ref: '#/components/schemas/UUID'
+          - $ref: '#/components/schemas/UUID'
           nullable: true
       additionalProperties: false
-
     ManageTemplateCategoryErrorResponse:
       type: object
       properties:
@@ -1783,18 +1866,16 @@ components:
               message:
                 type: string
             required:
-              - error
-              - message
+            - error
+            - message
         template_categories:
           type: array
           items:
             $ref: '#/components/schemas/ManageTemplateCategory'
       required:
-        - status_code
-        - errors
-        - template_categories
-
-
+      - status_code
+      - errors
+      - template_categories
     Links:
       type: object
       properties:
@@ -1805,8 +1886,7 @@ components:
           type: string
           description: Lien vers la page suivante
       required:
-        - current
-
+      - current
     Error:
       type: object
       properties:
@@ -1817,9 +1897,8 @@ components:
           type: string
           description: Description de l’erreur
       required:
-        - result
-        - message
-
+      - result
+      - message
     ValidationError:
       type: object
       properties:
@@ -1841,18 +1920,17 @@ components:
                 type: string
                 description: Message d’erreur de validation
             required:
-              - field
-              - message
+            - field
+            - message
         timestamp:
           type: string
           format: date-time
           description: Date et heure de l’erreur
       required:
-        - error
-        - code
-        - details
-        - timestamp
-
+      - error
+      - code
+      - details
+      - timestamp
     ValidationErrorResponse:
       type: object
       properties:
@@ -1871,65 +1949,80 @@ components:
                 type: string
                 description: Message d’erreur
             required:
-              - error
-              - message
+            - error
+            - message
       required:
-        - status_code
-        - errors
-
+      - status_code
+      - errors
     PostBulkRequest:
       type: object
       required:
-        - template_id
-        - name
+      - template_id
+      - name
       properties:
         template_id:
           $ref: '#/components/schemas/UUID'
         name:
           type: string
-          description: Nom de votre tâche d’envoi en masse. Utilisé pour identifier ce lot de notifications ultérieurement.
-          example: "Rappels de rendez-vous de janvier"
+          description: Nom de votre tâche d’envoi en masse. Utilisé pour identifier
+            ce lot de notifications ultérieurement.
+          example: Rappels de rendez-vous de janvier
         reference:
           type: string
           description: Référence pour ce lot
-          example: "batch-reference-123"
+          example: batch-reference-123
         csv:
           type: string
           format: binary
-          description: Si vous préférez transmettre le contenu des fichiers CSV au lieu des lignes dans l’argument rows, vous pouvez le faire. Passez le contenu complet de votre fichier CSV dans une clé nommée csv. N’incluez pas l’argument rows.
-          example: "email address,name\nalice@example.com,Alice"
+          description: Si vous préférez transmettre le contenu des fichiers CSV au
+            lieu des lignes dans l’argument rows, vous pouvez le faire. Passez le
+            contenu complet de votre fichier CSV dans une clé nommée csv. N’incluez
+            pas l’argument rows.
+          example: 'email address,name
+
+            alice@example.com,Alice'
         rows:
           type: array
-          description: Un tableau de tableaux. La première ligne est l’en-tête et doit inclure au moins l’adresse courriel si vous envoyez un modèle courriel ou le numéro de téléphone si vous envoyez un modèle SMS. Les autres en-têtes de colonnes doivent correspondre aux champs de variables personnalisées de votre modèle. Les lignes suivantes doivent contenir les détails de vos destinataires et respecter l’ordre des en-têtes de colonnes. Vous pouvez avoir entre 1 et 50 000 destinataires.
+          description: Un tableau de tableaux. La première ligne est l’en-tête et
+            doit inclure au moins l’adresse courriel si vous envoyez un modèle courriel
+            ou le numéro de téléphone si vous envoyez un modèle SMS. Les autres en-têtes
+            de colonnes doivent correspondre aux champs de variables personnalisées
+            de votre modèle. Les lignes suivantes doivent contenir les détails de
+            vos destinataires et respecter l’ordre des en-têtes de colonnes. Vous
+            pouvez avoir entre 1 et 50 000 destinataires.
           items:
             type: array
             items:
               type: string
           example:
-            - ["email address", "name"]
-            - ["alice@example.com", "Alice"]
-            - ["bob@example.com", "Bob"]
+          - - email address
+            - name
+          - - alice@example.com
+            - Alice
+          - - bob@example.com
+            - Bob
         scheduled_for:
           type: string
           format: date-time
-          description: Si vous souhaitez envoyer des notifications dans le futur, vous pouvez spécifier une date et une heure jusqu’à 4 jours à l’avance, au format ISO 8601, heure UTC.
-          example: "2023-01-01T12:00:00"
+          description: Si vous souhaitez envoyer des notifications dans le futur,
+            vous pouvez spécifier une date et une heure jusqu’à 4 jours à l’avance,
+            au format ISO 8601, heure UTC.
+          example: '2023-01-01T12:00:00'
           nullable: true
         reply_to_id:
           $ref: '#/components/schemas/UUID'
           description: ID de l’adresse de réponse ou du numéro de téléphone à utiliser
           nullable: true
-
     PostBulkResponse:
       type: object
       properties:
         data:
           type: object
           required:
-            - id
-            - template
-            - job_status
-            - notification_count
+          - id
+          - template
+          - job_status
+          - notification_count
           properties:
             id:
               $ref: '#/components/schemas/UUID'
@@ -1969,7 +2062,16 @@ components:
               description: Date de dernière mise à jour de la tâche
             job_status:
               type: string
-              enum: ['pending', 'in progress', 'finished', 'sending limits exceeded', 'scheduled', 'cancelled', 'ready to send', 'sent to dvla', 'error']
+              enum:
+              - pending
+              - in progress
+              - finished
+              - sending limits exceeded
+              - scheduled
+              - cancelled
+              - ready to send
+              - sent to dvla
+              - error
               description: Statut de la tâche d’envoi en masse
             scheduled_for:
               type: string
@@ -1994,7 +2096,9 @@ components:
                   description: Nom du service ayant créé la tâche
             template_type:
               type: string
-              enum: ['email', 'sms']
+              enum:
+              - email
+              - sms
               description: Type de modèle utilisé pour cette tâche (email ou sms)
             api_key:
               type: object
@@ -2008,7 +2112,10 @@ components:
                   description: Nom de la clé API
                 key_type:
                   type: string
-                  enum: ['normal', 'team', 'test']
+                  enum:
+                  - normal
+                  - team
+                  - test
                   description: Type de clé API
             archived:
               type: boolean
@@ -2023,11 +2130,3 @@ components:
       in: header
       name: Authorization
       description: Clé API au format « ApiKey-v1 {api_key} »
-
-tags:
-  - name: Notifications
-    description: Opérations liées aux notifications
-  - name: Templates
-    description: Opérations liées aux modèles de notification
-  - name: Manage Templates
-    description: Opérations pour créer, mettre à jour, récupérer et archiver des modèles avec la permission manage_permissions (manage_templates)

@@ -1,0 +1,715 @@
+components:
+  schemas:
+    UUID:
+      type: string
+      format: uuid
+      pattern: ^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
+      example: 123e4567-e89b-12d3-a456-426614174000
+    Notification:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        reference:
+          type: string
+          nullable: true
+        email_address:
+          type: string
+          format: email
+          nullable: true
+        phone_number:
+          type: string
+          nullable: true
+        line_1:
+          type: string
+          nullable: true
+        line_2:
+          type: string
+          nullable: true
+        line_3:
+          type: string
+          nullable: true
+        line_4:
+          type: string
+          nullable: true
+        line_5:
+          type: string
+          nullable: true
+        line_6:
+          type: string
+          nullable: true
+        postcode:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum:
+          - sms
+          - email
+        status:
+          type: string
+          enum:
+          - created
+          - sending
+          - pending
+          - delivered
+          - permanent-failure
+          - temporary-failure
+          - technical-failure
+          - pending-virus-check
+          - virus-scan-failed
+        status_description:
+          type: string
+          enum:
+          - In transit
+          - In transit
+          - In transit
+          - Delivered
+          - Blocked
+          - No such number
+          - No such address
+          - Content or inbox issue
+          - Carrier issue
+          - Tech issue
+          - In transit
+          - Attachment has virus
+        provider_response:
+          type: string
+          nullable: true
+        template:
+          $ref: '#/components/schemas/NotificationTemplate'
+        body:
+          type: string
+        subject:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        created_by_name:
+          type: string
+          nullable: true
+        sent_at:
+          type: string
+          format: date-time
+          nullable: true
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+        scheduled_for:
+          type: string
+          format: date-time
+          nullable: true
+        postage:
+          type: string
+          nullable: true
+    NotificationTemplate:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        version:
+          type: integer
+        uri:
+          type: string
+          format: uri
+      required:
+      - id
+      - version
+      - uri
+    CreateEmailNotificationRequest:
+      type: object
+      properties:
+        reference:
+          type: string
+          description: Optional reference identifier
+        email_address:
+          type: string
+          format: email
+          description: Email address of the recipient
+        template_id:
+          $ref: '#/components/schemas/UUID'
+          description: ID of the template to use
+        personalisation:
+          type: object
+          description: Variables to substitute in the template and optional file attachments
+          additionalProperties:
+            oneOf:
+            - type: string
+              description: Template variable value
+            - $ref: '#/components/schemas/FileAttachment'
+        scheduled_for:
+          type: string
+          format: date-time
+          nullable: true
+          description: Schedule notification for future delivery
+        email_reply_to_id:
+          $ref: '#/components/schemas/UUID'
+          description: ID of the reply-to address to use
+      required:
+      - email_address
+      - template_id
+    CreateSmsNotificationRequest:
+      type: object
+      properties:
+        phone_number:
+          type: string
+          description: Phone number of the recipient
+        template_id:
+          $ref: '#/components/schemas/UUID'
+          description: ID of the template to use
+        personalisation:
+          type: object
+          description: Variables to substitute in the template
+          additionalProperties:
+            oneOf:
+            - type: string
+              description: Template variable value
+        reference:
+          type: string
+          description: Optional reference identifier
+        scheduled_for:
+          type: string
+          format: date-time
+          nullable: true
+          description: Schedule notification for future delivery
+        sms_sender_id:
+          $ref: '#/components/schemas/UUID'
+          description: ID of the SMS sender to use
+      required:
+      - phone_number
+      - template_id
+    NotificationResponse:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+          description: Unique identifier for the notification
+        reference:
+          type: string
+          nullable: true
+          description: Reference identifier provided when creating the notification
+        content:
+          oneOf:
+          - $ref: '#/components/schemas/EmailContent'
+          - $ref: '#/components/schemas/SmsContent'
+          description: Content of the notification
+        uri:
+          type: string
+          format: uri
+          description: URI to retrieve the notification
+        template:
+          $ref: '#/components/schemas/NotificationTemplate'
+        scheduled_for:
+          type: string
+          format: date-time
+          nullable: true
+          description: When the notification is scheduled to be sent
+      required:
+      - id
+      - content
+      - uri
+      - template
+    EmailContent:
+      type: object
+      properties:
+        from_email:
+          type: string
+          format: email
+          description: From email address
+        body:
+          type: string
+          description: Email body content
+        subject:
+          type: string
+          description: Email subject line
+      required:
+      - from_email
+      - body
+      - subject
+    SmsContent:
+      type: object
+      properties:
+        body:
+          type: string
+          description: SMS message body
+        from_number:
+          type: string
+          description: From phone number
+      required:
+      - body
+      - from_number
+    FileAttachment:
+      type: object
+      properties:
+        file:
+          type: string
+          description: File content as base64 encoded string
+        filename:
+          type: string
+          description: Custom filename for the attachment
+        sending_method:
+          type: string
+          enum:
+          - attach
+          - link
+          description: How the file should be sent - as attachment or as a link
+      required:
+      - file
+      - filename
+      - sending_method
+      example:
+        file: base64encodedfilecontenthere
+        filename: document.pdf
+        sending_method: attach
+    Template:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+          description: Unique identifier for the template
+        name:
+          type: string
+          description: Template name
+        description:
+          type: string
+          description: Template description
+        type:
+          type: string
+          enum:
+          - sms
+          - email
+          description: Type of notification this template is for
+        subject:
+          type: string
+          description: Subject template (for email)
+        body:
+          type: string
+          description: Message body template
+        personalisation:
+          type: object
+          description: Variables to substitute in the template and optional file attachments
+          additionalProperties:
+            oneOf:
+            - type: string
+              description: Template variable value
+        active:
+          type: boolean
+          description: Whether the template is active
+        created_at:
+          type: string
+          format: date-time
+          description: Timestamp when template was created
+        updated_at:
+          type: string
+          format: date-time
+          description: Timestamp when template was last updated
+        created_by:
+          type: string
+          description: User who created the template
+      required:
+      - id
+      - name
+      - type
+      - body
+      - active
+      - created_at
+    ManageTemplateCategory:
+      type: object
+      properties:
+        template_category_id:
+          $ref: '#/components/schemas/UUID'
+        name:
+          type: string
+      required:
+      - template_category_id
+      - name
+    ManageTemplate:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        service_id:
+          $ref: '#/components/schemas/UUID'
+        service_name:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+          enum:
+          - sms
+          - email
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_by:
+          type: string
+          description: Email address of the user who created the template
+        version:
+          type: integer
+        body:
+          type: string
+        subject:
+          type: string
+          nullable: true
+        postage:
+          type: string
+          nullable: true
+        template_category_id:
+          allOf:
+          - $ref: '#/components/schemas/UUID'
+          nullable: true
+        template_category_name:
+          type: string
+          nullable: true
+        folder_id:
+          allOf:
+          - $ref: '#/components/schemas/UUID'
+          nullable: true
+        archived:
+          type: boolean
+      required:
+      - id
+      - service_id
+      - service_name
+      - name
+      - type
+      - created_at
+      - created_by
+      - version
+      - body
+      - archived
+    ManageTemplateCategoriesResponse:
+      type: object
+      properties:
+        template_categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/ManageTemplateCategory'
+      required:
+      - template_categories
+    ManageTemplatePostRequest:
+      type: object
+      description: Subject is required when template_type is email.
+      properties:
+        name:
+          type: string
+        template_type:
+          type: string
+          enum:
+          - sms
+          - email
+        content:
+          type: string
+        subject:
+          type: string
+        template_category_id:
+          $ref: '#/components/schemas/UUID'
+        parent_folder_id:
+          $ref: '#/components/schemas/UUID'
+      required:
+      - name
+      - template_type
+      - content
+      - template_category_id
+      additionalProperties: false
+    ManageTemplatePatchRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        content:
+          type: string
+        subject:
+          type: string
+        template_category_id:
+          $ref: '#/components/schemas/UUID'
+        parent_folder_id:
+          allOf:
+          - $ref: '#/components/schemas/UUID'
+          nullable: true
+      additionalProperties: false
+    ManageTemplateCategoryErrorResponse:
+      type: object
+      properties:
+        status_code:
+          type: integer
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              error:
+                type: string
+              message:
+                type: string
+            required:
+            - error
+            - message
+        template_categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/ManageTemplateCategory'
+      required:
+      - status_code
+      - errors
+      - template_categories
+    Links:
+      type: object
+      properties:
+        current:
+          type: string
+          description: The link to the current page
+        next:
+          type: string
+          description: The link to the next page
+      required:
+      - current
+    Error:
+      type: object
+      properties:
+        result:
+          type: string
+          description: Response result
+        message:
+          type: string
+          description: Description of the error
+      required:
+      - result
+      - message
+    ValidationError:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        code:
+          type: string
+          description: Error code
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                description: Field that failed validation
+              message:
+                type: string
+                description: Validation error message
+            required:
+            - field
+            - message
+        timestamp:
+          type: string
+          format: date-time
+          description: Timestamp when error occurred
+      required:
+      - error
+      - code
+      - details
+      - timestamp
+    ValidationErrorResponse:
+      type: object
+      properties:
+        status_code:
+          type: integer
+          description: HTTP status code
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              error:
+                type: string
+                description: Error type
+              message:
+                type: string
+                description: Error message
+            required:
+            - error
+            - message
+      required:
+      - status_code
+      - errors
+    PostBulkRequest:
+      type: object
+      required:
+      - template_id
+      - name
+      properties:
+        template_id:
+          $ref: '#/components/schemas/UUID'
+        name:
+          type: string
+          description: The name of your bulk sending job. Used to identify this bulk
+            of notifications later on.
+          example: January Appointment Reminders
+        reference:
+          type: string
+          description: A reference for this batch
+          example: batch-reference-123
+        csv:
+          type: string
+          format: binary
+          description: If you prefer to pass the content of CSV files instead of rows
+            in the rows argument, you can do so. Pass the full content of your CSV
+            file in a key named csv. Do not include the rows argument.
+          example: 'email address,name
+
+            alice@example.com,Alice'
+        rows:
+          type: array
+          description: An array of arrays. The first line is the header and should
+            include at least email address if you're sending an email template or
+            phone number if you're sending a text message template. The other column
+            headers should match the placeholder fields (personalised variables) of
+            your template. The following lines should be your recipients' details
+            and should match the order of column headers. You can have between 1 and
+            50,000 recipients.
+          items:
+            type: array
+            items:
+              type: string
+          example:
+          - - email address
+            - name
+          - - alice@example.com
+            - Alice
+          - - bob@example.com
+            - Bob
+        scheduled_for:
+          type: string
+          format: date-time
+          description: If you want to send notifications in the future, you can specify
+            a datetime up to 4 days in the future, in ISO 8601 format, UTC time.
+          example: '2023-01-01T12:00:00'
+          nullable: true
+        reply_to_id:
+          $ref: '#/components/schemas/UUID'
+          description: The ID of the reply-to address or phone number to use
+          nullable: true
+    PostBulkResponse:
+      type: object
+      properties:
+        data:
+          type: object
+          required:
+          - id
+          - template
+          - job_status
+          - notification_count
+          properties:
+            id:
+              $ref: '#/components/schemas/UUID'
+              description: The ID of the bulk notification job
+            original_file_name:
+              type: string
+              description: The name of the original CSV file if one was provided
+            notification_count:
+              type: integer
+              description: The number of notifications in the bulk job
+            template:
+              $ref: '#/components/schemas/UUID'
+              description: The ID of the template used for this notification job
+            template_version:
+              type: integer
+              description: The version of the template used for this notification
+                job
+            service:
+              $ref: '#/components/schemas/UUID'
+              description: The ID of the service that created the job
+            created_by:
+              type: object
+              properties:
+                id:
+                  $ref: '#/components/schemas/UUID'
+                  description: The ID of the user who created the job
+                name:
+                  type: string
+                  description: The name of the user who created the job
+            created_at:
+              type: string
+              format: date-time
+              description: When the job was created
+            updated_at:
+              type: string
+              format: date-time
+              nullable: true
+              description: When the job was last updated
+            job_status:
+              type: string
+              enum:
+              - pending
+              - in progress
+              - finished
+              - sending limits exceeded
+              - scheduled
+              - cancelled
+              - ready to send
+              - sent to dvla
+              - error
+              description: The status of the bulk notification job
+            scheduled_for:
+              type: string
+              format: date-time
+              nullable: true
+              description: When the job is scheduled to be processed, null if immediate
+            processing_started:
+              type: string
+              format: date-time
+              nullable: true
+              description: When the processing of the job started
+            processing_finished:
+              type: string
+              format: date-time
+              nullable: true
+              description: When the processing of the job finished
+            service_name:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: The name of the service that created the job
+            template_type:
+              type: string
+              enum:
+              - email
+              - sms
+              description: The type of template used for this job (email or sms)
+            api_key:
+              type: object
+              nullable: true
+              properties:
+                id:
+                  $ref: '#/components/schemas/UUID'
+                  description: The ID of the API key used to create the job
+                name:
+                  type: string
+                  description: The name of the API key
+                key_type:
+                  type: string
+                  enum:
+                  - normal
+                  - team
+                  - test
+                  description: The type of API key
+            archived:
+              type: boolean
+              description: Whether the job has been archived
+            sender_id:
+              $ref: '#/components/schemas/UUID'
+              nullable: true
+              description: The ID of the sender used for this job, if applicable
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: API Key with format 'ApiKey-v1 {api_key}'
