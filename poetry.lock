@@ -2861,7 +2861,7 @@ requests = ">=2.0.0"
 
 [[package]]
 name = "notifications-utils"
-version = "53.2.30"
+version = "53.2.31"
 description = "Shared python code for Notification - Provides logging utils etc."
 optional = false
 python-versions = "~3.12.7"
@@ -2897,8 +2897,8 @@ werkzeug = "3.1.6"
 [package.source]
 type = "git"
 url = "https://github.com/cds-snc/notifier-utils.git"
-reference = "53.2.30"
-resolved_reference = "21a241b6697ce07da316bd5c435298d76380ba71"
+reference = "53.2.31"
+resolved_reference = "036f39bf1996ac8b048fcdea68a3ed62fd937a6e"
 
 [[package]]
 name = "opentelemetry-api"
@@ -5212,4 +5212,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.12.7"
-content-hash = "c9df9eaa2ffd8164338acd493441c2c2b54a2ced6d6b3c80e0526364b01e9282"
+content-hash = "c08ca350875e36d9b63206443b34f94fc496de5642b557896cc909e0142961e4"
