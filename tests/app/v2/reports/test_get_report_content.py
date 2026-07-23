@@ -6,6 +6,7 @@ import pytest
 from app.dao.reports_dao import create_report
 from app.models import Report, ReportStatus, ReportType
 from tests import create_authorization_header
+from tests.app.db import create_service
 
 
 def _make_report(service_id, status=ReportStatus.READY.value, url="https://s3.example.com/report.csv"):
@@ -113,8 +114,6 @@ def test_get_report_content_returns_404_for_nonexistent_report(client, sample_se
 def test_get_report_content_returns_404_for_report_belonging_to_other_service(
     client, sample_service, notify_db_session, create_api_key_with_manage_reports_perm
 ):
-    from tests.app.db import create_service
-
     other_service = create_service(service_name="other service for content test")
     report = _make_report(other_service.id)
     create_report(report)
