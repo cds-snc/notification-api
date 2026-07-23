@@ -341,6 +341,7 @@ def register_v2_blueprints(application):
         v2_notification_blueprint,
     )
     from app.v2.reports import (  # noqa
+        get_reports,
         post_reports,
         v2_reports_blueprint,
     )
