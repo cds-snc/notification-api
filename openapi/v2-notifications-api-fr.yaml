@@ -974,26 +974,9 @@ paths:
                     - error: AuthError
                       message: Unauthorized, authentication token must be provided
         '403':
-          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_permissions
-            requise (manage_templates)
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidationErrorResponse'
-              examples:
-                missing_permission:
-                  summary: Permission de gestion des modèles manquante
-                  value:
-                    status_code: 403
-                    errors:
-                    - error: ForbiddenError
-                      message: This API key does not have permission to manage templates.
+          $ref: '#/components/responses/ManageTemplatesForbidden'
         '500':
-          description: Erreur interne du serveur
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidationErrorResponse'
+          $ref: '#/components/responses/ManageTemplatesInternalServerError'
       security:
       - apiKey: []
   /v2/manage-template/{template-id}:
@@ -1036,26 +1019,9 @@ paths:
                 - error: ValidationError
                   message: id is not a valid UUID
         '401':
-          description: Non autorisé
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidationErrorResponse'
+          $ref: '#/components/responses/ManageTemplatesUnauthorized'
         '403':
-          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_permissions
-            requise (manage_templates)
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidationErrorResponse'
-              examples:
-                missing_permission:
-                  summary: Permission de gestion des modèles manquante
-                  value:
-                    status_code: 403
-                    errors:
-                    - error: ForbiddenError
-                      message: This API key does not have permission to manage templates.
+          $ref: '#/components/responses/ManageTemplatesForbidden'
         '404':
           description: Modèle non trouvé
           content:
@@ -1071,11 +1037,7 @@ paths:
                     - error: TemplateNotFoundError
                       message: Template not found in database
         '500':
-          description: Erreur interne du serveur
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidationErrorResponse'
+          $ref: '#/components/responses/ManageTemplatesInternalServerError'
       security:
       - apiKey: []
     patch:
@@ -1169,38 +1131,13 @@ paths:
                     - template_category_id: 12345678-1234-1234-1234-123456789012
                       name: Mises à jour
         '401':
-          description: Non autorisé
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidationErrorResponse'
+          $ref: '#/components/responses/ManageTemplatesUnauthorized'
         '403':
-          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_permissions
-            requise (manage_templates)
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidationErrorResponse'
-              examples:
-                missing_permission:
-                  summary: Permission de gestion des modèles manquante
-                  value:
-                    status_code: 403
-                    errors:
-                    - error: ForbiddenError
-                      message: This API key does not have permission to manage templates.
+          $ref: '#/components/responses/ManageTemplatesForbidden'
         '404':
-          description: Modèle non trouvé
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidationErrorResponse'
+          $ref: '#/components/responses/ManageTemplateNotFound'
         '500':
-          description: Erreur interne du serveur
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidationErrorResponse'
+          $ref: '#/components/responses/ManageTemplatesInternalServerError'
       security:
       - apiKey: []
     delete:
@@ -1251,38 +1188,13 @@ paths:
                     - error: BadRequestError
                       message: Template is already archived.
         '401':
-          description: Non autorisé
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidationErrorResponse'
+          $ref: '#/components/responses/ManageTemplatesUnauthorized'
         '403':
-          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_permissions
-            requise (manage_templates)
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidationErrorResponse'
-              examples:
-                missing_permission:
-                  summary: Permission de gestion des modèles manquante
-                  value:
-                    status_code: 403
-                    errors:
-                    - error: ForbiddenError
-                      message: This API key does not have permission to manage templates.
+          $ref: '#/components/responses/ManageTemplatesForbidden'
         '404':
-          description: Modèle non trouvé
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidationErrorResponse'
+          $ref: '#/components/responses/ManageTemplateNotFound'
         '500':
-          description: Erreur interne du serveur
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidationErrorResponse'
+          $ref: '#/components/responses/ManageTemplatesInternalServerError'
       security:
       - apiKey: []
   /v2/manage-template:
@@ -1377,11 +1289,7 @@ paths:
                     - template_category_id: 12345678-1234-1234-1234-123456789012
                       name: Mises à jour
         '401':
-          description: Non autorisé
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidationErrorResponse'
+          $ref: '#/components/responses/ManageTemplatesUnauthorized'
         '403':
           description: Interdit - la NOUVELLE clé API n’a pas la permission manage_permissions
             requise (manage_templates) ou le type de modèle n’est pas autorisé pour
@@ -1406,11 +1314,7 @@ paths:
                     - error: ForbiddenError
                       message: Creating email templates is not allowed
         '500':
-          description: Erreur interne du serveur
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidationErrorResponse'
+          $ref: '#/components/responses/ManageTemplatesInternalServerError'
       security:
       - apiKey: []
 components:
@@ -2123,7 +2027,41 @@ components:
             sender_id:
               $ref: '#/components/schemas/UUID'
               nullable: true
-              description: ID de l’expéditeur utilisé pour cette tâche, si applicable
+              description: ID de l'expéditeur utilisé pour cette tâche, si applicable
+  responses:
+    ManageTemplatesUnauthorized:
+      description: Non autorisé
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+    ManageTemplatesInternalServerError:
+      description: Erreur interne du serveur
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+    ManageTemplatesForbidden:
+      description: Interdit - la NOUVELLE clé API n'a pas la permission manage_permissions
+        requise (manage_templates)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+          examples:
+            missing_permission:
+              summary: Permission de gestion des modèles manquante
+              value:
+                status_code: 403
+                errors:
+                - error: ForbiddenError
+                  message: This API key does not have permission to manage templates.
+    ManageTemplateNotFound:
+      description: Modèle non trouvé
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
   securitySchemes:
     apiKey:
       type: apiKey

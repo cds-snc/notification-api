@@ -708,7 +708,41 @@ components:
             sender_id:
               $ref: '#/components/schemas/UUID'
               nullable: true
-              description: ID de l’expéditeur utilisé pour cette tâche, si applicable
+              description: ID de l'expéditeur utilisé pour cette tâche, si applicable
+  responses:
+    ManageTemplatesUnauthorized:
+      description: Non autorisé
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+    ManageTemplatesInternalServerError:
+      description: Erreur interne du serveur
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+    ManageTemplatesForbidden:
+      description: Interdit - la NOUVELLE clé API n'a pas la permission manage_permissions
+        requise (manage_templates)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+          examples:
+            missing_permission:
+              summary: Permission de gestion des modèles manquante
+              value:
+                status_code: 403
+                errors:
+                - error: ForbiddenError
+                  message: This API key does not have permission to manage templates.
+    ManageTemplateNotFound:
+      description: Modèle non trouvé
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
   securitySchemes:
     apiKey:
       type: apiKey

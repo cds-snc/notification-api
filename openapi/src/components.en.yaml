@@ -707,6 +707,39 @@ components:
               $ref: '#/components/schemas/UUID'
               nullable: true
               description: The ID of the sender used for this job, if applicable
+  responses:
+    ManageTemplatesUnauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+    ManageTemplatesInternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+    ManageTemplatesForbidden:
+      description: Forbidden - NEW API key missing required manage_templates permission
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+          examples:
+            missing_permission:
+              summary: Missing manage templates permission
+              value:
+                status_code: 403
+                errors:
+                - error: ForbiddenError
+                  message: This API key does not have permission to manage templates.
+    ManageTemplateNotFound:
+      description: Template not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
   securitySchemes:
     apiKey:
       type: apiKey
