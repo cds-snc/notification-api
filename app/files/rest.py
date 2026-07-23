@@ -51,6 +51,8 @@ GUARD_DUTY_STATUS_MAP = {
     "SKIPPED": FILE_STATUS_VIRUS_SCAN_FAILED,
 }
 
+MAX_TOTAL_FILE_SIZE = 6 * 1024 * 1024  # 6MB
+
 
 @files_blueprint.route("", methods=["POST"])
 def create_file(template_id):
@@ -72,13 +74,30 @@ def create_file(template_id):
     check_service_has_permission(UPLOAD_DOCUMENT, service.permissions)
     validate_template_exists(template_id, service)
 
+    existing_files = dao_get_files_by_template_id(template_id)
+    existing_size = sum(f.file_size or 0 for f in existing_files)
+
     filename = data["name"]
     mime_type = data["mime_type"]
     try:
         file_data = base64.b64decode(data["file_data"])
-        uploaded_file = document_download_client.upload_template_attachment(service.id, file_data, filename, mime_type)
     except (binascii.Error, ValueError):
         raise InvalidRequest("file_data is not valid base64", status_code=400)
+
+    actual_file_size = len(file_data)
+    total_size = existing_size + actual_file_size
+    if total_size > MAX_TOTAL_FILE_SIZE:
+        return jsonify(
+            {
+                "error": "over_file_limit",
+                "current_usage": existing_size,
+                "requested": actual_file_size,
+                "limit": MAX_TOTAL_FILE_SIZE,
+            }
+        ), 400
+
+    try:
+        uploaded_file = document_download_client.upload_template_attachment(service.id, file_data, filename, mime_type)
     except DocumentDownloadError as e:
         raise InvalidRequest(e.message, status_code=e.status_code)
 
