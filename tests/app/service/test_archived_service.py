@@ -11,7 +11,7 @@ from app.dao.services_dao import dao_archive_service_no_transaction
 from app.dao.templates_dao import dao_update_template
 from app.models import Service
 from tests import create_authorization_header, unwrap_function
-from tests.app.db import create_api_key, create_template
+from tests.app.db import create_api_key, create_service, create_template, create_user
 
 
 def test_archive_only_allows_post(client, notify_db_session):
@@ -76,6 +76,37 @@ def archived_service(client, notify_db, sample_service, mocker):
 def test_deactivating_service_changes_name_and_email(archived_service):
     assert archived_service.name == "_archived_2018-04-21_14:00:00_Sample service"
     assert archived_service.email_from == "_archived_2018-04-21_14:00:00_sample.service"
+
+
+@freeze_time("2018-04-21 14:00")
+def test_archive_service_without_user_id_sets_suspended_at_but_not_suspended_by(client, sample_service, mocker):
+    """Archiving without a user_id records the timestamp but leaves suspended_by_id unset."""
+    mocker.patch("app.service.rest.send_notification_to_service_users")
+    auth_header = create_authorization_header()
+    response = client.post(f"/service/{sample_service.id}/archive", headers=[auth_header])
+
+    assert response.status_code == 204
+    svc = Service.query.get(sample_service.id)
+    assert svc.active is False
+    assert svc.suspended_at == datetime(2018, 4, 21, 14, 0, 0)
+    assert svc.suspended_by_id is None
+
+
+@freeze_time("2018-04-21 14:00")
+def test_archive_service_with_user_id_sets_suspended_at_and_suspended_by(client, notify_db_session, mocker):
+    """Archiving with a user_id records both the timestamp and who performed the action."""
+    mocker.patch("app.service.rest.send_notification_to_service_users")
+    user = create_user()
+    service = create_service(user=user)
+
+    auth_header = create_authorization_header()
+    response = client.post(f"/service/{service.id}/archive/{user.id}", headers=[auth_header])
+
+    assert response.status_code == 204
+    svc = Service.query.get(service.id)
+    assert svc.active is False
+    assert svc.suspended_at == datetime(2018, 4, 21, 14, 0, 0)
+    assert svc.suspended_by_id == user.id
 
 
 def test_deactivating_service_revokes_api_keys(archived_service):

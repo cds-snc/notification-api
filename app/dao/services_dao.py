@@ -239,7 +239,7 @@ def dao_fetch_all_services_by_user(user_id, only_active=False):
 
 
 @transactional
-def dao_archive_service(service_id):
+def dao_archive_service(service_id, user_id=None):
     """
     Archive a service and commit the change.
 
@@ -252,7 +252,7 @@ def dao_archive_service(service_id):
     atomicity.
     """
 
-    return dao_archive_service_no_transaction(service_id)
+    return dao_archive_service_no_transaction(service_id, user_id)
 
 
 @version_class(
@@ -260,7 +260,7 @@ def dao_archive_service(service_id):
     VersionOptions(Service),
     VersionOptions(Template, history_class=TemplateHistory, must_write_history=False),
 )
-def dao_archive_service_no_transaction(service_id):
+def dao_archive_service_no_transaction(service_id, user_id=None):
     """
     Core archive implementation that DOES NOT commit the session.
 
@@ -268,7 +268,7 @@ def dao_archive_service_no_transaction(service_id):
       - Call this function from within a caller-managed transaction, e.g.
         `with db.session.begin(): dao_archive_service_no_transaction(...)`.
       - This keeps multiple related DB mutations atomic and allows the caller
-        to commit or roll back as a single unit.
+        to commit or rollhttps://ca.slack-edge.com/T2G2S06PM-U037Q2VJ0CB-f337382106fa-72 back as a single unit.
 
     Note: callers that want the old behaviour (function commits itself) should
     call `dao_archive_service(...)` instead.
@@ -291,6 +291,9 @@ def dao_archive_service_no_transaction(service_id):
     service.active = False
     service.name = "_archived_" + time + "_" + service.name
     service.email_from = "_archived_" + time + "_" + service.email_from
+    service.suspended_at = datetime.now(tz=pytz.UTC)
+    if user_id is not None:
+        service.suspended_by_id = user_id
 
     for template in service.templates:
         if not template.archived:
