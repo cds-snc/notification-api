@@ -50,7 +50,7 @@ def _update_template_content():
             "[[fr]]",
             "# Avertissement : l’envoi de courriels pour ((service_name)) pourrait être suspendu",
             "",
-            "Nous avons détecté que **((service_name))** a un taux de rebond de courriels de **((bounce_rate)) %** au cours des dernières 24 heures. Si votre taux de rebond atteint **10 % ou plus** une fois que votre service a envoyé suffisamment de courriels, nous pourrions suspendre l'envoi de courriels pour votre service, conformément à nos [conditions d'utilisation](https://notification.canada.ca/terms).",
+            "Nous avons détecté que **((service_name))** a un taux de rebond de courriels de **((bounce_rate)) %** au cours des dernières 24 heures. Si votre taux de rebond atteint **10 % ou plus** une fois que votre service a envoyé suffisamment de courriels, nous pourrions suspendre l'envoi de courriels pour votre service, conformément à nos [conditions d'utilisation](https://notification.canada.ca/terms?lang=fr).",
             "",
             "## Pourquoi est-ce important?",
             "Un taux de rebond élevé signifie que bon nombre de vos courriels n'atteignent pas les destinataires. Corriger les adresses invalides aide à protéger la livraison pour votre service et pour l'ensemble des utilisateurs de Notification GC.",
