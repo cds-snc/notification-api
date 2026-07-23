@@ -2,6 +2,16 @@ from app.models import ReportType
 from app.schema_validation.definitions import nullable_uuid
 from app.schema_validation.definitions import uuid as uuid_schema
 
+get_reports_request = {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "description": "schema for query parameters allowed when getting list of reports",
+    "type": "object",
+    "properties": {
+        "older_than": uuid_schema,
+    },
+    "additionalProperties": False,
+}
+
 post_report_request = {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "description": "POST v2 report request schema",

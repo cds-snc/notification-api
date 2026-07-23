@@ -1,6 +1,8 @@
 import datetime
 from typing import List
 
+from sqlalchemy import desc
+
 from app import db
 from app.dao.dao_utils import transactional
 from app.models import Report
@@ -41,6 +43,28 @@ def get_reports_for_service(service_id: str, limit_days: int) -> List[Report]:
 
 def get_report_by_id(report_id) -> Report:
     return Report.query.filter_by(id=report_id).one()
+
+
+def get_paginated_reports_for_service(service_id, older_than=None, page_size=10):
+    filters = [Report.service_id == service_id]
+
+    if older_than:
+        older_than_row = db.session.query(Report.requested_at, Report.id).filter(Report.id == older_than).subquery()
+        filters.append(
+            db.or_(
+                Report.requested_at < older_than_row.c.requested_at,
+                db.and_(
+                    Report.requested_at == older_than_row.c.requested_at,
+                    Report.id < older_than_row.c.id,
+                ),
+            )
+        )
+
+    return (
+        Report.query.filter(*filters)
+        .order_by(desc(Report.requested_at), desc(Report.id))
+        .paginate(per_page=page_size, count=False)
+    )
 
 
 @transactional
