@@ -45,6 +45,10 @@ def get_report_by_id(report_id) -> Report:
     return Report.query.filter_by(id=report_id).one()
 
 
+def get_report_by_id_and_service_id(report_id, service_id) -> Report:
+    return Report.query.filter_by(id=report_id, service_id=service_id).one()
+
+
 def get_paginated_reports_for_service(service_id, older_than=None, page_size=10):
     filters = [Report.service_id == service_id]
 
