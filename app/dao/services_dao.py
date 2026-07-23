@@ -239,7 +239,7 @@ def dao_fetch_all_services_by_user(user_id, only_active=False):
 
 
 @transactional
-def dao_archive_service(service_id):
+def dao_archive_service(service_id, user_id=None):
     """
     Archive a service and commit the change.
 
@@ -252,7 +252,7 @@ def dao_archive_service(service_id):
     atomicity.
     """
 
-    return dao_archive_service_no_transaction(service_id)
+    return dao_archive_service_no_transaction(service_id, user_id)
 
 
 @version_class(
@@ -260,7 +260,7 @@ def dao_archive_service(service_id):
     VersionOptions(Service),
     VersionOptions(Template, history_class=TemplateHistory, must_write_history=False),
 )
-def dao_archive_service_no_transaction(service_id):
+def dao_archive_service_no_transaction(service_id, user_id=None):
     """
     Core archive implementation that DOES NOT commit the session.
 
@@ -291,6 +291,9 @@ def dao_archive_service_no_transaction(service_id):
     service.active = False
     service.name = "_archived_" + time + "_" + service.name
     service.email_from = "_archived_" + time + "_" + service.email_from
+    service.archived_at = datetime.now(tz=pytz.UTC)
+    if user_id is not None:
+        service.archived_by_id = user_id
 
     for template in service.templates:
         if not template.archived:

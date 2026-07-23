@@ -633,6 +633,8 @@ class Service(BaseModel, Versioned):
     sms_annual_limit = db.Column(db.BigInteger, nullable=False, default=DEFAULT_SMS_ANNUAL_LIMIT)
     suspended_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=True)
     suspended_at = db.Column(db.DateTime, nullable=True)
+    archived_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=True)
+    archived_at = db.Column(db.DateTime, nullable=True)
 
     email_branding = db.relationship(
         "EmailBranding",
