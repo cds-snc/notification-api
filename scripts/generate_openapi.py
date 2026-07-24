@@ -52,7 +52,7 @@ def generate(lang: str) -> None:
         loader=jinja2.FileSystemLoader(str(OPENAPI_DIR)),
         keep_trailing_newline=True,
         autoescape=False,
-        undefined=jinja2.Undefined,
+        undefined=jinja2.StrictUndefined,
     )
 
     if lang == "en":
