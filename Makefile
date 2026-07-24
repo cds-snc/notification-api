@@ -54,6 +54,10 @@ smoke-test-dev:
 smoke-test-local:
 	cd tests_smoke && poetry run python smoke_test.py --local --nofiles
 
+.PHONY: openapi-build
+openapi-build: ## Build combined OpenAPI spec files from openapi/src/ (use MANIFEST=staging for unreleased endpoints)
+	python openapi/build.py --manifest $(or $(MANIFEST),production)
+
 .PHONY: run
 run: ## Run the web app
 	poetry run flask run -p 6011 --host=0.0.0.0

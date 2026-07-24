@@ -1,0 +1,7 @@
+# Production manifest — paths included in the public API build.
+# Each entry corresponds to openapi/src/paths/{name}.{lang}.yaml files.
+# Paths are merged in the order listed here.
+paths:
+  - notifications
+  - templates
+  - manage-templates

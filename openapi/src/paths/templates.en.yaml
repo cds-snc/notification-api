@@ -1,0 +1,146 @@
+paths:
+  /v2/templates:
+    get:
+      summary: Get list of templates
+      description: Retrieve a list of templates. Filterable by template type
+      operationId: getTemplates
+      tags:
+      - Templates
+      parameters:
+      - name: type
+        in: query
+        description: Filter by template type
+        required: false
+        schema:
+          type: string
+          enum:
+          - sms
+          - email
+      responses:
+        '200':
+          description: Successfully retrieved templates
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  templates:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Template'
+        '400':
+          description: Bad request - invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                bad_request:
+                  value:
+                    status_code: 400
+                    errors:
+                    - error: ValidationError
+                      message: Unauthorized, authentication token must be provided
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - apiKey: []
+  /v2/template/{template-id}:
+    get:
+      summary: Get template by ID
+      description: Retrieve a specific template by its ID
+      operationId: getTemplate
+      tags:
+      - Templates
+      parameters:
+      - name: template-id
+        in: path
+        description: Unique identifier for the template
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Template retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Template'
+        '400':
+          description: Bad request - invalid template ID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 400
+                errors:
+                - error: ValidationError
+                  message: template_id is not a valid UUID
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                auth_error:
+                  summary: Unauthorized access
+                  value:
+                    status_code: 401
+                    errors:
+                    - error: AuthError
+                      message: Unauthorized, authentication token must be provided
+        '403':
+          description: Forbidden - authentication or authorization errors
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                system_clock_error:
+                  summary: System clock not accurate
+                  value:
+                    status_code: 403
+                    errors:
+                    - error: AuthError
+                      message: 'Error: Your system clock must be accurate to within
+                        30 seconds'
+                invalid_api_key:
+                  summary: Invalid API key
+                  value:
+                    status_code: 403
+                    errors:
+                    - error: AuthError
+                      message: 'Invalid token: Enter your full API key'
+        '404':
+          description: Template not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                template_not_found:
+                  summary: Template not found
+                  value:
+                    result: error
+                    message: Template not found in database
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+      - apiKey: []
