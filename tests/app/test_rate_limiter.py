@@ -1,3 +1,4 @@
+import threading
 from time import time
 from unittest.mock import MagicMock, patch
 
@@ -199,6 +200,30 @@ class TestInMemoryRateLimiter:
                 mock_time.return_value = base_time + 59.9
                 limiter.get_current_usage()
                 assert limiter.current_usage == 50
+
+    def test_concurrent_threads_do_not_exceed_cap(self, client):
+        """Multiple concurrent threads must never collectively exceed cap_per_minute."""
+        cap = 50
+        limiter = InMemoryRateLimiter(cap_per_minute=cap, namespace="concurrent-test")
+        acquired_count = 0
+        results_lock = threading.Lock()
+
+        def try_acquire():
+            nonlocal acquired_count
+            with client.application.app_context():
+                ok, _ = limiter.acquire_lease(1)
+            if ok:
+                with results_lock:
+                    acquired_count += 1
+
+        threads = [threading.Thread(target=try_acquire) for _ in range(cap + 20)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        assert acquired_count == cap
+        assert limiter.get_current_usage() == cap
 
 
 class TestRedisSlidingWindowLogRateLimiter:
@@ -788,3 +813,29 @@ class TestBufferedRateLimiter:
             buf = raw_limiter.buffered(10)
             assert get_rate_limiter("test") is buf
             rate_limiter._rate_limiter_instances.pop("test", None)
+
+    def test_each_thread_gets_independent_local_buffer(self, client):
+        """Each thread maintains an independent token buffer (thread-local semantics)."""
+        mock_raw = MagicMock(spec=InMemoryRateLimiter)
+        mock_raw.cap_per_minute = 1000
+        mock_raw.max_units_per_acquire = 1000
+        mock_raw.namespace = "tl-test"
+        mock_raw.acquire_lease.return_value = (True, 0)
+        buf = BufferedRateLimiter(mock_raw, size=10)
+
+        per_thread_remainder: dict[int, int] = {}
+
+        def fetch_and_check(thread_id: int) -> None:
+            with client.application.app_context():
+                buf.acquire_lease(1)
+            per_thread_remainder[thread_id] = buf._local_tokens
+
+        threads = [threading.Thread(target=fetch_and_check, args=(i,)) for i in range(3)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join()
+
+        # Each thread fetched a fresh batch of 10 and spent 1 → 9 remaining in its own buffer
+        assert all(count == 9 for count in per_thread_remainder.values())
+        assert mock_raw.acquire_lease.call_count == 3
