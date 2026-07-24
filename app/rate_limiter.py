@@ -212,10 +212,10 @@ class InMemoryRateLimiter(RateLimiter):
 
     def get_current_usage(self) -> int:
         """Get the current unit count in the active 60-second window."""
-        now = time()
-        window_start = now - self.WINDOW_SIZE_SECONDS
-
         with self._lock:
+            now = time()
+            window_start = now - self.WINDOW_SIZE_SECONDS
+
             # Remove expired entries and update running total
             while self.window and self.window[0][0] < window_start:
                 _, old_units = self.window.popleft()
