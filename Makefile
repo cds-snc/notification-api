@@ -11,6 +11,10 @@ GIT_COMMIT ?= $(shell git rev-parse HEAD)
 help:
 	@cat $(MAKEFILE_LIST) | grep -E '^[a-zA-Z_-]+:.*?## .*$$' | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
+.PHONY: generate-openapi
+generate-openapi: ## Generate EN and FR OpenAPI YAML files from the Jinja2 template and translations CSV
+	poetry run python scripts/generate_openapi.py
+
 .PHONY: generate-version-file
 generate-version-file: ## Generates the app version file
 	@printf "__commit_sha__ = \"${GIT_COMMIT}\"\n__time__ = \"${DATE}\"\n" > ${APP_VERSION_FILE}
