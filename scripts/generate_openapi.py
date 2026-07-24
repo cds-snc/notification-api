@@ -51,7 +51,10 @@ def generate(lang: str) -> None:
     env = jinja2.Environment(
         loader=jinja2.FileSystemLoader(str(OPENAPI_DIR)),
         keep_trailing_newline=True,
-        autoescape=False,
+        autoescape=jinja2.select_autoescape(
+            enabled_extensions=("html", "xml"),
+            default=False,
+        ),
         undefined=jinja2.StrictUndefined,
     )
 
