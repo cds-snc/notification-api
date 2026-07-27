@@ -10,7 +10,6 @@ from app.config import QueueNames
 from app.dao.service_permissions_dao import dao_remove_service_permission
 from app.models import EMAIL_TYPE
 
-TWENTY_FOUR_HOURS_IN_SECONDS = 24 * 60 * 60
 
 
 def check_service_over_bounce_rate(service_id: str):
