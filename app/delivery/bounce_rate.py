@@ -11,7 +11,6 @@ from app.dao.service_permissions_dao import dao_remove_service_permission
 from app.models import EMAIL_TYPE
 
 
-
 def check_service_over_bounce_rate(service_id: str):
     bounce_rate = bounce_rate_client.get_bounce_rate(service_id)
     bounce_rate_status = bounce_rate_client.check_bounce_rate_status(service_id)
