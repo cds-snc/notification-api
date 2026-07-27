@@ -784,19 +784,21 @@ def update_safelist(service_id):
         return "", 204
 
 
+@service_blueprint.route("/<uuid:service_id>/archive/<uuid:user_id>", methods=["POST"])
 @service_blueprint.route("/<uuid:service_id>/archive", methods=["POST"])
-def archive_service(service_id):
+def archive_service(service_id, user_id=None):
     """
     When a service is archived the service is made inactive, templates are archived and api keys are revoked.
     There is no coming back from this operation.
     :param service_id:
+    :param user_id: optional ID of the user performing the archive, recorded for audit purposes
     :return:
     """
     service: Service = dao_fetch_service_by_id(service_id)
 
     if service.active:
         try:
-            service_name = dao_archive_service(service.id)
+            service_name = dao_archive_service(service.id, user_id)
             send_notification_to_service_users(
                 service_id=service_id,
                 template_id=current_app.config["SERVICE_DEACTIVATED_TEMPLATE_ID"],
