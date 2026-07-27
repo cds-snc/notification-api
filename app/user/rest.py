@@ -1082,7 +1082,7 @@ def deactivate_user(user_id):
 
                 # Deactivate if no active members would remain
                 if len(remaining_active_members) == 0:
-                    dao_archive_service_no_transaction(service.id)
+                    dao_archive_service_no_transaction(service.id, user.id)
                     services_deactivated.append(service.id)
                 # Suspend if it's a live service and only 1 active member would remain
                 elif service_is_live and len(remaining_active_members) == 1:
