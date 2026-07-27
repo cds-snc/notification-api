@@ -264,6 +264,38 @@ class TestGetTemplateAttachments:
         result = send_to_providers._get_template_attachments(notification)
         assert result == []
 
+    def test_does_not_download_template_files_when_service_lacks_upload_document_permission(
+        self, sample_service, sample_email_template, mocker
+    ):
+        """Template attachments should be skipped when file sending is disabled for the service."""
+        notification = save_notification(
+            create_notification(
+                template=sample_email_template,
+                to_field="test@example.com",
+            )
+        )
+
+        mocker.patch.object(notification.service, "has_permission", return_value=False)
+        get_files_mock = mocker.patch(
+            "app.delivery.send_to_providers._get_template_files_from_cache_or_db",
+            return_value=[
+                {
+                    "name": "template.pdf",
+                    "document_id": "doc-1",
+                    "mime_type": "application/pdf",
+                    "service_id": str(sample_service.id),
+                    "file_id": "f1",
+                }
+            ],
+        )
+        download_mock = mocker.patch("app.delivery.send_to_providers._download_template_file")
+
+        result = send_to_providers._get_template_attachments(notification)
+
+        assert result == []
+        get_files_mock.assert_not_called()
+        download_mock.assert_not_called()
+
     def test_downloads_all_template_files(self, sample_service, sample_email_template, mocker):
         """Test that all template files are downloaded."""
         notification = save_notification(
