@@ -117,16 +117,10 @@ def test_post_report_rate_limit_returns_429(client, sample_service, mocker, crea
 
     mocker.patch("app.v2.reports.post_reports.time", return_value=fixed_now)
 
-    # Simulate 10 existing entries in the sliding window (pipeline returns [None, 10])
-    mock_pipeline = mocker.MagicMock()
-    mock_pipeline.execute.return_value = [None, 10]
-    mocker.patch("app.v2.reports.post_reports.redis_store.redis_store.pipeline", return_value=mock_pipeline)
     # Oldest entry is 60 seconds ago; reset = oldest + 3600
     oldest_ts = fixed_now - 60
-    mocker.patch(
-        "app.v2.reports.post_reports.redis_store.redis_store.zrange",
-        return_value=[(b"entry", oldest_ts)],
-    )
+    mocker.patch("app.v2.reports.post_reports.check_and_count_window", return_value=10)
+    mocker.patch("app.v2.reports.post_reports.get_window_oldest_entry", return_value=oldest_ts)
 
     response = client.post(
         path="/v2/reports",
@@ -154,14 +148,8 @@ def test_post_report_rate_limit_not_triggered_below_limit(
     mocker.patch("app.v2.reports.post_reports.time", return_value=fixed_now)
 
     # Simulate 9 existing entries (under the 10-per-hour limit)
-    mock_pipeline = mocker.MagicMock()
-    mock_pipeline.execute.return_value = [None, 9]
-    mock_pipeline2 = mocker.MagicMock()
-    mock_pipeline2.execute.return_value = [1, True]
-    mocker.patch(
-        "app.v2.reports.post_reports.redis_store.redis_store.pipeline",
-        side_effect=[mock_pipeline, mock_pipeline2],
-    )
+    mocker.patch("app.v2.reports.post_reports.check_and_count_window", return_value=9)
+    mocker.patch("app.v2.reports.post_reports.record_window_request")
 
     response = client.post(
         path="/v2/reports",
@@ -177,7 +165,7 @@ def test_post_report_rate_limit_skipped_when_redis_disabled(
 ):
     mocker.patch("app.v2.reports.post_reports.generate_report.apply_async")
     auth_header = create_authorization_header(api_key=create_api_key_with_manage_reports_perm)
-    mock_pipeline = mocker.patch("app.v2.reports.post_reports.redis_store.redis_store.pipeline")
+    mock_check = mocker.patch("app.v2.reports.post_reports.check_and_count_window")
 
     with notify_api.test_request_context():
         notify_api.config["REDIS_ENABLED"] = False
@@ -189,7 +177,7 @@ def test_post_report_rate_limit_skipped_when_redis_disabled(
     )
 
     assert response.status_code == 202
-    mock_pipeline.assert_not_called()
+    mock_check.assert_not_called()
 
 
 def test_post_report_requires_authentication(client):

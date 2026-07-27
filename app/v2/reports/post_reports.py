@@ -3,6 +3,12 @@ import uuid
 from time import time
 
 from flask import current_app, jsonify, request
+from notifications_utils.clients.redis.sliding_window_rate_limit import (
+    check_and_count_window,
+    get_window_oldest_entry,
+    record_window_request,
+    report_rate_limit_cache_key,
+)
 
 from app import api_user, authenticated_service, redis_store
 from app.celery.tasks import generate_report
@@ -27,31 +33,21 @@ def _check_report_rate_limit(service_id):
     if not current_app.config.get("API_RATE_LIMIT_ENABLED") or not current_app.config.get("REDIS_ENABLED"):
         return
 
-    cache_key = f"report-rate-limit:{service_id}"
+    cache_key = report_rate_limit_cache_key(service_id)
     now = time()
-    window_start = now - REPORT_RATE_WINDOW
 
-    pipe = redis_store.redis_store.pipeline()
-    pipe.zremrangebyscore(cache_key, "-inf", window_start)
-    pipe.zcard(cache_key)
-    results = pipe.execute()
-
-    count = results[1]
+    count = check_and_count_window(redis_store, cache_key, REPORT_RATE_WINDOW, now)
 
     if count >= REPORT_RATE_LIMIT:
-        oldest = redis_store.redis_store.zrange(cache_key, 0, 0, withscores=True)
-        if oldest:
-            reset_at = math.ceil(oldest[0][1] + REPORT_RATE_WINDOW)
+        oldest_ts = get_window_oldest_entry(redis_store, cache_key)
+        if oldest_ts:
+            reset_at = math.ceil(oldest_ts + REPORT_RATE_WINDOW)
         else:
             reset_at = math.ceil(now + REPORT_RATE_WINDOW)
         retry_after = max(1, reset_at - math.ceil(now))
         raise ReportRateLimitError(limit=REPORT_RATE_LIMIT, retry_after=retry_after, reset_at=reset_at)
 
-    # Record this request in the sliding window
-    pipe2 = redis_store.redis_store.pipeline()
-    pipe2.zadd(cache_key, {now: now})
-    pipe2.expire(cache_key, REPORT_RATE_WINDOW + 60)
-    pipe2.execute()
+    record_window_request(redis_store, cache_key, REPORT_RATE_WINDOW, now)
 
 
 @v2_reports_blueprint.route("", methods=["POST"])
