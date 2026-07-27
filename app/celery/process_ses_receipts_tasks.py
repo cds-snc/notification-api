@@ -221,16 +221,14 @@ def process_notifications(
 
 
 def update_annual_limit_and_bounce_rate(
-    receipt: SESReceipt, notification: Notification, aws_response_dict: Dict[str, Any]
+    receipt: SESReceipt, notification: Notification, aws_response_dict: Dict[str, Any], did_we_seed: bool = False
 ) -> None:
     new_status = aws_response_dict["notification_status"]
     is_success = aws_response_dict["success"]
     log_prefix = f"SES callback for notification {notification.id} reference {notification.reference} for service {notification.service_id}: "
-    # Check if we have already seeded the annual limit counts for today, if we have we do not need to increment later on.
-    # We seed AFTER updating the notification status, thus the current notification will already be counted.
-
-    _, did_we_seed = get_annual_limit_notifications_v3(notification.service_id)
-    current_app.logger.info(f"[alimit-debug] did_we_seed: {did_we_seed}, data: {_}")
+    # did_we_seed is now passed in by the caller (checked once per service after the batch DB write).
+    # If seeding occurred, all notifications in the batch are already counted in the seed — skip incrementing.
+    current_app.logger.info(f"[alimit-debug] did_we_seed: {did_we_seed}")
 
     if not is_success:
         current_app.logger.info(f"{log_prefix} Delivery failed with error: {aws_response_dict["message"]}")
@@ -332,9 +330,20 @@ def process_ses_results(self, response: Dict[str, Any]) -> Optional[bool]:
                 f"[batch-celery] - receipts_with_notification_and_aws_response_dict length: {len(receipts_with_notification_and_aws_response_dict)}"
             )
 
+            # Check seed state ONCE per service after the batch DB write.
+            # If seeding occurs here, all notifications in this batch are already counted
+            # in the seed, so we must skip incrementing for that service.
+            service_seed_states: Dict[str, bool] = {}
+            for _, notification, _ in receipts_with_notification_and_aws_response_dict:
+                sid = notification.service_id
+                if sid not in service_seed_states:
+                    _, did_we_seed = get_annual_limit_notifications_v3(sid)
+                    service_seed_states[sid] = did_we_seed
+
             # Update annual limits, bounce rates, and enqueue API callback tasks for successfully updated notifications
             for message, notification, aws_response_dict in receipts_with_notification_and_aws_response_dict:
-                update_annual_limit_and_bounce_rate(message, notification, aws_response_dict)
+                did_we_seed = service_seed_states.get(notification.service_id, False)
+                update_annual_limit_and_bounce_rate(message, notification, aws_response_dict, did_we_seed)
                 _check_and_queue_callback_task(notification)
 
         # Enqueue retry tasks for receipts that did not yet have a notification in the DB
