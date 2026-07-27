@@ -43,6 +43,7 @@ from app.models import (
     NOTIFICATION_STATUS_TYPES_COMPLETED,
     SERVICE_PERMISSION_TYPES,
     SMS_TYPE,
+    UPLOAD_DOCUMENT,
     ApiKey,
     ApiKeyPermission,
     Fido2Key,
@@ -599,7 +600,7 @@ def create_sample_email_template(
     content="This is a template",
     subject_line="Email Subject",
     service=None,
-    permissions=[EMAIL_TYPE, SMS_TYPE],
+    permissions=[EMAIL_TYPE, SMS_TYPE, UPLOAD_DOCUMENT],
     template_category=None,
 ):
     if not template_category:
@@ -649,7 +650,7 @@ def sample_email_template(
         content,
         subject_line,
         service=None,
-        permissions=[EMAIL_TYPE, SMS_TYPE],
+        permissions=[EMAIL_TYPE, SMS_TYPE, UPLOAD_DOCUMENT],
     )
 
 

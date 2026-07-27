@@ -527,6 +527,55 @@ class TestSendEmailToProviderWithTemplateAttachments:
         assert len(attachments) == 1
         assert attachments[0]["name"] == "template-file.pdf"
 
+    def test_sanitizes_file_personalisation_values_when_upload_document_disabled(
+        self, sample_service, sample_email_template, mocker
+    ):
+        """File personalisation values should be converted to safe strings rather than passed through as raw document objects."""
+        notification = save_notification(
+            create_notification(
+                template=sample_email_template,
+                to_field="test@example.com",
+                personalisation={
+                    "document": {
+                        "document": {
+                            "sending_method": "attach",
+                            "id": "document-id",
+                            "filename": "template-file.pdf",
+                            "mime_type": "application/pdf",
+                            "file_size": 1024,
+                            "url": "https://example.com/file",
+                            "direct_file_url": "https://example.com/download",
+                        }
+                    }
+                },
+            )
+        )
+
+        mocker.patch("app.delivery.send_to_providers._get_template_attachments", return_value=[])
+        mocker.patch("app.delivery.send_to_providers.provider_to_use")
+        mocker.patch("app.delivery.send_to_providers.dao_get_template_by_id")
+        mocker.patch("app.delivery.send_to_providers.is_service_allowed_html", return_value=False)
+        mocker.patch("app.delivery.send_to_providers.get_html_email_options", return_value={})
+        mocker.patch("app.delivery.send_to_providers.send_email_response", return_value="ref-123")
+
+        template_mock = mocker.patch("app.delivery.send_to_providers.HTMLEmailTemplate")
+        mocker.patch("app.delivery.send_to_providers.PlainTextEmailTemplate")
+
+        provider_mock = MagicMock()
+        provider_mock.send_email.return_value = "ses-ref"
+        provider_mock.get_name.return_value = "ses"
+        mocker.patch("app.delivery.send_to_providers.provider_to_use", return_value=provider_mock)
+
+        mocker.patch.object(
+            notification.service, "has_permission", side_effect=lambda permission: permission != "upload_document"
+        )
+
+        send_to_providers.send_email_to_provider(notification)
+
+        _, kwargs = template_mock.call_args
+        assert kwargs["values"]["document"] == "https://example.com/file"
+        assert not isinstance(kwargs["values"]["document"], dict)
+
 
 class TestAllSendPathsIncludeTemplateAttachments:
     """Test that all 4 send paths (api one-off, api bulk, admin one-off, admin bulk) include template attachments."""

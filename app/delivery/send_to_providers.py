@@ -397,6 +397,30 @@ def _validate_unsubscribe_url(url, notification_id):
     return url
 
 
+def _normalise_file_personalisation(personalisation_data: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """Convert nested document objects in personalisation to safe values for template rendering."""
+    if not personalisation_data:
+        return {}
+
+    normalised_personalisation = personalisation_data.copy()
+
+    for key, value in normalised_personalisation.items():
+        if not isinstance(value, dict):
+            continue
+
+        document = value.get("document")
+        if not isinstance(document, dict):
+            continue
+
+        if document.get("sending_method") == "template_attach":
+            normalised_personalisation[key] = ""
+            continue
+
+        normalised_personalisation[key] = document.get("url") or document.get("direct_file_url") or ""
+
+    return normalised_personalisation
+
+
 def send_email_to_provider(notification: Notification):
     current_app.logger.info(f"Sending email to provider for notification id {notification.id}")
     service = notification.service
@@ -463,6 +487,7 @@ def send_email_to_provider(notification: Notification):
     # Fetch and merge template file attachments
     template_attachments = _get_template_attachments(notification)
     attachments = attachments + template_attachments
+    personalisation_data = _normalise_file_personalisation(personalisation_data)
 
     template_obj = dao_get_template_by_id(notification.template_id, notification.template_version)
     template_dict = template_obj.__dict__
