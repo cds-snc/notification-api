@@ -21,11 +21,6 @@ def _make_report(service_id, status=ReportStatus.READY.value, url="https://s3.ex
     )
 
 
-# ---------------------------------------------------------------------------
-# Happy path
-# ---------------------------------------------------------------------------
-
-
 def test_get_report_content_streams_csv(client, sample_service, create_api_key_with_manage_reports_perm, mocker):
     report = _make_report(sample_service.id)
     create_report(report)
@@ -69,11 +64,6 @@ def test_get_report_content_streams_large_file_in_chunks(client, sample_service,
     assert response.data == b"".join(chunks)
 
 
-# ---------------------------------------------------------------------------
-# Auth / permission errors
-# ---------------------------------------------------------------------------
-
-
 def test_get_report_content_returns_403_without_manage_reports_permission(client, sample_service, create_api_key_no_perm):
     report = _make_report(sample_service.id)
     create_report(report)
@@ -94,11 +84,6 @@ def test_get_report_content_returns_401_with_no_auth(client, sample_service):
     response = client.get(path=f"/v2/reports/{report.id}/content")
 
     assert response.status_code == 401
-
-
-# ---------------------------------------------------------------------------
-# Not found
-# ---------------------------------------------------------------------------
 
 
 def test_get_report_content_returns_404_for_nonexistent_report(client, sample_service, create_api_key_with_manage_reports_perm):
@@ -127,11 +112,6 @@ def test_get_report_content_returns_404_for_report_belonging_to_other_service(
     assert response.status_code == 404
 
 
-# ---------------------------------------------------------------------------
-# Report not ready
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.parametrize(
     "status",
     [ReportStatus.REQUESTED.value, ReportStatus.GENERATING.value, ReportStatus.ERROR.value],
@@ -149,11 +129,6 @@ def test_get_report_content_returns_409_when_report_not_ready(
     )
 
     assert response.status_code == 409
-
-
-# ---------------------------------------------------------------------------
-# S3 errors
-# ---------------------------------------------------------------------------
 
 
 def test_get_report_content_returns_502_on_s3_error(client, sample_service, create_api_key_with_manage_reports_perm, mocker):
