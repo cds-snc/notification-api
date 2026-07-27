@@ -12,7 +12,7 @@ from datetime import datetime
 from alembic import op
 from flask import current_app
 
-revision = "0520_update_bounce_rate_warn"
+revision = "0521_update_bounce_rate_warn"
 down_revision = "0520_update_bounce_rate_susp"
 
 
