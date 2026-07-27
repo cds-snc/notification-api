@@ -18,8 +18,8 @@ from app.v2.errors import ForbiddenError, ReportRateLimitError
 from app.v2.reports import v2_reports_blueprint
 from app.v2.reports.report_schemas import post_report_request
 
-REPORT_RATE_LIMIT = 2
-REPORT_RATE_WINDOW = 60  # 1 hour in seconds
+REPORT_RATE_LIMIT = 10
+REPORT_RATE_WINDOW = 3600  # 1 hour in seconds
 
 
 def _check_report_rate_limit(service_id):
