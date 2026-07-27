@@ -268,7 +268,7 @@ def dao_archive_service_no_transaction(service_id, user_id=None):
       - Call this function from within a caller-managed transaction, e.g.
         `with db.session.begin(): dao_archive_service_no_transaction(...)`.
       - This keeps multiple related DB mutations atomic and allows the caller
-        to commit or rollhttps://ca.slack-edge.com/T2G2S06PM-U037Q2VJ0CB-f337382106fa-72 back as a single unit.
+        to commit or roll back as a single unit.
 
     Note: callers that want the old behaviour (function commits itself) should
     call `dao_archive_service(...)` instead.
