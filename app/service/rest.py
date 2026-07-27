@@ -1221,6 +1221,83 @@ def get_monthly_notification_data_by_service():
     return jsonify(result)
 
 
+@service_blueprint.route("/<uuid:service_id>/remove-from-suppression-list", methods=["POST"])
+def remove_email_from_suppression_list(service_id):
+    data = request.get_json()
+    if not data or "email_address" not in data:
+        raise InvalidRequest({"email_address": ["This field is required"]}, status_code=400)
+
+    email_address = data["email_address"].strip()
+
+    from notifications_utils.recipients import InvalidEmailError, validate_and_format_email_address
+
+    try:
+        email_address = validate_and_format_email_address(email_address)
+    except InvalidEmailError:
+        raise InvalidRequest({"email_address": ["Invalid email address"]}, status_code=400)
+
+    # Verify this service has sent to this email address
+    from app.dao.notifications_dao import dao_get_notifications_by_to_field
+
+    notifications = dao_get_notifications_by_to_field(service_id, email_address, notification_type=EMAIL_TYPE)
+    if not notifications:
+        raise InvalidRequest(
+            {"email_address": ["Service has not sent to this email address"]},
+            status_code=404,
+        )
+
+    # Remove from SES suppression list
+    import boto3
+    import botocore
+
+    try:
+        ses_client = boto3.client("sesv2", region_name=current_app.config["AWS_REGION"])
+        ses_client.delete_suppressed_destination(EmailAddress=email_address)
+    except botocore.exceptions.ClientError as e:
+        error_code = e.response["Error"]["Code"]
+        if error_code == "NotFoundException":
+            # Email is not on the suppression list - still return success
+            current_app.logger.info(f"Email {email_address} was not on the SES suppression list")
+        else:
+            current_app.logger.error(f"Failed to remove {email_address} from SES suppression list: {e}")
+            raise InvalidRequest({"email_address": ["Failed to remove from suppression list"]}, status_code=500)
+
+    # Create audit trail via Freshdesk ticket
+    try:
+        service = dao_fetch_service_by_id(service_id)
+        _create_suppression_list_removal_ticket(service, email_address)
+    except Exception as e:
+        current_app.logger.error(f"Failed to create audit ticket for suppression list removal: {e}")
+        # Don't fail the request if the ticket creation fails
+
+    current_app.logger.info(f"Email {email_address} removed from SES suppression list by service {service_id}")
+    return jsonify({"message": "Successfully removed"}), 200
+
+
+def _create_suppression_list_removal_ticket(service, email_address):
+    """Create a Freshdesk ticket as an audit trail for suppression list removal."""
+    from app.clients.freshdesk import Freshdesk
+    from app.user.contact_request import ContactRequest
+
+    contact = ContactRequest(
+        email_address=current_app.config.get("CONTACT_FORM_EMAIL_ADDRESS", "notify-support@cds-snc.ca"),
+        name="Suppression List Removal",
+        message=(
+            f"Email address removed from SES suppression list<br><br>"
+            f"- Service: {service.name} ({service.id})<br>"
+            f"- Email removed: {email_address}<br>"
+            f"- Removed at: {datetime.utcnow().isoformat()}Z"
+        ),
+        support_type="suppression_list_removal",
+        friendly_support_type="Suppression List Removal",
+        service_id=str(service.id),
+        service_name=service.name,
+        tags=["suppression_list_removal"],
+    )
+    freshdesk = Freshdesk(contact)
+    freshdesk.send_ticket()
+
+
 def check_unique_name_request_args(request):
     service_id = request.args.get("service_id")
     name = request.args.get("name", None)
