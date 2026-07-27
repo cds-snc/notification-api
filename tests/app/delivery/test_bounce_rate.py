@@ -28,9 +28,9 @@ class TestCheckServiceOverBounceRate:
                 kwargs={"service_id": fake_uuid, "bounce_rate": current_app.config["BR_CRITICAL_PERCENTAGE"]},
                 queue=ANY,
             )
-            mock_set_suspension_key.assert_called_once_with(fake_uuid, bounce_rate_module.TWENTY_FOUR_HOURS_IN_SECONDS)
+            mock_set_suspension_key.assert_called_once_with(fake_uuid)
             # Warning key should also be set to prevent a follow-up warning email
-            mock_set_warning_key.assert_called_once_with(fake_uuid, bounce_rate_module.TWENTY_FOUR_HOURS_IN_SECONDS)
+            mock_set_warning_key.assert_called_once_with(fake_uuid)
 
     def test_critical_high_volume_already_sent(self, mocker: MockFixture, notify_api, fake_uuid):
         """>=1000 messages, bounce rate >=10%, but suspension email already sent → no duplicate"""
