@@ -166,6 +166,14 @@ class PDFNotReadyError(BadRequestError):
         super().__init__(message="PDF not available yet, try again later", status_code=400)
 
 
+class S3ReportDownloadError(InvalidRequest):
+    status_code = 502
+    message = "Failed to retrieve report content"
+
+    def __init__(self):
+        super().__init__(message=self.__class__.message, status_code=self.__class__.status_code)
+
+
 def register_errors(blueprint):
     @blueprint.errorhandler(InvalidEmailError)
     def invalid_format(error):
