@@ -3,6 +3,7 @@ import math
 
 from app.dao.reports_dao import get_report_by_id
 from app.models import ReportStatus
+from app.v2.reports.post_reports import REPORT_RATE_LIMIT, REPORT_RATE_WINDOW
 from tests import create_authorization_header
 
 
@@ -117,10 +118,9 @@ def test_post_report_rate_limit_returns_429(client, sample_service, mocker, crea
 
     mocker.patch("app.v2.reports.post_reports.time", return_value=fixed_now)
 
-    # Oldest entry is 60 seconds ago; reset = oldest + 3600
+    # Oldest entry is 60 seconds ago; reset = oldest + REPORT_RATE_WINDOW
     oldest_ts = fixed_now - 60
-    mocker.patch("app.v2.reports.post_reports.check_and_count_window", return_value=10)
-    mocker.patch("app.v2.reports.post_reports.get_window_oldest_entry", return_value=oldest_ts)
+    mocker.patch("app.v2.reports.post_reports.check_and_record_window_request", return_value=(True, oldest_ts))
 
     response = client.post(
         path="/v2/reports",
@@ -131,10 +131,10 @@ def test_post_report_rate_limit_returns_429(client, sample_service, mocker, crea
     assert response.status_code == 429
     data = json.loads(response.get_data(as_text=True))
     assert data["errors"][0]["error"] == "RateLimitExceeded"
-    assert data["errors"][0]["message"] == "Maximum 10 report requests per hour"
-    assert response.headers["X-RateLimit-Limit"] == "10"
+    assert data["errors"][0]["message"] == f"Maximum {REPORT_RATE_LIMIT} report requests per hour"
+    assert response.headers["X-RateLimit-Limit"] == str(REPORT_RATE_LIMIT)
     assert response.headers["X-RateLimit-Remaining"] == "0"
-    assert int(response.headers["X-RateLimit-Reset"]) == math.ceil(oldest_ts + 3600)
+    assert int(response.headers["X-RateLimit-Reset"]) == math.ceil(oldest_ts + REPORT_RATE_WINDOW)
     assert int(response.headers["Retry-After"]) > 0
 
 
@@ -147,9 +147,8 @@ def test_post_report_rate_limit_not_triggered_below_limit(
     fixed_now = 1_700_000_000.0
     mocker.patch("app.v2.reports.post_reports.time", return_value=fixed_now)
 
-    # Simulate 9 existing entries (under the 10-per-hour limit)
-    mocker.patch("app.v2.reports.post_reports.check_and_count_window", return_value=9)
-    mocker.patch("app.v2.reports.post_reports.record_window_request")
+    # Simulate request succeeds (under the 10-per-hour limit)
+    mocker.patch("app.v2.reports.post_reports.check_and_record_window_request", return_value=(False, None))
 
     response = client.post(
         path="/v2/reports",
@@ -165,7 +164,7 @@ def test_post_report_rate_limit_skipped_when_redis_disabled(
 ):
     mocker.patch("app.v2.reports.post_reports.generate_report.apply_async")
     auth_header = create_authorization_header(api_key=create_api_key_with_manage_reports_perm)
-    mock_check = mocker.patch("app.v2.reports.post_reports.check_and_count_window")
+    mock_check = mocker.patch("app.v2.reports.post_reports.check_and_record_window_request")
 
     with notify_api.test_request_context():
         notify_api.config["REDIS_ENABLED"] = False

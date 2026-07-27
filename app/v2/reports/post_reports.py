@@ -4,9 +4,7 @@ from time import time
 
 from flask import current_app, jsonify, request
 from notifications_utils.clients.redis.sliding_window_rate_limit import (
-    check_and_count_window,
-    get_window_oldest_entry,
-    record_window_request,
+    check_and_record_window_request,
     report_rate_limit_cache_key,
 )
 
@@ -20,8 +18,8 @@ from app.v2.errors import ForbiddenError, ReportRateLimitError
 from app.v2.reports import v2_reports_blueprint
 from app.v2.reports.report_schemas import post_report_request
 
-REPORT_RATE_LIMIT = 10
-REPORT_RATE_WINDOW = 3600  # 1 hour in seconds
+REPORT_RATE_LIMIT = 2
+REPORT_RATE_WINDOW = 60  # 1 hour in seconds
 
 
 def _check_report_rate_limit(service_id):
@@ -36,18 +34,15 @@ def _check_report_rate_limit(service_id):
     cache_key = report_rate_limit_cache_key(service_id)
     now = time()
 
-    count = check_and_count_window(redis_store, cache_key, REPORT_RATE_WINDOW, now)
+    exceeded, oldest_ts = check_and_record_window_request(redis_store, cache_key, REPORT_RATE_LIMIT, REPORT_RATE_WINDOW, now)
 
-    if count >= REPORT_RATE_LIMIT:
-        oldest_ts = get_window_oldest_entry(redis_store, cache_key)
+    if exceeded:
         if oldest_ts:
             reset_at = math.ceil(oldest_ts + REPORT_RATE_WINDOW)
         else:
             reset_at = math.ceil(now + REPORT_RATE_WINDOW)
         retry_after = max(1, reset_at - math.ceil(now))
         raise ReportRateLimitError(limit=REPORT_RATE_LIMIT, retry_after=retry_after, reset_at=reset_at)
-
-    record_window_request(redis_store, cache_key, REPORT_RATE_WINDOW, now)
 
 
 @v2_reports_blueprint.route("", methods=["POST"])
