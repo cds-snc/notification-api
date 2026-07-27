@@ -1892,15 +1892,15 @@ class TestUserDeactivation:
             assert called_template == user_deactivated_template_id
 
             # Service should only have suspended_at/suspended_by_id if it was actually suspended
-            # (not deactivated). Deactivated services don't set these fields.
+            # or archived (both operations now record these fields).
             if should_send_suspension_email:
                 assert svc_db.suspended_at == datetime(2025, 10, 21, 12, 0, 0)
                 assert svc_db.suspended_by_id == user_id
             elif not expected_service_active:
-                # If service is inactive but not suspended (i.e., deactivated/archived),
-                # it should not have these timestamps set
-                assert svc_db.suspended_at is None
-                assert svc_db.suspended_by_id is None
+                # Archived (deactivated) services also record suspended_at and suspended_by_id
+                # (set to the deactivated user's id so there is an audit trail).
+                assert svc_db.suspended_at == datetime(2025, 10, 21, 12, 0, 0)
+                assert svc_db.suspended_by_id == user_id
 
     def test_deactivate_user_commits_on_success(self, client, notify_db_session, mocker):
         """Simple commit test: successful deactivate should persist changes."""
