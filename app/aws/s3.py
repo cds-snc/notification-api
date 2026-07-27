@@ -17,6 +17,8 @@ REPORTS_FILE_LOCATION_STRUCTURE = "service-{}/{}.csv"
 THREE_DAYS_IN_SECONDS = 3 * 24 * 60 * 60
 MULTIPART_THRESHOLD = 1024 * 10  # 10MB
 MAX_CONCURRENCY = 10
+REPORT_S3_KEY_STRUCTURE = "reports/{}/{}.csv"
+REPORT_STREAM_CHUNK_SIZE = 1024 * 1024  # 1MB
 
 
 def get_s3_file(bucket_name, file_location):
@@ -152,10 +154,6 @@ def get_list_of_files_by_suffix(bucket_name, subfolder="", suffix="", last_modif
 
 def get_report_location(service_id, report_id):
     return REPORTS_FILE_LOCATION_STRUCTURE.format(service_id, report_id)
-
-
-REPORT_S3_KEY_STRUCTURE = "reports/{}/{}.csv"
-REPORT_STREAM_CHUNK_SIZE = 1024 * 1024  # 1MB
 
 
 def stream_report_from_s3(service_id, report_id, chunk_size=REPORT_STREAM_CHUNK_SIZE):

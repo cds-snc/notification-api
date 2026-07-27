@@ -1,12 +1,12 @@
 import botocore.exceptions
-from flask import Response, current_app, jsonify, stream_with_context
+from flask import Response, current_app, stream_with_context
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import api_user, authenticated_service
 from app.aws.s3 import stream_report_from_s3
 from app.dao.reports_dao import get_report_by_id
 from app.models import ApiKeyPermission, ReportStatus
-from app.v2.errors import BadRequestError, ForbiddenError
+from app.v2.errors import BadRequestError, ForbiddenError, S3ReportDownloadError
 from app.v2.reports import v2_reports_blueprint
 
 
@@ -32,13 +32,7 @@ def get_report_content(report_id):
         chunks = stream_report_from_s3(report.service_id, report_id)
     except botocore.exceptions.ClientError:
         current_app.logger.error(f"Failed to open S3 object for report {report_id} (service {authenticated_service.id})")
-        return (
-            jsonify(
-                status_code=502,
-                errors=[{"error": "S3Error", "message": "Failed to retrieve report content"}],
-            ),
-            502,
-        )
+        raise S3ReportDownloadError()
 
     headers = {
         "Content-Disposition": f'attachment; filename="{report_id}.csv"',
