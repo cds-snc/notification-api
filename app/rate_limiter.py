@@ -10,6 +10,7 @@ of units that can be acquired per minute.
 
 import logging
 import math
+import threading
 import uuid
 from abc import ABC, abstractmethod
 from collections import deque
@@ -106,6 +107,16 @@ class InMemoryRateLimiter(RateLimiter):
     - If capacity available, records the entry and updates running total.
     - If capacity exhausted, calculates when enough entries will have expired
       to accommodate the new request.
+
+    Thread safety:
+    A ``threading.Lock`` serialises all compound read-modify-write operations
+    so multiple threads in the same process share one consistent view of the
+    sliding window.
+
+    Deployment note:
+    Suitable only for single-process deployments (e.g. one Celery worker with
+    multiple threads).  State is not shared across multiple worker processes,
+    pods, or hosts — use a Redis-backed implementation for multi-process setups.
     """
 
     WINDOW_SIZE_SECONDS = 60
@@ -122,6 +133,7 @@ class InMemoryRateLimiter(RateLimiter):
         super().__init__(cap_per_minute, namespace)
         self.window: deque = deque()  # Stores (timestamp, units) tuples
         self.current_usage: int = 0  # Running total of units in the current window
+        self._lock = threading.Lock()
 
     def acquire_lease(self, units: int) -> Tuple[bool, int]:
         """
@@ -143,70 +155,73 @@ class InMemoryRateLimiter(RateLimiter):
         if units > self.cap_per_minute:
             raise ValueError("units must be smaller than or equal to the cap_per_minute")
 
-        now = time()
-        window_start = now - self.WINDOW_SIZE_SECONDS
+        with self._lock:
+            now = time()
+            window_start = now - self.WINDOW_SIZE_SECONDS
 
-        # Remove entries older than the 60-second window and update running total
-        while self.window and self.window[0][0] < window_start:
-            _, old_units = self.window.popleft()
-            self.current_usage -= old_units
+            # Remove entries older than the 60-second window and update running total
+            while self.window and self.window[0][0] < window_start:
+                _, old_units = self.window.popleft()
+                self.current_usage -= old_units
 
-        # Check if adding new units exceeds the cap
-        if self.current_usage + units <= self.cap_per_minute:
-            # Enough capacity available: record the entry and update running total
-            self.window.append((now, units))
-            self.current_usage += units
-            current_app.logger.info(
-                f"Rate limiter [{self.namespace}]: acquired {units} units. "
-                f"Window usage: {self.current_usage}/{self.cap_per_minute}"
+            # Check if adding new units exceeds the cap
+            if self.current_usage + units <= self.cap_per_minute:
+                # Enough capacity available: record the entry and update running total
+                self.window.append((now, units))
+                self.current_usage += units
+                current_app.logger.info(
+                    f"Rate limiter [{self.namespace}]: acquired {units} units. "
+                    f"Window usage: {self.current_usage}/{self.cap_per_minute}"
+                )
+                return True, 0
+
+            # Not enough capacity: calculate when enough units will be available for the new request
+            units_needed = self.current_usage + units - self.cap_per_minute
+            units_freed = 0
+            last_timestamp_to_wait_for = None
+
+            # Iterate through window entries (oldest first) to find when we'll have enough space
+            for timestamp, entry_units in self.window:
+                units_freed += entry_units
+                last_timestamp_to_wait_for = timestamp
+                if units_freed >= units_needed:
+                    # This entry needs to expire to free enough space
+                    break
+
+            # Calculate seconds to wait for the last entry to expire
+            if last_timestamp_to_wait_for is not None:
+                seconds_until_expires = self.WINDOW_SIZE_SECONDS - (now - last_timestamp_to_wait_for)
+                seconds_to_wait = max(1, math.ceil(seconds_until_expires))
+            else:
+                # Fallback (shouldn't reach here)
+                seconds_to_wait = 1
+
+            current_app.logger.warning(
+                f"Rate limiter [{self.namespace}]: capacity exhausted. Requested {units} units "
+                f"but only {self.cap_per_minute - self.current_usage} available in current window. "
+                f"Will retry in {seconds_to_wait} seconds."
             )
-            return True, 0
-
-        # Not enough capacity: calculate when enough units will be available for the new request
-        units_needed = self.current_usage + units - self.cap_per_minute
-        units_freed = 0
-        last_timestamp_to_wait_for = None
-
-        # Iterate through window entries (oldest first) to find when we'll have enough space
-        for timestamp, entry_units in self.window:
-            units_freed += entry_units
-            last_timestamp_to_wait_for = timestamp
-            if units_freed >= units_needed:
-                # This entry needs to expire to free enough space
-                break
-
-        # Calculate seconds to wait for the last entry to expire
-        if last_timestamp_to_wait_for is not None:
-            seconds_until_expires = self.WINDOW_SIZE_SECONDS - (now - last_timestamp_to_wait_for)
-            seconds_to_wait = max(1, math.ceil(seconds_until_expires))
-        else:
-            # Fallback (shouldn't reach here)
-            seconds_to_wait = 1
-
-        current_app.logger.warning(
-            f"Rate limiter [{self.namespace}]: capacity exhausted. Requested {units} units "
-            f"but only {self.cap_per_minute - self.current_usage} available in current window. "
-            f"Will retry in {seconds_to_wait} seconds."
-        )
-        return False, seconds_to_wait
+            return False, seconds_to_wait
 
     def reset_limiter(self):
         """Reset the rate limiter (clears all entries and running total)."""
-        self.window.clear()
-        self.current_usage = 0
+        with self._lock:
+            self.window.clear()
+            self.current_usage = 0
         current_app.logger.info(f"Rate limiter [{self.namespace}]: reset (window cleared)")
 
     def get_current_usage(self) -> int:
         """Get the current unit count in the active 60-second window."""
-        now = time()
-        window_start = now - self.WINDOW_SIZE_SECONDS
+        with self._lock:
+            now = time()
+            window_start = now - self.WINDOW_SIZE_SECONDS
 
-        # Remove expired entries and update running total
-        while self.window and self.window[0][0] < window_start:
-            _, old_units = self.window.popleft()
-            self.current_usage -= old_units
+            # Remove expired entries and update running total
+            while self.window and self.window[0][0] < window_start:
+                _, old_units = self.window.popleft()
+                self.current_usage -= old_units
 
-        return self.current_usage
+            return self.current_usage
 
 
 # ============================================================================
@@ -704,8 +719,12 @@ class BufferedRateLimiter(RateLimiter):
     batch, so already-claimed tokens are never wasted.
 
     Thread safety:
-    Not needed — Celery prefork runs one task at a time per process, and each
-    worker process owns its own ``BufferedRateLimiter`` instance independently.
+    Buffer state (``_local_tokens`` and ``_acquired_at``) is stored in a
+    ``threading.local()`` so each thread maintains an independent token buffer,
+    mirroring the one-buffer-per-worker isolation that prefork provided via
+    separate processes.  The shared ``BufferedRateLimiter`` instance is held in
+    the registry; only its buffer fields are thread-local.  The underlying
+    backend (Redis) is already protected by atomic Lua scripts.
     """
 
     TOKEN_WINDOW_SECONDS = 60
@@ -721,8 +740,23 @@ class BufferedRateLimiter(RateLimiter):
         super().__init__(rate_limiter.cap_per_minute, rate_limiter.namespace)
         self._rate_limiter = rate_limiter
         self._size = size
-        self._local_tokens: int = 0
-        self._acquired_at: float = 0.0
+        self._local = threading.local()
+
+    @property
+    def _local_tokens(self) -> int:
+        return getattr(self._local, "tokens", 0)
+
+    @_local_tokens.setter
+    def _local_tokens(self, value: int) -> None:
+        self._local.tokens = value
+
+    @property
+    def _acquired_at(self) -> float:
+        return getattr(self._local, "acquired_at", 0.0)
+
+    @_acquired_at.setter
+    def _acquired_at(self, value: float) -> None:
+        self._local.acquired_at = value
 
     def acquire_lease(self, units: int) -> Tuple[bool, int]:
         """
