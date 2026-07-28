@@ -5,7 +5,7 @@ from typing import Iterator, List, Optional
 
 
 def api_headers(api_key: str):
-    return {"Authorization": f"ApiKey-v1 {api_key[-36:]}"}
+    return {"Authorization": f"ApiKey-v1 {api_key}"}
 
 
 def json_data(email_address: str, template_id: str, ref: str, personalisation: Optional[dict] = {}):
