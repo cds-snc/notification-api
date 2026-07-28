@@ -65,6 +65,7 @@ from app.models import (
     PINPOINT_PROVIDER,
     SMS_TYPE,
     SNS_PROVIDER,
+    UPLOAD_DOCUMENT,
     Notification,
     Service,
 )
@@ -164,6 +165,12 @@ def _get_template_attachments(notification: Notification) -> List[Dict[str, Any]
 
     Returns list of attachment dicts: [{"name": str, "data": bytes, "mime_type": str}, ...]
     """
+    if not notification.service.has_permission(UPLOAD_DOCUMENT):
+        current_app.logger.info(
+            f"Skipping template file attachments for notification {notification.id}; service {notification.service_id} does not have upload_document permission"
+        )
+        return []
+
     template_attachments = []
 
     # Get file metadata from cache or DB
@@ -390,6 +397,30 @@ def _validate_unsubscribe_url(url, notification_id):
     return url
 
 
+def _normalise_file_personalisation(personalisation_data: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """Convert nested document objects in personalisation to safe values for template rendering."""
+    if not personalisation_data:
+        return {}
+
+    normalised_personalisation = personalisation_data.copy()
+
+    for key, value in normalised_personalisation.items():
+        if not isinstance(value, dict):
+            continue
+
+        document = value.get("document")
+        if not isinstance(document, dict):
+            continue
+
+        if document.get("sending_method") == "template_attach":
+            normalised_personalisation[key] = ""
+            continue
+
+        normalised_personalisation[key] = document.get("url") or document.get("direct_file_url") or ""
+
+    return normalised_personalisation
+
+
 def send_email_to_provider(notification: Notification):
     current_app.logger.info(f"Sending email to provider for notification id {notification.id}")
     service = notification.service
@@ -405,52 +436,58 @@ def send_email_to_provider(notification: Notification):
 
     provider = provider_to_use(EMAIL_TYPE, notification.id)
 
-    # Extract any file objects from the personalization (but exclude template attachments)
-    file_keys = [
-        k
-        for k, v in (notification.personalisation or {}).items()
-        if isinstance(v, dict) and "document" in v and v["document"].get("sending_method") != "template_attach"
-    ]
     attachments = []
+    personalisation_data = (notification.personalisation or {}).copy()
 
-    personalisation_data = notification.personalisation.copy()
-
-    for key in file_keys:
-        check_file_url(personalisation_data[key]["document"], notification.id)
-        sending_method = personalisation_data[key]["document"].get("sending_method")
-        direct_file_url = personalisation_data[key]["document"]["direct_file_url"]
-        filename = personalisation_data[key]["document"].get("filename")
-        mime_type = personalisation_data[key]["document"].get("mime_type")
-        document_id = personalisation_data[key]["document"]["id"]
+    if not service.has_permission(UPLOAD_DOCUMENT):
         current_app.logger.info(
-            f"Calling document_download_client.check_scan_verdict() for document_id: {document_id} and notification_id: {notification.id}"
+            f"Skipping file attachments for notification {notification.id}; service {service.id} does not have upload_document permission"
         )
-        scan_verdict_response = document_download_client.check_scan_verdict(service.id, document_id, sending_method)
-        check_for_malware_errors(scan_verdict_response.status_code, notification)
-        current_app.logger.info(f"scan_verdict for document_id {document_id} is {scan_verdict_response.json()}")
-        if sending_method == "attach":
-            try:
-                retries = Retry(total=5)
-                http = PoolManager(retries=retries)
+    else:
+        # Extract any file objects from the personalization (but exclude template attachments)
+        file_keys = [
+            k
+            for k, v in (notification.personalisation or {}).items()
+            if isinstance(v, dict) and "document" in v and v["document"].get("sending_method") != "template_attach"
+        ]
 
-                response = http.request("GET", url=direct_file_url)
-                attachments.append(
-                    {
-                        "name": filename,
-                        "data": response.data,
-                        "mime_type": mime_type,
-                    }
-                )
-            except Exception as e:
-                current_app.logger.error(f"Could not download and attach {direct_file_url}\nException: {e}")
-                del personalisation_data[key]
+        for key in file_keys:
+            check_file_url(personalisation_data[key]["document"], notification.id)
+            sending_method = personalisation_data[key]["document"].get("sending_method")
+            direct_file_url = personalisation_data[key]["document"]["direct_file_url"]
+            filename = personalisation_data[key]["document"].get("filename")
+            mime_type = personalisation_data[key]["document"].get("mime_type")
+            document_id = personalisation_data[key]["document"]["id"]
+            current_app.logger.info(
+                f"Calling document_download_client.check_scan_verdict() for document_id: {document_id} and notification_id: {notification.id}"
+            )
+            scan_verdict_response = document_download_client.check_scan_verdict(service.id, document_id, sending_method)
+            check_for_malware_errors(scan_verdict_response.status_code, notification)
+            current_app.logger.info(f"scan_verdict for document_id {document_id} is {scan_verdict_response.json()}")
+            if sending_method == "attach":
+                try:
+                    retries = Retry(total=5)
+                    http = PoolManager(retries=retries)
 
-        else:
-            personalisation_data[key] = personalisation_data[key]["document"]["url"]
+                    response = http.request("GET", url=direct_file_url)
+                    attachments.append(
+                        {
+                            "name": filename,
+                            "data": response.data,
+                            "mime_type": mime_type,
+                        }
+                    )
+                except Exception as e:
+                    current_app.logger.error(f"Could not download and attach {direct_file_url}\nException: {e}")
+                    del personalisation_data[key]
+
+            else:
+                personalisation_data[key] = personalisation_data[key]["document"]["url"]
 
     # Fetch and merge template file attachments
     template_attachments = _get_template_attachments(notification)
     attachments = attachments + template_attachments
+    personalisation_data = _normalise_file_personalisation(personalisation_data)
 
     template_obj = dao_get_template_by_id(notification.template_id, notification.template_version)
     template_dict = template_obj.__dict__
