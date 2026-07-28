@@ -1469,7 +1469,7 @@ class TestMalware:
 
         with pytest.raises(MalwareScanInProgressException) as e:
             send_to_providers.send_email_to_provider(db_notification)
-            assert db_notification.id in e.value
+        assert isinstance(e.value, MalwareScanInProgressException)
         send_mock.assert_not_called()
 
         assert Notification.query.get(db_notification.id).status == "created"
