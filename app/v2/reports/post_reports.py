@@ -3,23 +3,20 @@ import uuid
 from time import time
 
 from flask import current_app, jsonify, request
-from notifications_utils.clients.redis.sliding_window_rate_limit import (
-    check_and_record_window_request,
-    report_rate_limit_cache_key,
-)
 
-from app import api_user, authenticated_service, redis_store
+from app import api_user, authenticated_service
 from app.celery.tasks import generate_report
 from app.config import QueueNames
 from app.dao.reports_dao import create_report
 from app.models import ApiKeyPermission, Report, ReportStatus
+from app.rate_limiter import RedisSlidingWindowLogRateLimiter
 from app.schema_validation import validate
 from app.v2.errors import ForbiddenError, ReportRateLimitError
 from app.v2.reports import v2_reports_blueprint
 from app.v2.reports.report_schemas import post_report_request
 
-REPORT_RATE_LIMIT = 10
-REPORT_RATE_WINDOW = 3600  # 1 hour in seconds
+REPORT_RATE_LIMIT = 2
+REPORT_RATE_WINDOW = 60  # 1 hour in seconds
 
 
 def _check_report_rate_limit(service_id):
@@ -31,17 +28,17 @@ def _check_report_rate_limit(service_id):
     if not current_app.config.get("API_RATE_LIMIT_ENABLED") or not current_app.config.get("REDIS_ENABLED"):
         return
 
-    cache_key = report_rate_limit_cache_key(service_id)
+    limiter = RedisSlidingWindowLogRateLimiter(
+        cap_per_minute=REPORT_RATE_LIMIT,
+        namespace=f"report:{service_id}",
+        window_size=REPORT_RATE_WINDOW,
+    )
     now = time()
+    success, seconds_to_wait = limiter.acquire_lease(1)
 
-    exceeded, oldest_ts = check_and_record_window_request(redis_store, cache_key, REPORT_RATE_LIMIT, REPORT_RATE_WINDOW, now)
-
-    if exceeded:
-        if oldest_ts:
-            reset_at = math.ceil(oldest_ts + REPORT_RATE_WINDOW)
-        else:
-            reset_at = math.ceil(now + REPORT_RATE_WINDOW)
-        retry_after = max(1, reset_at - math.ceil(now))
+    if not success:
+        reset_at = math.ceil(now + seconds_to_wait)
+        retry_after = max(1, seconds_to_wait)
         raise ReportRateLimitError(limit=REPORT_RATE_LIMIT, retry_after=retry_after, reset_at=reset_at)
 
 
