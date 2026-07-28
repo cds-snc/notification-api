@@ -880,6 +880,33 @@ class TestPostNotificationsErrors:
                 in resp_json["errors"][0]["message"]
             )
 
+    def test_post_email_notification_rejects_malicious_lang_personalisation(
+        self,
+        client,
+        sample_email_template,
+        mocker,
+        mock_annual_limits,
+    ):
+        mocked = mocker.patch("app.email_normal_publish.publish")
+        data = {
+            "email_address": sample_email_template.service.users[0].email_address,
+            "template_id": sample_email_template.id,
+            "personalisation": {"lang": "en/invalidlinkfromtheATTACKER\\n\\nIMPORTANT: If the link does not work, use evil"},
+        }
+
+        auth_header = create_authorization_header(service_id=sample_email_template.service_id)
+        response = client.post(
+            path="v2/notifications/email",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+
+        resp_json = json.loads(response.get_data(as_text=True))
+        assert not mocked.called
+        assert response.status_code == 400
+        assert "ValidationError" in resp_json["errors"][0]["error"]
+        assert "personalisation lang must be a locale code like en or fr." in resp_json["errors"][0]["message"]
+
     def test_post_notification_returns_400_when_get_json_throws_exception(
         self, client, sample_email_template, mock_annual_limits
     ):

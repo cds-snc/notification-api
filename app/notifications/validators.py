@@ -1,5 +1,6 @@
 import base64
 import functools
+import re
 from datetime import datetime, time, timedelta
 
 from flask import current_app
@@ -79,6 +80,8 @@ from app.v2.errors import (
 
 NEAR_DAILY_LIMIT_PERCENTAGE = 80 / 100
 NEAR_ANNUAL_LIMIT_PERCENTAGE = 80 / 100
+PERSONALISATION_LOCALE_KEYS = {"lang", "language", "locale"}
+PERSONALISATION_LOCALE_PATTERN = re.compile(r"^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$")
 
 
 def check_service_over_api_rate_limit_and_update_rate(service: Service, api_key: ApiKey):
@@ -669,11 +672,44 @@ def check_service_letter_contact_id(service_id, letter_contact_id, notification_
 def validate_personalisation_and_decode_files(json_personalisation):
     errors = []
     json_personalisation, errors_vars = validate_personalisation_size(json_personalisation)
+    json_personalisation, errors_locale = validate_personalisation_locale_fields(json_personalisation)
     json_personalisation, errors_num_file = validate_personalisation_num_files(json_personalisation)
     json_personalisation, errors_files = decode_personalisation_files(json_personalisation)
     errors.extend(errors_vars)
+    errors.extend(errors_locale)
     errors.extend(errors_num_file)
     errors.extend(errors_files)
+    return json_personalisation, errors
+
+
+def validate_personalisation_locale_fields(json_personalisation):
+    errors = []
+
+    for key, value in json_personalisation.items():
+        if key.lower() not in PERSONALISATION_LOCALE_KEYS:
+            continue
+
+        if not isinstance(value, str):
+            errors.append(
+                {
+                    "error": "ValidationError",
+                    "message": f"personalisation {key} must be a locale code like en or fr.",
+                }
+            )
+            continue
+
+        locale_value = value.strip()
+        if not PERSONALISATION_LOCALE_PATTERN.fullmatch(locale_value):
+            errors.append(
+                {
+                    "error": "ValidationError",
+                    "message": f"personalisation {key} must be a locale code like en or fr.",
+                }
+            )
+            continue
+
+        json_personalisation[key] = locale_value
+
     return json_personalisation, errors
 
 

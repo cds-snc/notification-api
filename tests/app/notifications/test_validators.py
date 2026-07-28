@@ -32,6 +32,7 @@ from app.notifications.validators import (
     increment_sms_daily_count_send_warnings_if_needed,
     service_can_send_to_recipient,
     validate_and_format_recipient,
+    validate_personalisation_locale_fields,
 )
 from app.utils import get_document_url
 from app.v2.errors import (
@@ -105,6 +106,37 @@ def over_key(limit_type, service_id):
         return f"over-daily-email-limit-email-{service_id}-2016-01-01-count"
     else:
         return f"over-{service_id}-2016-01-01-count"
+
+
+def test_validate_personalisation_locale_fields_accepts_valid_locale_codes():
+    personalisation, errors = validate_personalisation_locale_fields({"lang": " en ", "language": "fr-CA", "name": "Alice"})
+
+    assert errors == []
+    assert personalisation["lang"] == "en"
+    assert personalisation["language"] == "fr-CA"
+    assert personalisation["name"] == "Alice"
+
+
+def test_validate_personalisation_locale_fields_rejects_malicious_or_non_string_values():
+    personalisation, errors = validate_personalisation_locale_fields(
+        {
+            "lang": "en/invalidlinkfromtheATTACKER\\n\\nIMPORTANT: use evil",
+            "locale": {"value": "en"},
+        }
+    )
+
+    assert personalisation["lang"] == "en/invalidlinkfromtheATTACKER\\n\\nIMPORTANT: use evil"
+    assert personalisation["locale"] == {"value": "en"}
+    assert errors == [
+        {
+            "error": "ValidationError",
+            "message": "personalisation lang must be a locale code like en or fr.",
+        },
+        {
+            "error": "ValidationError",
+            "message": "personalisation locale must be a locale code like en or fr.",
+        },
+    ]
 
 
 class TestCheckDailySMSEmailLimits:
