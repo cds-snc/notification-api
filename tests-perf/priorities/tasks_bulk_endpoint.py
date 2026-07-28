@@ -25,4 +25,4 @@ class ApiUser(HttpUser):
             "template_id": Config.BULK_EMAIL_TEMPLATE,
             "csv": rows_to_csv([["email address"], *job_line(Config.EMAIL_TO, Config.JOB_SIZE)]),
         }
-        self.client.post("/v2/notifications/bulk", json=json, headers=api_headers(Config.API_KEY))
+        self.client.post("/v2/notifications/bulk", json=json, headers=api_headers(Config.API_KEY, Config.WAF_SECRET))
