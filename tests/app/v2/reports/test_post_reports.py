@@ -166,14 +166,12 @@ def test_post_report_rate_limit_skipped_when_redis_disabled(
     auth_header = create_authorization_header(api_key=create_api_key_with_manage_reports_perm)
     mock_check = mocker.patch("app.v2.reports.post_reports.check_and_record_window_request")
 
-    with notify_api.test_request_context():
-        notify_api.config["REDIS_ENABLED"] = False
-
-    response = client.post(
-        path="/v2/reports",
-        data=json.dumps({"report_type": "email", "language": "en"}),
-        headers=[("Content-Type", "application/json"), auth_header],
-    )
+    with mocker.patch.dict(notify_api.config, {"REDIS_ENABLED": False}):
+        response = client.post(
+            path="/v2/reports",
+            data=json.dumps({"report_type": "email", "language": "en"}),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
 
     assert response.status_code == 202
     mock_check.assert_not_called()
