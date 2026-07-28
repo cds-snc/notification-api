@@ -148,6 +148,20 @@ class TemplateCategoryNotFoundError(BadRequestError):
         super().__init__(message=self.__class__.message)
 
 
+class ReportRateLimitError(InvalidRequest):
+    status_code = 429
+
+    def __init__(self, limit: int, retry_after: int, reset_at: int):
+        self.limit = limit
+        self.retry_after = retry_after
+        self.reset_at = reset_at
+        self.message = f"Maximum {self.limit} report requests per hour"
+        super().__init__(message=self.message, status_code=self.__class__.status_code)
+
+    def to_dict_v2(self):
+        return {"errors": [{"error": "RateLimitExceeded", "message": self.message}]}
+
+
 class PDFNotReadyError(BadRequestError):
     def __init__(self):
         super().__init__(message="PDF not available yet, try again later", status_code=400)

@@ -347,7 +347,7 @@ class RedisSlidingWindowLogRateLimiter(RateLimiter):
 
     WINDOW_SIZE_SECONDS = 60
 
-    def __init__(self, cap_per_minute: int, namespace: str, redis_client=None):
+    def __init__(self, cap_per_minute: int, namespace: str, redis_client=None, window_size: int = 60):
         """
         Initialize the Redis-backed rate limiter.
 
@@ -356,11 +356,13 @@ class RedisSlidingWindowLogRateLimiter(RateLimiter):
             namespace (str): Logical name for this limiter instance (e.g. "sms").
                 Used to construct the Redis key: app.rate_limit:{namespace}:entries.
             redis_client: Redis client instance. If None, uses app's flask_cache_ops.
+            window_size (int): Sliding window duration in seconds. Defaults to 60.
         """
         super().__init__(cap_per_minute, namespace)
         self._entries_key = f"app.rate_limit:{namespace}:entries"
         self.redis_client = redis_client
         self._lua_scripts: dict[str, object] = {}
+        self.WINDOW_SIZE_SECONDS = window_size
 
     @property
     def redis(self):

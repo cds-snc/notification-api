@@ -1,4 +1,6 @@
+import math
 import uuid
+from time import time
 
 from flask import current_app, jsonify, request
 
@@ -7,16 +9,45 @@ from app.celery.tasks import generate_report
 from app.config import QueueNames
 from app.dao.reports_dao import create_report
 from app.models import ApiKeyPermission, Report, ReportStatus
+from app.rate_limiter import RedisSlidingWindowLogRateLimiter
 from app.schema_validation import validate
-from app.v2.errors import ForbiddenError
+from app.v2.errors import ForbiddenError, ReportRateLimitError
 from app.v2.reports import v2_reports_blueprint
 from app.v2.reports.report_schemas import post_report_request
+
+REPORT_RATE_LIMIT = 10
+REPORT_RATE_WINDOW = 3600  # 1 hour in seconds
+
+
+def _check_report_rate_limit(service_id):
+    """Enforce a limit of 10 POST /v2/reports requests per hour per service.
+
+    Raises ReportRateLimitError if the limit is exceeded.
+    When Redis is unavailable or rate limiting is disabled, the check is skipped.
+    """
+    if not current_app.config.get("API_RATE_LIMIT_ENABLED") or not current_app.config.get("REDIS_ENABLED"):
+        return
+
+    limiter = RedisSlidingWindowLogRateLimiter(
+        cap_per_minute=REPORT_RATE_LIMIT,
+        namespace=f"report:{service_id}",
+        window_size=REPORT_RATE_WINDOW,
+    )
+    now = time()
+    success, seconds_to_wait = limiter.acquire_lease(1)
+
+    if not success:
+        reset_at = math.ceil(now + seconds_to_wait)
+        retry_after = max(1, seconds_to_wait)
+        raise ReportRateLimitError(limit=REPORT_RATE_LIMIT, retry_after=retry_after, reset_at=reset_at)
 
 
 @v2_reports_blueprint.route("", methods=["POST"])
 def post_report():
     if not api_user.has_permission(ApiKeyPermission.MANAGE_REPORTS):
         raise ForbiddenError(message="This API key does not have permission to manage reports.")
+
+    _check_report_rate_limit(authenticated_service.id)
 
     data = validate(request.get_json(), post_report_request)
 
