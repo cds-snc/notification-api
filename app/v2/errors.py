@@ -156,6 +156,7 @@ class ReportRateLimitError(InvalidRequest):
         self.retry_after = retry_after
         self.reset_at = reset_at
         self.message = f"Maximum {self.limit} report requests per hour"
+        super().__init__(message=self.message, status_code=self.__class__.status_code)
 
     def to_dict_v2(self):
         return {"errors": [{"error": "RateLimitExceeded", "message": self.message}]}
