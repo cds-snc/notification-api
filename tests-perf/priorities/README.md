@@ -21,13 +21,11 @@ will POST approximately 2000 bulk emails per minute and 100 priority emails per 
 
 ### Posts to /bulk
 
-`tasks_bulk_endpoint.py` will POST a file to bulk of size `JOB_SIZE` (default 10) every 10 seconds (per user). Best to run it with one user, and terminate after the desired number of POSTs have gone through.
+`tasks_bulk_endpoint.py` will send bulk requests of size `JOB_SIZE` (default 10) every minute and per user for both email and SMS, for their 3 priority lanes. Best to run it with one user, and terminate after the desired number of POSTs have gone through.
 
 ```
 locust -f ./tasks_bulk_endpoint.py --run-time=15s --users=1 --ref=perf0524z-bulk
 ```
-
-will POST to `/bulk` twice
 
 The tests add the current time to the notification's `reference` or the job's `name` when making the POST. We can use that to compute the total time from POST to delivery receipt:
 
