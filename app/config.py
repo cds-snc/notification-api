@@ -700,7 +700,7 @@ class Config(object):
     # scan files callback auth
     SCAN_VERDICT_CALLBACK_TOKEN = os.getenv("SCAN_VERDICT_CALLBACK_TOKEN")
     SCAN_VERDICT_CALLBACK_USER_NAME = "scan-verdict-callback"
-    TEST_OLD_BOUNCE_RATE = os.getenv("TEST_OLD_BOUNCE_RATE", False)
+    TEST_OLD_BOUNCE_RATE = env.bool("TEST_OLD_BOUNCE_RATE", False)
 
     @classmethod
     def get_sensitive_config(cls) -> list[str]:
