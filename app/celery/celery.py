@@ -56,19 +56,11 @@ class NotifyCelery(Celery):
         message_group_id = options.pop("MessageGroupId", None)
         if message_group_id:
             message_group_id = str(message_group_id)
-            # Always store in Celery task headers so tasks can read it via self.message_group_id
-            # (used by deliver_sms_rate_limited to re-queue with the same group).
+            # Store in Celery task headers so tasks can read it via self.message_group_id.
+            # SQS message property forwarding was removed with the fair-queue revert; this
+            # header is kept as a future-use artifact for when fair queues are reintroduced
+            # per service_id on the existing priority queues.
             options["headers"]["notify_message_group_id"] = message_group_id
-            # Only forward to kombu as a message property (so SQS receives it) when the
-            # fair-queue feature flag is enabled. This prevents any SQS behaviour change
-            # in production until the flag is turned on.
-
-            # Also set as kombu message property so the SQS transport includes
-            # MessageGroupId in the message for FIFO queues. This is required
-            # for the fair-queue feature to work.
-            if current_app.config.get("FF_SMS_RATELIMIT"):
-                options["properties"] = options.get("properties") or {}
-                options["properties"]["MessageGroupId"] = message_group_id
         return super().send_task(name, args, kwargs, **options)
 
     def init_app(self, app):

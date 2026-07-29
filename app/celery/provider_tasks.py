@@ -7,7 +7,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from app import notify_celery
 from app.celery.utils import CeleryParams
-from app.config import Config, QueueNames
+from app.config import Config
 from app.dao import notifications_dao
 from app.dao.notifications_dao import update_notification_status_by_id
 from app.delivery import send_to_providers
@@ -81,11 +81,15 @@ def deliver_sms_rate_limited(self, notification_id: str, parts_count: int):
         current_app.logger.warning(
             f"Rate limit hit for notification {notification_id} with {parts_count} parts. Retrying after {seconds_to_wait} seconds."
         )
+        # Re-queue to the same priority queue the task was consumed from. We use
+        # apply_async + Ignore (rather than self.retry) so that rate-limit re-queues
+        # do not consume the task's max_retries budget, which is reserved for real
+        # delivery failures in _deliver_sms.
+        current_queue = self.request.delivery_info.get("routing_key")
         deliver_sms_rate_limited.apply_async(
-            queue=QueueNames.SEND_SMS_FAIR,
+            queue=current_queue,
             args=[notification_id, parts_count],
             countdown=seconds_to_wait,
-            MessageGroupId=self.message_group_id,
         )
         raise Ignore()
 
