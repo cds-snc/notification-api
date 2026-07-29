@@ -66,6 +66,7 @@ from app.models import (
     SMS_TYPE,
     SNS_PROVIDER,
     UPLOAD_DOCUMENT,
+    BounceRateStatus,
     Notification,
     Service,
 )
@@ -194,6 +195,24 @@ def _get_template_attachments(notification: Notification) -> List[Dict[str, Any]
             current_app.logger.warning(f"Skipping template file {file_info['file_id']} for notification {notification.id}")
 
     return template_attachments
+
+
+def check_service_over_bounce_rate_old(service_id: str):
+    bounce_rate = bounce_rate_client.get_bounce_rate(service_id)
+    bounce_rate_status = bounce_rate_client.check_bounce_rate_status(service_id)
+    debug_data = bounce_rate_client.get_debug_data(service_id)
+    current_app.logger.debug(
+        f"Service id: {service_id} Bounce Rate: {bounce_rate} Bounce Status: {bounce_rate_status}, Debug Data: {debug_data}"
+    )
+    if bounce_rate_status == BounceRateStatus.CRITICAL.value:
+        # TODO: Bounce Rate V2, raise a BadRequestError when bounce rate meets or exceeds critical threshold
+        current_app.logger.warning(
+            f"Service: {service_id} has met or exceeded a critical bounce rate threshold of 10%. Bounce rate: {bounce_rate}"
+        )
+    elif bounce_rate_status == BounceRateStatus.WARNING.value:
+        current_app.logger.warning(
+            f"Service: {service_id} has met or exceeded a warning bounce rate threshold of 5%. Bounce rate: {bounce_rate}"
+        )
 
 
 def send_sms_to_provider(notification):
@@ -555,7 +574,9 @@ def send_email_to_provider(notification: Notification):
             attachments=attachments,
             extra_headers=_get_unsubscribe_headers(unsubscribe_link_for_header),
         )
-        check_service_over_bounce_rate(service.id)
+        check_service_over_bounce_rate_old(service.id) if current_app.config[
+            "TEST_OLD_BOUNCE_RATE"
+        ] else check_service_over_bounce_rate(service.id)
         bounce_rate_client.set_sliding_notifications(service.id, str(notification.id))
         current_app.logger.info(f"Setting total notifications for service {service.id} in REDIS")
         current_app.logger.info(f"Notification id {notification.id} HAS BEEN SENT")
