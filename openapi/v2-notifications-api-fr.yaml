@@ -2017,6 +2017,7 @@ components:
               $ref: '#/components/schemas/UUID'
               nullable: true
               description: ID de l’expéditeur utilisé pour cette tâche, si applicable
+
   securitySchemes:
     apiKey:
       type: apiKey

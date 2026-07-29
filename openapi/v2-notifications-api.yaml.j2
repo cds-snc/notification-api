@@ -2,40 +2,40 @@ openapi: 3.0.3
 
 info:
   version: 1.0.0
-  title: Notifications API v2
-  description: API for managing notifications and templates
+  title: {{ t("Notifications API v2") }}
+  description: {{ t("API for managing notifications and templates") }}
   termsOfService: https://notification.canada.ca/terms
   contact:
-    name: GC Notify Support
+    name: {{ t("GC Notify Support") }}
     url: https://notification.canada.ca/contact
 
 externalDocs:
-    description: Find out more about using the GC Notify API
+    description: {{ t("Find out more about using the GC Notify API") }}
     url: https://documentation.notification.canada.ca/en/
 
 servers:
   - url: https://api.notification.canada.ca/
-    description: GC Notify API server
+    description: {{ t("GC Notify API server") }}
 
 paths:
   /v2/notifications:
     get:
-      summary: Get list of notifications
-      description: Retrieve a paginated list of notifications with optional filtering
+      summary: {{ t("Get list of notifications") }}
+      description: {{ t("Retrieve a paginated list of notifications with optional filtering") }}
       operationId: getNotifications
       tags:
         - Notifications
       parameters:
         - name: template_type
           in: query
-          description: Filter by template type
+          description: {{ t("Filter by template type") }}
           required: false
           schema:
             type: string
             enum: [sms, email]
         - name: status
           in: query
-          description: Filter by notification status
+          description: {{ t("Filter by notification status") }}
           required: false
           schema:
             type: array
@@ -44,27 +44,27 @@ paths:
               enum: [created, in-transit, pending, sent, delivered, failed]
         - name: reference
           in: query
-          description: Reference identifier for the notification
+          description: {{ t("Reference identifier for the notification") }}
           required: false
           schema:
             type: string
             format: uuid
         - name: older_than
           in: query
-          description: Filter notifications older than this notification ID (UUID)
+          description: {{ t("Filter notifications older than this notification ID (UUID)") }}
           required: false
           schema:
             type: string
             format: uuid
         - name: include_jobs
           in: query
-          description: Whether to include jobs in the response
+          description: {{ t("Whether to include jobs in the response") }}
           required: false
           schema:
             type: boolean
       responses:
         '200':
-          description: Successfully retrieved notifications
+          description: {{ t("Successfully retrieved notifications") }}
           content:
             application/json:
               schema:
@@ -77,71 +77,71 @@ paths:
                   links:
                     $ref: '#/components/schemas/Links'
         '401':
-          description: Unauthorized
+          description: {{ t("Unauthorized") }}
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
               example:
                 auth_error:
-                  summary: Unauthorized access
+                  summary: {{ t("Unauthorized access") }}
                   value:
                     status_code: 401
                     errors:
                       - error: "AuthError"
-                        message: "Unauthorized, authentication token must be provided"
+                        message: "{{ t("Unauthorized, authentication token must be provided") }}"
         '404':
-          description: Notification not found
+          description: {{ t("Notification not found") }}
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
                 notification_not_found:
-                  summary: Notification not found
+                  summary: {{ t("Notification not found") }}
                   value:
                     result: "error"
-                    message: "Notification not found in database"
+                    message: "{{ t("Notification not found in database") }}"
         '500':
-          description: Internal server error
+          description: {{ t("Internal server error") }}
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
               example:
                 internal_server_error:
-                  summary: Internal server error
+                  summary: {{ t("Internal server error") }}
                   value:
                     result: "error"
-                    message: "Internal server error"
+                    message: "{{ t("Internal server error") }}"
       security:
         - apiKey: []
 
 
   /v2/notifications/{notification-id}:
     get:
-      summary: Get notification by ID
-      description: Retrieve a specific notification by its ID
+      summary: {{ t("Get notification by ID") }}
+      description: {{ t("Retrieve a specific notification by its ID") }}
       operationId: getNotificationById
       tags:
         - Notifications
       parameters:
         - name: notification-id
           in: path
-          description: Unique identifier for the notification
+          description: {{ t("Unique identifier for the notification") }}
           required: true
           schema:
             type: string
             format: uuid
       responses:
         '200':
-          description: Notification retrieved successfully
+          description: {{ t("Notification retrieved successfully") }}
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Notification'
         '400':
-          description: Bad request - invalid notification ID format
+          description: {{ t("Bad request - invalid notification ID format") }}
           content:
             application/json:
               schema:
@@ -152,7 +152,7 @@ paths:
                   - error: "ValidationError"
                     message: "notification_id is not a valid UUID"
         '403':
-          description: Forbidden - authentication or authorization errors
+          description: {{ t("Forbidden - authentication or authorization errors") }}
           content:
             application/json:
               schema:
@@ -173,7 +173,7 @@ paths:
                       - error: "AuthError"
                         message: "Invalid token: Enter your full API key"
         '401':
-          description: Unauthorized
+          description: {{ t("Unauthorized") }}
           content:
             application/json:
               schema:
@@ -187,7 +187,7 @@ paths:
                       - error: "AuthError"
                         message: "Unauthorized, authentication token must be provided"
         '404':
-          description: Notification not found
+          description: {{ t("Notification not found") }}
           content:
             application/json:
               schema:
@@ -199,7 +199,7 @@ paths:
                     result: "error"
                     message: "Notification not found in database"
         '500':
-          description: Internal server error
+          description: {{ t("Internal server error") }}
           content:
             application/json:
               schema:
@@ -215,8 +215,8 @@ paths:
 
   /v2/notifications/email:
     post:
-      summary: Send an email notification
-      description: Create and send an email notification
+      summary: {{ t("Send an email notification") }}
+      description: {{ t("Create and send an email notification") }}
       operationId: sendEmailNotification
       tags:
         - Notifications
@@ -228,12 +228,12 @@ paths:
               $ref: '#/components/schemas/CreateEmailNotificationRequest'
             examples:
               basic_email:
-                summary: Basic email notification
+                summary: {{ t("Basic email notification") }}
                 value:
                   email_address: "user@example.com"
                   template_id: "12345678-1234-1234-1234-123456789012"
               with_personalisation:
-                summary: Email with personalisation placeholder
+                summary: {{ t("Email with personalisation placeholder") }}
                 value:
                   email_address: "user@example.com"
                   template_id: "12345678-1234-1234-1234-123456789012"
@@ -241,7 +241,7 @@ paths:
                     first_name: "John"
                     last_name: "Doe"
               with_file_attachment:
-                summary: Email with file attachments
+                summary: {{ t("Email with file attachments") }}
                 value:
                   email_address: "user@example.com"
                   template_id: "12345678-1234-1234-1234-123456789012"
@@ -255,7 +255,7 @@ paths:
                       filename: "file2.txt"
                       sending_method: "attach"
               with_file_link:
-                summary: Email with file link
+                summary: {{ t("Email with file link") }}
                 value:
                   email_address: "user@example.com"
                   template_id: "12345678-1234-1234-1234-123456789012"
@@ -265,20 +265,20 @@ paths:
                       filename: "your_custom_filename.pdf"
                       sending_method: "link"
               scheduled_email:
-                summary: Scheduled email notification
+                summary: {{ t("Scheduled email notification") }}
                 value:
                   email_address: "user@example.com"
                   template_id: "12345678-1234-1234-1234-123456789012"
                   scheduled_for: "2025-06-25T15:15:00"
       responses:
         '201':
-          description: Email notification created successfully
+          description: {{ t("Email notification created successfully") }}
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/NotificationResponse'
         '400':
-          description: Bad request - various validation and business rule errors
+          description: {{ t("Bad request - various validation and business rule errors") }}
           content:
             application/json:
               schema:
@@ -355,7 +355,7 @@ paths:
                       - error: "ValidationError"
                         message: "filename is too long"
         '401':
-          description: Unauthorized
+          description: {{ t("Unauthorized") }}
           content:
             application/json:
               schema:
@@ -364,7 +364,7 @@ paths:
                 result: "error"
                 message: "Unauthorized"
         '403':
-          description: Forbidden - authentication or authorization errors
+          description: {{ t("Forbidden - authentication or authorization errors") }}
           content:
             application/json:
               schema:
@@ -385,7 +385,7 @@ paths:
                       - error: "AuthError"
                         message: "Invalid token: Enter your full API key"
         '429':
-          description: Too many requests - rate limiting
+          description: {{ t("Too many requests - rate limiting") }}
           content:
             application/json:
               schema:
@@ -406,7 +406,7 @@ paths:
                       - error: "TooManyRequestsError"
                         message: "Exceeded send limits (250000) for today"
         '500':
-          description: Internal server error
+          description: {{ t("Internal server error") }}
           content:
             application/json:
               schema:
@@ -423,8 +423,8 @@ paths:
 
   /v2/notifications/sms:
     post:
-      summary: Send an SMS notification
-      description: Create and send an SMS notification
+      summary: {{ t("Send an SMS notification") }}
+      description: {{ t("Create and send an SMS notification") }}
       operationId: sendSmsNotification
       tags:
         - Notifications
@@ -436,13 +436,13 @@ paths:
               $ref: '#/components/schemas/CreateSmsNotificationRequest'
             examples:
               basic_sms:
-                summary: Basic SMS notification
+                summary: {{ t("Basic SMS notification") }}
                 value:
                   phone_number: "+1234567890"
                   template_id: "12345678-1234-1234-1234-123456789012"
 
               sms_with_personalisation:
-                summary: SMS with personalisation placeholder
+                summary: {{ t("SMS with personalisation placeholder") }}
                 value:
                   phone_number: "+1234567890"
                   template_id: "12345678-1234-1234-1234-123456789012"
@@ -451,20 +451,20 @@ paths:
                     last_name: "Doe"
 
               scheduled_sms:
-                summary: Scheduled SMS notification
+                summary: {{ t("Scheduled SMS notification") }}
                 value:
                   phone_number: "+1234567890"
                   template_id: "12345678-1234-1234-1234-123456789012"
                   scheduled_for: "2025-06-25T15:15:00"
       responses:
         '201':
-          description: SMS notification created successfully
+          description: {{ t("SMS notification created successfully") }}
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/NotificationResponse'
         '400':
-          description: Bad request - various validation and business rule errors
+          description: {{ t("Bad request - various validation and business rule errors") }}
           content:
             application/json:
               schema:
@@ -485,7 +485,7 @@ paths:
                       - error: "BadRequestError"
                         message: "Can't send to this recipient when service is in trial mode"
         '403':
-          description: Forbidden - authentication or authorization errors
+          description: {{ t("Forbidden - authentication or authorization errors") }}
           content:
             application/json:
               schema:
@@ -506,7 +506,7 @@ paths:
                       - error: "AuthError"
                         message: "Invalid token: Enter your full API key"
         '429':
-          description: Too many requests - rate limiting
+          description: {{ t("Too many requests - rate limiting") }}
           content:
             application/json:
               schema:
@@ -527,7 +527,7 @@ paths:
                       - error: "TooManyRequestsError"
                         message: "Exceeded send limits (LIMIT NUMBER) for today"
         '500':
-          description: Internal server error
+          description: {{ t("Internal server error") }}
           content:
             application/json:
               schema:
@@ -544,22 +544,22 @@ paths:
 
   /v2/templates:
     get:
-      summary: Get list of templates
-      description: Retrieve a list of templates. Filterable by template type
+      summary: {{ t("Get list of templates") }}
+      description: {{ t("Retrieve a list of templates. Filterable by template type") }}
       operationId: getTemplates
       tags:
         - Templates
       parameters:
         - name: type
           in: query
-          description: Filter by template type
+          description: {{ t("Filter by template type") }}
           required: false
           schema:
             type: string
             enum: [sms, email]
       responses:
         '200':
-          description: Successfully retrieved templates
+          description: {{ t("Successfully retrieved templates") }}
           content:
             application/json:
               schema:
@@ -570,7 +570,7 @@ paths:
                     items:
                       $ref: '#/components/schemas/Template'
         '400':
-          description: Bad request - invalid parameters
+          description: {{ t("Bad request - invalid parameters") }}
           content:
             application/json:
               schema:
@@ -583,13 +583,13 @@ paths:
                       - error: "ValidationError"
                         message: "Unauthorized, authentication token must be provided"
         '401':
-          description: Unauthorized
+          description: {{ t("Unauthorized") }}
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
         '500':
-          description: Internal server error
+          description: {{ t("Internal server error") }}
           content:
             application/json:
               schema:
@@ -600,28 +600,28 @@ paths:
 
   /v2/template/{template-id}:
     get:
-      summary: Get template by ID
-      description: Retrieve a specific template by its ID
+      summary: {{ t("Get template by ID") }}
+      description: {{ t("Retrieve a specific template by its ID") }}
       operationId: getTemplate
       tags:
         - Templates
       parameters:
         - name: template-id
           in: path
-          description: Unique identifier for the template
+          description: {{ t("Unique identifier for the template") }}
           required: true
           schema:
             type: string
             format: uuid
       responses:
         '200':
-          description: Template retrieved successfully
+          description: {{ t("Template retrieved successfully") }}
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Template'
         '400':
-          description: Bad request - invalid template ID format
+          description: {{ t("Bad request - invalid template ID format") }}
           content:
             application/json:
               schema:
@@ -632,7 +632,7 @@ paths:
                   - error: "ValidationError"
                     message: "template_id is not a valid UUID"
         '401':
-          description: Unauthorized
+          description: {{ t("Unauthorized") }}
           content:
             application/json:
               schema:
@@ -646,7 +646,7 @@ paths:
                       - error: "AuthError"
                         message: "Unauthorized, authentication token must be provided"
         '403':
-          description: Forbidden - authentication or authorization errors
+          description: {{ t("Forbidden - authentication or authorization errors") }}
           content:
             application/json:
               schema:
@@ -667,7 +667,7 @@ paths:
                       - error: "AuthError"
                         message: "Invalid token: Enter your full API key"
         '404':
-          description: Template not found
+          description: {{ t("Template not found") }}
           content:
             application/json:
               schema:
@@ -679,7 +679,7 @@ paths:
                     result: "error"
                     message: "Template not found in database"
         '500':
-          description: Internal server error
+          description: {{ t("Internal server error") }}
           content:
             application/json:
               schema:
@@ -690,23 +690,23 @@ paths:
 
   /v2/manage-template/template-categories:
     get:
-      summary: Get template categories
+      summary: {{ t("Get template categories") }}
       description: |
-        Retrieve all available template categories for manage template operations.
+        {{ t("Retrieve all available template categories for manage template operations.") }}
 
-        This endpoint requires a NEW API key with the manage_templates permission.
+        {{ t("This endpoint requires a NEW API key with the manage_templates permission.") }}
       operationId: getManageTemplateCategories
       tags:
         - Manage Templates
       responses:
         '200':
-          description: Template categories retrieved successfully
+          description: {{ t("Template categories retrieved successfully") }}
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ManageTemplateCategoriesResponse'
         '401':
-          description: Unauthorized
+          description: {{ t("Unauthorized") }}
           content:
             application/json:
               schema:
@@ -720,21 +720,21 @@ paths:
                       - error: "AuthError"
                         message: "Unauthorized, authentication token must be provided"
         '403':
-          description: Forbidden - NEW API key missing required manage_templates permission
+          description: {{ t("Forbidden - NEW API key missing required manage_templates permission") }}
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
               examples:
                 missing_permission:
-                  summary: Missing manage templates permission
+                  summary: {{ t("Missing manage templates permission") }}
                   value:
                     status_code: 403
                     errors:
                       - error: "ForbiddenError"
                         message: "This API key does not have permission to manage templates."
         '500':
-          description: Internal server error
+          description: {{ t("Internal server error") }}
           content:
             application/json:
               schema:
@@ -745,30 +745,30 @@ paths:
 
   /v2/manage-template/{template-id}:
     get:
-      summary: Get template by ID
+      summary: {{ t("Get template by ID") }}
       description: |
-        Retrieve a specific template by ID using manage template permissions.
+        {{ t("Retrieve a specific template by ID using manage template permissions.") }}
 
-        This endpoint requires a NEW API key with the manage_templates permission.
+        {{ t("This endpoint requires a NEW API key with the manage_templates permission.") }}
       operationId: getManageTemplateById
       tags:
         - Manage Templates
       parameters:
         - name: template-id
           in: path
-          description: Unique identifier for the template
+          description: {{ t("Unique identifier for the template") }}
           required: true
           schema:
             $ref: '#/components/schemas/UUID'
       responses:
         '200':
-          description: Template retrieved successfully
+          description: {{ t("Template retrieved successfully") }}
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ManageTemplate'
         '400':
-          description: Bad request - invalid template ID format
+          description: {{ t("Bad request - invalid template ID format") }}
           content:
             application/json:
               schema:
@@ -779,27 +779,27 @@ paths:
                   - error: "ValidationError"
                     message: "id is not a valid UUID"
         '401':
-          description: Unauthorized
+          description: {{ t("Unauthorized") }}
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
         '403':
-          description: Forbidden - NEW API key missing required manage_templates permission
+          description: {{ t("Forbidden - NEW API key missing required manage_templates permission") }}
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
               examples:
                 missing_permission:
-                  summary: Missing manage templates permission
+                  summary: {{ t("Missing manage templates permission") }}
                   value:
                     status_code: 403
                     errors:
                       - error: "ForbiddenError"
                         message: "This API key does not have permission to manage templates."
         '404':
-          description: Template not found
+          description: {{ t("Template not found") }}
           content:
             application/json:
               schema:
@@ -813,7 +813,7 @@ paths:
                       - error: "TemplateNotFoundError"
                         message: "Template not found in database"
         '500':
-          description: Internal server error
+          description: {{ t("Internal server error") }}
           content:
             application/json:
               schema:
@@ -822,18 +822,18 @@ paths:
         - apiKey: []
 
     patch:
-      summary: Update a template
+      summary: {{ t("Update a template") }}
       description: |
-        Update editable fields on a template, including category and parent folder assignment.
+        {{ t("Update editable fields on a template, including category and parent folder assignment.") }}
 
-        This endpoint requires a NEW API key with the manage_templates permission.
+        {{ t("This endpoint requires a NEW API key with the manage_templates permission.") }}
       operationId: patchManageTemplate
       tags:
         - Manage Templates
       parameters:
         - name: template-id
           in: path
-          description: Unique identifier for the template
+          description: {{ t("Unique identifier for the template") }}
           required: true
           schema:
             $ref: '#/components/schemas/UUID'
@@ -845,27 +845,27 @@ paths:
               $ref: '#/components/schemas/ManageTemplatePatchRequest'
             examples:
               update_name_and_category:
-                summary: Update template name and category
+                summary: {{ t("Update template name and category") }}
                 value:
-                  name: "Follow-up reminder"
+                  name: "{{ t("Follow-up reminder") }}"
                   template_category_id: "12345678-1234-1234-1234-123456789012"
               move_template_to_folder:
-                summary: Move template into a folder
+                summary: {{ t("Move template into a folder") }}
                 value:
                   parent_folder_id: "87654321-4321-4321-4321-210987654321"
               remove_from_folder:
-                summary: Remove template from folder
+                summary: {{ t("Remove template from folder") }}
                 value:
                   parent_folder_id: null
       responses:
         '200':
-          description: Template updated successfully
+          description: {{ t("Template updated successfully") }}
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ManageTemplate'
         '400':
-          description: Bad request - validation or category errors
+          description: {{ t("Bad request - validation or category errors") }}
           content:
             application/json:
               schema:
@@ -874,21 +874,21 @@ paths:
                   - $ref: '#/components/schemas/ManageTemplateCategoryErrorResponse'
               examples:
                 invalid_template_id:
-                  summary: Invalid template ID format
+                  summary: {{ t("Invalid template ID format") }}
                   value:
                     status_code: 400
                     errors:
                       - error: "ValidationError"
                         message: "id is not a valid UUID"
                 invalid_parent_folder:
-                  summary: Parent folder not found
+                  summary: {{ t("Parent folder not found") }}
                   value:
                     status_code: 400
                     errors:
                       - error: "BadRequestError"
                         message: "parent_folder_id not found"
                 category_not_found:
-                  summary: Template category not found
+                  summary: {{ t("Template category not found") }}
                   value:
                     status_code: 400
                     errors:
@@ -896,9 +896,9 @@ paths:
                         message: "template_category_id not found"
                     template_categories:
                       - template_category_id: "12345678-1234-1234-1234-123456789012"
-                        name: "Updates"
+                        name: "{{ t("Updates") }}"
                 category_invalid:
-                  summary: Invalid template category value
+                  summary: {{ t("Invalid template category value") }}
                   value:
                     status_code: 400
                     errors:
@@ -906,35 +906,35 @@ paths:
                         message: "template_category_id must be a valid UUID"
                     template_categories:
                       - template_category_id: "12345678-1234-1234-1234-123456789012"
-                        name: "Updates"
+                        name: "{{ t("Updates") }}"
         '401':
-          description: Unauthorized
+          description: {{ t("Unauthorized") }}
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
         '403':
-          description: Forbidden - NEW API key missing required manage_templates permission
+          description: {{ t("Forbidden - NEW API key missing required manage_templates permission") }}
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
               examples:
                 missing_permission:
-                  summary: Missing manage templates permission
+                  summary: {{ t("Missing manage templates permission") }}
                   value:
                     status_code: 403
                     errors:
                       - error: "ForbiddenError"
                         message: "This API key does not have permission to manage templates."
         '404':
-          description: Template not found
+          description: {{ t("Template not found") }}
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
         '500':
-          description: Internal server error
+          description: {{ t("Internal server error") }}
           content:
             application/json:
               schema:
@@ -943,77 +943,77 @@ paths:
         - apiKey: []
 
     delete:
-      summary: Archive a template
+      summary: {{ t("Archive a template") }}
       description: |
-        Archive a template and remove it from any folder.
+        {{ t("Archive a template and remove it from any folder.") }}
 
-        This endpoint requires a NEW API key with the manage_templates permission.
+        {{ t("This endpoint requires a NEW API key with the manage_templates permission.") }}
       operationId: deleteManageTemplate
       tags:
         - Manage Templates
       parameters:
         - name: template-id
           in: path
-          description: Unique identifier for the template
+          description: {{ t("Unique identifier for the template") }}
           required: true
           schema:
             $ref: '#/components/schemas/UUID'
       responses:
         '200':
-          description: Template archived successfully
+          description: {{ t("Template archived successfully") }}
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ManageTemplate'
         '400':
-          description: Bad request - invalid ID or already archived
+          description: {{ t("Bad request - invalid ID or already archived") }}
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
               examples:
                 invalid_template_id:
-                  summary: Invalid template ID format
+                  summary: {{ t("Invalid template ID format") }}
                   value:
                     status_code: 400
                     errors:
                       - error: "ValidationError"
                         message: "id is not a valid UUID"
                 already_archived:
-                  summary: Template is already archived
+                  summary: {{ t("Template is already archived") }}
                   value:
                     status_code: 400
                     errors:
                       - error: "BadRequestError"
                         message: "Template is already archived."
         '401':
-          description: Unauthorized
+          description: {{ t("Unauthorized") }}
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
         '403':
-          description: Forbidden - NEW API key missing required manage_templates permission
+          description: {{ t("Forbidden - NEW API key missing required manage_templates permission") }}
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
               examples:
                 missing_permission:
-                  summary: Missing manage templates permission
+                  summary: {{ t("Missing manage templates permission") }}
                   value:
                     status_code: 403
                     errors:
                       - error: "ForbiddenError"
                         message: "This API key does not have permission to manage templates."
         '404':
-          description: Template not found
+          description: {{ t("Template not found") }}
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
         '500':
-          description: Internal server error
+          description: {{ t("Internal server error") }}
           content:
             application/json:
               schema:
@@ -1024,11 +1024,11 @@ paths:
 
   /v2/manage-template:
     post:
-      summary: Create a template
+      summary: {{ t("Create a template") }}
       description: |
-        Create a new template with a required template category.
+        {{ t("Create a new template with a required template category.") }}
 
-        This endpoint requires a NEW API key with the manage_templates permission
+        {{ t("This endpoint requires a NEW API key with the manage_templates permission") }}
       operationId: postManageTemplate
       tags:
         - Manage Templates
@@ -1040,30 +1040,30 @@ paths:
               $ref: '#/components/schemas/ManageTemplatePostRequest'
             examples:
               create_sms_template:
-                summary: Create an SMS template
+                summary: {{ t("Create an SMS template") }}
                 value:
-                  name: "Service update"
+                  name: "{{ t("Service update") }}"
                   template_type: "sms"
-                  content: "Hello ((name)), your service update is ready."
+                  content: "{{ t("Hello ((name)), your service update is ready.") }}"
                   template_category_id: "12345678-1234-1234-1234-123456789012"
               create_email_template:
-                summary: Create an email template
+                summary: {{ t("Create an email template") }}
                 value:
-                  name: "Service update email"
+                  name: "{{ t("Service update email") }}"
                   template_type: "email"
-                  subject: "Your update"
-                  content: "Hello ((name)), your service update is ready."
+                  subject: "{{ t("Your update") }}"
+                  content: "{{ t("Hello ((name)), your service update is ready.") }}"
                   template_category_id: "12345678-1234-1234-1234-123456789012"
                   parent_folder_id: "87654321-4321-4321-4321-210987654321"
       responses:
         '201':
-          description: Template created successfully
+          description: {{ t("Template created successfully") }}
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ManageTemplate'
         '400':
-          description: Bad request - validation, category, or content limits
+          description: {{ t("Bad request - validation, category, or content limits") }}
           content:
             application/json:
               schema:
@@ -1072,35 +1072,35 @@ paths:
                   - $ref: '#/components/schemas/ManageTemplateCategoryErrorResponse'
               examples:
                 missing_required_field:
-                  summary: Required field missing
+                  summary: {{ t("Required field missing") }}
                   value:
                     status_code: 400
                     errors:
                       - error: "ValidationError"
                         message: "template_category_id is a required property"
                 invalid_parent_folder:
-                  summary: Parent folder not found
+                  summary: {{ t("Parent folder not found") }}
                   value:
                     status_code: 400
                     errors:
                       - error: "BadRequestError"
                         message: "parent_folder_id not found"
                 content_too_long:
-                  summary: Content exceeds character limit
+                  summary: {{ t("Content exceeds character limit") }}
                   value:
                     status_code: 400
                     errors:
                       - error: "BadRequestError"
                         message: "Content has a character count greater than the limit of 918"
                 template_name_too_long:
-                  summary: Template name too long
+                  summary: {{ t("Template name too long") }}
                   value:
                     status_code: 400
                     errors:
                       - error: "BadRequestError"
                         message: "Template name must be less than 100 characters"
                 category_not_found:
-                  summary: Template category not found
+                  summary: {{ t("Template category not found") }}
                   value:
                     status_code: 400
                     errors:
@@ -1108,36 +1108,36 @@ paths:
                         message: "template_category_id not found"
                     template_categories:
                       - template_category_id: "12345678-1234-1234-1234-123456789012"
-                        name: "Updates"
+                        name: "{{ t("Updates") }}"
         '401':
-          description: Unauthorized
+          description: {{ t("Unauthorized") }}
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
         '403':
-          description: Forbidden - NEW API key missing manage_templates permission or template type not allowed for service
+          description: {{ t("Forbidden - NEW API key missing manage_templates permission or template type not allowed for service") }}
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
               examples:
                 missing_permission:
-                  summary: Missing manage templates permission
+                  summary: {{ t("Missing manage templates permission") }}
                   value:
                     status_code: 403
                     errors:
                       - error: "ForbiddenError"
                         message: "This API key does not have permission to manage templates."
                 unsupported_type:
-                  summary: Service does not allow this template type
+                  summary: {{ t("Service does not allow this template type") }}
                   value:
                     status_code: 403
                     errors:
                       - error: "ForbiddenError"
                         message: "Creating email templates is not allowed"
         '500':
-          description: Internal server error
+          description: {{ t("Internal server error") }}
           content:
             application/json:
               schema:
@@ -1148,11 +1148,11 @@ paths:
 
   /v2/notifications/bulk:
     post:
-      summary: Send a batch of notifications
+      summary: {{ t("Send a batch of notifications") }}
       description: |
-        Send notifications in bulk, up to 50,000 recipients at a time, for a single template.
+        {{ t("Send notifications in bulk, up to 50,000 recipients at a time, for a single template.") }}
 
-        You can schedule to send notifications up to 4 days in advance.
+        {{ t("You can schedule to send notifications up to 4 days in advance.") }}
       operationId: sendBulkNotifications
       tags:
         - Notifications
@@ -1164,56 +1164,56 @@ paths:
               $ref: '#/components/schemas/PostBulkRequest'
             examples:
               basic_bulk_email_rows:
-                summary: Basic bulk email notification using rows
+                summary: {{ t("Basic bulk email notification using rows") }}
                 value:
                   template_id: "12345678-1234-1234-1234-123456789012"
-                  name: "January Appointment Reminders"
+                  name: "{{ t("January Appointment Reminders") }}"
                   rows:
-                    - ["email address", "name"]
+                    - {{ t('["email address", "name"]') }}
                     - ["alice@example.com", "Alice"]
                     - ["bob@example.com", "Bob"]
               basic_bulk_email_csv:
-                summary: Basic bulk email notification using csv
+                summary: {{ t("Basic bulk email notification using csv") }}
                 value:
                   template_id: "12345678-1234-1234-1234-123456789012"
-                  name: "January Appointment Reminders"
-                  csv: "email address,name\nalice@example.com,Alice\nbob@example.com,Bob"
+                  name: "{{ t("January Appointment Reminders") }}"
+                  csv: "{{ t("email address,name\\nalice@example.com,Alice\\nbob@example.com,Bob") }}"
               basic_bulk_sms_rows:
-                summary: Basic bulk sms notification using rows
+                summary: {{ t("Basic bulk sms notification using rows") }}
                 value:
                   template_id: "12345678-1234-1234-1234-123456789012"
-                  name: "January Appointment Reminders"
+                  name: "{{ t("January Appointment Reminders") }}"
                   rows:
-                    - ["phone number", "name"]
+                    - {{ t('["phone number", "name"]') }}
                     - ["123-456-7890", "Alice"]
                     - ["+112345678901", "Bob"]
               basic_bulk_sms_csv:
-                summary: Basic bulk sms notification using csv
+                summary: {{ t("Basic bulk sms notification using csv") }}
                 value:
                   template_id: "12345678-1234-1234-1234-123456789012"
-                  name: "January Appointment Reminders"
-                  csv: "phone number,name\n123-456-7890,Alice\n+112345678901,Bob"
+                  name: "{{ t("January Appointment Reminders") }}"
+                  csv: "{{ t("phone number,name\\n123-456-7890,Alice\\n+112345678901,Bob") }}"
               scheduled_bulk_with_ref:
-                summary: Scheduled bulk notifications with a ref for tracking and reply to address
+                summary: {{ t("Scheduled bulk notifications with a ref for tracking and reply to address") }}
                 value:
                   template_id: "12345678-1234-1234-1234-123456789012"
-                  name: "January Appointment Reminders"
+                  name: "{{ t("January Appointment Reminders") }}"
                   scheduled_for: "2025-06-25T15:15:00"
-                  reference: "january-reminders"
+                  reference: "{{ t("january-reminders") }}"
                   reply_to_id: "12345678-1234-1234-1234-123456789012"
                   rows:
-                    - ["email address", "name"]
+                    - {{ t('["email address", "name"]') }}
                     - ["alice@example.com", "Alice"]
                     - ["bob@example.com", "Bob"]
       responses:
         '201':
-          description: Bulk job created successfully
+          description: {{ t("Bulk job created successfully") }}
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/PostBulkResponse'
         '400':
-          description: Bad Request
+          description: {{ t("Bad Request") }}
           content:
             application/json:
               schema:
@@ -1332,7 +1332,7 @@ paths:
                       - error: "BadRequestError"
                         message: "Some rows have errors. Row 1 - name: Missing. Row 2 - email address: invalid recipient. Row 3 - name: Missing. Row 4 - name: Missing."
         '500':
-          description: Internal server error
+          description: {{ t("Internal server error") }}
           content:
             application/json:
               schema:
@@ -1399,7 +1399,7 @@ components:
           enum: [created, sending, pending, delivered, permanent-failure, temporary-failure, technical-failure, pending-virus-check, virus-scan-failed]
         status_description:
           type: string
-          enum: [In transit, In transit, In transit, Delivered, Blocked,  No such number, No such address, Content or inbox issue, Carrier issue, Tech issue, In transit, Attachment has virus]
+          enum: {{ t("[In transit, In transit, In transit, Delivered, Blocked,  No such number, No such address, Content or inbox issue, Carrier issue, Tech issue, In transit, Attachment has virus]") }}
         provider_response:
           type: string
           nullable: true
@@ -1452,30 +1452,30 @@ components:
       properties:
         reference:
           type: string
-          description: Optional reference identifier
+          description: {{ t("Optional reference identifier") }}
         email_address:
           type: string
           format: email
-          description: Email address of the recipient
+          description: {{ t("Email address of the recipient") }}
         template_id:
           $ref: '#/components/schemas/UUID'
-          description: ID of the template to use
+          description: {{ t("ID of the template to use") }}
         personalisation:
           type: object
-          description: Variables to substitute in the template and optional file attachments
+          description: {{ t("Variables to substitute in the template and optional file attachments") }}
           additionalProperties:
             oneOf:
               - type: string
-                description: Template variable value
+                description: {{ t("Template variable value") }}
               - $ref: '#/components/schemas/FileAttachment'
         scheduled_for:
           type: string
           format: date-time
           nullable: true
-          description: Schedule notification for future delivery
+          description: {{ t("Schedule notification for future delivery") }}
         email_reply_to_id:
           $ref: '#/components/schemas/UUID'
-          description: ID of the reply-to address to use
+          description: {{ t("ID of the reply-to address to use") }}
       required:
         - email_address
         - template_id
@@ -1485,28 +1485,28 @@ components:
       properties:
         phone_number:
           type: string
-          description: Phone number of the recipient
+          description: {{ t("Phone number of the recipient") }}
         template_id:
           $ref: '#/components/schemas/UUID'
-          description: ID of the template to use
+          description: {{ t("ID of the template to use") }}
         personalisation:
           type: object
-          description: Variables to substitute in the template
+          description: {{ t("Variables to substitute in the template") }}
           additionalProperties:
             oneOf:
               - type: string
-                description: Template variable value
+                description: {{ t("Template variable value") }}
         reference:
           type: string
-          description: Optional reference identifier
+          description: {{ t("Optional reference identifier") }}
         scheduled_for:
           type: string
           format: date-time
           nullable: true
-          description: Schedule notification for future delivery
+          description: {{ t("Schedule notification for future delivery") }}
         sms_sender_id:
           $ref: '#/components/schemas/UUID'
-          description: ID of the SMS sender to use
+          description: {{ t("ID of the SMS sender to use") }}
       required:
         - phone_number
         - template_id
@@ -1516,27 +1516,27 @@ components:
       properties:
         id:
           $ref: '#/components/schemas/UUID'
-          description: Unique identifier for the notification
+          description: {{ t("Unique identifier for the notification") }}
         reference:
           type: string
           nullable: true
-          description: Reference identifier provided when creating the notification
+          description: {{ t("Reference identifier provided when creating the notification") }}
         content:
           oneOf:
             - $ref: '#/components/schemas/EmailContent'
             - $ref: '#/components/schemas/SmsContent'
-          description: Content of the notification
+          description: {{ t("Content of the notification") }}
         uri:
           type: string
           format: uri
-          description: URI to retrieve the notification
+          description: {{ t("URI to retrieve the notification") }}
         template:
           $ref: '#/components/schemas/NotificationTemplate'
         scheduled_for:
           type: string
           format: date-time
           nullable: true
-          description: When the notification is scheduled to be sent
+          description: {{ t("When the notification is scheduled to be sent") }}
       required:
         - id
         - content
@@ -1549,13 +1549,13 @@ components:
         from_email:
           type: string
           format: email
-          description: From email address
+          description: {{ t("From email address") }}
         body:
           type: string
-          description: Email body content
+          description: {{ t("Email body content") }}
         subject:
           type: string
-          description: Email subject line
+          description: {{ t("Email subject line") }}
       required:
         - from_email
         - body
@@ -1566,10 +1566,10 @@ components:
       properties:
         body:
           type: string
-          description: SMS message body
+          description: {{ t("SMS message body") }}
         from_number:
           type: string
-          description: From phone number
+          description: {{ t("From phone number") }}
       required:
         - body
         - from_number
@@ -1579,14 +1579,14 @@ components:
       properties:
         file:
           type: string
-          description: File content as base64 encoded string
+          description: {{ t("File content as base64 encoded string") }}
         filename:
           type: string
-          description: Custom filename for the attachment
+          description: {{ t("Custom filename for the attachment") }}
         sending_method:
           type: string
           enum: [attach, link]
-          description: How the file should be sent - as attachment or as a link
+          description: {{ t("How the file should be sent - as attachment or as a link") }}
       required:
         - file
         - filename
@@ -1601,44 +1601,44 @@ components:
       properties:
         id:
           $ref: '#/components/schemas/UUID'
-          description: Unique identifier for the template
+          description: {{ t("Unique identifier for the template") }}
         name:
           type: string
-          description: Template name
+          description: {{ t("Template name") }}
         description:
           type: string
-          description: Template description
+          description: {{ t("Template description") }}
         type:
           type: string
           enum: [sms, email]
-          description: Type of notification this template is for
+          description: {{ t("Type of notification this template is for") }}
         subject:
           type: string
-          description: Subject template (for email)
+          description: {{ t("Subject template (for email)") }}
         body:
           type: string
-          description: Message body template
+          description: {{ t("Message body template") }}
         personalisation:
           type: object
-          description: Variables to substitute in the template and optional file attachments
+          description: {{ t("Variables to substitute in the template and optional file attachments") }}
           additionalProperties:
             oneOf:
               - type: string
-                description: Template variable value
+                description: {{ t("Template variable value") }}
         active:
           type: boolean
-          description: Whether the template is active
+          description: {{ t("Whether the template is active") }}
         created_at:
           type: string
           format: date-time
-          description: Timestamp when template was created
+          description: {{ t("Timestamp when template was created") }}
         updated_at:
           type: string
           format: date-time
-          description: Timestamp when template was last updated
+          description: {{ t("Timestamp when template was last updated") }}
         created_by:
           type: string
-          description: User who created the template
+          description: {{ t("User who created the template") }}
       required:
         - id
         - name
@@ -1681,7 +1681,7 @@ components:
           nullable: true
         created_by:
           type: string
-          description: Email address of the user who created the template
+          description: {{ t("Email address of the user who created the template") }}
         version:
           type: integer
         body:
@@ -1729,7 +1729,7 @@ components:
 
     ManageTemplatePostRequest:
       type: object
-      description: Subject is required when template_type is email.
+      description: {{ t("Subject is required when template_type is email.") }}
       properties:
         name:
           type: string
@@ -1800,10 +1800,10 @@ components:
       properties:
         current:
           type: string
-          description: The link to the current page
+          description: {{ t("The link to the current page") }}
         next:
           type: string
-          description: The link to the next page
+          description: {{ t("The link to the next page") }}
       required:
         - current
 
@@ -1812,10 +1812,10 @@ components:
       properties:
         result:
           type: string
-          description: Response result
+          description: {{ t("Response result") }}
         message:
           type: string
-          description: Description of the error
+          description: {{ t("Description of the error") }}
       required:
         - result
         - message
@@ -1825,10 +1825,10 @@ components:
       properties:
         error:
           type: string
-          description: Error message
+          description: {{ t("Error message") }}
         code:
           type: string
-          description: Error code
+          description: {{ t("Error code") }}
         details:
           type: array
           items:
@@ -1836,17 +1836,17 @@ components:
             properties:
               field:
                 type: string
-                description: Field that failed validation
+                description: {{ t("Field that failed validation") }}
               message:
                 type: string
-                description: Validation error message
+                description: {{ t("Validation error message") }}
             required:
               - field
               - message
         timestamp:
           type: string
           format: date-time
-          description: Timestamp when error occurred
+          description: {{ t("Timestamp when error occurred") }}
       required:
         - error
         - code
@@ -1858,7 +1858,7 @@ components:
       properties:
         status_code:
           type: integer
-          description: HTTP status code
+          description: {{ t("HTTP status code") }}
         errors:
           type: array
           items:
@@ -1866,10 +1866,10 @@ components:
             properties:
               error:
                 type: string
-                description: Error type
+                description: {{ t("Error type") }}
               message:
                 type: string
-                description: Error message
+                description: {{ t("Error message") }}
             required:
               - error
               - message
@@ -1887,20 +1887,20 @@ components:
           $ref: '#/components/schemas/UUID'
         name:
           type: string
-          description: The name of your bulk sending job. Used to identify this bulk of notifications later on.
-          example: "January Appointment Reminders"
+          description: {{ t("The name of your bulk sending job. Used to identify this bulk of notifications later on.") }}
+          example: "{{ t("January Appointment Reminders") }}"
         reference:
           type: string
-          description: A reference for this batch
+          description: {{ t("A reference for this batch") }}
           example: "batch-reference-123"
         csv:
           type: string
           format: binary
-          description: If you prefer to pass the content of CSV files instead of rows in the rows argument, you can do so. Pass the full content of your CSV file in a key named csv. Do not include the rows argument.
+          description: {{ t("If you prefer to pass the content of CSV files instead of rows in the rows argument, you can do so. Pass the full content of your CSV file in a key named csv. Do not include the rows argument.") }}
           example: "email address,name\nalice@example.com,Alice"
         rows:
           type: array
-          description: An array of arrays. The first line is the header and should include at least email address if you're sending an email template or phone number if you're sending a text message template. The other column headers should match the placeholder fields (personalised variables) of your template. The following lines should be your recipients' details and should match the order of column headers. You can have between 1 and 50,000 recipients.
+          description: {{ t("An array of arrays. The first line is the header and should include at least email address if you're sending an email template or phone number if you're sending a text message template. The other column headers should match the placeholder fields (personalised variables) of your template. The following lines should be your recipients' details and should match the order of column headers. You can have between 1 and 50,000 recipients.") }}
           items:
             type: array
             items:
@@ -1912,12 +1912,12 @@ components:
         scheduled_for:
           type: string
           format: date-time
-          description: If you want to send notifications in the future, you can specify a datetime up to 4 days in the future, in ISO 8601 format, UTC time.
+          description: {{ t("If you want to send notifications in the future, you can specify a datetime up to 4 days in the future, in ISO 8601 format, UTC time.") }}
           example: "2023-01-01T12:00:00"
           nullable: true
         reply_to_id:
           $ref: '#/components/schemas/UUID'
-          description: The ID of the reply-to address or phone number to use
+          description: {{ t("The ID of the reply-to address or phone number to use") }}
           nullable: true
 
     PostBulkResponse:
@@ -1933,102 +1933,102 @@ components:
           properties:
             id:
               $ref: '#/components/schemas/UUID'
-              description: The ID of the bulk notification job
+              description: {{ t("The ID of the bulk notification job") }}
             original_file_name:
               type: string
-              description: The name of the original CSV file if one was provided
+              description: {{ t("The name of the original CSV file if one was provided") }}
             notification_count:
               type: integer
-              description: The number of notifications in the bulk job
+              description: {{ t("The number of notifications in the bulk job") }}
             template:
               $ref: '#/components/schemas/UUID'
-              description: The ID of the template used for this notification job
+              description: {{ t("The ID of the template used for this notification job") }}
             template_version:
               type: integer
-              description: The version of the template used for this notification job
+              description: {{ t("The version of the template used for this notification job") }}
             service:
               $ref: '#/components/schemas/UUID'
-              description: The ID of the service that created the job
+              description: {{ t("The ID of the service that created the job") }}
             created_by:
               type: object
               properties:
                 id:
                   $ref: '#/components/schemas/UUID'
-                  description: The ID of the user who created the job
+                  description: {{ t("The ID of the user who created the job") }}
                 name:
                   type: string
-                  description: The name of the user who created the job
+                  description: {{ t("The name of the user who created the job") }}
             created_at:
               type: string
               format: date-time
-              description: When the job was created
+              description: {{ t("When the job was created") }}
             updated_at:
               type: string
               format: date-time
               nullable: true
-              description: When the job was last updated
+              description: {{ t("When the job was last updated") }}
             job_status:
               type: string
               enum: ['pending', 'in progress', 'finished', 'sending limits exceeded', 'scheduled', 'cancelled', 'ready to send', 'sent to dvla', 'error']
-              description: The status of the bulk notification job
+              description: {{ t("The status of the bulk notification job") }}
             scheduled_for:
               type: string
               format: date-time
               nullable: true
-              description: When the job is scheduled to be processed, null if immediate
+              description: {{ t("When the job is scheduled to be processed, null if immediate") }}
             processing_started:
               type: string
               format: date-time
               nullable: true
-              description: When the processing of the job started
+              description: {{ t("When the processing of the job started") }}
             processing_finished:
               type: string
               format: date-time
               nullable: true
-              description: When the processing of the job finished
+              description: {{ t("When the processing of the job finished") }}
             service_name:
               type: object
               properties:
                 name:
                   type: string
-                  description: The name of the service that created the job
+                  description: {{ t("The name of the service that created the job") }}
             template_type:
               type: string
               enum: ['email', 'sms']
-              description: The type of template used for this job (email or sms)
+              description: {{ t("The type of template used for this job (email or sms)") }}
             api_key:
               type: object
               nullable: true
               properties:
                 id:
                   $ref: '#/components/schemas/UUID'
-                  description: The ID of the API key used to create the job
+                  description: {{ t("The ID of the API key used to create the job") }}
                 name:
                   type: string
-                  description: The name of the API key
+                  description: {{ t("The name of the API key") }}
                 key_type:
                   type: string
                   enum: ['normal', 'team', 'test']
-                  description: The type of API key
+                  description: {{ t("The type of API key") }}
             archived:
               type: boolean
-              description: Whether the job has been archived
+              description: {{ t("Whether the job has been archived") }}
             sender_id:
               $ref: '#/components/schemas/UUID'
               nullable: true
-              description: The ID of the sender used for this job, if applicable
+              description: {{ t("The ID of the sender used for this job, if applicable") }}
 
   securitySchemes:
     apiKey:
       type: apiKey
       in: header
       name: Authorization
-      description: API Key with format 'ApiKey-v1 {api_key}'
+      description: {{ t("API Key with format 'ApiKey-v1 {api_key}'") }}
 
 tags:
   - name: Notifications
-    description: Operations related to notifications
+    description: {{ t("Operations related to notifications") }}
   - name: Templates
-    description: Operations related to notification templates
+    description: {{ t("Operations related to notification templates") }}
   - name: Manage Templates
-    description: Operations for creating, updating, retrieving, and archiving templates using a NEW API key with manage_templates permission
+    description: {{ t("Operations for creating, updating, retrieving, and archiving templates using a NEW API key with manage_templates permission") }}

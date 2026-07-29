@@ -20,6 +20,15 @@ function display_result {
   fi
 }
 
+make generate-openapi
+OPENAPI_FILES=("openapi/v2-notifications-api-en.yaml" "openapi/v2-notifications-api-fr.yaml")
+if ! git diff --exit-code -- "${OPENAPI_FILES[@]}" > /dev/null 2>&1; then
+  echo -e "\033[31mOpenAPI files are out of date. Run 'make generate-openapi' and commit the changes.\033[0m"
+  git diff -- "${OPENAPI_FILES[@]}"
+  exit 1
+fi
+display_result 0 1 "OpenAPI files up to date check"
+
 make test-requirements
 display_result $? 1 "Requirements check"
 
