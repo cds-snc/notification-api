@@ -19,6 +19,8 @@ class Config:
     NORMAL_SMS_TEMPLATE = os.environ.get("NORMAL_SMS_TEMPLATE")
     PRIORITY_SMS_TEMPLATE = os.environ.get("PRIORITY_SMS_TEMPLATE")
 
+    WAF_SECRET = os.environ.get("WAF_SECRET")
+
     JOB_SIZE = int(os.environ.get("JOB_SIZE", "10"))
 
     @classmethod

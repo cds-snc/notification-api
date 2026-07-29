@@ -83,10 +83,6 @@ class QueueNames(object):
     # we have a limit to send per second and hence, needs to be throttled.
     SEND_THROTTLED_SMS = "send-throttled-sms-tasks"
 
-    # Fair queue for sending SMS, used to rate limit sending SMS from Notify to
-    # our SMS provider to avoid hitting downstream rate limits.
-    SEND_SMS_FAIR = "send-sms-fair"
-
     # Queues for sending all emails.
     SEND_EMAIL_HIGH = "send-email-high"
     SEND_EMAIL_MEDIUM = "send-email-medium"
@@ -149,7 +145,6 @@ class QueueNames(object):
             QueueNames.SEND_SMS_MEDIUM,
             QueueNames.SEND_SMS_LOW,
             QueueNames.SEND_THROTTLED_SMS,
-            QueueNames.SEND_SMS_FAIR,
             QueueNames.SEND_EMAIL_HIGH,
             QueueNames.SEND_EMAIL_MEDIUM,
             QueueNames.SEND_EMAIL_LOW,
@@ -705,6 +700,7 @@ class Config(object):
     # scan files callback auth
     SCAN_VERDICT_CALLBACK_TOKEN = os.getenv("SCAN_VERDICT_CALLBACK_TOKEN")
     SCAN_VERDICT_CALLBACK_USER_NAME = "scan-verdict-callback"
+    TEST_OLD_BOUNCE_RATE = env.bool("TEST_OLD_BOUNCE_RATE", False)
 
     @classmethod
     def get_sensitive_config(cls) -> list[str]:
@@ -858,6 +854,7 @@ class Staging(Production):
     AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME = os.getenv(
         "AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME", "STAGING - Current newsletter templates"
     )
+    TEST_OLD_BOUNCE_RATE = True
 
 
 class Scratch(Production):
