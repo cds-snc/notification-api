@@ -47,7 +47,7 @@ class ApiUser(HttpUser):
             json={
                 "name": f"{datetime.utcnow().isoformat()} {ref}",
                 "template_id": Config.PRIORITY_EMAIL_TEMPLATE,
-                "csv": rows_to_csv([["email address"], *job_line(Config.EMAIL_TO, Config.JOB_SIZE)]),
+                "csv": rows_to_csv([["email address"], *job_line(Config.EMAIL_TO, 10)]),
             },
             headers=api_headers(Config.API_KEY, Config.WAF_SECRET),
         )
