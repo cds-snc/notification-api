@@ -20,7 +20,7 @@ class ApiUser(HttpUser):
         self.client.post(
             "/v2/notifications/email",
             json=json_data(Config.EMAIL_TO, Config.BULK_EMAIL_TEMPLATE, self.environment.parsed_options.ref),
-            headers=api_headers(Config.API_KEY),
+            headers=api_headers(Config.API_KEY, Config.WAF_SECRET),
         )
 
     @task(20)
@@ -29,7 +29,7 @@ class ApiUser(HttpUser):
         self.client.post(
             "/v2/notifications/email",
             json=json_data(Config.EMAIL_TO, Config.NORMAL_EMAIL_TEMPLATE, self.environment.parsed_options.ref),
-            headers=api_headers(Config.API_KEY),
+            headers=api_headers(Config.API_KEY, Config.WAF_SECRET),
         )
 
     @task(5)
@@ -38,5 +38,5 @@ class ApiUser(HttpUser):
         self.client.post(
             "/v2/notifications/email",
             json=json_data(Config.EMAIL_TO, Config.PRIORITY_EMAIL_TEMPLATE, self.environment.parsed_options.ref),
-            headers=api_headers(Config.API_KEY),
+            headers=api_headers(Config.API_KEY, Config.WAF_SECRET),
         )
