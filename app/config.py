@@ -854,7 +854,6 @@ class Staging(Production):
     AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME = os.getenv(
         "AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME", "STAGING - Current newsletter templates"
     )
-    TEST_OLD_BOUNCE_RATE = True
 
 
 class Scratch(Production):
