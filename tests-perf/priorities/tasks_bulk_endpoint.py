@@ -8,9 +8,11 @@ from utils import api_headers, job_line, rows_to_csv
 
 """
 Usage:
-runs the bulk upload twice
+Run the following command to execute the load test for the bulk endpoint:
 
 locust -f ./locust_bulk_endpoint.py --headless --stop-timeout=30 --run-time=15s --host=https://api-k8s.staging.notification.cdssandbox.xyz --users=1 --html=locust.html
+
+This will send bulk requests for all priorities of both email and SMS, with a total of 6 requests per run (1 for each priority and type).
 """
 
 
@@ -18,68 +20,56 @@ class ApiUser(HttpUser):
     wait_time = constant_pacing(60)  # run all tasks once every 60 seconds
     host = Config.API_HOST_NAME
 
+    BULK_SEND_CONFIG = [
+        {
+            "template": Config.BULK_EMAIL_TEMPLATE,
+            "row_name": "email address",
+            "recipient": Config.EMAIL_TO,
+            "job_size": Config.JOB_SIZE,
+        },
+        {
+            "template": Config.NORMAL_EMAIL_TEMPLATE,
+            "row_name": "email address",
+            "recipient": Config.EMAIL_TO,
+            "job_size": Config.JOB_SIZE,
+        },
+        {"template": Config.PRIORITY_EMAIL_TEMPLATE, "row_name": "email address", "recipient": Config.EMAIL_TO, "job_size": 10},
+        {
+            "template": Config.BULK_SMS_TEMPLATE,
+            "row_name": "phone number",
+            "recipient": Config.SMS_TO,
+            "job_size": Config.JOB_SIZE,
+        },
+        {
+            "template": Config.NORMAL_SMS_TEMPLATE,
+            "row_name": "phone number",
+            "recipient": Config.SMS_TO,
+            "job_size": Config.JOB_SIZE,
+        },
+        {"template": Config.PRIORITY_SMS_TEMPLATE, "row_name": "phone number", "recipient": Config.SMS_TO, "job_size": 10},
+    ]
+
+    URL = "/v2/notifications/bulk"
+
     @task
-    def send_all_bulk_and_all_types_and_all_priorities(self):
+    def send_bulk_email_sms_all_priorities(self):
         ref = self.environment.parsed_options.ref
 
-        self.client.post(
-            "/v2/notifications/bulk",
-            json={
-                "name": f"{datetime.utcnow().isoformat()} {ref}",
-                "template_id": Config.BULK_EMAIL_TEMPLATE,
-                "csv": rows_to_csv([["email address"], *job_line(Config.EMAIL_TO, Config.JOB_SIZE)]),
-            },
-            headers=api_headers(Config.API_KEY, Config.WAF_SECRET),
-        )
-
-        self.client.post(
-            "/v2/notifications/bulk",
-            json={
-                "name": f"{datetime.utcnow().isoformat()} {ref}",
-                "template_id": Config.NORMAL_EMAIL_TEMPLATE,
-                "csv": rows_to_csv([["email address"], *job_line(Config.EMAIL_TO, Config.JOB_SIZE)]),
-            },
-            headers=api_headers(Config.API_KEY, Config.WAF_SECRET),
-        )
-
-        self.client.post(
-            "/v2/notifications/bulk",
-            json={
-                "name": f"{datetime.utcnow().isoformat()} {ref}",
-                "template_id": Config.PRIORITY_EMAIL_TEMPLATE,
-                "csv": rows_to_csv([["email address"], *job_line(Config.EMAIL_TO, 10)]),
-            },
-            headers=api_headers(Config.API_KEY, Config.WAF_SECRET),
-        )
-
-        self.client.post(
-            "/v2/notifications/bulk",
-            json={
-                "name": f"{datetime.utcnow().isoformat()} {ref}",
-                "template_id": Config.BULK_SMS_TEMPLATE,
-                "csv": rows_to_csv([["phone number"], *job_line(Config.SMS_TO, Config.JOB_SIZE)]),
-            },
-            headers=api_headers(Config.API_KEY, Config.WAF_SECRET),
-        )
-
-        self.client.post(
-            "/v2/notifications/bulk",
-            json={
-                "name": f"{datetime.utcnow().isoformat()} {ref}",
-                "template_id": Config.NORMAL_SMS_TEMPLATE,
-                "csv": rows_to_csv([["phone number"], *job_line(Config.SMS_TO, Config.JOB_SIZE)]),
-            },
-            headers=api_headers(Config.API_KEY, Config.WAF_SECRET),
-        )
-
-        self.client.post(
-            "/v2/notifications/bulk",
-            # Hardcode the number of lines to 10 for the priority SMS template. The goal is to test the
-            # priority lane isn't affected despite its small size. The other templates are tested with the full job size.
-            json={
-                "name": f"{datetime.utcnow().isoformat()} {ref}",
-                "template_id": Config.PRIORITY_SMS_TEMPLATE,
-                "csv": rows_to_csv([["phone number"], *job_line(Config.SMS_TO, 10)]),
-            },
-            headers=api_headers(Config.API_KEY, Config.WAF_SECRET),
-        )
+        for config in self.BULK_SEND_CONFIG:
+            self.client.post(
+                self.URL,
+                json={
+                    "name": f"{datetime.utcnow().isoformat()} {ref}",
+                    "template_id": config["template"],
+                    "csv": rows_to_csv(
+                        [
+                            [config["row_name"]],
+                            *job_line(
+                                config["recipient"],
+                                config["job_size"],
+                            ),
+                        ]
+                    ),
+                },
+                headers=api_headers(Config.API_KEY, Config.WAF_SECRET),
+            )
