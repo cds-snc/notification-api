@@ -6,6 +6,13 @@ from requests import HTTPError, RequestException, request
 
 from app import notify_celery, signer_complaint, signer_delivery_status
 from app.config import QueueNames
+from app.models import COMPLAINT_CALLBACK_TYPE, DELIVERY_STATUS_CALLBACK_TYPE, Service
+from app.notifications.callback_backoff import (
+    clear_callback_backoff_state,
+    register_callback_failure,
+    should_send_callback_warning_email,
+)
+from app.service.sender import send_notification_to_service_users
 
 
 @notify_celery.task(bind=True, name="send-delivery-status", max_retries=5, default_retry_delay=300)
@@ -32,6 +39,7 @@ def send_delivery_status_to_service(self, notification_id, signed_status_update,
         status_update["service_callback_api_url"],
         status_update["service_callback_api_bearer_token"],
         "send_delivery_status_to_service",
+        DELIVERY_STATUS_CALLBACK_TYPE,
     )
 
 
@@ -55,10 +63,30 @@ def send_complaint_to_service(self, complaint_data, service_id):
         complaint["service_callback_api_url"],
         complaint["service_callback_api_bearer_token"],
         "send_complaint_to_service",
+        COMPLAINT_CALLBACK_TYPE,
     )
 
 
-def _send_data_to_service_callback_api(self, service_id, data, service_callback_url, token, function_name):
+@notify_celery.task(name="send-callback-suspension-warning-email")
+def send_callback_suspension_warning_email(service_id: str):
+    service = Service.query.get(service_id)
+    if service is None:
+        current_app.logger.warning(f"Service {service_id} not found. Cannot send callback suspension warning email")
+        return
+
+    send_notification_to_service_users(
+        service_id=service_id,
+        template_id=current_app.config["CALLBACK_SUSPENSION_WARNING_TEMPLATE_ID"],
+        personalisation={
+            "service_name": service.name,
+            "delivery_status_callback_test_url_en": f"{current_app.config['ADMIN_BASE_URL']}/services/{service_id}/api/callbacks/delivery-status-callback",
+            "delivery_status_callback_test_url_fr": f"{current_app.config['ADMIN_BASE_URL']}/services/{service_id}/api/callbacks/delivery-status-callback?lang=fr",
+        },
+        include_user_fields=["name"],
+    )
+
+
+def _send_data_to_service_callback_api(self, service_id, data, service_callback_url, token, function_name, callback_type):
     notification_id = data["notification_id"] if "notification_id" in data else data["id"]
     try:
         current_app.logger.info(
@@ -80,15 +108,46 @@ def _send_data_to_service_callback_api(self, service_id, data, service_callback_
         )
 
         response.raise_for_status()
+        try:
+            clear_callback_backoff_state(str(service_id), callback_type)
+        except Exception as error:
+            current_app.logger.warning(
+                f"{function_name} failed to clear callback backoff state for service: {service_id}, callback_type: {callback_type}, exc: {error}"
+            )
     except RequestException as e:
         current_app.logger.warning(
             f"{function_name} request failed for notification_id: {notification_id} to url: {service_callback_url} service: {service_id} exc: {e}"
         )
         # Retry if the response status code is server-side or 429 (too many requests).
         if not isinstance(e, HTTPError) or e.response.status_code >= 500 or e.response.status_code == 429:
+            failure_state = {
+                "retry_delay_seconds": None,
+                "entered_auto_suspension": False,
+            }
             try:
-                self.retry(queue=QueueNames.CALLBACKS_RETRY)
+                failure_state = register_callback_failure(str(service_id), callback_type)
+
+                if (
+                    callback_type == DELIVERY_STATUS_CALLBACK_TYPE
+                    and failure_state["entered_auto_suspension"]
+                    and should_send_callback_warning_email(str(service_id), callback_type)
+                ):
+                    send_callback_suspension_warning_email.apply_async(
+                        kwargs={"service_id": str(service_id)},
+                        queue=QueueNames.NOTIFY,
+                    )
+            except Exception as error:
+                current_app.logger.warning(
+                    f"{function_name} failed to record callback backoff state for service: {service_id}, callback_type: {callback_type}, exc: {error}"
+                )
+
+            try:
+                retry_params = {"queue": QueueNames.CALLBACKS_RETRY}
+                if failure_state["retry_delay_seconds"] is not None:
+                    retry_params["countdown"] = failure_state["retry_delay_seconds"]
+                self.retry(**retry_params)
             except self.MaxRetriesExceededError:
                 current_app.logger.warning(
-                    "Retry: {function_name} has retried the max num of times for callback url {service_callback_url} notification_id: {notification_id} service: {service_id}"
+                    f"Retry: {function_name} has retried the max num of times for callback url {service_callback_url} "
+                    f"notification_id: {notification_id} service: {service_id}"
                 )

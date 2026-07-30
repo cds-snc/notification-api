@@ -109,6 +109,27 @@ def test_check_and_queue_callback_task_does_not_call_delivery_task_when_service_
         mock_apply_async.assert_not_called()
 
 
+def test_check_and_queue_callback_task_does_not_call_delivery_task_when_service_callback_api_is_auto_suspended(
+    notify_db,
+    notify_db_session,
+    sample_email_template,
+):
+    notification = create_sample_notification(
+        notify_db,
+        notify_db_session,
+        template=sample_email_template,
+        status="sending",
+    )
+    create_service_callback_api(service=sample_email_template.service, url="https://original_url.com", is_suspended=False)
+
+    with (
+        patch("app.notifications.callbacks.is_callback_auto_suspended", return_value=True),
+        patch("app.notifications.callbacks.send_delivery_status_to_service.apply_async") as mock_apply_async,
+    ):
+        _check_and_queue_callback_task(notification)
+        mock_apply_async.assert_not_called()
+
+
 def test_check_and_queue_callback_task_does_not_call_delivery_task_when_notification_is_empty(
     sample_email_template,
 ):

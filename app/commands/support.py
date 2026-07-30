@@ -6,9 +6,7 @@ from flask import cli as flask_cli
 from flask import current_app
 from sqlalchemy.orm.exc import NoResultFound
 
-from app import DATETIME_FORMAT, db, signer_delivery_status
-from app.celery.service_callback_tasks import send_delivery_status_to_service
-from app.config import QueueNames
+from app import db
 from app.dao.service_callback_api_dao import (
     get_service_delivery_status_callback_api_for_service,
 )
@@ -20,6 +18,7 @@ from app.dao.users_dao import (
     user_can_be_archived,
 )
 from app.models import Notification, User
+from app.notifications.callbacks import _check_and_queue_callback_task
 
 
 @click.group(name="support", help="Support commands")
@@ -112,20 +111,7 @@ def replay_service_callbacks(file_name, service_id):
         raise Exception("Some notifications for the given references were not found")
 
     for n in notifications:
-        data = {
-            "notification_id": str(n.id),
-            "notification_client_reference": n.client_reference,
-            "notification_to": n.to,
-            "notification_status": n.status,
-            "notification_created_at": n.created_at.strftime(DATETIME_FORMAT),
-            "notification_updated_at": n.updated_at.strftime(DATETIME_FORMAT),
-            "notification_sent_at": n.sent_at.strftime(DATETIME_FORMAT),
-            "notification_type": n.notification_type,
-            "service_callback_api_url": callback_api.url,
-            "service_callback_api_bearer_token": callback_api.bearer_token,
-        }
-        signed_status_update = signer_delivery_status.sign(data)
-        send_delivery_status_to_service.apply_async([str(n.id), signed_status_update, service_id], queue=QueueNames.CALLBACKS)
+        _check_and_queue_callback_task(n)
 
     print(
         "Replay service status for service: {}. Sent {} notification status updates to the queue".format(

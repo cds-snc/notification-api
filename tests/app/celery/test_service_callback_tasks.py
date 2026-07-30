@@ -20,6 +20,12 @@ from app.celery.service_callback_tasks import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _mock_callback_backoff_side_effects(mocker):
+    mocker.patch("app.celery.service_callback_tasks.clear_callback_backoff_state")
+    mocker.patch("app.celery.service_callback_tasks.should_send_callback_warning_email", return_value=False)
+
+
 @pytest.mark.parametrize("notification_type", ["email", "letter", "sms"])
 def test_send_delivery_status_to_service_post_https_request_to_service_with_signed_data(notify_db_session, notification_type):
     callback_api, template = _set_up_test_data(notification_type, "delivery_status")
@@ -108,6 +114,10 @@ def test__send_data_to_service_callback_api_retries_if_request_returns_error_cod
         )
     )
     signed_data = _set_up_data_for_status_update(callback_api, notification)
+    mocker.patch(
+        "app.celery.service_callback_tasks.register_callback_failure",
+        return_value={"retry_delay_seconds": 42, "entered_auto_suspension": False},
+    )
     mocked = mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.retry")
     with requests_mock.Mocker() as request_mock:
         request_mock.post(callback_api.url, json={}, status_code=status_code)
@@ -115,6 +125,7 @@ def test__send_data_to_service_callback_api_retries_if_request_returns_error_cod
 
     assert mocked.call_count == 1
     assert mocked.call_args[1]["queue"] == "service-callbacks-retry"
+    assert mocked.call_args[1]["countdown"] == 42
 
 
 @pytest.mark.parametrize("notification_type", ["email", "letter", "sms"])

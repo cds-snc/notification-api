@@ -185,7 +185,10 @@ def test_fetch_service_callback_api(admin_request, sample_service):
         callback_api_id=service_callback_api.id,
     )
 
-    assert response["data"] == service_callback_api.serialize()
+    expected = service_callback_api.serialize()
+    expected.update({"is_auto_suspended": False, "auto_suspended_until": None})
+
+    assert response["data"] == expected
 
 
 def test_delete_service_callback_api(admin_request, sample_service):

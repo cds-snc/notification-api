@@ -175,6 +175,7 @@ class Config(object):
     FF_BENCHMARK_ENDPOINT = env.bool("FF_BENCHMARK_ENDPOINT", False)
     # Timestamp in epoch milliseconds to seed the bounce rate. We will seed data for (24, the below config) included.
     FF_BOUNCE_RATE_SEED_EPOCH_MS = os.getenv("FF_BOUNCE_RATE_SEED_EPOCH_MS", False)
+    FF_CALLBACK_AUTO_SUSPEND = env.bool("FF_CALLBACK_AUTO_SUSPEND", True)
     # Feature flag to enable custom retry policies such as lowering retry period for certain priority lanes.
     FF_CELERY_CUSTOM_TASK_PARAMS = env.bool("FF_CELERY_CUSTOM_TASK_PARAMS", True)
     FF_CLOUDWATCH_METRICS_ENABLED = env.bool("FF_CLOUDWATCH_METRICS_ENABLED", False)
@@ -378,6 +379,14 @@ class Config(object):
     SERVICE_SUSPENDED_WARNING_TEMPLATE_ID = (
         "5e5952b4-a156-44bc-9cc2-059a3c9a7eb3"  # Sent to warn a service about potential suspension due to high bounce rate
     )
+    CALLBACK_SUSPENSION_WARNING_TEMPLATE_ID = (
+        "ad64a5d4-8b13-4fb9-a9e5-8c6bdb07e7f1"  # Sent when callback delivery is temporarily auto-suspended.
+    )
+
+    CALLBACK_AUTO_SUSPEND_BASE_DELAY_SECONDS = env.int("CALLBACK_AUTO_SUSPEND_BASE_DELAY_SECONDS", 60)
+    CALLBACK_AUTO_SUSPEND_MAX_DELAY_SECONDS = env.int("CALLBACK_AUTO_SUSPEND_MAX_DELAY_SECONDS", 3600)
+    CALLBACK_AUTO_SUSPEND_JITTER_FACTOR = os.getenv("CALLBACK_AUTO_SUSPEND_JITTER_FACTOR", 0.2)
+    CALLBACK_AUTO_SUSPEND_WARNING_FREQUENCY_SECONDS = env.int("CALLBACK_AUTO_SUSPEND_WARNING_FREQUENCY_SECONDS", 86400)
 
     # Newsletter templates
     NEWSLETTER_CONFIRMATION_EMAIL_TEMPLATE_ID_EN = "c8ee07a2-7cf4-4a32-9cc2-6763b5bc47a6"

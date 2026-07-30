@@ -26,7 +26,7 @@ from app.models import (
     NOTIFICATION_UNKNOWN_BOUNCE_SUBTYPE,
     Complaint,
 )
-from app.notifications.callbacks import create_complaint_callback_data
+from app.notifications.callbacks import create_complaint_callback_data, is_callback_suspended_for_sending
 
 
 def _determine_notification_bounce_type(ses_message):
@@ -210,5 +210,12 @@ def _check_and_queue_complaint_callback_task(complaint, notification, recipient)
     # queue callback task only if the service_callback_api exists
     service_callback_api = get_service_complaint_callback_api_for_service(service_id=notification.service_id)
     if service_callback_api:
+        if is_callback_suspended_for_sending(
+            service_callback_api,
+            callback_context="complaint",
+            notification_id=str(notification.id),
+        ):
+            return
+
         complaint_data = create_complaint_callback_data(complaint, notification, service_callback_api, recipient)
         send_complaint_to_service.apply_async([complaint_data, notification.service_id], queue=QueueNames.CALLBACKS)

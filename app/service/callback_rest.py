@@ -24,6 +24,7 @@ from app.models import (
     ServiceCallbackApi,
     ServiceInboundApi,
 )
+from app.notifications.callback_backoff import get_callback_runtime_state
 from app.schema_validation import validate
 from app.service.service_callback_api_schema import (
     create_service_callback_api_schema,
@@ -99,7 +100,7 @@ def create_service_callback_api(service_id):
     except SQLAlchemyError as e:
         return handle_sql_error(e, "service_callback_api")
 
-    return jsonify(data=callback_api.serialize()), 201
+    return jsonify(data=_serialize_callback_api_with_runtime_state(callback_api)), 201
 
 
 @service_callback_blueprint.route("/delivery-receipt-api/<uuid:callback_api_id>", methods=["POST"])
@@ -116,14 +117,14 @@ def update_service_callback_api(service_id, callback_api_id):
         url=data.get("url", None),
         bearer_token=data.get("bearer_token", None),
     )
-    return jsonify(data=to_update.serialize()), 200
+    return jsonify(data=_serialize_callback_api_with_runtime_state(to_update)), 200
 
 
 @service_callback_blueprint.route("/delivery-receipt-api/<uuid:callback_api_id>", methods=["GET"])
 def fetch_service_callback_api(service_id, callback_api_id):
     callback_api = get_service_callback_api(callback_api_id, service_id)
 
-    return jsonify(data=callback_api.serialize()), 200
+    return jsonify(data=_serialize_callback_api_with_runtime_state(callback_api)), 200
 
 
 @service_callback_blueprint.route("/delivery-receipt-api/<uuid:callback_api_id>", methods=["DELETE"])
@@ -150,7 +151,13 @@ def suspend_callback_api(service_id):
     suspend_unsuspend = data["suspend_unsuspend"]
 
     suspend_unsuspend_service_callback_api(callback_api[0], updated_by_id, suspend_unsuspend)
-    return jsonify(data=callback_api[0].serialize()), 200
+    return jsonify(data=_serialize_callback_api_with_runtime_state(callback_api[0])), 200
+
+
+def _serialize_callback_api_with_runtime_state(callback_api):
+    data = callback_api.serialize()
+    data.update(get_callback_runtime_state(str(callback_api.service_id), callback_api.callback_type))
+    return data
 
 
 def handle_sql_error(e, table_name):

@@ -5,6 +5,7 @@ from app.config import QueueNames
 from app.dao.service_callback_api_dao import (
     get_service_delivery_status_callback_api_for_service,
 )
+from app.notifications.callback_backoff import is_callback_auto_suspended
 
 
 def _check_and_queue_callback_task(notification):
@@ -14,18 +15,38 @@ def _check_and_queue_callback_task(notification):
 
     service_callback_api = get_service_delivery_status_callback_api_for_service(service_id=notification.service_id)
 
-    # queue callback task only if the service_callback_api exists and it is not in a suspended state
+    # Queue callback task only if callback is not manually suspended and not temporarily
+    # auto-suspended due to repeated failures.
     if service_callback_api:
-        if service_callback_api.is_suspended:
-            current_app.logger.warning(
-                f"Service callback API: {service_callback_api.id} for service: {notification.service_id} is suspended. Cannot queue callback task for notification: {notification.id}"
-            )
+        if is_callback_suspended_for_sending(
+            service_callback_api,
+            callback_context="delivery status",
+            notification_id=str(notification.id),
+        ):
             return
 
         notification_data = create_delivery_status_callback_data(notification, service_callback_api)
         send_delivery_status_to_service.apply_async(
             [str(notification.id), notification_data, notification.service_id], queue=QueueNames.CALLBACKS
         )
+
+
+def is_callback_suspended_for_sending(service_callback_api, callback_context, notification_id=None):
+    if service_callback_api.is_suspended:
+        current_app.logger.warning(
+            f"Service callback API: {service_callback_api.id} for service: {service_callback_api.service_id} is manually suspended. "
+            f"Cannot queue {callback_context} callback task for notification: {notification_id}"
+        )
+        return True
+
+    if is_callback_auto_suspended(str(service_callback_api.service_id), service_callback_api.callback_type):
+        current_app.logger.warning(
+            f"Service callback API: {service_callback_api.id} for service: {service_callback_api.service_id} is temporarily auto-suspended. "
+            f"Dropping {callback_context} callback task for notification: {notification_id}"
+        )
+        return True
+
+    return False
 
 
 def create_delivery_status_callback_data(notification, service_callback_api):
