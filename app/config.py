@@ -172,7 +172,6 @@ class Config(object):
     # Feature flags #
     #################
     # Feature flags are defined first so these can be reused in configuration sections below.
-    FF_ANNUAL_LIMIT = env.bool("FF_ANNUAL_LIMIT", False)
     FF_BENCHMARK_ENDPOINT = env.bool("FF_BENCHMARK_ENDPOINT", False)
     # Timestamp in epoch milliseconds to seed the bounce rate. We will seed data for (24, the below config) included.
     FF_BOUNCE_RATE_SEED_EPOCH_MS = os.getenv("FF_BOUNCE_RATE_SEED_EPOCH_MS", False)
