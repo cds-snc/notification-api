@@ -270,7 +270,7 @@ def __sending_limits_for_job_exceeded(service, job: Job, job_id):
         send_exceeds_annual_limit = (total_post_send + total_sent_this_fiscal) > service.sms_annual_limit
         send_exceeds_daily_limit = total_post_send > service.sms_daily_limit
 
-        if send_exceeds_annual_limit and current_app.config["FF_ANNUAL_LIMIT"]:
+        if send_exceeds_annual_limit:
             error_message = f"SMS annual limit of {service.sms_annual_limit} would be exceeded if job {job_id} is sent. Job size: {job.notification_count} Total SMS sent this fiscal + job size: {total_post_send + total_sent_this_fiscal} Over by: {total_post_send + total_sent_this_fiscal - service.sms_annual_limit}"
         elif send_exceeds_daily_limit:
             error_message = f"SMS daily limit of {service.sms_daily_limit} would be exceeded if job {job_id} is sent. Job size: {job.notification_count} Total SMS sent today + job size: {total_post_send} Over by: {total_post_send - service.sms_daily_limit}"
@@ -282,7 +282,7 @@ def __sending_limits_for_job_exceeded(service, job: Job, job_id):
         send_exceeds_annual_limit = (total_post_send + total_sent_this_fiscal) > service.email_annual_limit
         send_exceeds_daily_limit = total_post_send > service.message_limit
 
-        if send_exceeds_annual_limit and current_app.config["FF_ANNUAL_LIMIT"]:
+        if send_exceeds_annual_limit:
             error_message = f"Email annual limit of {service.email_annual_limit} would be exceeded if job {job_id} is sent. Job size: {job.notification_count} Total email sent this fiscal + job size: {total_post_send + total_sent_this_fiscal} Over limit by: {total_post_send + total_sent_this_fiscal - service.email_annual_limit}"
         elif send_exceeds_daily_limit:
             error_message = f"Email daily limit of {service.email_annual_limit} would be exceeded if job {job_id} is sent. Job size: {job.notification_count} Total email sent today + job size: {total_post_send + total_sent_this_fiscal} Over limit by: {total_post_send + total_sent_this_fiscal - service.email_annual_limit}"
