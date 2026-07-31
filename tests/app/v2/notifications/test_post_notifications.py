@@ -1135,6 +1135,40 @@ class TestSchedulingSends:
         ],
     )
     @freeze_time("2017-05-14 14:00:00")
+    def test_post_notification_with_scheduled_for_in_full_iso8601_format(
+        self, client, notify_db_session, notification_type, key_send_to, send_to, mock_annual_limits
+    ):
+        # regression test: real API clients send full ISO 8601 (with 'T' separator and seconds), not "%Y-%m-%d %H:%M"
+        service = create_service(
+            service_name=str(uuid.uuid4()),
+            service_permissions=[EMAIL_TYPE, SMS_TYPE],
+        )
+        template = create_template(service=service, template_type=notification_type)
+        data = {
+            key_send_to: send_to,
+            "template_id": str(template.id),
+            "scheduled_for": "2017-05-14T14:15:00",
+        }
+        auth_header = create_authorization_header(service_id=service.id)
+
+        response = client.post(
+            "/v2/notifications/{}".format(notification_type),
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+        assert response.status_code == 201
+        resp_json = json.loads(response.get_data(as_text=True))
+        scheduled_notification = ScheduledNotification.query.filter_by(notification_id=resp_json["id"]).all()
+        assert len(scheduled_notification) == 1
+
+    @pytest.mark.parametrize(
+        "notification_type, key_send_to, send_to",
+        [
+            ("sms", "phone_number", "6502532222"),
+            ("email", "email_address", "sample@email.com"),
+        ],
+    )
+    @freeze_time("2017-05-14 14:00:00")
     def test_post_notification_allows_scheduling_without_schedule_notifications_permission(
         self,
         client,
