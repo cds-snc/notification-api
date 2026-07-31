@@ -1105,7 +1105,7 @@ class TestSchedulingSends:
     ):
         service = create_service(
             service_name=str(uuid.uuid4()),
-            service_permissions=[EMAIL_TYPE, SMS_TYPE, SCHEDULE_NOTIFICATIONS],
+            service_permissions=[EMAIL_TYPE, SMS_TYPE],
         )
         template = create_template(service=service, template_type=notification_type)
         data = {
@@ -1135,7 +1135,7 @@ class TestSchedulingSends:
         ],
     )
     @freeze_time("2017-05-14 14:00:00")
-    def test_post_notification_raises_bad_request_if_service_not_invited_to_schedule(
+    def test_post_notification_allows_scheduling_without_schedule_notifications_permission(
         self,
         client,
         sample_template,
@@ -1143,6 +1143,7 @@ class TestSchedulingSends:
         notification_type,
         key_send_to,
         send_to,
+        mock_annual_limits,
     ):
         data = {
             key_send_to: send_to,
@@ -1156,14 +1157,9 @@ class TestSchedulingSends:
             data=json.dumps(data),
             headers=[("Content-Type", "application/json"), auth_header],
         )
-        assert response.status_code == 400
-        error_json = json.loads(response.get_data(as_text=True))
-        assert error_json["errors"] == [
-            {
-                "error": "BadRequestError",
-                "message": "Cannot schedule notifications (this feature is invite-only)",
-            }
-        ]
+        assert response.status_code == 201
+        resp_json = json.loads(response.get_data(as_text=True))
+        assert resp_json["scheduled_for"] == "2017-05-14 14:15"
 
 
 class TestSendingDocuments:
