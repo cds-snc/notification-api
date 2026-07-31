@@ -348,11 +348,11 @@ def test_scheduled_for_raises_validation_error_when_in_the_past():
 
 
 @freeze_time("2017-05-12 13:00:00")
-def test_scheduled_for_raises_validation_error_when_more_than_24_hours_in_the_future():
+def test_scheduled_for_raises_validation_error_when_more_than_96_hours_in_the_future():
     j = {
         "phone_number": "6502532222",
         "template_id": str(uuid.uuid4()),
-        "scheduled_for": "2017-05-13 14:00",
+        "scheduled_for": "2017-05-16 14:00",
     }
     with pytest.raises(ValidationError) as e:
         validate(j, post_sms_request_schema)
@@ -361,6 +361,6 @@ def test_scheduled_for_raises_validation_error_when_more_than_24_hours_in_the_fu
     assert error["errors"] == [
         {
             "error": "ValidationError",
-            "message": "scheduled_for datetime can only be 24 hours in the future",
+            "message": "scheduled_for datetime can only be up to 96 hours in the future",
         }
     ]
