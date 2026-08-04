@@ -26,7 +26,7 @@ class AwsPinpointClient(SmsClient):
 
     def send_sms(self, to, content, reference, multi=True, sender=None, template_id=None, service_id=None, sending_vehicle=None):
         messageType = "TRANSACTIONAL"
-        ttl_seconds = 259200
+        ttl_seconds = 3 * 24 * 60 * 60  # 3 days (AWS Pinpoint maximum)
         matched = False
         opted_out = False
         response = {}
