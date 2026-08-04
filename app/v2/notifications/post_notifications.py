@@ -75,7 +75,6 @@ from app.notifications.validators import (
     check_email_annual_limit,
     check_email_daily_limit,
     check_rate_limiting,
-    check_service_can_schedule_notification,
     check_service_email_reply_to_id,
     check_service_has_permission,
     check_service_sms_sender_id,
@@ -307,8 +306,6 @@ def post_notification(notification_type: NotificationType):
     check_service_has_permission(notification_type, authenticated_service.permissions)
 
     scheduled_for = form.get("scheduled_for", None)
-
-    check_service_can_schedule_notification(authenticated_service.permissions, scheduled_for)
 
     check_rate_limiting(authenticated_service, api_user)
 

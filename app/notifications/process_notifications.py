@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import List, Optional
 
 from flask import current_app
+from iso8601 import parse_date
 from notifications_utils.clients import redis
 from notifications_utils.decorators import parallel_process_iterable
 from notifications_utils.recipients import (
@@ -10,7 +11,6 @@ from notifications_utils.recipients import (
     get_international_phone_info,
     validate_and_format_phone_number,
 )
-from notifications_utils.timezones import convert_local_timezone_to_utc
 
 from app import redis_store
 from app.celery import provider_tasks
@@ -493,6 +493,7 @@ def simulated_recipient(to_address: str, notification_type: NotificationType) ->
 
 
 def persist_scheduled_notification(notification_id, scheduled_for):
-    scheduled_datetime = convert_local_timezone_to_utc(datetime.strptime(scheduled_for, "%Y-%m-%d %H:%M"))
+    # scheduled_for is UTC already, same as the bulk/job scheduling endpoint - accepts full ISO 8601
+    scheduled_datetime = parse_date(scheduled_for).replace(tzinfo=None)
     scheduled_notification = ScheduledNotification(notification_id=notification_id, scheduled_for=scheduled_datetime)
     dao_created_scheduled_notification(scheduled_notification)

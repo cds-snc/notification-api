@@ -38,7 +38,6 @@ from app.models import (
     INTERNATIONAL_SMS_TYPE,
     KEY_TYPE_TEAM,
     LETTER_TYPE,
-    SCHEDULE_NOTIFICATIONS,
     SMS_TYPE,
     ApiKey,
     ApiKeyType,
@@ -558,12 +557,6 @@ def check_service_has_permission(notify_type, permissions: list[Permission]):
         raise BadRequestError(
             message="Service is not allowed to send {}".format(get_public_notify_type_text(notify_type, plural=True))
         )
-
-
-def check_service_can_schedule_notification(permissions: list[Permission], scheduled_for):
-    if scheduled_for:
-        if not service_has_permission(SCHEDULE_NOTIFICATIONS, permissions):
-            raise BadRequestError(message="Cannot schedule notifications (this feature is invite-only)")
 
 
 def validate_and_format_recipient(
