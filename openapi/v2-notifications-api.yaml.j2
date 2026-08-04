@@ -1472,7 +1472,7 @@ components:
           type: string
           format: date-time
           nullable: true
-          description: {{ t("Schedule notification for future delivery") }}
+          description: {{ t("If you want to send notifications in the future, you can specify a datetime up to 4 days in the future, in ISO 8601 format, UTC time.") }}
         email_reply_to_id:
           $ref: '#/components/schemas/UUID'
           description: {{ t("ID of the reply-to address to use") }}
@@ -1503,7 +1503,7 @@ components:
           type: string
           format: date-time
           nullable: true
-          description: {{ t("Schedule notification for future delivery") }}
+          description: {{ t("If you want to send notifications in the future, you can specify a datetime up to 4 days in the future, in ISO 8601 format, UTC time.") }}
         sms_sender_id:
           $ref: '#/components/schemas/UUID'
           description: {{ t("ID of the SMS sender to use") }}
