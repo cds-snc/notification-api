@@ -33,6 +33,7 @@ def test_send_sms_sends_to_default_pool(notify_api, mocker, sample_template, tem
         MessageType="TRANSACTIONAL",
         ConfigurationSetName="config_set_name",
         DryRun=False,
+        TimeToLive=259200,
     )
 
 
@@ -62,6 +63,7 @@ def test_send_sms_sends_notify_sms_to_shortcode_pool(notify_api, mocker, sample_
         MessageType="TRANSACTIONAL",
         ConfigurationSetName="config_set_name",
         DryRun=False,
+        TimeToLive=259200,
     )
 
 
@@ -154,6 +156,7 @@ def test_respects_sending_vehicle_if_FF_enabled(notify_api, mocker, sample_templ
         MessageType="TRANSACTIONAL",
         ConfigurationSetName="config_set_name",
         DryRun=False,
+        TimeToLive=259200,
     )
 
 
@@ -181,6 +184,7 @@ def test_send_sms_sends_international_without_pool_id(notify_api, mocker, sample
         MessageBody=content,
         MessageType="TRANSACTIONAL",
         ConfigurationSetName="config_set_name",
+        TimeToLive=259200,
     )
 
 
@@ -211,6 +215,7 @@ def test_send_sms_uses_dryrun(notify_api, mocker, sample_template, template_id):
         MessageType="TRANSACTIONAL",
         ConfigurationSetName="config_set_name",
         DryRun=True,
+        TimeToLive=259200,
     )
 
 
@@ -249,6 +254,7 @@ def test_send_sms_uses_dedicated_number_with_long_code_sender(notify_api, mocker
         MessageType="TRANSACTIONAL",
         ConfigurationSetName="config_set_name",
         DryRun=False,
+        TimeToLive=259200,
     )
 
     # Default client NOT used
@@ -280,6 +286,7 @@ def test_send_sms_to_us_number_uses_US_toll_free_number(notify_api, mocker):
         MessageBody=content,
         MessageType="TRANSACTIONAL",
         ConfigurationSetName="config_set_name",
+        TimeToLive=259200,
     )
 
     # Default client NOT used

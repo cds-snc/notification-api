@@ -26,6 +26,7 @@ class AwsPinpointClient(SmsClient):
 
     def send_sms(self, to, content, reference, multi=True, sender=None, template_id=None, service_id=None, sending_vehicle=None):
         messageType = "TRANSACTIONAL"
+        ttl_seconds = 3 * 24 * 60 * 60  # 3 days (AWS Pinpoint maximum)
         matched = False
         opted_out = False
         response = {}
@@ -54,6 +55,7 @@ class AwsPinpointClient(SmsClient):
                         MessageBody=content,
                         MessageType=messageType,
                         ConfigurationSetName=self.current_app.config["AWS_PINPOINT_CONFIGURATION_SET_NAME"],
+                        TimeToLive=ttl_seconds,
                     )
                 elif send_with_dedicated_phone_number:
                     dryrun = destinationNumber == self.current_app.config["EXTERNAL_TEST_NUMBER"]
@@ -64,6 +66,7 @@ class AwsPinpointClient(SmsClient):
                         MessageType=messageType,
                         ConfigurationSetName=self.current_app.config["AWS_PINPOINT_CONFIGURATION_SET_NAME"],
                         DryRun=dryrun,
+                        TimeToLive=ttl_seconds,
                     )
                     if dryrun:
                         self.current_app.logger.info(
@@ -78,6 +81,7 @@ class AwsPinpointClient(SmsClient):
                         MessageBody=content,
                         MessageType=messageType,
                         ConfigurationSetName=self.current_app.config["AWS_PINPOINT_CONFIGURATION_SET_NAME"],
+                        TimeToLive=ttl_seconds,
                     )
                 else:
                     dryrun = destinationNumber == self.current_app.config["EXTERNAL_TEST_NUMBER"]
@@ -88,6 +92,7 @@ class AwsPinpointClient(SmsClient):
                         MessageType=messageType,
                         ConfigurationSetName=self.current_app.config["AWS_PINPOINT_CONFIGURATION_SET_NAME"],
                         DryRun=dryrun,
+                        TimeToLive=ttl_seconds,
                     )
                     if dryrun:
                         self.current_app.logger.info(
