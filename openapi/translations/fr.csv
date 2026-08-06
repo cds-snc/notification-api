@@ -92,7 +92,7 @@
 "Notification retrieved successfully","Notification récupérée avec succès"
 "Notifications API v2","API de Notifications v2"
 "Operations for creating, updating, retrieving, and archiving templates using a NEW API key with manage_templates permission","Opérations pour créer, mettre à jour, récupérer et archiver des modèles avec la permission manage_permissions (manage_templates)"
-"Operations for requesting and downloading reports using an API key with manage_reports permission","Opérations pour demander et télécharger des rapports avec une clé API ayant la permission manage_reports"
+"Operations for requesting and downloading reports using an API key with 'manage_reports' permission","Opérations pour demander et télécharger des rapports avec une clé API ayant la permission \"manage_reports\""
 "Operations related to notification templates","Opérations liées aux modèles de notification"
 "Operations related to notifications","Opérations liées aux notifications"
 "Optional reference identifier","Identifiant de référence optionnel"
@@ -114,8 +114,6 @@
 "Request the generation of a report. Reports are generated asynchronously; poll the report by ID to check its status before downloading its content.","Demander la génération d’un rapport. Les rapports sont générés de façon asynchrone; interrogez le rapport par ID pour vérifier son statut avant d’en télécharger le contenu."
 "Invalid report type","Type de rapport invalide"
 "The 'job_id' parameter is missing for the job report","Le paramètre \"job_id\" est absent pour le rapport de tâche"
-"Missing job_id for job report","job_id manquant pour le rapport de tâche"
-
 "Required field missing","Champ obligatoire manquant"
 "Response result","Résultat de la réponse"
 "Retrieve a list of templates. Filterable by template type","Récupérer une liste de modèles. Filtrable par type de modèle"

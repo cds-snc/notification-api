@@ -1398,14 +1398,14 @@ paths:
                       - error: "ValidationError"
                         message: "report_type invalid is not one of [sms, email, job]"
                 missing_job_id:
-                  summary: Missing job_id for job report
+                  summary: The 'job_id' parameter is missing for the job report
                   value:
                     status_code: 400
                     errors:
                       - error: "ValidationError"
                         message: "job_id is a required property"
         '403':
-          description: Forbidden - API key lacks manage_reports permission
+          description: Forbidden - API key lacks 'manage_reports' permission
           content:
             application/json:
               schema:
@@ -1480,7 +1480,7 @@ paths:
                   links:
                     $ref: '#/components/schemas/Links'
         '403':
-          description: Forbidden - API key lacks manage_reports permission
+          description: Forbidden - API key lacks 'manage_reports' permission
           content:
             application/json:
               schema:
@@ -1536,7 +1536,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Report'
         '403':
-          description: Forbidden - API key lacks manage_reports permission
+          description: Forbidden - API key lacks 'manage_reports' permission
           content:
             application/json:
               schema:
@@ -1606,7 +1606,7 @@ paths:
                 type: string
                 format: binary
         '403':
-          description: Forbidden - API key lacks manage_reports permission
+          description: Forbidden - API key lacks 'manage_reports' permission
           content:
             application/json:
               schema:
@@ -2438,4 +2438,4 @@ tags:
   - name: Manage Templates
     description: Operations for creating, updating, retrieving, and archiving templates using a NEW API key with manage_templates permission
   - name: Reports
-    description: Operations for requesting and downloading reports using an API key with manage_reports permission
+    description: Operations for requesting and downloading reports using an API key with 'manage_reports' permission
