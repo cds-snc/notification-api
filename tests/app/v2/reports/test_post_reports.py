@@ -4,6 +4,7 @@ import math
 from app.dao.reports_dao import get_report_by_id
 from app.models import ReportStatus
 from app.v2.reports.post_reports import REPORT_RATE_LIMIT, REPORT_RATE_WINDOW
+
 from tests import create_authorization_header
 
 
@@ -118,8 +119,9 @@ def test_post_report_rate_limit_returns_429(client, sample_service, mocker, crea
     seconds_to_wait = REPORT_RATE_WINDOW - 60  # oldest entry is 60 s ago
 
     mocker.patch("app.v2.reports.post_reports.time", return_value=fixed_now)
-    mock_limiter = mocker.patch("app.v2.reports.post_reports.RedisSlidingWindowLogRateLimiter")
-    mock_limiter.return_value.acquire_lease.return_value = (False, seconds_to_wait)
+    mock_limiter = mocker.patch("app.v2.reports.post_reports._get_report_limiter")
+    mock_scoped = mock_limiter.return_value.for_scope.return_value
+    mock_scoped.acquire_lease.return_value = (False, seconds_to_wait)
 
     response = client.post(
         path="/v2/reports",
@@ -135,11 +137,8 @@ def test_post_report_rate_limit_returns_429(client, sample_service, mocker, crea
     assert response.headers["X-RateLimit-Remaining"] == "0"
     assert int(response.headers["X-RateLimit-Reset"]) == math.ceil(fixed_now + seconds_to_wait)
     assert int(response.headers["Retry-After"]) > 0
-    mock_limiter.assert_called_once_with(
-        cap_per_minute=REPORT_RATE_LIMIT,
-        namespace=f"report:{sample_service.id}",
-        window_size=REPORT_RATE_WINDOW,
-    )
+    mock_limiter.return_value.for_scope.assert_called_once_with(str(sample_service.id))
+    mock_scoped.acquire_lease.assert_called_once_with()
 
 
 def test_post_report_rate_limit_not_triggered_below_limit(
@@ -148,8 +147,8 @@ def test_post_report_rate_limit_not_triggered_below_limit(
     mocker.patch("app.v2.reports.post_reports.generate_report.apply_async")
     auth_header = create_authorization_header(api_key=create_api_key_with_manage_reports_perm)
 
-    mock_limiter = mocker.patch("app.v2.reports.post_reports.RedisSlidingWindowLogRateLimiter")
-    mock_limiter.return_value.acquire_lease.return_value = (True, 0)
+    mock_limiter = mocker.patch("app.v2.reports.post_reports._get_report_limiter")
+    mock_limiter.return_value.for_scope.return_value.acquire_lease.return_value = (True, 0)
 
     response = client.post(
         path="/v2/reports",
@@ -165,7 +164,7 @@ def test_post_report_rate_limit_skipped_when_redis_disabled(
 ):
     mocker.patch("app.v2.reports.post_reports.generate_report.apply_async")
     auth_header = create_authorization_header(api_key=create_api_key_with_manage_reports_perm)
-    mock_limiter = mocker.patch("app.v2.reports.post_reports.RedisSlidingWindowLogRateLimiter")
+    mock_limiter = mocker.patch("app.v2.reports.post_reports._get_report_limiter")
 
     mocker.patch.dict(notify_api.config, {"REDIS_ENABLED": False})
     response = client.post(
