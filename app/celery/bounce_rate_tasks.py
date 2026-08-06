@@ -34,7 +34,7 @@ def _send_bounce_rate_email(
         include_user_fields=["name"],
     )
 
-    if send_support_copy:
+    if send_support_copy and current_app.config["NOTIFY_ENVIRONMENT"] == "production":
         send_notification_to_email_address(
             email_address=current_app.config["FRESHDESK_SUPPORT_EMAIL_ID"],
             template_id=template_id,
