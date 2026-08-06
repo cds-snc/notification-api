@@ -1391,14 +1391,14 @@ paths:
                 $ref: '#/components/schemas/ValidationErrorResponse'
               examples:
                 invalid_report_type:
-                  summary: Invalid report type
+                  summary: {{ t("Invalid report type") }}
                   value:
                     status_code: 400
                     errors:
                       - error: "ValidationError"
                         message: "report_type invalid is not one of [sms, email, job]"
                 missing_job_id:
-                  summary: Missing job_id for job report
+                  summary: {{ t("Missing job_id for job report") }}
                   value:
                     status_code: 400
                     errors:
