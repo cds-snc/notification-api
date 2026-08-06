@@ -2366,24 +2366,41 @@ components:
         - requested_at
 
     PostReportRequest:
-      type: object
-      required:
-        - report_type
-        - language
-      properties:
-        report_type:
-          type: string
-          enum: [sms, email, job]
-          description: {{ t("The type of report to generate") }}
-        language:
-          type: string
-          enum: [en, fr]
-          description: {{ t("The language of the report") }}
-        job_id:
-          $ref: '#/components/schemas/UUID'
-          nullable: true
-          description: {{ t("The ID of the job to generate a report for (required when report_type is job)") }}
-
+      oneOf:
+        - type: object
+          required:
+            - report_type
+            - language
+          properties:
+            report_type:
+              type: string
+              enum: [sms, email]
+              description: {{ t("The type of report to generate") }}
+            language:
+              type: string
+              enum: [en, fr]
+              description: {{ t("The language of the report") }}
+            job_id:
+              $ref: '#/components/schemas/UUID'
+              nullable: true
+              description: {{ t("The ID of the job to generate a report for (required when report_type is job)") }}
+        - type: object
+          required:
+            - report_type
+            - language
+            - job_id
+          properties:
+            report_type:
+              type: string
+              enum: [job]
+              description: {{ t("The type of report to generate") }}
+            language:
+              type: string
+              enum: [en, fr]
+              description: {{ t("The language of the report") }}
+            job_id:
+              $ref: '#/components/schemas/UUID'
+              description: {{ t("The ID of the job to generate a report for (required when report_type is job)") }}
     PostReportResponse:
       type: object
       properties:
