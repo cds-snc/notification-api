@@ -1346,6 +1346,315 @@ paths:
       security:
         - apiKey: []
 
+  /v2/reports:
+    post:
+      summary: Demander un rapport
+      description: Demander la génération d’un rapport. Les rapports sont générés de façon asynchrone; interrogez le rapport par ID pour vérifier son statut avant d’en télécharger le contenu.
+      operationId: postReport
+      tags:
+        - Reports
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostReportRequest'
+            examples:
+              sms_report:
+                summary: Demander un rapport de SMS
+                value:
+                  report_type: "sms"
+                  language: "en"
+              email_report:
+                summary: Demander un rapport de courriels
+                value:
+                  report_type: "email"
+                  language: "fr"
+              job_report:
+                summary: Demander un rapport pour une tâche en masse
+                value:
+                  report_type: "job"
+                  language: "en"
+                  job_id: "12345678-1234-1234-1234-123456789012"
+      responses:
+        '202':
+          description: Demande de rapport acceptée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostReportResponse'
+        '400':
+          description: Mauvaise requête - paramètres invalides
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                invalid_report_type:
+                  summary: Invalid report type
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "report_type invalid is not one of [sms, email, job]"
+                missing_job_id:
+                  summary: Missing job_id for job report
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "job_id is a required property"
+        '403':
+          description: Interdit - la clé API n’a pas la permission manage_reports
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 403
+                errors:
+                  - error: "ForbiddenError"
+                    message: "This API key does not have permission to manage reports."
+        '401':
+          description: Non autorisé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 401
+                errors:
+                  - error: "AuthError"
+                    message: "Unauthorized, authentication token must be provided"
+        '429':
+          description: Trop de requêtes - limitation du débit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 429
+                errors:
+                  - error: "RateLimitExceeded"
+                    message: "Maximum 10 report requests per hour"
+        '500':
+          description: Erreur interne du serveur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                result: "error"
+                message: "Internal server error"
+      security:
+        - apiKey: []
+
+    get:
+      summary: Obtenir la liste des rapports
+      description: Récupérer une liste paginée de rapports pour le service authentifié
+      operationId: getReports
+      tags:
+        - Reports
+      parameters:
+        - name: older_than
+          in: query
+          description: Filtrer les rapports plus anciens que cet ID de rapport (UUID)
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Rapports récupérés avec succès
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reports:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Report'
+                  links:
+                    $ref: '#/components/schemas/Links'
+        '403':
+          description: Interdit - la clé API n’a pas la permission manage_reports
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 403
+                errors:
+                  - error: "ForbiddenError"
+                    message: "This API key does not have permission to manage reports."
+        '401':
+          description: Non autorisé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 401
+                errors:
+                  - error: "AuthError"
+                    message: "Unauthorized, authentication token must be provided"
+        '500':
+          description: Erreur interne du serveur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                result: "error"
+                message: "Internal server error"
+      security:
+        - apiKey: []
+
+  /v2/reports/{report-id}:
+    get:
+      summary: Obtenir un rapport par ID
+      description: Récupérer un rapport spécifique par son ID
+      operationId: getReportById
+      tags:
+        - Reports
+      parameters:
+        - name: report-id
+          in: path
+          description: Identifiant unique du rapport
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Rapport récupéré avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '403':
+          description: Interdit - la clé API n’a pas la permission manage_reports
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 403
+                errors:
+                  - error: "ForbiddenError"
+                    message: "This API key does not have permission to manage reports."
+        '401':
+          description: Non autorisé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 401
+                errors:
+                  - error: "AuthError"
+                    message: "Unauthorized, authentication token must be provided"
+        '404':
+          description: Rapport non trouvé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                result: "error"
+                message: "No result found"
+        '500':
+          description: Erreur interne du serveur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                result: "error"
+                message: "Internal server error"
+      security:
+        - apiKey: []
+
+  /v2/reports/{report-id}/content:
+    get:
+      summary: Télécharger le contenu du rapport
+      description: Télécharger le contenu du rapport généré sous forme de fichier CSV. Le rapport doit avoir le statut « ready ».
+      operationId: getReportContent
+      tags:
+        - Reports
+      parameters:
+        - name: report-id
+          in: path
+          description: Identifiant unique du rapport
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Contenu du rapport retourné avec succès
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+        '403':
+          description: Interdit - la clé API n’a pas la permission manage_reports
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 403
+                errors:
+                  - error: "ForbiddenError"
+                    message: "This API key does not have permission to manage reports."
+        '401':
+          description: Non autorisé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 401
+                errors:
+                  - error: "AuthError"
+                    message: "Unauthorized, authentication token must be provided"
+        '404':
+          description: Rapport non trouvé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                result: "error"
+                message: "No result found"
+        '409':
+          description: Le rapport n’est pas prêt à être téléchargé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 409
+                errors:
+                  - error: "BadRequestError"
+                    message: "Report is not ready for download (status: generating)"
+        '502':
+          description: Échec de la récupération du contenu du rapport
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 502
+                errors:
+                  - error: "S3ReportDownloadError"
+                    message: "Failed to retrieve report content"
+      security:
+        - apiKey: []
+
 
 components:
   schemas:
@@ -2018,6 +2327,77 @@ components:
               nullable: true
               description: ID de l’expéditeur utilisé pour cette tâche, si applicable
 
+    Report:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+          description: ID du rapport
+        report_type:
+          type: string
+          enum: [sms, email, job]
+          description: Le type de rapport
+        service_id:
+          $ref: '#/components/schemas/UUID'
+          description: ID du service auquel appartient le rapport
+        status:
+          type: string
+          enum: [requested, generating, ready, error]
+          description: Le statut du rapport
+        requested_at:
+          type: string
+          format: date-time
+          description: Date de la demande du rapport
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Date d’achèvement de la génération du rapport
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Date d’expiration du rapport, après laquelle il ne peut plus être téléchargé
+      required:
+        - id
+        - report_type
+        - service_id
+        - status
+        - requested_at
+
+    PostReportRequest:
+      type: object
+      required:
+        - report_type
+        - language
+      properties:
+        report_type:
+          type: string
+          enum: [sms, email, job]
+          description: Le type de rapport à générer
+        language:
+          type: string
+          enum: [en, fr]
+          description: La langue du rapport
+        job_id:
+          $ref: '#/components/schemas/UUID'
+          nullable: true
+          description: ID de la tâche pour laquelle générer un rapport (requis lorsque report_type vaut job)
+
+    PostReportResponse:
+      type: object
+      properties:
+        report_id:
+          $ref: '#/components/schemas/UUID'
+          description: ID du rapport demandé
+        status:
+          type: string
+          enum: [requested, generating, ready, error]
+          description: Le statut du rapport
+      required:
+        - report_id
+        - status
+
   securitySchemes:
     apiKey:
       type: apiKey
@@ -2032,3 +2412,5 @@ tags:
     description: Opérations liées aux modèles de notification
   - name: Manage Templates
     description: Opérations pour créer, mettre à jour, récupérer et archiver des modèles avec la permission manage_permissions (manage_templates)
+  - name: Reports
+    description: Opérations pour demander et télécharger des rapports avec une clé API ayant la permission manage_reports
