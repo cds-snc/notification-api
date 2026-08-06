@@ -1346,6 +1346,315 @@ paths:
       security:
         - apiKey: []
 
+  /v2/reports:
+    post:
+      summary: {{ t("Request a report") }}
+      description: {{ t("Request the generation of a report. Reports are generated asynchronously; poll the report by ID to check its status before downloading its content.") }}
+      operationId: postReport
+      tags:
+        - Reports
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostReportRequest'
+            examples:
+              sms_report:
+                summary: {{ t("Request an SMS report") }}
+                value:
+                  report_type: "sms"
+                  language: "en"
+              email_report:
+                summary: {{ t("Request an email report") }}
+                value:
+                  report_type: "email"
+                  language: "fr"
+              job_report:
+                summary: {{ t("Request a report for a bulk job") }}
+                value:
+                  report_type: "job"
+                  language: "en"
+                  job_id: "12345678-1234-1234-1234-123456789012"
+      responses:
+        '202':
+          description: {{ t("Report request accepted") }}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostReportResponse'
+        '400':
+          description: {{ t("Bad request - invalid parameters") }}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                invalid_report_type:
+                  summary: Invalid report type
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "report_type invalid is not one of [sms, email, job]"
+                missing_job_id:
+                  summary: Missing job_id for job report
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "job_id is a required property"
+        '403':
+          description: {{ t("Forbidden - API key lacks manage_reports permission") }}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 403
+                errors:
+                  - error: "ForbiddenError"
+                    message: "This API key does not have permission to manage reports."
+        '401':
+          description: {{ t("Unauthorized") }}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 401
+                errors:
+                  - error: "AuthError"
+                    message: "Unauthorized, authentication token must be provided"
+        '429':
+          description: {{ t("Too many requests - rate limiting") }}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 429
+                errors:
+                  - error: "RateLimitExceeded"
+                    message: "Maximum 10 report requests per hour"
+        '500':
+          description: {{ t("Internal server error") }}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                result: "error"
+                message: "Internal server error"
+      security:
+        - apiKey: []
+
+    get:
+      summary: {{ t("Get list of reports") }}
+      description: {{ t("Retrieve a paginated list of reports for the authenticated service") }}
+      operationId: getReports
+      tags:
+        - Reports
+      parameters:
+        - name: older_than
+          in: query
+          description: {{ t("Filter reports older than this report ID (UUID)") }}
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: {{ t("Successfully retrieved reports") }}
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reports:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Report'
+                  links:
+                    $ref: '#/components/schemas/Links'
+        '403':
+          description: {{ t("Forbidden - API key lacks manage_reports permission") }}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 403
+                errors:
+                  - error: "ForbiddenError"
+                    message: "This API key does not have permission to manage reports."
+        '401':
+          description: {{ t("Unauthorized") }}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 401
+                errors:
+                  - error: "AuthError"
+                    message: "Unauthorized, authentication token must be provided"
+        '500':
+          description: {{ t("Internal server error") }}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                result: "error"
+                message: "Internal server error"
+      security:
+        - apiKey: []
+
+  /v2/reports/{report-id}:
+    get:
+      summary: {{ t("Get report by ID") }}
+      description: {{ t("Retrieve a specific report by its ID") }}
+      operationId: getReportById
+      tags:
+        - Reports
+      parameters:
+        - name: report-id
+          in: path
+          description: {{ t("Unique identifier for the report") }}
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: {{ t("Report retrieved successfully") }}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '403':
+          description: {{ t("Forbidden - API key lacks manage_reports permission") }}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 403
+                errors:
+                  - error: "ForbiddenError"
+                    message: "This API key does not have permission to manage reports."
+        '401':
+          description: {{ t("Unauthorized") }}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 401
+                errors:
+                  - error: "AuthError"
+                    message: "Unauthorized, authentication token must be provided"
+        '404':
+          description: {{ t("Report not found") }}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                result: "error"
+                message: "No result found"
+        '500':
+          description: {{ t("Internal server error") }}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                result: "error"
+                message: "Internal server error"
+      security:
+        - apiKey: []
+
+  /v2/reports/{report-id}/content:
+    get:
+      summary: {{ t("Download report content") }}
+      description: {{ t("Download the generated report content as a CSV file. The report must have a status of ready.") }}
+      operationId: getReportContent
+      tags:
+        - Reports
+      parameters:
+        - name: report-id
+          in: path
+          description: {{ t("Unique identifier for the report") }}
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: {{ t("Report content returned successfully") }}
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+        '403':
+          description: {{ t("Forbidden - API key lacks manage_reports permission") }}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 403
+                errors:
+                  - error: "ForbiddenError"
+                    message: "This API key does not have permission to manage reports."
+        '401':
+          description: {{ t("Unauthorized") }}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 401
+                errors:
+                  - error: "AuthError"
+                    message: "Unauthorized, authentication token must be provided"
+        '404':
+          description: {{ t("Report not found") }}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                result: "error"
+                message: "No result found"
+        '409':
+          description: {{ t("Report is not ready for download") }}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 409
+                errors:
+                  - error: "BadRequestError"
+                    message: "Report is not ready for download (status: generating)"
+        '502':
+          description: {{ t("Failed to retrieve report content") }}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 502
+                errors:
+                  - error: "S3ReportDownloadError"
+                    message: "Failed to retrieve report content"
+      security:
+        - apiKey: []
+
 
 components:
   schemas:
@@ -2018,6 +2327,77 @@ components:
               nullable: true
               description: {{ t("The ID of the sender used for this job, if applicable") }}
 
+    Report:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+          description: {{ t("The ID of the report") }}
+        report_type:
+          type: string
+          enum: [sms, email, job]
+          description: {{ t("The type of report") }}
+        service_id:
+          $ref: '#/components/schemas/UUID'
+          description: {{ t("The ID of the service the report belongs to") }}
+        status:
+          type: string
+          enum: [requested, generating, ready, error]
+          description: {{ t("The status of the report") }}
+        requested_at:
+          type: string
+          format: date-time
+          description: {{ t("When the report was requested") }}
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: {{ t("When the report generation completed") }}
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: {{ t("When the report expires and can no longer be downloaded") }}
+      required:
+        - id
+        - report_type
+        - service_id
+        - status
+        - requested_at
+
+    PostReportRequest:
+      type: object
+      required:
+        - report_type
+        - language
+      properties:
+        report_type:
+          type: string
+          enum: [sms, email, job]
+          description: {{ t("The type of report to generate") }}
+        language:
+          type: string
+          enum: [en, fr]
+          description: {{ t("The language of the report") }}
+        job_id:
+          $ref: '#/components/schemas/UUID'
+          nullable: true
+          description: {{ t("The ID of the job to generate a report for (required when report_type is job)") }}
+
+    PostReportResponse:
+      type: object
+      properties:
+        report_id:
+          $ref: '#/components/schemas/UUID'
+          description: {{ t("The ID of the requested report") }}
+        status:
+          type: string
+          enum: [requested, generating, ready, error]
+          description: {{ t("The status of the report") }}
+      required:
+        - report_id
+        - status
+
   securitySchemes:
     apiKey:
       type: apiKey
@@ -2032,3 +2412,5 @@ tags:
     description: {{ t("Operations related to notification templates") }}
   - name: Manage Templates
     description: {{ t("Operations for creating, updating, retrieving, and archiving templates using a NEW API key with manage_templates permission") }}
+  - name: Reports
+    description: {{ t("Operations for requesting and downloading reports using an API key with manage_reports permission") }}
