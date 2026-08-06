@@ -1442,10 +1442,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
               example:
-                result: "error"
-                message: "Internal server error"
+                status_code: 500
+                errors:
+                  - error: "Exception"
+                    message: "Internal server error"
       security:
         - apiKey: []
 
@@ -1560,19 +1562,23 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
               example:
-                result: "error"
-                message: "No result found"
+                status_code: 404
+                errors:
+                  - error: "NoResultFound"
+                    message: "No result found"
         '500':
           description: Internal server error
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
               example:
-                result: "error"
-                message: "Internal server error"
+                status_code: 500
+                errors:
+                  - error: "Exception"
+                    message: "Internal server error"
       security:
         - apiKey: []
 
@@ -1626,10 +1632,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
               example:
-                result: "error"
-                message: "No result found"
+                status_code: 404
+                errors:
+                  - error: "NoResultFound"
+                    message: "No result found"
         '409':
           description: Report is not ready for download
           content:
@@ -2366,24 +2374,41 @@ components:
         - requested_at
 
     PostReportRequest:
-      type: object
-      required:
-        - report_type
-        - language
-      properties:
-        report_type:
-          type: string
-          enum: [sms, email, job]
-          description: The type of report to generate
-        language:
-          type: string
-          enum: [en, fr]
-          description: The language of the report
-        job_id:
-          $ref: '#/components/schemas/UUID'
-          nullable: true
-          description: The ID of the job to generate a report for (required when report_type is job)
-
+      oneOf:
+        - type: object
+          required:
+            - report_type
+            - language
+          properties:
+            report_type:
+              type: string
+              enum: [sms, email]
+              description: The type of report to generate
+            language:
+              type: string
+              enum: [en, fr]
+              description: The language of the report
+            job_id:
+              $ref: '#/components/schemas/UUID'
+              nullable: true
+              description: The ID of the job to generate a report for (required when report_type is job)
+        - type: object
+          required:
+            - report_type
+            - language
+            - job_id
+          properties:
+            report_type:
+              type: string
+              enum: [job]
+              description: The type of report to generate
+            language:
+              type: string
+              enum: [en, fr]
+              description: The language of the report
+            job_id:
+              $ref: '#/components/schemas/UUID'
+              description: The ID of the job to generate a report for (required when report_type is job)
     PostReportResponse:
       type: object
       properties:
