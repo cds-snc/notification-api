@@ -1391,14 +1391,14 @@ paths:
                 $ref: '#/components/schemas/ValidationErrorResponse'
               examples:
                 invalid_report_type:
-                  summary: Invalid report type
+                  summary: Type de rapport invalide
                   value:
                     status_code: 400
                     errors:
                       - error: "ValidationError"
                         message: "report_type invalid is not one of [sms, email, job]"
                 missing_job_id:
-                  summary: Missing job_id for job report
+                  summary: job_id manquant pour le rapport de tâche
                   value:
                     status_code: 400
                     errors:
@@ -1442,10 +1442,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
               example:
-                result: "error"
-                message: "Internal server error"
+                status_code: 500
+                errors:
+                  - error: "Exception"
+                    message: "Internal server error"
       security:
         - apiKey: []
 
@@ -1560,19 +1562,23 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
               example:
-                result: "error"
-                message: "No result found"
+                status_code: 404
+                errors:
+                  - error: "NoResultFound"
+                    message: "No result found"
         '500':
           description: Erreur interne du serveur
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
               example:
-                result: "error"
-                message: "Internal server error"
+                status_code: 500
+                errors:
+                  - error: "Exception"
+                    message: "Internal server error"
       security:
         - apiKey: []
 
@@ -1626,10 +1632,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
               example:
-                result: "error"
-                message: "No result found"
+                status_code: 404
+                errors:
+                  - error: "NoResultFound"
+                    message: "No result found"
         '409':
           description: Le rapport n’est pas prêt à être téléchargé
           content:
@@ -2366,24 +2374,41 @@ components:
         - requested_at
 
     PostReportRequest:
-      type: object
-      required:
-        - report_type
-        - language
-      properties:
-        report_type:
-          type: string
-          enum: [sms, email, job]
-          description: Le type de rapport à générer
-        language:
-          type: string
-          enum: [en, fr]
-          description: La langue du rapport
-        job_id:
-          $ref: '#/components/schemas/UUID'
-          nullable: true
-          description: ID de la tâche pour laquelle générer un rapport (requis lorsque report_type vaut job)
-
+      oneOf:
+        - type: object
+          required:
+            - report_type
+            - language
+          properties:
+            report_type:
+              type: string
+              enum: [sms, email]
+              description: Le type de rapport à générer
+            language:
+              type: string
+              enum: [en, fr]
+              description: La langue du rapport
+            job_id:
+              $ref: '#/components/schemas/UUID'
+              nullable: true
+              description: ID de la tâche pour laquelle générer un rapport (requis lorsque report_type vaut job)
+        - type: object
+          required:
+            - report_type
+            - language
+            - job_id
+          properties:
+            report_type:
+              type: string
+              enum: [job]
+              description: Le type de rapport à générer
+            language:
+              type: string
+              enum: [en, fr]
+              description: La langue du rapport
+            job_id:
+              $ref: '#/components/schemas/UUID'
+              description: ID de la tâche pour laquelle générer un rapport (requis lorsque report_type vaut job)
     PostReportResponse:
       type: object
       properties:
