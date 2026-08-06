@@ -112,6 +112,8 @@
 "Request an email report","Demander un rapport de courriels"
 "Request an SMS report","Demander un rapport de SMS"
 "Request the generation of a report. Reports are generated asynchronously; poll the report by ID to check its status before downloading its content.","Demander la génération d’un rapport. Les rapports sont générés de façon asynchrone; interrogez le rapport par ID pour vérifier son statut avant d’en télécharger le contenu."
+"Invalid report type","Type de rapport invalide"
+"Missing job_id for job report","job_id manquant pour le rapport de tâche"
 "Required field missing","Champ obligatoire manquant"
 "Response result","Résultat de la réponse"
 "Retrieve a list of templates. Filterable by template type","Récupérer une liste de modèles. Filtrable par type de modèle"
