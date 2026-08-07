@@ -300,12 +300,12 @@ class InMemoryRateLimiter(RateLimiter):
             now = time()
             window_start = now - self.WINDOW_SIZE_SECONDS
 
-            # Remove expired entries and update running total
             window = self._windows.get(scope)
             if window is None:
                 return 0
             usage = self._usage.get(scope, 0)
 
+            # Remove expired entries and update running total
             while window and window[0][0] < window_start:
                 _, old_units = window.popleft()
                 usage -= old_units
@@ -618,8 +618,13 @@ class RedisSlidingWindowLogRateLimiter(RateLimiter):
     def reset_limiter(self):
         """Clear all scopes for this namespace."""
         pattern = f"app.rate_limit:{self.namespace}:*:entries"
+
+        # Open a pipeline to delete all matching keys in a single round-trip.
+        pipe = self.redis.pipeline()
         for key in self.redis.scan_iter(match=pattern):
-            self.redis.delete(key)
+            pipe.delete(key)
+        pipe.execute()
+
         current_app.logger.info(f"Rate limiter [{self.namespace}]: entries cleared (all scopes)")
 
     def _reset_scoped(self, *, scope: str) -> None:
@@ -815,8 +820,11 @@ class RedisTokenBucketRateLimiter(RateLimiter):
     def reset_limiter(self):
         """Clear all scopes for this namespace."""
         pattern = f"app.rate_limit:{self.namespace}:*:token_bucket"
+        # Open a pipeline to delete all matching keys in a single round-trip.
+        pipe = self.redis.pipeline()
         for key in self.redis.scan_iter(match=pattern):
-            self.redis.delete(key)
+            pipe.delete(key)
+        pipe.execute()
         current_app.logger.info(f"Rate limiter [{self.namespace}]: reset (all scopes cleared)")
 
     def _reset_scoped(self, *, scope: str) -> None:
