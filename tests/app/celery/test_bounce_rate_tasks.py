@@ -33,6 +33,7 @@ def test_bounce_rate_tasks_send_to_service_owners(
         {
             "ADMIN_BASE_URL": "https://admin.notification.canada.ca",
             "FRESHDESK_SUPPORT_EMAIL_ID": "assistance+notification@cds-snc.ca",
+            "NOTIFY_ENVIRONMENT": "production",
         },
     ):
         task_function(service_id=service_id, bounce_rate=bounce_rate)
