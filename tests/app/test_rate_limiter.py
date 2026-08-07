@@ -839,3 +839,238 @@ class TestBufferedRateLimiter:
         # Each thread fetched a fresh batch of 10 and spent 1 → 9 remaining in its own buffer
         assert all(count == 9 for count in per_thread_remainder.values())
         assert mock_raw.acquire_lease.call_count == 3
+
+
+class TestScopedInMemoryRateLimiter:
+    @pytest.fixture
+    def limiter(self):
+        return InMemoryRateLimiter(cap_per_minute=10, namespace="test")
+
+    def test_scopes_are_isolated(self, client, limiter):
+        with client.application.app_context():
+            a = limiter.for_scope("service-a")
+            b = limiter.for_scope("service-b")
+
+            for _ in range(10):
+                assert a.acquire_lease() == (True, 0)
+
+            # Scope A is full; scope B is untouched
+            assert a.acquire_lease()[0] is False
+            assert b.acquire_lease() == (True, 0)
+
+    def test_cap_override_narrows_effective_cap(self, client, limiter):
+        # Parent cap=10, per-scope cap=2 → only 2 acquires succeed on that scope
+        with client.application.app_context():
+            scoped = limiter.for_scope("service-a", cap=2)
+            assert scoped.acquire_lease() == (True, 0)
+            assert scoped.acquire_lease() == (True, 0)
+            allowed, wait = scoped.acquire_lease()
+            assert allowed is False
+            assert wait > 0
+
+    def test_reset_via_scope_clears_only_that_scope(self, client, limiter):
+        with client.application.app_context():
+            a = limiter.for_scope("service-a")
+            b = limiter.for_scope("service-b")
+            a.acquire_lease(3)
+            b.acquire_lease(4)
+
+            a.reset_limiter()
+
+            assert a.get_current_usage() == 0
+            assert b.get_current_usage() == 4
+
+    def test_empty_non_default_scope_is_garbage_collected(self, client, limiter):
+        with client.application.app_context():
+            with patch("app.rate_limiter.time") as mock_time:
+                mock_time.return_value = 100.0
+                scoped = limiter.for_scope("service-a")
+                scoped.acquire_lease(3)
+                assert "service-a" in limiter._windows
+
+                # Advance past the window so the entry expires, then trigger a read
+                mock_time.return_value = 200.0
+                assert scoped.get_current_usage() == 0
+                assert "service-a" not in limiter._windows
+                assert "service-a" not in limiter._usage
+
+    def test_default_scope_is_not_garbage_collected(self, client, limiter):
+        # The default scope's dict entry stays around even when empty; the hot
+        # path doesn't need to churn it on and off.
+        with client.application.app_context():
+            with patch("app.rate_limiter.time") as mock_time:
+                mock_time.return_value = 100.0
+                limiter.acquire_lease(1)
+                mock_time.return_value = 200.0
+                limiter.get_current_usage()
+
+                assert "default" in limiter._windows
+
+    def test_scoped_view_reports_effective_cap_via_max_units(self, client, limiter):
+        with client.application.app_context():
+            scoped = limiter.for_scope("service-a", cap=4)
+            assert scoped.max_units_per_acquire == 4
+
+
+class TestScopedRedisSlidingWindowLogRateLimiter:
+    @pytest.fixture
+    def limiter(self):
+        redis_client = fakeredis.FakeRedis()
+        return RedisSlidingWindowLogRateLimiter(cap_per_minute=10, namespace="test", redis_client=redis_client)
+
+    def test_scopes_use_distinct_redis_keys(self, client, limiter):
+        with client.application.app_context():
+            limiter.for_scope("service-a").acquire_lease()
+            limiter.for_scope("service-b").acquire_lease()
+
+            assert limiter.redis.exists("app.rate_limit:test:service-a:entries")
+            assert limiter.redis.exists("app.rate_limit:test:service-b:entries")
+
+    def test_scopes_are_isolated(self, client, limiter):
+        with client.application.app_context():
+            a = limiter.for_scope("service-a")
+            b = limiter.for_scope("service-b")
+
+            for _ in range(10):
+                assert a.acquire_lease() == (True, 0)
+
+            assert a.acquire_lease()[0] is False
+            assert b.acquire_lease() == (True, 0)
+
+    def test_cap_override_narrows_effective_cap(self, client, limiter):
+        with client.application.app_context():
+            scoped = limiter.for_scope("service-a", cap=2)
+            assert scoped.acquire_lease() == (True, 0)
+            assert scoped.acquire_lease() == (True, 0)
+            allowed, wait = scoped.acquire_lease()
+            assert allowed is False
+            assert wait > 0
+
+    def test_reset_via_scope_clears_only_that_scope(self, client, limiter):
+        with client.application.app_context():
+            a = limiter.for_scope("service-a")
+            b = limiter.for_scope("service-b")
+            a.acquire_lease(3)
+            b.acquire_lease(4)
+
+            a.reset_limiter()
+
+            assert not limiter.redis.exists("app.rate_limit:test:service-a:entries")
+            assert limiter.redis.exists("app.rate_limit:test:service-b:entries")
+
+    def test_reset_parent_clears_all_scopes(self, client, limiter):
+        with client.application.app_context():
+            limiter.for_scope("service-a").acquire_lease(3)
+            limiter.for_scope("service-b").acquire_lease(4)
+            limiter.acquire_lease(1)
+
+            limiter.reset_limiter()
+
+            assert not limiter.redis.exists("app.rate_limit:test:service-a:entries")
+            assert not limiter.redis.exists("app.rate_limit:test:service-b:entries")
+            assert not limiter.redis.exists("app.rate_limit:test:default:entries")
+
+    def test_default_scope_key_shape(self, client, limiter):
+        # Public acquire_lease() writes to the "default" scope key
+        with client.application.app_context():
+            limiter.acquire_lease()
+            assert limiter.redis.exists("app.rate_limit:test:default:entries")
+            assert limiter._entries_key == "app.rate_limit:test:default:entries"
+
+
+class TestScopedRedisTokenBucketRateLimiter:
+    @pytest.fixture
+    def limiter(self):
+        redis_client = fakeredis.FakeRedis()
+        return RedisTokenBucketRateLimiter(cap_per_minute=600, namespace="test", redis_client=redis_client)
+
+    def test_scopes_use_distinct_redis_keys(self, client, limiter):
+        with client.application.app_context():
+            limiter.for_scope("service-a").acquire_lease()
+            limiter.for_scope("service-b").acquire_lease()
+
+            assert limiter.redis.exists("app.rate_limit:test:service-a:token_bucket")
+            assert limiter.redis.exists("app.rate_limit:test:service-b:token_bucket")
+
+    def test_scopes_are_isolated(self, client, limiter):
+        # cap=600 → ceiling = 10 tokens per scope per second
+        with client.application.app_context():
+            with patch("app.rate_limiter.time") as mock_time:
+                mock_time.return_value = 100.0
+                a = limiter.for_scope("service-a")
+                b = limiter.for_scope("service-b")
+
+                a.acquire_lease(10)
+                # Scope A is drained; scope B still has a full second of capacity
+                assert a.acquire_lease(1)[0] is False
+                assert b.acquire_lease(10)[0] is True
+
+    def test_cap_override_narrows_effective_ceiling(self, client, limiter):
+        # cap_override=60 → ceiling = max(1, 60 // 60) = 1 token per second
+        with client.application.app_context():
+            scoped = limiter.for_scope("service-a", cap=60)
+            assert scoped.max_units_per_acquire == 1
+            with pytest.raises(ValueError):
+                scoped.acquire_lease(2)
+
+    def test_reset_via_scope_clears_only_that_scope(self, client, limiter):
+        with client.application.app_context():
+            limiter.for_scope("service-a").acquire_lease()
+            limiter.for_scope("service-b").acquire_lease()
+
+            limiter.for_scope("service-a").reset_limiter()
+
+            assert not limiter.redis.exists("app.rate_limit:test:service-a:token_bucket")
+            assert limiter.redis.exists("app.rate_limit:test:service-b:token_bucket")
+
+    def test_reset_parent_clears_all_scopes(self, client, limiter):
+        with client.application.app_context():
+            limiter.for_scope("service-a").acquire_lease()
+            limiter.for_scope("service-b").acquire_lease()
+            limiter.acquire_lease()
+
+            limiter.reset_limiter()
+
+            assert not limiter.redis.exists("app.rate_limit:test:service-a:token_bucket")
+            assert not limiter.redis.exists("app.rate_limit:test:service-b:token_bucket")
+            assert not limiter.redis.exists("app.rate_limit:test:default:token_bucket")
+
+    def test_default_scope_key_shape(self, client, limiter):
+        with client.application.app_context():
+            limiter.acquire_lease()
+            assert limiter._key == "app.rate_limit:test:default:token_bucket"
+
+
+class TestForScopeCompositionGuards:
+    def test_buffered_for_scope_raises(self, client):
+        raw = InMemoryRateLimiter(cap_per_minute=1000, namespace="test-guard")
+        try:
+            with client.application.app_context():
+                rate_limiter._rate_limiter_instances["test-guard"] = raw
+                buf = raw.buffered(10)
+                with pytest.raises(TypeError):
+                    buf.for_scope("service-a")
+        finally:
+            rate_limiter._rate_limiter_instances.pop("test-guard", None)
+
+    def test_scoped_buffered_raises(self, client):
+        raw = InMemoryRateLimiter(cap_per_minute=1000, namespace="test")
+        scoped = raw.for_scope("service-a")
+        with pytest.raises(TypeError):
+            scoped.buffered(10)
+
+    def test_nested_for_scope_raises(self, client):
+        raw = InMemoryRateLimiter(cap_per_minute=1000, namespace="test")
+        scoped = raw.for_scope("service-a")
+        with pytest.raises(TypeError):
+            scoped.for_scope("service-b")
+
+    def test_empty_scope_raises(self, client):
+        raw = InMemoryRateLimiter(cap_per_minute=1000, namespace="test")
+        with pytest.raises(ValueError):
+            raw.for_scope("")
+
+    def test_non_positive_cap_override_raises(self, client):
+        raw = InMemoryRateLimiter(cap_per_minute=1000, namespace="test")
+        with pytest.raises(ValueError):
+            raw.for_scope("service-a", cap=0)
