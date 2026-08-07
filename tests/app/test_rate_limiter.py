@@ -4,6 +4,8 @@ from unittest.mock import MagicMock, patch
 
 import fakeredis
 import pytest
+
+from app import rate_limiter
 from app.rate_limiter import (
     BufferedRateLimiter,
     InMemoryRateLimiter,
@@ -12,8 +14,6 @@ from app.rate_limiter import (
     get_rate_limiter,
     initialize_rate_limiter,
 )
-
-from app import rate_limiter
 
 
 class TestInMemoryRateLimiter:

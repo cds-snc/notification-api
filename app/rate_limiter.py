@@ -81,25 +81,17 @@ class RateLimiter(ABC):
         """
         return cap_override if cap_override is not None else self.cap_per_minute
 
-    def _acquire_lease_scoped(
-        self, units: int, *, scope: str, cap_override: int | None
-    ) -> Tuple[bool, int]:
+    def _acquire_lease_scoped(self, units: int, *, scope: str, cap_override: int | None) -> Tuple[bool, int]:
         """Scoped variant of :meth:`acquire_lease`. Concrete backends override."""
-        raise NotImplementedError(
-            f"{type(self).__name__} does not support scoped rate limiting"
-        )
+        raise NotImplementedError(f"{type(self).__name__} does not support scoped rate limiting")
 
     def _get_current_usage_scoped(self, *, scope: str) -> int:
         """Scoped variant of :meth:`get_current_usage`. Concrete backends override."""
-        raise NotImplementedError(
-            f"{type(self).__name__} does not support scoped rate limiting"
-        )
+        raise NotImplementedError(f"{type(self).__name__} does not support scoped rate limiting")
 
     def _reset_scoped(self, *, scope: str) -> None:
         """Reset state for a single scope. Concrete backends override."""
-        raise NotImplementedError(
-            f"{type(self).__name__} does not support scoped rate limiting"
-        )
+        raise NotImplementedError(f"{type(self).__name__} does not support scoped rate limiting")
 
     def buffered(self, size: int) -> BufferedRateLimiter:
         """
@@ -145,14 +137,10 @@ class RateLimiter(ABC):
                 :class:`ScopedRateLimiter`.
         """
         if isinstance(self, BufferedRateLimiter):
-            raise TypeError(
-                f"Rate limiter [{self.namespace}] is a BufferedRateLimiter; "
-                "scope the underlying limiter instead."
-            )
+            raise TypeError(f"Rate limiter [{self.namespace}] is a BufferedRateLimiter; " "scope the underlying limiter instead.")
         if isinstance(self, ScopedRateLimiter):
             raise TypeError(
-                f"Rate limiter [{self.namespace}] is already a ScopedRateLimiter; "
-                "nested scoping is not supported."
+                f"Rate limiter [{self.namespace}] is already a ScopedRateLimiter; " "nested scoping is not supported."
             )
         return ScopedRateLimiter(self, scope=scope, cap_override=cap)
 
@@ -222,9 +210,7 @@ class InMemoryRateLimiter(RateLimiter):
         """
         return self._acquire_lease_scoped(units, scope=_DEFAULT_SCOPE, cap_override=None)
 
-    def _acquire_lease_scoped(
-        self, units: int, *, scope: str, cap_override: int | None
-    ) -> Tuple[bool, int]:
+    def _acquire_lease_scoped(self, units: int, *, scope: str, cap_override: int | None) -> Tuple[bool, int]:
         effective_cap = cap_override if cap_override is not None else self.cap_per_minute
 
         if units <= 0:
@@ -250,8 +236,7 @@ class InMemoryRateLimiter(RateLimiter):
                 usage += units
                 self._usage[scope] = usage
                 current_app.logger.info(
-                    f"Rate limiter [{self.namespace}:{scope}]: acquired {units} units. "
-                    f"Window usage: {usage}/{effective_cap}"
+                    f"Rate limiter [{self.namespace}:{scope}]: acquired {units} units. " f"Window usage: {usage}/{effective_cap}"
                 )
                 return True, 0
 
@@ -559,9 +544,7 @@ class RedisSlidingWindowLogRateLimiter(RateLimiter):
         """Acquire capacity on the default scope. See :meth:`_acquire_lease_scoped`."""
         return self._acquire_lease_scoped(units, scope=_DEFAULT_SCOPE, cap_override=None)
 
-    def _acquire_lease_scoped(
-        self, units: int, *, scope: str, cap_override: int | None
-    ) -> Tuple[bool, int]:
+    def _acquire_lease_scoped(self, units: int, *, scope: str, cap_override: int | None) -> Tuple[bool, int]:
         effective_cap = cap_override if cap_override is not None else self.cap_per_minute
 
         if units <= 0:
@@ -589,9 +572,7 @@ class RedisSlidingWindowLogRateLimiter(RateLimiter):
         success, wait_seconds = result[0], result[1]
 
         if success:
-            _logger.debug(
-                f"Rate limiter [{self.namespace}:{scope}]: acquired {units} units. Entry ID: {entry_id}"
-            )
+            _logger.debug(f"Rate limiter [{self.namespace}:{scope}]: acquired {units} units. Entry ID: {entry_id}")
         else:
             current_app.logger.warning(
                 f"Rate limiter [{self.namespace}:{scope}]: capacity exhausted. Requested {units} units. "
@@ -765,9 +746,7 @@ class RedisTokenBucketRateLimiter(RateLimiter):
         """Acquire capacity on the default scope. See :meth:`_acquire_lease_scoped`."""
         return self._acquire_lease_scoped(units, scope=_DEFAULT_SCOPE, cap_override=None)
 
-    def _acquire_lease_scoped(
-        self, units: int, *, scope: str, cap_override: int | None
-    ) -> Tuple[bool, int]:
+    def _acquire_lease_scoped(self, units: int, *, scope: str, cap_override: int | None) -> Tuple[bool, int]:
         effective_cap = cap_override if cap_override is not None else self.cap_per_minute
         effective_max = self._max_units_for_cap(cap_override)
 
@@ -991,9 +970,7 @@ class ScopedRateLimiter(RateLimiter):
         return self._parent._max_units_for_cap(self._cap_override)
 
     def acquire_lease(self, units: int = 1) -> Tuple[bool, int]:
-        return self._parent._acquire_lease_scoped(
-            units, scope=self._scope, cap_override=self._cap_override
-        )
+        return self._parent._acquire_lease_scoped(units, scope=self._scope, cap_override=self._cap_override)
 
     def get_current_usage(self) -> int:
         return self._parent._get_current_usage_scoped(scope=self._scope)
