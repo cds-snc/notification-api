@@ -245,12 +245,15 @@ class InMemoryRateLimiter(RateLimiter):
             units_freed = 0
             last_timestamp_to_wait_for = None
 
+            # Iterate through window entries (oldest first) to find when we'll have enough space
             for timestamp, entry_units in window:
                 units_freed += entry_units
                 last_timestamp_to_wait_for = timestamp
                 if units_freed >= units_needed:
+                    # This entry needs to expire to free enough space
                     break
 
+            # Calculate seconds to wait for the last entry to expire
             if last_timestamp_to_wait_for is not None:
                 seconds_until_expires = self.WINDOW_SIZE_SECONDS - (now - last_timestamp_to_wait_for)
                 seconds_to_wait = max(1, math.ceil(seconds_until_expires))
@@ -297,6 +300,7 @@ class InMemoryRateLimiter(RateLimiter):
             now = time()
             window_start = now - self.WINDOW_SIZE_SECONDS
 
+            # Remove expired entries and update running total
             window = self._windows.get(scope)
             if window is None:
                 return 0
