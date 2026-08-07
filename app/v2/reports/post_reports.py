@@ -63,6 +63,7 @@ def post_report():
         service_id=authenticated_service.id,
         status=ReportStatus.REQUESTED.value,
         requesting_user_id=None,
+        api_key_id=api_user.id,
         language=data["language"],
         job_id=data.get("job_id"),
     )
