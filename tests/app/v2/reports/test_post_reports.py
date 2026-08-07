@@ -9,7 +9,8 @@ from tests import create_authorization_header
 
 def test_post_report_returns_202(client, sample_service, mocker, create_api_key_with_manage_reports_perm):
     mock_task = mocker.patch("app.v2.reports.post_reports.generate_report.apply_async")
-    auth_header = create_authorization_header(api_key=create_api_key_with_manage_reports_perm)
+    api_key = create_api_key_with_manage_reports_perm
+    auth_header = create_authorization_header(api_key=api_key)
 
     response = client.post(
         path="/v2/reports",
@@ -23,6 +24,7 @@ def test_post_report_returns_202(client, sample_service, mocker, create_api_key_
     assert str(report.service_id) == str(sample_service.id)
     assert report.status == ReportStatus.REQUESTED.value
     assert report.requesting_user_id is None
+    assert report.api_key_id == api_key.id
     assert report.language == "en"
     assert response.headers["Location"] == f"/v2/reports/{report.id}"
     mock_task.assert_called_once_with([str(report.id), []], queue="generate-reports")
