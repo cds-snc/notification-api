@@ -708,7 +708,7 @@ class RedisTokenBucketRateLimiter(RateLimiter):
             local cap = tonumber(ARGV[1])
             local units = tonumber(ARGV[2])
             local now = tonumber(ARGV[3])
-            local refill_rate = math.max(1, cap_per_window / 60.0)
+            local refill_rate = math.max(1, cap / 60.0)
 
             -- Read current state; initialize to one second of tokens on first call.
             -- Using refill_rate (not cap) as the starting value prevents burst-after-idle:
