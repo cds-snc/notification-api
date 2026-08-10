@@ -5,7 +5,7 @@ from __future__ import annotations
 Rate Limiting Module
 
 This module provides a generic rate limiter that enforces a cap on the number
-of units that can be acquired per minute.
+of units that can be acquired per a configurable time window (default: per minute).
 """
 
 import logging
@@ -34,8 +34,8 @@ class RateLimiter(ABC):
     :meth:`for_scope` and the ``_*_scoped`` hooks.
     """
 
-    def __init__(self, cap_per_minute: int, namespace: str) -> None:
-        self.cap_per_minute = cap_per_minute
+    def __init__(self, cap_per_window: int, namespace: str) -> None:
+        self.cap_per_window = cap_per_window
         self.namespace = namespace
 
     @abstractmethod
@@ -68,10 +68,10 @@ class RateLimiter(ABC):
         """
         Maximum units that can be requested in a single acquire_lease() call.
 
-        Defaults to cap_per_minute. Implementations with a tighter per-call
+        Defaults to cap_per_window. Implementations with a tighter per-call
         ceiling (e.g. RedisTokenBucketRateLimiter) should override this.
         """
-        return self.cap_per_minute
+        return self.cap_per_window
 
     def _max_units_for_cap(self, cap_override: int | None) -> int:
         """Effective per-call ceiling for a given cap override.
@@ -79,7 +79,7 @@ class RateLimiter(ABC):
         Overridden by backends whose ceiling is not the cap itself (e.g. the
         token-bucket ceiling is ``max(1, cap // 60)``).
         """
-        return cap_override if cap_override is not None else self.cap_per_minute
+        return cap_override if cap_override is not None else self.cap_per_window
 
     def _acquire_lease_scoped(self, units: int, *, scope: str, cap_override: int | None) -> Tuple[bool, int]:
         """Scoped variant of :meth:`acquire_lease`. Concrete backends override."""
@@ -130,7 +130,7 @@ class RateLimiter(ABC):
         Args:
             scope: Non-empty partition key (e.g. a service id).
             cap: Optional per-scope cap override. When ``None``, the parent's
-                ``cap_per_minute`` applies.
+                ``cap_per_window`` applies.
 
         Raises:
             TypeError: If called on a :class:`BufferedRateLimiter` or another
@@ -149,13 +149,13 @@ class InMemoryRateLimiter(RateLimiter):
     """
     In-memory rate limiter using a 60-second sliding window.
 
-    This implementation tracks units acquired in the current minute and enforces
+    This implementation tracks units acquired in the current time window and enforces
     the configured cap.
 
     Algorithm:
     - Maintains a per-scope deque of (timestamp, units) tuples.
     - Keeps a per-scope running total updated on append/popleft.
-    - On each acquire_lease(), removes entries older than 60 seconds.
+    - On each acquire_lease(), removes entries older than the time window (default: 60 seconds).
     - Checks if current_usage + new_units exceeds the cap.
     - If capacity available, records the entry and updates running total.
     - If capacity exhausted, calculates when enough entries will have expired
@@ -180,16 +180,16 @@ class InMemoryRateLimiter(RateLimiter):
 
     WINDOW_SIZE_SECONDS = 60
 
-    def __init__(self, cap_per_minute: int, namespace: str):
+    def __init__(self, cap_per_window: int, namespace: str):
         """
         Initialize the in-memory rate limiter.
 
         Args:
-            cap_per_minute (int): Maximum units allowed per minute.
-                                  E.g., 1000 units/minute.
+            cap_per_window (int): Maximum units allowed per time window.
+                                  E.g., 1000 units per 60 seconds.
             namespace (str): Logical name for this limiter (used in log messages).
         """
-        super().__init__(cap_per_minute, namespace)
+        super().__init__(cap_per_window, namespace)
         self._windows: dict[str, deque] = {}
         self._usage: dict[str, int] = {}
         self._lock = threading.Lock()
@@ -211,13 +211,13 @@ class InMemoryRateLimiter(RateLimiter):
         return self._acquire_lease_scoped(units, scope=_DEFAULT_SCOPE, cap_override=None)
 
     def _acquire_lease_scoped(self, units: int, *, scope: str, cap_override: int | None) -> Tuple[bool, int]:
-        effective_cap = cap_override if cap_override is not None else self.cap_per_minute
+        effective_cap = cap_override if cap_override is not None else self.cap_per_window
 
         if units <= 0:
             raise ValueError("units must be positive")
 
         if units > effective_cap:
-            raise ValueError("units must be smaller than or equal to the cap_per_minute")
+            raise ValueError("units must be smaller than or equal to the cap_per_window")
 
         with self._lock:
             now = time()
@@ -339,7 +339,7 @@ def _build_limiter_registry() -> dict[str, type[RateLimiter]]:
 
 
 def initialize_rate_limiter(
-    cap_per_minute: int, limiter_class: type[RateLimiter] | None = None, *, namespace: str
+    cap_per_window: int, limiter_class: type[RateLimiter] | None = None, *, namespace: str
 ) -> RateLimiter:
     """
     Initialize a rate limiter for the given namespace and store it in the registry.
@@ -355,7 +355,7 @@ def initialize_rate_limiter(
     3. Default: InMemoryRateLimiter.
 
     Args:
-        cap_per_minute (int): Maximum units per minute.
+        cap_per_window (int): Maximum units per time window.
         limiter_class (type[RateLimiter] | None): Implementation class to use.
             If None, the class is resolved from config/default.
         namespace (str): Logical name for this limiter instance (e.g. "sms").
@@ -392,7 +392,7 @@ def initialize_rate_limiter(
             resolved_class = registry[class_name]
 
     logger.info("Rate limiter [%s]: initializing with %s", namespace, resolved_class.__name__)
-    instance = resolved_class(cap_per_minute, namespace)
+    instance = resolved_class(cap_per_window, namespace)
     _rate_limiter_instances[namespace] = instance
 
     return instance
@@ -439,18 +439,18 @@ class RedisSlidingWindowLogRateLimiter(RateLimiter):
 
     WINDOW_SIZE_SECONDS = 60
 
-    def __init__(self, cap_per_minute: int, namespace: str, redis_client=None, window_size: int = 60):
+    def __init__(self, cap_per_window: int, namespace: str, redis_client=None, window_size: int = 60):
         """
         Initialize the Redis-backed rate limiter.
 
         Args:
-            cap_per_minute (int): Maximum units allowed per minute.
+            cap_per_window (int): Maximum units allowed per time window.
             namespace (str): Logical name for this limiter instance (e.g. "sms").
                 Used to construct the Redis key: app.rate_limit:{namespace}:{scope}:entries.
             redis_client: Redis client instance. If None, uses app's flask_cache_ops.
             window_size (int): Sliding window duration in seconds. Defaults to 60.
         """
-        super().__init__(cap_per_minute, namespace)
+        super().__init__(cap_per_window, namespace)
         self.redis_client = redis_client
         self._lua_scripts: dict[str, object] = {}
         self.WINDOW_SIZE_SECONDS = window_size
@@ -477,7 +477,7 @@ class RedisSlidingWindowLogRateLimiter(RateLimiter):
             lua_code = """
             local entries_key = KEYS[1]
 
-            local cap_per_minute = tonumber(ARGV[1])
+            local cap_per_window = tonumber(ARGV[1])
             local units = tonumber(ARGV[2])
             local now = tonumber(ARGV[3])
             local entry_id = ARGV[4]
@@ -503,7 +503,7 @@ class RedisSlidingWindowLogRateLimiter(RateLimiter):
             end
 
             -- 3. Check capacity
-            if current_usage + units <= cap_per_minute then
+            if current_usage + units <= cap_per_window then
                 local member = entry_id .. ":" .. units
 
                 redis.call('ZADD', entries_key, now, member)
@@ -513,7 +513,7 @@ class RedisSlidingWindowLogRateLimiter(RateLimiter):
             else
                 -- 4. Calculate wait time by iterating the already-fetched entries_with_scores.
                 --    No second ZRANGE needed.
-                local units_needed = current_usage + units - cap_per_minute
+                local units_needed = current_usage + units - cap_per_window
                 local units_freed = 0
                 local last_timestamp_to_wait = nil
 
@@ -549,13 +549,13 @@ class RedisSlidingWindowLogRateLimiter(RateLimiter):
         return self._acquire_lease_scoped(units, scope=_DEFAULT_SCOPE, cap_override=None)
 
     def _acquire_lease_scoped(self, units: int, *, scope: str, cap_override: int | None) -> Tuple[bool, int]:
-        effective_cap = cap_override if cap_override is not None else self.cap_per_minute
+        effective_cap = cap_override if cap_override is not None else self.cap_per_window
 
         if units <= 0:
             raise ValueError("units must be positive")
 
         if units > effective_cap:
-            raise ValueError("units must be smaller than or equal to the cap_per_minute")
+            raise ValueError("units must be smaller than or equal to the cap_per_window")
 
         now = time()
         entry_id = str(uuid.uuid4())
@@ -642,17 +642,17 @@ class RedisTokenBucketRateLimiter(RateLimiter):
       - Field ``last_refill``: timestamp of last refill (float, stored as string)
 
     Algorithm:
-    - Tokens refill continuously at rate cap_per_minute / 60 per second.
+    - Tokens refill continuously at rate cap_per_window / 60 per second.
     - On each request, elapsed time since last refill is computed, tokens are
-      topped up (capped at max(1, cap_per_minute / 60)), and the requested units are
+      topped up (capped at max(1, cap_per_window / 60)), and the requested units are
       subtracted atomically in Lua.
     - If tokens are insufficient, the exact wait time is returned:
-      deficit / (max(1, cap_per_minute / 60)) seconds.
+      deficit / (max(1, cap_per_window / 60)) seconds.
     - No burst after idle: the bucket ceiling is one second of capacity
-      (max(1, cap_per_minute / 60)), so long idle periods never accumulate more than
-      ~1 second worth of tokens. Maximum per-minute throughput cannot exceed
-      cap_per_minute regardless of how long the system was idle.
-    - Maximum units per acquire_lease call: max(1, cap_per_minute / 60) (one second).
+      (max(1, cap_per_window / 60)), so long idle periods never accumulate more than
+      ~1 second worth of tokens. Maximum per-window throughput cannot exceed
+      cap_per_window regardless of how long the system was idle.
+    - Maximum units per acquire_lease call: max(1, cap_per_window / 60) (one second).
 
     Scoping:
     Per-scope buckets are keyed by ``scope`` in the Redis key. Scoped views
@@ -661,17 +661,17 @@ class RedisTokenBucketRateLimiter(RateLimiter):
     Complexity: O(1) for all operations.
     """
 
-    def __init__(self, cap_per_minute: int, namespace: str, redis_client=None):
+    def __init__(self, cap_per_window: int, namespace: str, redis_client=None):
         """
         Initialize the Redis token bucket rate limiter.
 
         Args:
-            cap_per_minute (int): Maximum units allowed per minute.
+            cap_per_window (int): Maximum units allowed per time window.
             namespace (str): Logical name for this limiter instance (e.g. "sms").
                 Used to construct the Redis key: app.rate_limit:{namespace}:{scope}:token_bucket.
             redis_client: Redis client instance. If None, uses app's flask_cache_ops.
         """
-        super().__init__(cap_per_minute, namespace)
+        super().__init__(cap_per_window, namespace)
         self.redis_client = redis_client
         self._lua_scripts: dict[str, object] = {}
 
@@ -686,10 +686,10 @@ class RedisTokenBucketRateLimiter(RateLimiter):
     @property
     def max_units_per_acquire(self) -> int:
         """Per-call ceiling: one second of capacity, minimum 1."""
-        return max(1, self.cap_per_minute // 60)
+        return max(1, self.cap_per_window // 60)
 
     def _max_units_for_cap(self, cap_override: int | None) -> int:
-        effective_cap = cap_override if cap_override is not None else self.cap_per_minute
+        effective_cap = cap_override if cap_override is not None else self.cap_per_window
         return max(1, effective_cap // 60)
 
     @property
@@ -708,7 +708,7 @@ class RedisTokenBucketRateLimiter(RateLimiter):
             local cap = tonumber(ARGV[1])
             local units = tonumber(ARGV[2])
             local now = tonumber(ARGV[3])
-            local refill_rate = math.max(1, cap / 60.0)
+            local refill_rate = math.max(1, cap_per_window / 60.0)
 
             -- Read current state; initialize to one second of tokens on first call.
             -- Using refill_rate (not cap) as the starting value prevents burst-after-idle:
@@ -756,7 +756,7 @@ class RedisTokenBucketRateLimiter(RateLimiter):
         return self._acquire_lease_scoped(units, scope=_DEFAULT_SCOPE, cap_override=None)
 
     def _acquire_lease_scoped(self, units: int, *, scope: str, cap_override: int | None) -> Tuple[bool, int]:
-        effective_cap = cap_override if cap_override is not None else self.cap_per_minute
+        effective_cap = cap_override if cap_override is not None else self.cap_per_window
         effective_max = self._max_units_for_cap(cap_override)
 
         if units <= 0:
@@ -811,7 +811,7 @@ class RedisTokenBucketRateLimiter(RateLimiter):
         last_refill = float(last_refill_str if isinstance(last_refill_str, str) else last_refill_str.decode("utf-8"))
 
         elapsed = now - last_refill
-        refill_rate = max(1.0, self.cap_per_minute / 60.0)
+        refill_rate = max(1.0, self.cap_per_window / 60.0)
         max_tokens = refill_rate  # ceiling matches Lua: one second of capacity
         tokens = min(max_tokens, tokens + elapsed * refill_rate)
 
@@ -873,7 +873,7 @@ class BufferedRateLimiter(RateLimiter):
                 f"size ({size}) must be <= max_units_per_acquire ({rate_limiter.max_units_per_acquire}) "
                 f"for {type(rate_limiter).__name__}"
             )
-        super().__init__(rate_limiter.cap_per_minute, rate_limiter.namespace)
+        super().__init__(rate_limiter.cap_per_window, rate_limiter.namespace)
         self._rate_limiter = rate_limiter
         self._size = size
         self._local = threading.local()
@@ -971,7 +971,7 @@ class ScopedRateLimiter(RateLimiter):
             raise ValueError("scope must be a non-empty string")
         if cap_override is not None and cap_override <= 0:
             raise ValueError("cap must be positive")
-        effective_cap = cap_override if cap_override is not None else parent.cap_per_minute
+        effective_cap = cap_override if cap_override is not None else parent.cap_per_window
         super().__init__(effective_cap, f"{parent.namespace}:{scope}")
         self._parent = parent
         self._scope = scope

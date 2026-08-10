@@ -24,7 +24,7 @@ REPORT_RATE_WINDOW = 3600  # 1 hour in seconds
 def _get_report_limiter() -> RedisSlidingWindowLogRateLimiter:
     # Module-level singleton; per-service buckets are obtained via `for_scope`.
     return RedisSlidingWindowLogRateLimiter(
-        cap_per_minute=REPORT_RATE_LIMIT,
+        cap_per_window=REPORT_RATE_LIMIT,
         namespace="report-download",
         window_size=REPORT_RATE_WINDOW,
     )
