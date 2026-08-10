@@ -969,7 +969,8 @@ def generate_report(report_id: str, notification_statuses=[]):
         update_report(report)
         # send an email to the requesting user
         try:
-            send_requested_report_ready(report)
+            if not report.api_key_id:
+                send_requested_report_ready(report)
         except Exception:
             current_app.logger.exception("Failed to send email to user for Report ID {}".format(report.id))
         current_app.logger.info(f"Report ID {str(report.id)} has been generated")
