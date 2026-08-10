@@ -2855,6 +2855,10 @@ class Report(BaseModel):
         UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=True
     )  # only set if report is requested by a user
     requesting_user = db.relationship("User")
+    api_key_id = db.Column(
+        UUID(as_uuid=True), db.ForeignKey("api_keys.id"), index=True, nullable=True
+    )  # only set if report is requested via the API
+    api_key = db.relationship("ApiKey")
     service_id = db.Column(
         UUID(as_uuid=True),
         db.ForeignKey("services.id"),
@@ -2877,4 +2881,5 @@ class Report(BaseModel):
             "completed_at": self.completed_at.strftime(DATETIME_FORMAT) if self.completed_at else None,
             "expires_at": self.expires_at.strftime(DATETIME_FORMAT) if self.expires_at else None,
             "url": self.url,
+            "api_key_id": str(self.api_key_id) if self.api_key_id else None,
         }
