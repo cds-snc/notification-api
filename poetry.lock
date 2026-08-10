@@ -2846,12 +2846,12 @@ files = [
 
 [[package]]
 name = "notifications-python-client"
-version = "6.4.1"
+version = "12.1.0"
 description = "Python API client for GOV.UK Notify."
 optional = false
-python-versions = ">=3.6"
+python-versions = ">=3.9"
 files = [
-    {file = "notifications_python_client-6.4.1-py2.py3-none-any.whl", hash = "sha256:10b51f47aaebce7eaf0838f06def8660859ce8321bd0b180934e26895dae08df"},
+    {file = "notifications_python_client-12.1.0-py3-none-any.whl", hash = "sha256:bc44987acbb72de4cded700447d0d246c020dcd0f0311ff2ca884ce1c4001b76"},
 ]
 
 [package.dependencies]
@@ -5212,4 +5212,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.12.7"
-content-hash = "e6167724ea7b90b44b1ec9b83be24b009123a07a65f12516a06e3283013a4224"
+content-hash = "2f80c11879bf69d4bf304c8a59c24ebbf7c9a509c766b0873e25645baa9835c4"

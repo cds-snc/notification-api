@@ -1,5 +1,6 @@
 import math
 import uuid
+from functools import cache
 from time import time
 
 from flask import current_app, jsonify, request
@@ -19,6 +20,16 @@ REPORT_RATE_LIMIT = 10
 REPORT_RATE_WINDOW = 3600  # 1 hour in seconds
 
 
+@cache
+def _get_report_limiter() -> RedisSlidingWindowLogRateLimiter:
+    # Module-level singleton; per-service buckets are obtained via `for_scope`.
+    return RedisSlidingWindowLogRateLimiter(
+        cap_per_window=REPORT_RATE_LIMIT,
+        namespace="report-download",
+        window_size=REPORT_RATE_WINDOW,
+    )
+
+
 def _check_report_rate_limit(service_id):
     """Enforce a limit of 10 POST /v2/reports requests per hour per service.
 
@@ -28,13 +39,8 @@ def _check_report_rate_limit(service_id):
     if not current_app.config.get("API_RATE_LIMIT_ENABLED") or not current_app.config.get("REDIS_ENABLED"):
         return
 
-    limiter = RedisSlidingWindowLogRateLimiter(
-        cap_per_minute=REPORT_RATE_LIMIT,
-        namespace=f"report:{service_id}",
-        window_size=REPORT_RATE_WINDOW,
-    )
     now = time()
-    success, seconds_to_wait = limiter.acquire_lease(1)
+    success, seconds_to_wait = _get_report_limiter().for_scope(str(service_id)).acquire_lease()
 
     if not success:
         reset_at = math.ceil(now + seconds_to_wait)

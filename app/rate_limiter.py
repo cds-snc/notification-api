@@ -5,7 +5,7 @@ from __future__ import annotations
 Rate Limiting Module
 
 This module provides a generic rate limiter that enforces a cap on the number
-of units that can be acquired per minute.
+of units that can be acquired per a configurable time window (default: per minute).
 """
 
 import logging
@@ -21,25 +21,30 @@ from flask import current_app
 
 _logger = logging.getLogger(__name__)
 
+# Sentinel scope used when a caller does not partition by `for_scope`.
+_DEFAULT_SCOPE = "default"
+
 
 class RateLimiter(ABC):
     """
     Abstract base class defining the rate limiter interface.
 
     Implementations should track unit capacity over time and enforce limits.
+    Backends may partition their state by an optional `scope` string; see
+    :meth:`for_scope` and the ``_*_scoped`` hooks.
     """
 
-    def __init__(self, cap_per_minute: int, namespace: str) -> None:
-        self.cap_per_minute = cap_per_minute
+    def __init__(self, cap_per_window: int, namespace: str) -> None:
+        self.cap_per_window = cap_per_window
         self.namespace = namespace
 
     @abstractmethod
-    def acquire_lease(self, units: int) -> Tuple[bool, int]:
+    def acquire_lease(self, units: int = 1) -> Tuple[bool, int]:
         """
         Attempt to acquire a lease for the given number of units.
 
         Args:
-            units (int): Number of units to acquire.
+            units (int): Number of units to acquire. Defaults to 1.
 
         Returns:
             Tuple[bool, int]:
@@ -63,10 +68,30 @@ class RateLimiter(ABC):
         """
         Maximum units that can be requested in a single acquire_lease() call.
 
-        Defaults to cap_per_minute. Implementations with a tighter per-call
+        Defaults to cap_per_window. Implementations with a tighter per-call
         ceiling (e.g. RedisTokenBucketRateLimiter) should override this.
         """
-        return self.cap_per_minute
+        return self.cap_per_window
+
+    def _max_units_for_cap(self, cap_override: int | None) -> int:
+        """Effective per-call ceiling for a given cap override.
+
+        Overridden by backends whose ceiling is not the cap itself (e.g. the
+        token-bucket ceiling is ``max(1, cap // 60)``).
+        """
+        return cap_override if cap_override is not None else self.cap_per_window
+
+    def _acquire_lease_scoped(self, units: int, *, scope: str, cap_override: int | None) -> Tuple[bool, int]:
+        """Scoped variant of :meth:`acquire_lease`. Concrete backends override."""
+        raise NotImplementedError(f"{type(self).__name__} does not support scoped rate limiting")
+
+    def _get_current_usage_scoped(self, *, scope: str) -> int:
+        """Scoped variant of :meth:`get_current_usage`. Concrete backends override."""
+        raise NotImplementedError(f"{type(self).__name__} does not support scoped rate limiting")
+
+    def _reset_scoped(self, *, scope: str) -> None:
+        """Reset state for a single scope. Concrete backends override."""
+        raise NotImplementedError(f"{type(self).__name__} does not support scoped rate limiting")
 
     def buffered(self, size: int) -> BufferedRateLimiter:
         """
@@ -81,32 +106,66 @@ class RateLimiter(ABC):
             BufferedRateLimiter: The new buffered wrapper.
 
         Raises:
-            TypeError: If called on an already-buffered instance.
+            TypeError: If called on an already-buffered or scoped instance.
         """
         if isinstance(self, BufferedRateLimiter):
             raise TypeError(
                 f"Rate limiter [{self.namespace}] is already a BufferedRateLimiter. " "Double-wrapping is not allowed."
             )
+        if isinstance(self, ScopedRateLimiter):
+            raise TypeError(
+                f"Rate limiter [{self.namespace}] is a ScopedRateLimiter; buffered() is not supported on scoped views."
+            )
         buffered_limiter = BufferedRateLimiter(self, size)
         _rate_limiter_instances[self.namespace] = buffered_limiter
         return buffered_limiter
+
+    def for_scope(self, scope: str, cap: int | None = None) -> ScopedRateLimiter:
+        """Return a lightweight scoped view of this limiter.
+
+        The returned :class:`ScopedRateLimiter` delegates every call to this
+        instance, narrowing state access to ``scope`` and optionally overriding
+        the cap. Each call returns a new view; views hold no state of their own.
+
+        Args:
+            scope: Non-empty partition key (e.g. a service id).
+            cap: Optional per-scope cap override. When ``None``, the parent's
+                ``cap_per_window`` applies.
+
+        Raises:
+            TypeError: If called on a :class:`BufferedRateLimiter` or another
+                :class:`ScopedRateLimiter`.
+        """
+        if isinstance(self, BufferedRateLimiter):
+            raise TypeError(f"Rate limiter [{self.namespace}] is a BufferedRateLimiter; " "scope the underlying limiter instead.")
+        if isinstance(self, ScopedRateLimiter):
+            raise TypeError(
+                f"Rate limiter [{self.namespace}] is already a ScopedRateLimiter; " "nested scoping is not supported."
+            )
+        return ScopedRateLimiter(self, scope=scope, cap_override=cap)
 
 
 class InMemoryRateLimiter(RateLimiter):
     """
     In-memory rate limiter using a 60-second sliding window.
 
-    This implementation tracks units acquired in the current minute and enforces
+    This implementation tracks units acquired in the current time window and enforces
     the configured cap.
 
     Algorithm:
-    - Maintains a deque of (timestamp, units) tuples.
-    - Keeps a running total (current_usage) updated on append/popleft.
-    - On each acquire_lease(), removes entries older than 60 seconds.
+    - Maintains a per-scope deque of (timestamp, units) tuples.
+    - Keeps a per-scope running total updated on append/popleft.
+    - On each acquire_lease(), removes entries older than the time window (default: 60 seconds).
     - Checks if current_usage + new_units exceeds the cap.
     - If capacity available, records the entry and updates running total.
     - If capacity exhausted, calculates when enough entries will have expired
       to accommodate the new request.
+
+    Scoping:
+    State is partitioned by an internal ``scope`` string (defaulting to
+    ``"default"``). Scoped views obtained via :meth:`for_scope` narrow every
+    operation to their scope; unscoped calls target ``"default"``. Empty
+    non-default scope entries are lazily GC'd to keep the scope dicts bounded.
 
     Thread safety:
     A ``threading.Lock`` serialises all compound read-modify-write operations
@@ -121,67 +180,73 @@ class InMemoryRateLimiter(RateLimiter):
 
     WINDOW_SIZE_SECONDS = 60
 
-    def __init__(self, cap_per_minute: int, namespace: str):
+    def __init__(self, cap_per_window: int, namespace: str):
         """
         Initialize the in-memory rate limiter.
 
         Args:
-            cap_per_minute (int): Maximum units allowed per minute.
-                                  E.g., 1000 units/minute.
+            cap_per_window (int): Maximum units allowed per time window.
+                                  E.g., 1000 units per 60 seconds.
             namespace (str): Logical name for this limiter (used in log messages).
         """
-        super().__init__(cap_per_minute, namespace)
-        self.window: deque = deque()  # Stores (timestamp, units) tuples
-        self.current_usage: int = 0  # Running total of units in the current window
+        super().__init__(cap_per_window, namespace)
+        self._windows: dict[str, deque] = {}
+        self._usage: dict[str, int] = {}
         self._lock = threading.Lock()
 
-    def acquire_lease(self, units: int) -> Tuple[bool, int]:
-        """
-        Attempt to acquire capacity for the given number of units.
+    # Backward-compat accessors for the default scope (used by existing tests).
+    @property
+    def window(self) -> deque:
+        return self._windows.setdefault(_DEFAULT_SCOPE, deque())
 
-        Args:
-            units (int): Number of units to acquire.
+    @property
+    def current_usage(self) -> int:
+        return self._usage.get(_DEFAULT_SCOPE, 0)
 
-        Returns:
-            Tuple[bool, int]:
-                - (True, 0) if units can be acquired immediately.
-                - (False, seconds_remaining) if rate limit exhausted;
-                  seconds_remaining is the time until enough entries expire to
-                  accommodate the requested units.
+    def acquire_lease(self, units: int = 1) -> Tuple[bool, int]:
         """
+        Attempt to acquire capacity for the given number of units on the
+        default scope. See :meth:`_acquire_lease_scoped` for the scoped variant.
+        """
+        return self._acquire_lease_scoped(units, scope=_DEFAULT_SCOPE, cap_override=None)
+
+    def _acquire_lease_scoped(self, units: int, *, scope: str, cap_override: int | None) -> Tuple[bool, int]:
+        effective_cap = cap_override if cap_override is not None else self.cap_per_window
+
         if units <= 0:
             raise ValueError("units must be positive")
 
-        if units > self.cap_per_minute:
-            raise ValueError("units must be smaller than or equal to the cap_per_minute")
+        if units > effective_cap:
+            raise ValueError("units must be smaller than or equal to the cap_per_window")
 
         with self._lock:
             now = time()
             window_start = now - self.WINDOW_SIZE_SECONDS
 
-            # Remove entries older than the 60-second window and update running total
-            while self.window and self.window[0][0] < window_start:
-                _, old_units = self.window.popleft()
-                self.current_usage -= old_units
+            window = self._windows.setdefault(scope, deque())
+            usage = self._usage.get(scope, 0)
 
-            # Check if adding new units exceeds the cap
-            if self.current_usage + units <= self.cap_per_minute:
-                # Enough capacity available: record the entry and update running total
-                self.window.append((now, units))
-                self.current_usage += units
+            # Remove entries older than the window and update the running total.
+            while window and window[0][0] < window_start:
+                _, old_units = window.popleft()
+                usage -= old_units
+
+            if usage + units <= effective_cap:
+                window.append((now, units))
+                usage += units
+                self._usage[scope] = usage
                 current_app.logger.info(
-                    f"Rate limiter [{self.namespace}]: acquired {units} units. "
-                    f"Window usage: {self.current_usage}/{self.cap_per_minute}"
+                    f"Rate limiter [{self.namespace}:{scope}]: acquired {units} units. " f"Window usage: {usage}/{effective_cap}"
                 )
                 return True, 0
 
-            # Not enough capacity: calculate when enough units will be available for the new request
-            units_needed = self.current_usage + units - self.cap_per_minute
+            # Not enough capacity: calculate when enough units will free up.
+            units_needed = usage + units - effective_cap
             units_freed = 0
             last_timestamp_to_wait_for = None
 
             # Iterate through window entries (oldest first) to find when we'll have enough space
-            for timestamp, entry_units in self.window:
+            for timestamp, entry_units in window:
                 units_freed += entry_units
                 last_timestamp_to_wait_for = timestamp
                 if units_freed >= units_needed:
@@ -196,32 +261,58 @@ class InMemoryRateLimiter(RateLimiter):
                 # Fallback (shouldn't reach here)
                 seconds_to_wait = 1
 
+            self._usage[scope] = usage
+            self._maybe_gc_scope(scope, window)
             current_app.logger.warning(
-                f"Rate limiter [{self.namespace}]: capacity exhausted. Requested {units} units "
-                f"but only {self.cap_per_minute - self.current_usage} available in current window. "
+                f"Rate limiter [{self.namespace}:{scope}]: capacity exhausted. Requested {units} units "
+                f"but only {effective_cap - usage} available in current window. "
                 f"Will retry in {seconds_to_wait} seconds."
             )
             return False, seconds_to_wait
 
+    def _maybe_gc_scope(self, scope: str, window: deque) -> None:
+        # Drop empty non-default scopes to keep the per-scope dicts bounded.
+        if scope == _DEFAULT_SCOPE:
+            return
+        if not window and self._usage.get(scope, 0) == 0:
+            self._windows.pop(scope, None)
+            self._usage.pop(scope, None)
+
     def reset_limiter(self):
-        """Reset the rate limiter (clears all entries and running total)."""
+        """Reset the rate limiter — clears all scopes."""
         with self._lock:
-            self.window.clear()
-            self.current_usage = 0
-        current_app.logger.info(f"Rate limiter [{self.namespace}]: reset (window cleared)")
+            self._windows.clear()
+            self._usage.clear()
+        current_app.logger.info(f"Rate limiter [{self.namespace}]: reset (all scopes cleared)")
+
+    def _reset_scoped(self, *, scope: str) -> None:
+        with self._lock:
+            self._windows.pop(scope, None)
+            self._usage.pop(scope, None)
+        current_app.logger.info(f"Rate limiter [{self.namespace}:{scope}]: reset")
 
     def get_current_usage(self) -> int:
-        """Get the current unit count in the active 60-second window."""
+        """Get the current unit count in the active window on the default scope."""
+        return self._get_current_usage_scoped(scope=_DEFAULT_SCOPE)
+
+    def _get_current_usage_scoped(self, *, scope: str) -> int:
         with self._lock:
             now = time()
             window_start = now - self.WINDOW_SIZE_SECONDS
 
-            # Remove expired entries and update running total
-            while self.window and self.window[0][0] < window_start:
-                _, old_units = self.window.popleft()
-                self.current_usage -= old_units
+            window = self._windows.get(scope)
+            if window is None:
+                return 0
+            usage = self._usage.get(scope, 0)
 
-            return self.current_usage
+            # Remove expired entries and update running total
+            while window and window[0][0] < window_start:
+                _, old_units = window.popleft()
+                usage -= old_units
+
+            self._usage[scope] = usage
+            self._maybe_gc_scope(scope, window)
+            return usage
 
 
 # ============================================================================
@@ -248,7 +339,7 @@ def _build_limiter_registry() -> dict[str, type[RateLimiter]]:
 
 
 def initialize_rate_limiter(
-    cap_per_minute: int, limiter_class: type[RateLimiter] | None = None, *, namespace: str
+    cap_per_window: int, limiter_class: type[RateLimiter] | None = None, *, namespace: str
 ) -> RateLimiter:
     """
     Initialize a rate limiter for the given namespace and store it in the registry.
@@ -264,7 +355,7 @@ def initialize_rate_limiter(
     3. Default: InMemoryRateLimiter.
 
     Args:
-        cap_per_minute (int): Maximum units per minute.
+        cap_per_window (int): Maximum units per time window.
         limiter_class (type[RateLimiter] | None): Implementation class to use.
             If None, the class is resolved from config/default.
         namespace (str): Logical name for this limiter instance (e.g. "sms").
@@ -301,7 +392,7 @@ def initialize_rate_limiter(
             resolved_class = registry[class_name]
 
     logger.info("Rate limiter [%s]: initializing with %s", namespace, resolved_class.__name__)
-    instance = resolved_class(cap_per_minute, namespace)
+    instance = resolved_class(cap_per_window, namespace)
     _rate_limiter_instances[namespace] = instance
 
     return instance
@@ -334,35 +425,43 @@ def get_rate_limiter(namespace: str) -> RateLimiter:
 
 class RedisSlidingWindowLogRateLimiter(RateLimiter):
     """
-    Redis-backed rate limiter using a 60-second sliding window.
+    Redis-backed rate limiter using a sliding window log.
 
     Key structure:
-    - `app.rate_limit:{namespace}:entries` (sorted set)
+    - ``app.rate_limit:{namespace}:{scope}:entries`` (sorted set)
       - Score: timestamp of when entry was added
-      - Member: "entry_id:units" (unit count is encoded in the member)
+      - Member: ``"entry_id:units"`` (unit count is encoded in the member)
 
-    This approach avoids separate key tracking and usage cache inconsistency.
-    Unit counts are extracted by splitting on ":" when needed.
+    The default scope is ``"default"``; scoped views obtained via
+    :meth:`for_scope` write to their own scope key. Unit counts are extracted
+    by splitting on ``":"`` when needed.
     """
 
     WINDOW_SIZE_SECONDS = 60
 
-    def __init__(self, cap_per_minute: int, namespace: str, redis_client=None, window_size: int = 60):
+    def __init__(self, cap_per_window: int, namespace: str, redis_client=None, window_size: int = 60):
         """
         Initialize the Redis-backed rate limiter.
 
         Args:
-            cap_per_minute (int): Maximum units allowed per minute.
+            cap_per_window (int): Maximum units allowed per time window.
             namespace (str): Logical name for this limiter instance (e.g. "sms").
-                Used to construct the Redis key: app.rate_limit:{namespace}:entries.
+                Used to construct the Redis key: app.rate_limit:{namespace}:{scope}:entries.
             redis_client: Redis client instance. If None, uses app's flask_cache_ops.
             window_size (int): Sliding window duration in seconds. Defaults to 60.
         """
-        super().__init__(cap_per_minute, namespace)
-        self._entries_key = f"app.rate_limit:{namespace}:entries"
+        super().__init__(cap_per_window, namespace)
         self.redis_client = redis_client
         self._lua_scripts: dict[str, object] = {}
         self.WINDOW_SIZE_SECONDS = window_size
+
+    def _entries_key_for(self, scope: str = _DEFAULT_SCOPE) -> str:
+        return f"app.rate_limit:{self.namespace}:{scope}:entries"
+
+    @property
+    def _entries_key(self) -> str:
+        # Backward-compat alias for the default-scope key.
+        return self._entries_key_for(_DEFAULT_SCOPE)
 
     @property
     def redis(self):
@@ -378,7 +477,7 @@ class RedisSlidingWindowLogRateLimiter(RateLimiter):
             lua_code = """
             local entries_key = KEYS[1]
 
-            local cap_per_minute = tonumber(ARGV[1])
+            local cap_per_window = tonumber(ARGV[1])
             local units = tonumber(ARGV[2])
             local now = tonumber(ARGV[3])
             local entry_id = ARGV[4]
@@ -404,7 +503,7 @@ class RedisSlidingWindowLogRateLimiter(RateLimiter):
             end
 
             -- 3. Check capacity
-            if current_usage + units <= cap_per_minute then
+            if current_usage + units <= cap_per_window then
                 local member = entry_id .. ":" .. units
 
                 redis.call('ZADD', entries_key, now, member)
@@ -414,7 +513,7 @@ class RedisSlidingWindowLogRateLimiter(RateLimiter):
             else
                 -- 4. Calculate wait time by iterating the already-fetched entries_with_scores.
                 --    No second ZRANGE needed.
-                local units_needed = current_usage + units - cap_per_minute
+                local units_needed = current_usage + units - cap_per_window
                 local units_freed = 0
                 local last_timestamp_to_wait = nil
 
@@ -445,34 +544,28 @@ class RedisSlidingWindowLogRateLimiter(RateLimiter):
 
         return self._lua_scripts["acquire"]
 
-    def acquire_lease(self, units: int) -> Tuple[bool, int]:
-        """
-        Attempt to acquire capacity for the given number of units.
+    def acquire_lease(self, units: int = 1) -> Tuple[bool, int]:
+        """Acquire capacity on the default scope. See :meth:`_acquire_lease_scoped`."""
+        return self._acquire_lease_scoped(units, scope=_DEFAULT_SCOPE, cap_override=None)
 
-        Args:
-            units (int): Number of units to acquire.
+    def _acquire_lease_scoped(self, units: int, *, scope: str, cap_override: int | None) -> Tuple[bool, int]:
+        effective_cap = cap_override if cap_override is not None else self.cap_per_window
 
-        Returns:
-            Tuple[bool, int]:
-                - (True, 0) if units can be acquired immediately.
-                - (False, seconds_remaining) if rate limit exhausted;
-                  seconds_remaining is the time until enough entries expire to
-                  accommodate the requested units.
-        """
         if units <= 0:
             raise ValueError("units must be positive")
 
-        if units > self.cap_per_minute:
-            raise ValueError("units must be smaller than or equal to the cap_per_minute")
+        if units > effective_cap:
+            raise ValueError("units must be smaller than or equal to the cap_per_window")
 
         now = time()
         entry_id = str(uuid.uuid4())
+        entries_key = self._entries_key_for(scope)
 
         script = self._get_acquire_lua_script()
         result = script(
-            keys=[self._entries_key],
+            keys=[entries_key],
             args=[
-                self.cap_per_minute,
+                effective_cap,
                 units,
                 now,
                 entry_id,
@@ -483,26 +576,30 @@ class RedisSlidingWindowLogRateLimiter(RateLimiter):
         success, wait_seconds = result[0], result[1]
 
         if success:
-            _logger.debug(f"Rate limiter [{self.namespace}]: acquired {units} units. Entry ID: {entry_id}")
+            _logger.debug(f"Rate limiter [{self.namespace}:{scope}]: acquired {units} units. Entry ID: {entry_id}")
         else:
             current_app.logger.warning(
-                f"Rate limiter [{self.namespace}]: capacity exhausted. Requested {units} units. "
+                f"Rate limiter [{self.namespace}:{scope}]: capacity exhausted. Requested {units} units. "
                 f"Will retry in {wait_seconds} seconds."
             )
 
         return bool(success), wait_seconds
 
     def get_current_usage(self) -> int:
-        """Get the current unit count in the active 60-second window from Redis."""
+        """Get the current unit count in the active window from Redis (default scope)."""
+        return self._get_current_usage_scoped(scope=_DEFAULT_SCOPE)
+
+    def _get_current_usage_scoped(self, *, scope: str) -> int:
         now = time()
         window_start = now - self.WINDOW_SIZE_SECONDS
+        entries_key = self._entries_key_for(scope)
 
         # Read only the entries still inside the window without mutating the set.
         # The Lua acquire script removes entries with score < window_start (exclusive
         # upper bound), so an entry scored exactly at window_start is still live.
         # Use an inclusive lower bound here to match that semantics.
         current_usage = 0
-        entries = self.redis.zrangebyscore(self._entries_key, window_start, "+inf")
+        entries = self.redis.zrangebyscore(entries_key, window_start, "+inf")
         for member in entries:
             # Extract unit count from member string format "entry_id:units"
             if isinstance(member, bytes):
@@ -512,15 +609,27 @@ class RedisSlidingWindowLogRateLimiter(RateLimiter):
                 current_usage += int(units_str)
             except ValueError:
                 current_app.logger.warning(
-                    f"Rate limiter [{self.namespace}]: skipping malformed usage entry member={member!r}, units={units_str!r}"
+                    f"Rate limiter [{self.namespace}:{scope}]: skipping malformed usage entry "
+                    f"member={member!r}, units={units_str!r}"
                 )
 
         return current_usage
 
     def reset_limiter(self):
-        self.redis.delete(self._entries_key)
+        """Clear all scopes for this namespace."""
+        pattern = f"app.rate_limit:{self.namespace}:*:entries"
 
-        current_app.logger.info(f"Rate limiter [{self.namespace}]: entries cleared")
+        # Open a pipeline to delete all matching keys in a single round-trip.
+        pipe = self.redis.pipeline()
+        for key in self.redis.scan_iter(match=pattern):
+            pipe.delete(key)
+        pipe.execute()
+
+        current_app.logger.info(f"Rate limiter [{self.namespace}]: entries cleared (all scopes)")
+
+    def _reset_scoped(self, *, scope: str) -> None:
+        self.redis.delete(self._entries_key_for(scope))
+        current_app.logger.info(f"Rate limiter [{self.namespace}:{scope}]: entries cleared")
 
 
 class RedisTokenBucketRateLimiter(RateLimiter):
@@ -528,45 +637,60 @@ class RedisTokenBucketRateLimiter(RateLimiter):
     Redis-backed rate limiter using a token bucket algorithm.
 
     Key structure:
-    - `app.rate_limit:{namespace}:token_bucket` (hash)
-      - Field `tokens`: current available capacity (float, stored as string)
-      - Field `last_refill`: timestamp of last refill (float, stored as string)
+    - ``app.rate_limit:{namespace}:{scope}:token_bucket`` (hash)
+      - Field ``tokens``: current available capacity (float, stored as string)
+      - Field ``last_refill``: timestamp of last refill (float, stored as string)
 
     Algorithm:
-    - Tokens refill continuously at rate cap_per_minute / 60 per second.
+    - Tokens refill continuously at rate cap_per_window / 60 per second.
     - On each request, elapsed time since last refill is computed, tokens are
-      topped up (capped at max(1, cap_per_minute / 60)), and the requested units are
+      topped up (capped at max(1, cap_per_window / 60)), and the requested units are
       subtracted atomically in Lua.
     - If tokens are insufficient, the exact wait time is returned:
-      deficit / (max(1, cap_per_minute / 60)) seconds.
+      deficit / (max(1, cap_per_window / 60)) seconds.
     - No burst after idle: the bucket ceiling is one second of capacity
-      (max(1, cap_per_minute / 60)), so long idle periods never accumulate more than
-      ~1 second worth of tokens. Maximum per-minute throughput cannot exceed
-      cap_per_minute regardless of how long the system was idle.
-    - Maximum units per acquire_lease call: max(1, cap_per_minute / 60) (one second).
+      (max(1, cap_per_window / 60)), so long idle periods never accumulate more than
+      ~1 second worth of tokens. Maximum per-window throughput cannot exceed
+      cap_per_window regardless of how long the system was idle.
+    - Maximum units per acquire_lease call: max(1, cap_per_window / 60) (one second).
+
+    Scoping:
+    Per-scope buckets are keyed by ``scope`` in the Redis key. Scoped views
+    obtained via :meth:`for_scope` may also override the cap.
 
     Complexity: O(1) for all operations.
     """
 
-    def __init__(self, cap_per_minute: int, namespace: str, redis_client=None):
+    def __init__(self, cap_per_window: int, namespace: str, redis_client=None):
         """
         Initialize the Redis token bucket rate limiter.
 
         Args:
-            cap_per_minute (int): Maximum units allowed per minute.
+            cap_per_window (int): Maximum units allowed per time window.
             namespace (str): Logical name for this limiter instance (e.g. "sms").
-                Used to construct the Redis key: app.rate_limit:{namespace}:token_bucket.
+                Used to construct the Redis key: app.rate_limit:{namespace}:{scope}:token_bucket.
             redis_client: Redis client instance. If None, uses app's flask_cache_ops.
         """
-        super().__init__(cap_per_minute, namespace)
-        self._key = f"app.rate_limit:{namespace}:token_bucket"
+        super().__init__(cap_per_window, namespace)
         self.redis_client = redis_client
         self._lua_scripts: dict[str, object] = {}
+
+    def _bucket_key_for(self, scope: str = _DEFAULT_SCOPE) -> str:
+        return f"app.rate_limit:{self.namespace}:{scope}:token_bucket"
+
+    @property
+    def _key(self) -> str:
+        # Backward-compat alias for the default-scope key.
+        return self._bucket_key_for(_DEFAULT_SCOPE)
 
     @property
     def max_units_per_acquire(self) -> int:
         """Per-call ceiling: one second of capacity, minimum 1."""
-        return max(1, self.cap_per_minute // 60)
+        return max(1, self.cap_per_window // 60)
+
+    def _max_units_for_cap(self, cap_override: int | None) -> int:
+        effective_cap = cap_override if cap_override is not None else self.cap_per_window
+        return max(1, effective_cap // 60)
 
     @property
     def redis(self):
@@ -627,43 +751,39 @@ class RedisTokenBucketRateLimiter(RateLimiter):
 
         return self._lua_scripts["acquire"]
 
-    def acquire_lease(self, units: int) -> Tuple[bool, int]:
-        """
-        Attempt to acquire capacity for the given number of units.
+    def acquire_lease(self, units: int = 1) -> Tuple[bool, int]:
+        """Acquire capacity on the default scope. See :meth:`_acquire_lease_scoped`."""
+        return self._acquire_lease_scoped(units, scope=_DEFAULT_SCOPE, cap_override=None)
 
-        Args:
-            units (int): Number of units to acquire.
+    def _acquire_lease_scoped(self, units: int, *, scope: str, cap_override: int | None) -> Tuple[bool, int]:
+        effective_cap = cap_override if cap_override is not None else self.cap_per_window
+        effective_max = self._max_units_for_cap(cap_override)
 
-        Returns:
-            Tuple[bool, int]:
-                - (True, 0) if units can be acquired immediately.
-                - (False, seconds_remaining) if rate limit exhausted;
-                  seconds_remaining is the exact time until enough tokens refill.
-        """
         if units <= 0:
             raise ValueError("units must be positive")
 
-        if units > self.max_units_per_acquire:
+        if units > effective_max:
             raise ValueError(
-                f"units ({units}) must be <= {self.max_units_per_acquire} "
-                f"(max(1, cap_per_minute={self.cap_per_minute} // 60)). "
+                f"units ({units}) must be <= {effective_max} "
+                f"(max(1, cap={effective_cap} // 60)). "
                 "The bucket ceiling is one second of capacity to prevent burst."
             )
 
         now = time()
+        key = self._bucket_key_for(scope)
         script = self._get_acquire_lua_script()
         result = script(
-            keys=[self._key],
-            args=[self.cap_per_minute, units, now],
+            keys=[key],
+            args=[effective_cap, units, now],
         )
 
         success, wait_seconds = result[0], result[1]
 
         if success:
-            _logger.debug(f"Rate limiter [{self.namespace}]: acquired {units} units.")
+            _logger.debug(f"Rate limiter [{self.namespace}:{scope}]: acquired {units} units.")
         else:
             current_app.logger.warning(
-                f"Rate limiter [{self.namespace}]: capacity exhausted. Requested {units} units. "
+                f"Rate limiter [{self.namespace}:{scope}]: capacity exhausted. Requested {units} units. "
                 f"Will retry in {wait_seconds} seconds."
             )
 
@@ -671,14 +791,18 @@ class RedisTokenBucketRateLimiter(RateLimiter):
 
     def get_current_usage(self) -> int:
         """
-        Get current consumed capacity equivalent.
+        Get current consumed capacity equivalent on the default scope.
 
         Returns cap minus available tokens after applying any pending refill.
         This is a non-atomic read — do not rely on it for admission decisions.
         """
+        return self._get_current_usage_scoped(scope=_DEFAULT_SCOPE)
+
+    def _get_current_usage_scoped(self, *, scope: str) -> int:
         now = time()
-        tokens_str = self.redis.hget(self._key, "tokens")
-        last_refill_str = self.redis.hget(self._key, "last_refill")
+        key = self._bucket_key_for(scope)
+        tokens_str = self.redis.hget(key, "tokens")
+        last_refill_str = self.redis.hget(key, "last_refill")
 
         if tokens_str is None or last_refill_str is None:
             return 0
@@ -687,15 +811,25 @@ class RedisTokenBucketRateLimiter(RateLimiter):
         last_refill = float(last_refill_str if isinstance(last_refill_str, str) else last_refill_str.decode("utf-8"))
 
         elapsed = now - last_refill
-        refill_rate = max(1.0, self.cap_per_minute / 60.0)
+        refill_rate = max(1.0, self.cap_per_window / 60.0)
         max_tokens = refill_rate  # ceiling matches Lua: one second of capacity
         tokens = min(max_tokens, tokens + elapsed * refill_rate)
 
         return max(0, round(max_tokens - tokens))
 
     def reset_limiter(self):
-        self.redis.delete(self._key)
-        current_app.logger.info(f"Rate limiter [{self.namespace}]: reset (token bucket)")
+        """Clear all scopes for this namespace."""
+        pattern = f"app.rate_limit:{self.namespace}:*:token_bucket"
+        # Open a pipeline to delete all matching keys in a single round-trip.
+        pipe = self.redis.pipeline()
+        for key in self.redis.scan_iter(match=pattern):
+            pipe.delete(key)
+        pipe.execute()
+        current_app.logger.info(f"Rate limiter [{self.namespace}]: reset (all scopes cleared)")
+
+    def _reset_scoped(self, *, scope: str) -> None:
+        self.redis.delete(self._bucket_key_for(scope))
+        current_app.logger.info(f"Rate limiter [{self.namespace}:{scope}]: reset (token bucket)")
 
 
 class BufferedRateLimiter(RateLimiter):
@@ -739,7 +873,7 @@ class BufferedRateLimiter(RateLimiter):
                 f"size ({size}) must be <= max_units_per_acquire ({rate_limiter.max_units_per_acquire}) "
                 f"for {type(rate_limiter).__name__}"
             )
-        super().__init__(rate_limiter.cap_per_minute, rate_limiter.namespace)
+        super().__init__(rate_limiter.cap_per_window, rate_limiter.namespace)
         self._rate_limiter = rate_limiter
         self._size = size
         self._local = threading.local()
@@ -760,7 +894,7 @@ class BufferedRateLimiter(RateLimiter):
     def _acquired_at(self, value: float) -> None:
         self._local.acquired_at = value
 
-    def acquire_lease(self, units: int) -> Tuple[bool, int]:
+    def acquire_lease(self, units: int = 1) -> Tuple[bool, int]:
         """
         Attempt to acquire a lease for the given number of units.
 
@@ -769,7 +903,7 @@ class BufferedRateLimiter(RateLimiter):
         tokens per Redis call.
 
         Args:
-            units (int): Number of units to acquire.
+            units (int): Number of units to acquire. Defaults to 1.
 
         Returns:
             Tuple[bool, int]:
@@ -816,3 +950,42 @@ class BufferedRateLimiter(RateLimiter):
     def get_current_usage(self) -> int:
         """Delegates to the wrapped rate limiter (reflects global consumed capacity)."""
         return self._rate_limiter.get_current_usage()
+
+
+class ScopedRateLimiter(RateLimiter):
+    """
+    A lightweight scoped view of an underlying :class:`RateLimiter`.
+
+    Obtained via :meth:`RateLimiter.for_scope`. Every operation delegates to the
+    parent limiter through its ``_*_scoped`` hooks, narrowing state access to
+    ``scope`` and optionally overriding the cap. The view holds no state of its
+    own — each ``for_scope()`` call returns a new instance.
+
+    Composition rules (enforced by the base class):
+    - Cannot be buffered (``ScopedRateLimiter.buffered()`` raises ``TypeError``).
+    - Cannot be scoped again (nested scoping is not supported).
+    """
+
+    def __init__(self, parent: RateLimiter, *, scope: str, cap_override: int | None = None) -> None:
+        if not scope:
+            raise ValueError("scope must be a non-empty string")
+        if cap_override is not None and cap_override <= 0:
+            raise ValueError("cap must be positive")
+        effective_cap = cap_override if cap_override is not None else parent.cap_per_window
+        super().__init__(effective_cap, f"{parent.namespace}:{scope}")
+        self._parent = parent
+        self._scope = scope
+        self._cap_override = cap_override
+
+    @property
+    def max_units_per_acquire(self) -> int:
+        return self._parent._max_units_for_cap(self._cap_override)
+
+    def acquire_lease(self, units: int = 1) -> Tuple[bool, int]:
+        return self._parent._acquire_lease_scoped(units, scope=self._scope, cap_override=self._cap_override)
+
+    def get_current_usage(self) -> int:
+        return self._parent._get_current_usage_scoped(scope=self._scope)
+
+    def reset_limiter(self) -> None:
+        self._parent._reset_scoped(scope=self._scope)
