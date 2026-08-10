@@ -73,17 +73,17 @@ def test_scaling_comparison(client):
         for n in N_VALUES:
             # ---- ZSet ----
             zset_redis = fakeredis.FakeRedis()
-            zset = RedisSlidingWindowLogRateLimiter(cap_per_minute=CAP, namespace="test", redis_client=zset_redis)
+            zset = RedisSlidingWindowLogRateLimiter(cap_per_window=CAP, namespace="test", redis_client=zset_redis)
             _prefill_zset(zset, n)
             zset_us = _time_acquire(zset, REPS)
 
             # ---- Token bucket (Redis hash) ----
             tb_redis = fakeredis.FakeRedis()
-            tb = RedisTokenBucketRateLimiter(cap_per_minute=CAP, namespace="test", redis_client=tb_redis)
+            tb = RedisTokenBucketRateLimiter(cap_per_window=CAP, namespace="test", redis_client=tb_redis)
             tb_us = _time_acquire(tb, REPS)
 
             # ---- In-memory (deque, process-local baseline) ----
-            mem = InMemoryRateLimiter(cap_per_minute=CAP, namespace="test")
+            mem = InMemoryRateLimiter(cap_per_window=CAP, namespace="test")
             _prefill_in_memory(mem, n)
             mem_us = _time_acquire(mem, REPS)
 
