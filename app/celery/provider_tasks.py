@@ -44,7 +44,7 @@ from celery.exceptions import Ignore
     rate_limit="30/m",
 )
 @statsd(namespace="tasks")
-def deliver_throttled_sms(self, notification_id):
+def deliver_throttled_sms(self, notification_id: str):
     _deliver_sms(self, notification_id)
 
 
@@ -62,7 +62,7 @@ def deliver_throttled_sms(self, notification_id):
     rate_limit=Config.CELERY_DELIVER_SMS_RATE_LIMIT,
 )
 @statsd(namespace="tasks")
-def deliver_sms(self, notification_id):
+def deliver_sms(self, notification_id: str):
     _deliver_sms(self, notification_id)
 
 
@@ -182,7 +182,7 @@ def _safe_get_process_type(notification: Optional[Notification]) -> Optional[str
 
 
 def _handle_error_with_email_retry(
-    task: Task, e: Exception, notification_id: int, notification: Optional[Notification], countdown: Optional[int] = None
+    task: Task, e: Exception, notification_id: str, notification: Optional[Notification], countdown: Optional[int] = None
 ):
     try:
         if task.request.retries <= 10:
