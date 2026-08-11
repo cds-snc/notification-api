@@ -858,6 +858,7 @@ class ReportSchema(BaseSchema):
 
     id = fields.UUID()
     requesting_user_id = fields.UUID()
+    api_key_id = fields.UUID(required=False, allow_none=True)
     report_type = fields.String()
     service_id = fields.UUID()
     status = fields.String()
@@ -871,6 +872,15 @@ class ReportSchema(BaseSchema):
 
     requesting_user = fields.Nested(
         UserSchema,
+        only=[
+            "id",
+            "name",
+        ],
+        dump_only=True,
+    )
+
+    api_key = fields.Nested(
+        ApiKeySchema,
         only=[
             "id",
             "name",
