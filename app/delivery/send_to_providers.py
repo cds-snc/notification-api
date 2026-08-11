@@ -173,7 +173,7 @@ def _get_template_attachments(notification: Notification) -> tuple[List[Dict[str
         current_app.logger.info(
             f"Skipping template file attachments for notification {notification.id}; service {notification.service_id} does not have upload_document permission"
         )
-        return []
+        return [], []
 
     template_attachments = []
     successful_metadata = []
