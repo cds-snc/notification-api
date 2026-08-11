@@ -1,5 +1,6 @@
 from typing import Optional
 
+from celery.exceptions import Ignore
 from flask import current_app
 from notifications_utils.recipients import InvalidEmailError
 from notifications_utils.statsd_decorators import statsd
@@ -27,7 +28,6 @@ from app.models import (
 from app.notifications.callbacks import _check_and_queue_callback_task
 from app.rate_limiter import get_rate_limiter
 from celery import Task
-from celery.exceptions import Ignore
 
 
 # Celery rate limits are per worker instance and not a global rate limit.
@@ -159,7 +159,7 @@ def _deliver_sms(self, notification_id):
     except Exception:
         try:
             current_app.logger.exception("SMS notification delivery for id: {} failed".format(notification_id))
-            process_type = _get_notification_process_type(notification)
+            process_type = _safe_get_process_type(notification)
             self.retry(**CeleryParams.retry(process_type))
         except self.MaxRetriesExceededError:
             message = (
@@ -171,7 +171,7 @@ def _deliver_sms(self, notification_id):
             raise NotificationTechnicalFailureException(message)
 
 
-def _get_notification_process_type(notification: Optional[Notification]) -> Optional[str]:
+def _safe_get_process_type(notification: Optional[Notification]) -> Optional[str]:
     """Safely extract process_type, defaulting to None (treated as high priority for retry)."""
     try:
         if notification is None or notification.template is None:
@@ -190,10 +190,8 @@ def _handle_error_with_email_retry(
         else:
             current_app.logger.exception("RETRY: Email notification {} failed".format(notification_id), exc_info=e)
         # There is an edge case when a notification is not found in the database.
-        if notification is None or notification.template is None:
-            task.retry(**CeleryParams.retry(countdown=countdown))
-        else:
-            task.retry(**CeleryParams.retry(notification.template.process_type, countdown))
+        process_type = _safe_get_process_type(notification)
+        task.retry(**CeleryParams.retry(process_type, countdown))
     except task.MaxRetriesExceededError:
         message = (
             "RETRY FAILED: Max retries reached. "
