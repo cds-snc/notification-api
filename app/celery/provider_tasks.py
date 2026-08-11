@@ -1,5 +1,6 @@
 from typing import Optional
 
+from celery.exceptions import Ignore
 from flask import current_app
 from notifications_utils.recipients import InvalidEmailError
 from notifications_utils.statsd_decorators import statsd
@@ -27,7 +28,6 @@ from app.models import (
 from app.notifications.callbacks import _check_and_queue_callback_task
 from app.rate_limiter import get_rate_limiter
 from celery import Task
-from celery.exceptions import Ignore
 
 
 # Celery rate limits are per worker instance and not a global rate limit.
@@ -103,7 +103,8 @@ SCAN_MAX_BACKOFF_RETRIES = 5
 def deliver_email(self, notification_id):
     notification = None
     try:
-        current_app.logger.debug("Start sending email for notification id: {}".format(notification_id))
+        template_process_type = notification.template.process_type if notification.template else None
+        current_app.logger.debug("Start sending email for notification id: {} with template process type: {}".format(notification_id, template_process_type))
         notification = notifications_dao.get_notification_by_id(notification_id)
         if not notification:
             raise NoResultFound()
@@ -131,13 +132,19 @@ def deliver_email(self, notification_id):
         )
         _handle_error_with_email_retry(self, me, notification_id, notification, countdown)
     except Exception as e:
+        template_is_none = notification is not None and notification.template is None
+        current_app.logger.warning(
+            f"Email delivery failed: notification_id={notification_id} exception_type={type(e).__name__} "
+            f"notification_is_none={notification is None} template_is_none={template_is_none}"
+        )
         _handle_error_with_email_retry(self, e, notification_id, notification)
 
 
 def _deliver_sms(self, notification_id):
     notification = None
     try:
-        current_app.logger.info("Start sending SMS for notification id: {}".format(notification_id))
+        template_process_type = notification.template.process_type if notification.template else None
+        current_app.logger.info("Start sending SMS for notification id: {} and template_process_type: {}".format(notification_id, template_process_type))
         notification = notifications_dao.get_notification_by_id(notification_id)
         if not notification:
             raise NoResultFound()
@@ -159,8 +166,19 @@ def _deliver_sms(self, notification_id):
     except Exception:
         try:
             current_app.logger.exception("SMS notification delivery for id: {} failed".format(notification_id))
+            template_is_none = notification is not None and notification.template is None
+            current_app.logger.warning(
+                f"SMS delivery failed: notification_id={notification_id} exception_type={type(Exception).__name__} "
+                f"notification_is_none={notification is None} template_is_none={template_is_none}"
+            )
             process_type = _safe_get_process_type(notification)
-            self.retry(**CeleryParams.retry(process_type))
+            retry_params = CeleryParams.retry(process_type)
+            current_app.logger.warning(
+                f"SMS retry scheduled: notification_id={notification_id} process_type={process_type} "
+                f"countdown={retry_params.get('countdown', 'not_set')} queue={retry_params.get('queue', 'not_set')} "
+                f"retry_count={self.request.retries}"
+            )
+            self.retry(**retry_params)
         except self.MaxRetriesExceededError:
             message = (
                 "RETRY FAILED: Max retries reached. The task send_sms_to_provider failed for notification {}. "
@@ -174,10 +192,19 @@ def _deliver_sms(self, notification_id):
 def _safe_get_process_type(notification: Optional[Notification]) -> Optional[str]:
     """Safely extract process_type, defaulting to None (treated as high priority for retry)."""
     try:
-        if notification is None or notification.template is None:
+        if notification is None:
+            current_app.logger.warning("_safe_get_process_type: notification is None, defaulting to high-priority retry")
             return None
-        return notification.template.process_type
-    except Exception:
+        if notification.template is None:
+            current_app.logger.warning("_safe_get_process_type: notification.template is None, defaulting to high-priority retry")
+            return None
+        process_type = notification.template.process_type
+        current_app.logger.debug(f"_safe_get_process_type: extracted process_type={process_type}")
+        return process_type
+    except Exception as e:
+        current_app.logger.warning(
+            f"_safe_get_process_type: exception accessing template.process_type ({type(e).__name__}: {e}), defaulting to high-priority retry"
+        )
         return None
 
 
@@ -191,7 +218,13 @@ def _handle_error_with_email_retry(
             current_app.logger.exception("RETRY: Email notification {} failed".format(notification_id), exc_info=e)
         # There is an edge case when a notification is not found in the database.
         process_type = _safe_get_process_type(notification)
-        task.retry(**CeleryParams.retry(process_type, countdown))
+        retry_params = CeleryParams.retry(process_type, countdown)
+        current_app.logger.warning(
+            f"Email retry scheduled: notification_id={notification_id} process_type={process_type} "
+            f"countdown={retry_params.get('countdown', 'not_set')} queue={retry_params.get('queue', 'not_set')} "
+            f"retry_count={task.request.retries}/{task.max_retries}"
+        )
+        task.retry(**retry_params)
     except task.MaxRetriesExceededError:
         message = (
             "RETRY FAILED: Max retries reached. "
