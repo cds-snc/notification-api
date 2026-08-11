@@ -47,7 +47,7 @@ class CannotRemoveUserError(InvalidRequest):
     def __init__(self, fields=None, message=None, status_code=400):
         # Call parent class __init__ with message and status_code
         super().__init__(message=message if message else self.message, status_code=status_code)
-        self.fields = [fields] if isinstance(fields, str) else list(fields) if fields is not None else []
+        self.fields = list(fields) if fields is not None else []
 
 
 class UserAlreadyInServiceError(InvalidRequest):
@@ -56,7 +56,7 @@ class UserAlreadyInServiceError(InvalidRequest):
     def __init__(self, fields=None, message=None, status_code=409):
         # Call parent class __init__ with message and status_code
         super().__init__(message=message if message else self.message, status_code=status_code)
-        self.fields = [fields] if isinstance(fields, str) else list(fields) if fields is not None else []
+        self.fields = list(fields) if fields is not None else []
 
 
 class DuplicateEntityError(InvalidRequest):
@@ -72,7 +72,7 @@ class DuplicateEntityError(InvalidRequest):
 
     def __init__(self, fields=None, entity=None, status_code=400):
         self.entity = entity if entity else self.entity
-        self.fields = [fields] if isinstance(fields, str) else list(fields) if fields is not None else []
+        self.fields = list(fields) if fields is not None else []
         message = "{} already exists, {}"
 
         num_fields = len(self.fields)
