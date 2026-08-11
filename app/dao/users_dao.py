@@ -41,7 +41,7 @@ def save_model_user(usr: User, update_dict=None, pwd=None):
         usr.password = pwd
         usr.password_changed_at = datetime.utcnow()
 
-    if update_dict:
+    if update_dict is not None:
         updates = dict(update_dict)
         _remove_values_for_keys_if_present(updates, ["id", "password_changed_at"])
         db.session.query(User).filter_by(id=usr.id).update(updates)

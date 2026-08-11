@@ -1,3 +1,4 @@
+import inspect
 from concurrent.futures import ThreadPoolExecutor
 from uuid import UUID
 
@@ -21,7 +22,7 @@ class TestSaveUserAttributeDefaultUpdateDictNotSharedBetweenCalls:
         users = [create_user(email=f"user{i}@example.com") for i in range(20)]
 
         # Capture the update_dict parameter
-        shared_default = save_user_attribute.__defaults__[0]
+        shared_default = inspect.signature(save_user_attribute).parameters["update_dict"].default
 
         def worker(i):
             with client.application.app_context():
@@ -50,7 +51,7 @@ class TestSaveUserAttributeDefaultUpdateDictNotSharedBetweenCalls:
         users = [create_user(email=f"user{i}@example.com") for i in range(20)]
 
         # Capture the update_dict parameter
-        shared_default = save_user_attribute.__defaults__[0]
+        shared_default = inspect.signature(save_user_attribute).parameters["update_dict"].default
 
         def worker(i):
             with client.application.app_context():
@@ -73,11 +74,11 @@ class TestSaveUserAttributeDefaultUpdateDictNotSharedBetweenCalls:
 
         notify_db_session.session.expire_all()
 
-        # Ensure each user recived only it's own update
+        # Ensure each user received only its own update
         for i, user in enumerate(users):
             updated = notify_db_session.session.query(User).populate_existing().filter_by(id=user.id).one()
             # Breakpoint on the `if` below, inspect the list of users, every third user in the list
-            # will have a "LEAKED{i}" value that does not correspond to it's index in the
+            # will have a "LEAKED{i}" value that does not correspond to its index in the
             # list because each thread mutates the value of update_dict, simulating what could happen
             # in a multi-threaded environment.
             if i % 2 == 0:
