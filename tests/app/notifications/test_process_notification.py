@@ -643,7 +643,23 @@ class TestSendNotificationQueue:
         assert Notification.query.count() == 0
         assert NotificationHistory.query.count() == 0
 
-    def test_send_notification_to_queue_with_ff_sms_ratelimit_routes_to_fair_queue(self, notify_api, mocker):
+    @pytest.mark.parametrize(
+        ("incoming_queue, expected_queue"),
+        [
+            # No queue supplied → default fallback to SEND_SMS_MEDIUM
+            (None, QueueNames.SEND_SMS_MEDIUM),
+            # SEND_SMS_LOW covers the BULK process type (no dedicated SEND_SMS_BULK queue exists —
+            # Priorities.to_lmh(BULK) maps to LOW)
+            (QueueNames.SEND_SMS_LOW, QueueNames.SEND_SMS_LOW),
+            # Explicit MEDIUM (NORMAL process type) is preserved
+            (QueueNames.SEND_SMS_MEDIUM, QueueNames.SEND_SMS_MEDIUM),
+            # SEND_SMS_HIGH covers the PRIORITY process type
+            (QueueNames.SEND_SMS_HIGH, QueueNames.SEND_SMS_HIGH),
+        ],
+    )
+    def test_send_notification_to_queue_with_ff_sms_ratelimit_routes_to_sms_queue(
+        self, notify_api, mocker, incoming_queue, expected_queue
+    ):
         with set_config(notify_api, "FF_SMS_RATELIMIT", True):
             notification = Notification(
                 id=uuid.uuid4(),
@@ -653,43 +669,14 @@ class TestSendNotificationQueue:
             )
             mock_apply = mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
             mocker.patch("app.notifications.process_notifications.dao_get_template_by_id")
-            mocker.patch(
-                "app.notifications.process_notifications.get_delivery_queue_for_template",
-                return_value="send-sms-medium-tasks",
-            )
             mocker.patch("app.notifications.process_notifications.number_of_sms_fragments", return_value=2)
 
-            send_notification_to_queue(notification=notification, research_mode=False, queue=None)
+            send_notification_to_queue(notification=notification, research_mode=False, queue=incoming_queue)
 
             mock_apply.assert_called_once_with(
                 [str(notification.id), 2],
-                queue=QueueNames.SEND_SMS_FAIR,
-                MessageGroupId="send-sms-medium-tasks",
-            )
-
-    def test_send_notification_to_queue_with_ff_sms_ratelimit_uses_incoming_queue_as_message_group(self, notify_api, mocker):
-        # When a volume-adjusted queue arrives (e.g. send-sms-low), it becomes the MessageGroupId.
-        with set_config(notify_api, "FF_SMS_RATELIMIT", True):
-            notification = Notification(
-                id=uuid.uuid4(),
-                key_type="normal",
-                notification_type="sms",
-                created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
-            )
-            mock_apply = mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
-            mocker.patch("app.notifications.process_notifications.dao_get_template_by_id")
-            mocker.patch("app.notifications.process_notifications.number_of_sms_fragments", return_value=3)
-
-            send_notification_to_queue(
-                notification=notification,
-                research_mode=False,
-                queue=QueueNames.SEND_SMS_LOW,
-            )
-
-            mock_apply.assert_called_once_with(
-                [str(notification.id), 3],
-                queue=QueueNames.SEND_SMS_FAIR,
-                MessageGroupId=QueueNames.SEND_SMS_LOW,
+                queue=expected_queue,
+                MessageGroupId=ANY,
             )
 
     def test_send_notification_to_queue_with_ff_sms_ratelimit_bypasses_for_research_mode(self, notify_api, mocker):
@@ -781,7 +768,7 @@ class TestSendNotificationQueue:
             mock_fragments.assert_not_called()
             mock_apply.assert_called_once_with(
                 [str(notification.id), 4],
-                queue=QueueNames.SEND_SMS_FAIR,
+                queue=QueueNames.SEND_SMS_MEDIUM,
                 MessageGroupId=ANY,
             )
 
@@ -823,14 +810,20 @@ class TestSimulatedRecipient:
         assert is_simulated_address == expected
 
 
-# This test assumes the local timezone is EST
 class TestScheduledNotification:
     def test_persist_scheduled_notification(self, sample_notification):
+        # scheduled_for is treated as UTC, matching the bulk/job scheduling endpoint - no local timezone conversion
         persist_scheduled_notification(sample_notification.id, "2017-05-12 14:15")
         scheduled_notification = ScheduledNotification.query.all()
         assert len(scheduled_notification) == 1
         assert scheduled_notification[0].notification_id == sample_notification.id
-        assert scheduled_notification[0].scheduled_for == datetime.datetime(2017, 5, 12, 18, 15)
+        assert scheduled_notification[0].scheduled_for == datetime.datetime(2017, 5, 12, 14, 15)
+
+    def test_persist_scheduled_notification_accepts_full_iso8601(self, sample_notification):
+        persist_scheduled_notification(sample_notification.id, "2017-05-12T14:15:00")
+        scheduled_notification = ScheduledNotification.query.all()
+        assert len(scheduled_notification) == 1
+        assert scheduled_notification[0].scheduled_for == datetime.datetime(2017, 5, 12, 14, 15)
 
 
 class TestChooseQueue:
@@ -952,16 +945,22 @@ class TestChooseQueue:
     @pytest.mark.parametrize(
         ("research_mode, priority_queue, key_type, reply_to_text, expected_queue"),
         [
-            # FF on: normal SMS with no priority queue → routed to SEND_SMS_FAIR
-            (False, None, "normal", None, QueueNames.SEND_SMS_FAIR),
+            # FF on: normal SMS with no explicit priority queue → routes to SEND_SMS_MEDIUM
+            (False, None, "normal", None, QueueNames.SEND_SMS_MEDIUM),
             # FF on: research mode still returns RESEARCH_MODE
             (True, None, "normal", None, QueueNames.RESEARCH_MODE),
             # FF on: test key still returns RESEARCH_MODE
             (False, None, "test", None, QueueNames.RESEARCH_MODE),
-            # FF on: custom number (dedicated sender) takes priority over fair queue
+            # FF on: custom number (dedicated sender) routes to throttled queue
             (False, None, "normal", "+14383898585", QueueNames.SEND_THROTTLED_SMS),
-            # FF on: explicit priority_queue overrides fair queue routing
+            # FF on: explicit priority_queue is preserved (arbitrary non-SMS-tier queue name)
             (False, "notify-internal-tasks", "normal", None, "notify-internal-tasks"),
+            # FF on: SEND_SMS_LOW (bulk template) is preserved
+            (False, QueueNames.SEND_SMS_LOW, "normal", None, QueueNames.SEND_SMS_LOW),
+            # FF on: SEND_SMS_MEDIUM (normal template) is preserved
+            (False, QueueNames.SEND_SMS_MEDIUM, "normal", None, QueueNames.SEND_SMS_MEDIUM),
+            # FF on: SEND_SMS_HIGH (priority template) is preserved
+            (False, QueueNames.SEND_SMS_HIGH, "normal", None, QueueNames.SEND_SMS_HIGH),
         ],
     )
     def test_choose_queue_with_ff_sms_ratelimit(
@@ -1467,15 +1466,20 @@ class TestDBSaveAndSendNotification:
             str(sample_template.service_id) + "-2016-01-01-count",
         )
 
-    def test_db_save_and_send_with_ff_sms_ratelimit_routes_sms_to_fair_queue(
-        self, notify_api, sample_template, notify_db, notify_db_session, mocker
+    @pytest.mark.parametrize(
+        "queue_name",
+        [
+            # SEND_SMS_LOW covers the BULK process type (no dedicated SEND_SMS_BULK queue)
+            QueueNames.SEND_SMS_LOW,
+            QueueNames.SEND_SMS_MEDIUM,
+            QueueNames.SEND_SMS_HIGH,
+        ],
+    )
+    def test_db_save_and_send_with_ff_sms_ratelimit_routes_sms_to_priority_tier(
+        self, notify_api, sample_template, notify_db, notify_db_session, mocker, queue_name
     ):
         with set_config(notify_api, "FF_SMS_RATELIMIT", True):
             mock_apply = mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
-            mocker.patch(
-                "app.notifications.process_notifications.get_delivery_queue_for_template",
-                return_value="send-sms-medium-tasks",
-            )
             mocker.patch("app.notifications.process_notifications.number_of_sms_fragments", return_value=3)
 
             notification = Notification(
@@ -1486,14 +1490,14 @@ class TestDBSaveAndSendNotification:
                 key_type="normal",
                 notification_type="sms",
                 created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
-                queue_name=QueueNames.SEND_SMS_FAIR,
+                queue_name=queue_name,
             )
             db_save_and_send_notification(notification=notification)
 
             mock_apply.assert_called_once_with(
                 [str(notification.id), 3],
-                queue=QueueNames.SEND_SMS_FAIR,
-                MessageGroupId="send-sms-medium-tasks",
+                queue=queue_name,
+                MessageGroupId=ANY,
             )
 
     def test_db_save_and_send_with_ff_sms_ratelimit_uses_stored_billable_units(
@@ -1501,10 +1505,6 @@ class TestDBSaveAndSendNotification:
     ):
         with set_config_values(notify_api, {"FF_SMS_RATELIMIT": True, "FF_USE_BILLABLE_UNITS": True}):
             mock_apply = mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
-            mocker.patch(
-                "app.notifications.process_notifications.get_delivery_queue_for_template",
-                return_value="send-sms-medium-tasks",
-            )
             mock_fragments = mocker.patch("app.notifications.process_notifications.number_of_sms_fragments")
 
             notification = Notification(
@@ -1516,14 +1516,14 @@ class TestDBSaveAndSendNotification:
                 notification_type="sms",
                 billable_units=4,
                 created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
-                queue_name=QueueNames.SEND_SMS_FAIR,
+                queue_name=QueueNames.SEND_SMS_MEDIUM,
             )
             db_save_and_send_notification(notification=notification)
 
             mock_apply.assert_called_once_with(
                 [str(notification.id), 4],
-                queue=QueueNames.SEND_SMS_FAIR,
-                MessageGroupId="send-sms-medium-tasks",
+                queue=QueueNames.SEND_SMS_MEDIUM,
+                MessageGroupId=ANY,
             )
             mock_fragments.assert_not_called()
 

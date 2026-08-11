@@ -2379,6 +2379,7 @@ class TestGenerateReport:
 
         # Get the updated report from DB
         updated_report = Report.query.get(sample_report.id)
+        assert updated_report.api_key_id is None
         assert updated_report.status == ReportStatus.READY.value
         assert updated_report.url == expected_url
         assert updated_report.generated_at.date() == datetime(2022, 1, 1).date()

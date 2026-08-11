@@ -137,7 +137,7 @@ post_sms_request = {
         "personalisation": personalisation,
         "scheduled_for": {
             "type": ["string", "null"],
-            "format": "datetime_within_next_day",
+            "format": "datetime_schedule_job",
         },
         "sms_sender_id": uuid,
     },
@@ -183,7 +183,7 @@ post_email_request = {
         "personalisation": personalisation,
         "scheduled_for": {
             "type": ["string", "null"],
-            "format": "datetime_within_next_day",
+            "format": "datetime_schedule_job",
         },
         "email_reply_to_id": uuid,
     },

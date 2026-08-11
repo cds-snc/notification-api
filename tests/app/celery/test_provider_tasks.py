@@ -274,18 +274,17 @@ class TestDeliverSmsRateLimited:
         mocker.patch("app.celery.provider_tasks.get_rate_limiter", return_value=mock_limiter)
         mocker.patch("app.celery.provider_tasks._deliver_sms")
         mock_apply_async = mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
-        # In unit test context, the task object doesn't inherit NotifyTask so
-        # message_group_id property isn't available; patch it directly.
-        deliver_sms_rate_limited._get_current_object().message_group_id = None
+        # In unit test context, self.request.delivery_info isn't populated by a real
+        # broker; patch it so the task can read the current routing_key.
+        deliver_sms_rate_limited._get_current_object().request.delivery_info = {"routing_key": QueueNames.SEND_SMS_MEDIUM}
 
         with pytest.raises(Ignore):
             deliver_sms_rate_limited(notification_id, 2)
 
         mock_apply_async.assert_called_once_with(
-            queue=QueueNames.SEND_SMS_FAIR,
+            queue=QueueNames.SEND_SMS_MEDIUM,
             args=[notification_id, 2],
             countdown=30,
-            MessageGroupId=None,
         )
 
     def test_uses_same_private_deliver_sms_method(self, notify_api, mocker):

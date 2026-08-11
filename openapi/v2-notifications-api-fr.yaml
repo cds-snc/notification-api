@@ -1472,7 +1472,7 @@ components:
           type: string
           format: date-time
           nullable: true
-          description: Planifier la notification pour un envoi ultérieur
+          description: Si vous souhaitez envoyer des notifications dans le futur, vous pouvez spécifier une date et une heure jusqu’à 4 jours à l’avance, au format ISO 8601, heure UTC.
         email_reply_to_id:
           $ref: '#/components/schemas/UUID'
           description: ID de l'adresse de réponse à utiliser
@@ -1503,7 +1503,7 @@ components:
           type: string
           format: date-time
           nullable: true
-          description: Planifier la notification pour un envoi ultérieur
+          description: Si vous souhaitez envoyer des notifications dans le futur, vous pouvez spécifier une date et une heure jusqu’à 4 jours à l’avance, au format ISO 8601, heure UTC.
         sms_sender_id:
           $ref: '#/components/schemas/UUID'
           description: ID de l'expéditeur SMS à utiliser
@@ -2017,6 +2017,7 @@ components:
               $ref: '#/components/schemas/UUID'
               nullable: true
               description: ID de l’expéditeur utilisé pour cette tâche, si applicable
+
   securitySchemes:
     apiKey:
       type: apiKey

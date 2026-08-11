@@ -2,6 +2,17 @@ from app.models import ReportType
 from app.schema_validation.definitions import nullable_uuid
 from app.schema_validation.definitions import uuid as uuid_schema
 
+get_report_by_id_request = {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "description": "schema for path parameters when getting a single report by id",
+    "type": "object",
+    "properties": {
+        "report_id": uuid_schema,
+    },
+    "required": ["report_id"],
+    "additionalProperties": False,
+}
+
 get_reports_request = {
     "$schema": "http://json-schema.org/draft-07/schema#",
     "description": "schema for query parameters allowed when getting list of reports",

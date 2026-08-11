@@ -396,7 +396,7 @@ def fetch_monthly_billing_for_year(service_id, year):
         db.session.query(
             func.date_trunc("month", FactBilling.bst_date).cast(Date).label("month"),
             func.sum(FactBilling.notifications_sent).label("notifications_sent"),
-            func.sum(FactBilling.billable_units * FactBilling.rate_multiplier).label("billable_units"),
+            func.sum(FactBilling.billable_units).label("billable_units"),
             FactBilling.rate,
             FactBilling.notification_type,
             FactBilling.postage,

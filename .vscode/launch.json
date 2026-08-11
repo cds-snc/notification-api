@@ -59,7 +59,7 @@
                 "--pool=prefork",
                 "--concurrency=1",
                 "-Q",
-                "-priority-database-tasks.fifo,-normal-database-tasks,-bulk-database-tasks,job-tasks,notify-internal-tasks,periodic-tasks,priority-tasks,normal-tasks,bulk-tasks,reporting-tasks,research-mode-tasks,retry-tasks,send-sms-high,send-sms-medium,send-sms-low,send-throttled-sms-tasks,send-email-high,send-email-medium,send-email-low,send-sms-fair,service-callbacks,service-callbacks-retry,delivery-receipts,generate-reports"
+                "-priority-database-tasks.fifo,-normal-database-tasks,-bulk-database-tasks,job-tasks,notify-internal-tasks,periodic-tasks,priority-tasks,normal-tasks,bulk-tasks,reporting-tasks,research-mode-tasks,retry-tasks,send-sms-high,send-sms-medium,send-sms-low,send-throttled-sms-tasks,send-email-high,send-email-medium,send-email-low,service-callbacks,service-callbacks-retry,delivery-receipts,generate-reports"
             ]
         },
         {

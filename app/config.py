@@ -83,10 +83,6 @@ class QueueNames(object):
     # we have a limit to send per second and hence, needs to be throttled.
     SEND_THROTTLED_SMS = "send-throttled-sms-tasks"
 
-    # Fair queue for sending SMS, used to rate limit sending SMS from Notify to
-    # our SMS provider to avoid hitting downstream rate limits.
-    SEND_SMS_FAIR = "send-sms-fair"
-
     # Queues for sending all emails.
     SEND_EMAIL_HIGH = "send-email-high"
     SEND_EMAIL_MEDIUM = "send-email-medium"
@@ -149,7 +145,6 @@ class QueueNames(object):
             QueueNames.SEND_SMS_MEDIUM,
             QueueNames.SEND_SMS_LOW,
             QueueNames.SEND_THROTTLED_SMS,
-            QueueNames.SEND_SMS_FAIR,
             QueueNames.SEND_EMAIL_HIGH,
             QueueNames.SEND_EMAIL_MEDIUM,
             QueueNames.SEND_EMAIL_LOW,
@@ -177,7 +172,6 @@ class Config(object):
     # Feature flags #
     #################
     # Feature flags are defined first so these can be reused in configuration sections below.
-    FF_ANNUAL_LIMIT = env.bool("FF_ANNUAL_LIMIT", False)
     FF_BENCHMARK_ENDPOINT = env.bool("FF_BENCHMARK_ENDPOINT", False)
     # Timestamp in epoch milliseconds to seed the bounce rate. We will seed data for (24, the below config) included.
     FF_BOUNCE_RATE_SEED_EPOCH_MS = os.getenv("FF_BOUNCE_RATE_SEED_EPOCH_MS", False)
@@ -626,6 +620,7 @@ class Config(object):
 
     CONTACT_FORM_EMAIL_ADDRESS = os.getenv("CONTACT_FORM_EMAIL_ADDRESS", "helpdesk@cds-snc.ca")
     SENSITIVE_SERVICE_EMAIL = os.getenv("SENSITIVE_SERVICE_EMAIL", "ESDC.Support.CDS-SNC.Soutien.EDSC@servicecanada.gc.ca")
+    FRESHDESK_SUPPORT_EMAIL_ID = "assistance+notification@cds-snc.ca"
 
     FROM_NUMBER = "development"
 
@@ -705,6 +700,7 @@ class Config(object):
     # scan files callback auth
     SCAN_VERDICT_CALLBACK_TOKEN = os.getenv("SCAN_VERDICT_CALLBACK_TOKEN")
     SCAN_VERDICT_CALLBACK_USER_NAME = "scan-verdict-callback"
+    TEST_OLD_BOUNCE_RATE = env.bool("TEST_OLD_BOUNCE_RATE", False)
 
     @classmethod
     def get_sensitive_config(cls) -> list[str]:
