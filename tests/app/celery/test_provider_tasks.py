@@ -8,7 +8,7 @@ from notifications_utils.recipients import InvalidEmailError
 import app
 from app.celery import provider_tasks
 from app.celery.provider_tasks import (
-    _get_notification_process_type,
+    _safe_get_process_type,
     deliver_email,
     deliver_sms,
     deliver_sms_rate_limited,
@@ -307,22 +307,22 @@ class TestDeliverSmsRateLimited:
 
 class TestGetNotificationProcessType:
     def test_returns_none_when_notification_is_none(self, notify_api):
-        assert _get_notification_process_type(None) is None
+        assert _safe_get_process_type(None) is None
 
     def test_returns_none_when_template_is_none(self, notify_api):
         notification = MagicMock()
         notification.template = None
-        assert _get_notification_process_type(notification) is None
+        assert _safe_get_process_type(notification) is None
 
     def test_returns_process_type_when_available(self, notify_api):
         notification = MagicMock()
         notification.template.process_type = "priority"
-        assert _get_notification_process_type(notification) == "priority"
+        assert _safe_get_process_type(notification) == "priority"
 
     def test_returns_none_when_template_access_raises(self, notify_api):
         notification = MagicMock()
         type(notification).template = PropertyMock(side_effect=Exception("DetachedInstanceError"))
-        assert _get_notification_process_type(notification) is None
+        assert _safe_get_process_type(notification) is None
 
 
 class TestDeliverSmsRetryCountdown:
