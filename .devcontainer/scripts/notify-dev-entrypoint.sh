@@ -9,6 +9,14 @@ set -ex
 
 git config --global --add safe.directory /workspace
 
+# Configure SSH commit signing using the forwarded SSH agent key
+if ssh-add -L &>/dev/null; then
+  SSH_PUB_KEY=$(ssh-add -L | head -n 1)
+  git config --global gpg.format ssh
+  git config --global user.signingkey "key::${SSH_PUB_KEY}"
+  git config --global commit.gpgsign true
+fi
+
 # Define aliases
 echo -e "\n\n# User's Aliases" >> ~/.zshrc
 echo -e "alias fd=fdfind" >> ~/.zshrc
@@ -72,7 +80,7 @@ poetry --version
 poetry config virtualenvs.create false
 
 # Initialize poetry autocompletions
-mkdir ~/.zfunc
+mkdir -p ~/.zfunc
 touch ~/.zfunc/_poetry
 poetry completions zsh > ~/.zfunc/_poetry
 
@@ -85,14 +93,28 @@ echo "source ${POETRY_VENV_PATH}/bin/activate" >> ~/.zshrc
 
 make generate-version-file
 
-# Install dependencies
-poetry install
+# Install dependencies for this repo (no installable package artifact in this project)
+poetry install --no-root
 
 # Install pre-commit hooks
 poetry run pre-commit install
 
 # Upgrade schema of the notification_api database.
-poetry run flask db upgrade
+# During first container startup, postgres can be briefly unavailable.
+db_upgrade_attempts=5
+db_upgrade_delay_seconds=5
+for attempt in $(seq 1 "$db_upgrade_attempts"); do
+  if poetry run flask db upgrade; then
+    break
+  fi
+
+  if [ "$attempt" -lt "$db_upgrade_attempts" ]; then
+    echo "flask db upgrade failed (attempt ${attempt}/${db_upgrade_attempts}). Retrying in ${db_upgrade_delay_seconds}s..."
+    sleep "$db_upgrade_delay_seconds"
+  else
+    echo "WARNING: flask db upgrade failed after ${db_upgrade_attempts} attempts. Run 'poetry run flask db upgrade' once the database is ready."
+  fi
+done
 
 # Set up git blame to ignore certain revisions e.g. sweeping code formatting changes.
 git config blame.ignoreRevsFile .git-blame-ignore-revs
