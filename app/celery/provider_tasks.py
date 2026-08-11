@@ -1,6 +1,5 @@
 from typing import Optional
 
-from celery.exceptions import Ignore
 from flask import current_app
 from notifications_utils.recipients import InvalidEmailError
 from notifications_utils.statsd_decorators import statsd
@@ -28,6 +27,7 @@ from app.models import (
 from app.notifications.callbacks import _check_and_queue_callback_task
 from app.rate_limiter import get_rate_limiter
 from celery import Task
+from celery.exceptions import Ignore
 
 
 # Celery rate limits are per worker instance and not a global rate limit.
@@ -104,7 +104,11 @@ def deliver_email(self, notification_id):
     notification = None
     try:
         template_process_type = notification.template.process_type if notification.template else None
-        current_app.logger.debug("Start sending email for notification id: {} with template process type: {}".format(notification_id, template_process_type))
+        current_app.logger.debug(
+            "Start sending email for notification id: {} with template process type: {}".format(
+                notification_id, template_process_type
+            )
+        )
         notification = notifications_dao.get_notification_by_id(notification_id)
         if not notification:
             raise NoResultFound()
@@ -144,7 +148,11 @@ def _deliver_sms(self, notification_id):
     notification = None
     try:
         template_process_type = notification.template.process_type if notification.template else None
-        current_app.logger.info("Start sending SMS for notification id: {} and template_process_type: {}".format(notification_id, template_process_type))
+        current_app.logger.info(
+            "Start sending SMS for notification id: {} and template_process_type: {}".format(
+                notification_id, template_process_type
+            )
+        )
         notification = notifications_dao.get_notification_by_id(notification_id)
         if not notification:
             raise NoResultFound()
