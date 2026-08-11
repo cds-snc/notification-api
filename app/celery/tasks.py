@@ -926,7 +926,7 @@ def seed_bounce_rate_in_redis(service_id: str, interval: int = 24):
 
 @notify_celery.task(name="generate-report")
 @statsd(namespace="tasks")
-def generate_report(report_id: str, notification_statuses=[]):
+def generate_report(report_id: str, notification_statuses=None):
     current_app.logger.info(f"Generating report for Report ID {report_id}")
     try:
         report = get_report_by_id(report_id)
@@ -945,7 +945,7 @@ def generate_report(report_id: str, notification_statuses=[]):
             service_id=report.service_id,
             notification_type=report.report_type,
             language=report.language,
-            notification_statuses=notification_statuses,
+            notification_statuses=list(notification_statuses) if notification_statuses is not None else None,
             job_id=report.job_id,
             days_limit=LIMIT_DAYS,
             s3_bucket=current_app.config["REPORTS_BUCKET_NAME"],
