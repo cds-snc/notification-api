@@ -36,20 +36,20 @@ def make_task(app):
         def message_group_id(self):
             return self.request.get("notify_message_group_id")
 
+        def before_start(self, task_id, args, kwargs):
+            self.request._notify_start_time = time.monotonic()
+
         def on_success(self, retval, task_id, args, kwargs):
             start_time = getattr(self.request, "_notify_start_time", None)
             if start_time is None:
                 return
 
-            elapsed_time = time.time() - start_time
+            elapsed_time = time.monotonic() - start_time
             app.logger.info("{task_name} took {time}s".format(task_name=self.name, time="{0:.4f}".format(elapsed_time)))
 
         def __call__(self, *args, **kwargs):
             # ensure task has flask context to access config, logger, etc
             with app.app_context():
-                # Store timing on the per-request context to avoid cross-task
-                # races when using thread/gevent pools.
-                self.request._notify_start_time = time.time()
                 return super().__call__(*args, **kwargs)
 
     return NotifyTask
