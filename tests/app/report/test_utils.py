@@ -60,7 +60,7 @@ class TestGenerateCsvFromNotifications:
                     mock_compile_query.assert_called_once_with("mock query")
                     mock_stream.assert_called_once_with("mock copy command", s3_bucket, s3_key)
 
-    def test_build_notifications_query_with_status_filter(self):
+    def test_build_notifications_query_with_status_filter(self, notify_api):
         # Given
         service_id = "service-id-1"
         notification_type = "email"
@@ -94,7 +94,7 @@ class TestGenerateCsvFromNotifications:
         for status in substituted_statuses:
             assert status in sql_str
 
-    def test_build_notifications_query_with_empty_status_filter(self):
+    def test_build_notifications_query_with_empty_status_filter(self, notify_api):
         # Given
         service_id = "service-id-1"
         notification_type = "email"
@@ -113,7 +113,7 @@ class TestGenerateCsvFromNotifications:
         sql_str = str(query.statement.compile(compile_kwargs={"literal_binds": True}))
         assert "notification.status IN" not in sql_str  # No status filter should be applied
 
-    def test_build_notifications_query_with_job_id_filter(self):
+    def test_build_notifications_query_with_job_id_filter(self, notify_api):
         # Given
         service_id = "service-id-1"
         notification_type = "email"

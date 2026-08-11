@@ -186,7 +186,7 @@ class User(BaseModel):
         default=EMAIL_AUTH_TYPE,
     )
     blocked = db.Column(db.Boolean, nullable=False, default=False)
-    additional_information = db.Column(JSONB(none_as_null=True), nullable=True, default={})
+    additional_information = db.Column(JSONB(none_as_null=True), nullable=True, default=dict)
     password_expired = db.Column(db.Boolean, nullable=False, default=False)
     verified_phonenumber = db.Column(db.Boolean, nullable=True, default=False)
 
@@ -1010,7 +1010,7 @@ class ApiKey(BaseModel, Versioned):
     )
     created_by = db.relationship("User")
     created_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), index=True, nullable=False)
-    compromised_key_info = db.Column(JSONB(none_as_null=True), nullable=True, default={})
+    compromised_key_info = db.Column(JSONB(none_as_null=True), nullable=True, default=dict)
     last_used_timestamp = db.Column(db.DateTime, index=False, unique=False, nullable=True, default=None)
     permissions = db.Column(
         ARRAY(db.String(255)),
@@ -2303,7 +2303,7 @@ class InvitedUser(BaseModel):
         nullable=False,
         default=EMAIL_AUTH_TYPE,
     )
-    folder_permissions = db.Column(JSONB(none_as_null=True), nullable=False, default=[])
+    folder_permissions = db.Column(JSONB(none_as_null=True), nullable=False, default=list)
 
     # would like to have used properties for this but haven't found a way to make them
     # play nice with marshmallow yet
@@ -2773,7 +2773,7 @@ class LoginEvent(BaseModel):
         nullable=False,
     )
     user = db.relationship(User, backref=db.backref("login_events"))
-    data = db.Column(JSONB(none_as_null=True), nullable=False, default={})
+    data = db.Column(JSONB(none_as_null=True), nullable=False, default=dict)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)
 
