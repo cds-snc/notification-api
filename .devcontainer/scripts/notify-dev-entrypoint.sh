@@ -9,6 +9,14 @@ set -ex
 
 git config --global --add safe.directory /workspace
 
+# Configure SSH commit signing using the forwarded SSH agent key
+if ssh-add -L &>/dev/null; then
+  SSH_PUB_KEY=$(ssh-add -L | head -n 1)
+  git config --global gpg.format ssh
+  git config --global user.signingkey "key::${SSH_PUB_KEY}"
+  git config --global commit.gpgsign true
+fi
+
 # Define aliases
 echo -e "\n\n# User's Aliases" >> ~/.zshrc
 echo -e "alias fd=fdfind" >> ~/.zshrc
