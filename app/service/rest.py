@@ -1,6 +1,8 @@
 import itertools
 from datetime import datetime
 
+import boto3
+import botocore
 from flask import Blueprint, current_app, jsonify, request
 from notifications_utils.clients.redis import (
     daily_limit_cache_key,
@@ -13,6 +15,7 @@ from notifications_utils.clients.redis import (
     over_email_daily_limit_cache_key,
     over_sms_daily_limit_cache_key,
 )
+from notifications_utils.recipients import validate_and_format_email_address
 from psycopg2.errors import UniqueViolation
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -20,6 +23,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from app import redis_store, salesforce_client
 from app.annual_limit_utils import get_annual_limit_notifications_v2
+from app.clients.freshdesk import Freshdesk
 from app.clients.salesforce.salesforce_engagement import ENGAGEMENT_STAGE_LIVE
 from app.config import QueueNames
 from app.dao import fact_notification_status_dao, notifications_dao
@@ -93,12 +97,14 @@ from app.models import (
     DEFAULT_SMS_DAILY_LIMIT,
     EMAIL_TYPE,
     KEY_TYPE_NORMAL,
+    KEY_TYPE_TEST,
     LETTER_TYPE,
     MANAGE_SETTINGS,
     NOTIFICATION_CANCELLED,
     SMS_TYPE,
     EmailBranding,
     LetterBranding,
+    Notification,
     NotificationType,
     Permission,
     Service,
@@ -128,10 +134,12 @@ from app.service.service_senders_schema import (
     add_service_sms_sender_request,
 )
 from app.service.service_statistics_schema import get_monthly_template_usage_request
+from app.service.service_suppression_schema import remove_email_from_suppression_list_request
 from app.service.utils import (
     get_organisation_id_from_crm_org_notes,
     get_safelist_objects,
 )
+from app.user.contact_request import ContactRequest
 from app.user.users_schema import post_set_permissions_schema
 from app.utils import pagination_links
 
@@ -999,6 +1007,82 @@ def delete_service_reply_to_email_address(service_id, reply_to_email_id):
     archived_reply_to = archive_reply_to_email_address(service_id, reply_to_email_id)
 
     return jsonify(data=archived_reply_to.serialize()), 200
+
+
+@service_blueprint.route("/<uuid:service_id>/email-suppression/removal", methods=["POST"])
+def remove_email_from_suppression_list(service_id):
+    service = dao_fetch_service_by_id(service_id)
+    form = validate(request.get_json(), remove_email_from_suppression_list_request)
+
+    email_address = validate_and_format_email_address(form["email_address"])
+    if not _service_has_ever_emailed_recipient(service_id, email_address):
+        raise InvalidRequest(
+            {"email_address": ["You can only remove email addresses your service has previously emailed."]},
+            status_code=400,
+        )
+
+    _remove_email_from_aws_suppression_list(email_address)
+    _create_suppression_removal_audit_ticket(
+        service=service,
+        removed_by_id=form["updated_by_id"],
+        email_address=email_address,
+        request_details=form.get("request_details", ""),
+    )
+
+    return jsonify(data={"email_address": email_address}), 200
+
+
+def _service_has_ever_emailed_recipient(service_id, email_address):
+    query_filters = [
+        Notification.service_id == service_id,
+        Notification.notification_type == EMAIL_TYPE,
+        Notification.key_type != KEY_TYPE_TEST,
+        Notification.normalised_to == email_address,
+    ]
+    return Notification.query.filter(*query_filters).first() is not None
+
+
+def _remove_email_from_aws_suppression_list(email_address):
+    sesv2_client = boto3.client("sesv2", region_name=current_app.config["AWS_REGION"])
+    try:
+        sesv2_client.delete_suppressed_destination(EmailAddress=email_address)
+    except botocore.exceptions.ClientError as e:
+        error = e.response.get("Error", {})
+        error_code = error.get("Code", "")
+        error_message = error.get("Message", "")
+        if error_code == "NotFoundException" or "not" in error_message.lower() and "suppression" in error_message.lower():
+            raise InvalidRequest(
+                {"email_address": ["This email address is not currently on the suppression list."]},
+                status_code=400,
+            )
+        raise
+
+
+def _create_suppression_removal_audit_ticket(service, removed_by_id, email_address, request_details):
+    removed_by_user = get_user_by_id(removed_by_id)
+    details_line = f"- Request details: {request_details}" if request_details else "- Request details: none provided"
+
+    contact = ContactRequest(
+        email_address=removed_by_user.email_address,
+        name=removed_by_user.name,
+        support_type="ses_suppression_list_removal",
+        friendly_support_type="SES suppression list removal",
+        service_id=str(service.id),
+        service_name=service.name,
+        message="<br>".join(
+            [
+                "An email address was removed from the AWS SES suppression list.",
+                f"- Service name: {service.name}",
+                f"- Service ID: {service.id}",
+                f"- Email address removed: {email_address}",
+                f"- Removed by: {removed_by_user.name} ({removed_by_user.email_address})",
+                f"- Removed at (UTC): {datetime.utcnow().isoformat()}",
+                details_line,
+            ]
+        ),
+    )
+    contact.tags = ["ses_suppression_removal", f"service_id:{service.id}", "z_skip_opsgenie", "z_skip_urgent_escalation"]
+    Freshdesk(contact).send_ticket()
 
 
 @service_blueprint.route("/<uuid:service_id>/letter-contact", methods=["GET"])
