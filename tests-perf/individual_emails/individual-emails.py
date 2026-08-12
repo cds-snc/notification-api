@@ -13,7 +13,7 @@ def _(parser):
 
 
 class NotifyApiUser(HttpUser):
-    wait_time = constant_pacing(0.5)  # each user makes one post per second
+    wait_time = constant_pacing(1)  # each user makes one post per second
 
     def __init__(self, *args, **kwargs):
         super(NotifyApiUser, self).__init__(*args, **kwargs)
