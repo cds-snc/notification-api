@@ -170,7 +170,8 @@ class RedisQueue(Queue):
                 self._inbox,
                 self._expire_inflight_after_seconds,
             ]
-        expired = self._scripts[self.LUA_EXPIRE_INFLIGHTS](args=args)
+        expire_script = self.__get_script(self.LUA_EXPIRE_INFLIGHTS)
+        expired = expire_script(args=args)
         if expired:
             put_batch_saving_expiry_metric(self.__metrics_logger, self, len(expired))
             current_app.logger.warning(f"Moved inflights {expired} back to inbox {self._inbox}")
@@ -199,9 +200,14 @@ class RedisQueue(Queue):
         put_batch_saving_metric(self.__metrics_logger, self, 1)
 
     def __move_to_inflight(self, in_flight_key: str, count: int) -> list[str]:
-        results = self._scripts[self.LUA_MOVE_TO_INFLIGHT](args=[self._inbox, in_flight_key, count])
+        move_script = self.__get_script(self.LUA_MOVE_TO_INFLIGHT)
+        results = move_script(args=[self._inbox, in_flight_key, count])
         decoded = [result.decode("utf-8") for result in results]
         return decoded
+
+    def __get_script(self, script_name: str):
+        with self._scripts_lock:
+            return self._scripts[script_name]
 
     def __register_scripts(self):
         with self._scripts_lock:
