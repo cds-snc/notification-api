@@ -3,7 +3,7 @@ Revision ID: 0523_add_callback_susp_template
 Revises: 0522_add_api_key_to_reports
 Create Date: 2026-08-12
 
-Add Notify template used when suspending a service's callbacks for not working.
+Add Notify template used when suspending a service's callbacks because they are not working.
 """
 
 from datetime import datetime
@@ -42,7 +42,7 @@ def _template_content():
             "",
             "For more information, you can also access our API documentation on callbacks.",
             "",
-            "The GC Notify team",
+            "The GC Notify Team",
             "[[/en]]",
             "",
             "---",

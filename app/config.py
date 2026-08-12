@@ -379,7 +379,7 @@ class Config(object):
         "5e5952b4-a156-44bc-9cc2-059a3c9a7eb3"  # Sent to warn a service about potential suspension due to high bounce rate
     )
     SERVICE_CALLBACK_SUSPENDED_TEMPLATE_ID = (
-        "669f28bc-5b15-4b9f-a2d8-90b3641da226"  # Sent when a service's callbacks are suspended for not working
+        "669f28bc-5b15-4b9f-a2d8-90b3641da226"  # Sent when a service's callbacks are suspended because they're not working
     )
 
     # Newsletter templates
