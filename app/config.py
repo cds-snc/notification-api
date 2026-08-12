@@ -378,6 +378,9 @@ class Config(object):
     SERVICE_SUSPENDED_WARNING_TEMPLATE_ID = (
         "5e5952b4-a156-44bc-9cc2-059a3c9a7eb3"  # Sent to warn a service about potential suspension due to high bounce rate
     )
+    SERVICE_CALLBACK_SUSPENDED_TEMPLATE_ID = (
+        "669f28bc-5b15-4b9f-a2d8-90b3641da226"  # Sent when a service's callbacks are suspended for not working
+    )
 
     # Newsletter templates
     NEWSLETTER_CONFIRMATION_EMAIL_TEMPLATE_ID_EN = "c8ee07a2-7cf4-4a32-9cc2-6763b5bc47a6"
