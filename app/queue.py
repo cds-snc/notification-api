@@ -2,6 +2,7 @@ import random
 import string
 from abc import ABC, abstractmethod
 from enum import Enum
+from threading import Lock
 from typing import Any, Dict, Optional
 from uuid import UUID, uuid4
 
@@ -118,8 +119,6 @@ class RedisQueue(Queue):
     LUA_MOVE_TO_INFLIGHT = "move-in-inflight"
     LUA_EXPIRE_INFLIGHTS = "expire-inflights"
 
-    scripts: Dict[str, Any] = {}
-
     def __init__(self, suffix=None, expire_inflight_after_seconds=300, process_type=None) -> None:
         """
         Constructor for the Redis Queue
@@ -141,6 +140,8 @@ class RedisQueue(Queue):
         self._suffix = suffix
         self._process_type = process_type
         self._expire_inflight_after_seconds = expire_inflight_after_seconds
+        self._scripts: Dict[str, Any] = {}
+        self._scripts_lock = Lock()
 
     def init_app(self, redis: Redis, metrics_logger: MetricsLogger):
         self._redis_client = redis
@@ -169,7 +170,7 @@ class RedisQueue(Queue):
                 self._inbox,
                 self._expire_inflight_after_seconds,
             ]
-        expired = self.scripts[self.LUA_EXPIRE_INFLIGHTS](args=args)
+        expired = self._scripts[self.LUA_EXPIRE_INFLIGHTS](args=args)
         if expired:
             put_batch_saving_expiry_metric(self.__metrics_logger, self, len(expired))
             current_app.logger.warning(f"Moved inflights {expired} back to inbox {self._inbox}")
@@ -198,13 +199,14 @@ class RedisQueue(Queue):
         put_batch_saving_metric(self.__metrics_logger, self, 1)
 
     def __move_to_inflight(self, in_flight_key: str, count: int) -> list[str]:
-        results = self.scripts[self.LUA_MOVE_TO_INFLIGHT](args=[self._inbox, in_flight_key, count])
+        results = self._scripts[self.LUA_MOVE_TO_INFLIGHT](args=[self._inbox, in_flight_key, count])
         decoded = [result.decode("utf-8") for result in results]
         return decoded
 
     def __register_scripts(self):
-        self.scripts[self.LUA_MOVE_TO_INFLIGHT] = self._redis_client.register_script(
-            """
+        with self._scripts_lock:
+            self._scripts[self.LUA_MOVE_TO_INFLIGHT] = self._redis_client.register_script(
+                """
             local DEFAULT_CHUNK = 99
 
             local source        = ARGV[1]
@@ -227,11 +229,11 @@ class RedisQueue(Queue):
             end
 
             return all
-            """
-        )
+                """
+            )
 
-        self.scripts[self.LUA_EXPIRE_INFLIGHTS] = self._redis_client.register_script(
-            """
+            self._scripts[self.LUA_EXPIRE_INFLIGHTS] = self._redis_client.register_script(
+                """
             local DEFAULT_CHUNK   = 99
             local inflight_prefix = ARGV[1]
             local destination     = ARGV[2]
@@ -263,8 +265,8 @@ class RedisQueue(Queue):
                 end
             until cursor == "0";
             return expired_inflights
-            """
-        )
+                """
+            )
 
 
 class MockQueue(Queue):
