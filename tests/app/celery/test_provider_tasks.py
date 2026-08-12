@@ -1,5 +1,5 @@
 import uuid
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock, PropertyMock, call
 
 import pytest
 from botocore.exceptions import ClientError
@@ -7,7 +7,13 @@ from notifications_utils.recipients import InvalidEmailError
 
 import app
 from app.celery import provider_tasks
-from app.celery.provider_tasks import deliver_email, deliver_sms, deliver_sms_rate_limited, deliver_throttled_sms
+from app.celery.provider_tasks import (
+    _safe_get_process_type,
+    deliver_email,
+    deliver_sms,
+    deliver_sms_rate_limited,
+    deliver_throttled_sms,
+)
 from app.clients.email.aws_ses import AwsSesClientException
 from app.config import QueueNames
 from app.exceptions import (
@@ -297,3 +303,93 @@ class TestDeliverSmsRateLimited:
         deliver_sms_rate_limited(notification_id, 1)
 
         mock_deliver.assert_called_once()
+
+
+class TestGetNotificationProcessType:
+    def test_returns_none_when_notification_is_none(self, notify_api):
+        assert _safe_get_process_type(None) is None
+
+    def test_returns_none_when_template_is_none(self, notify_api):
+        notification = MagicMock()
+        notification.template = None
+        assert _safe_get_process_type(notification) is None
+
+    def test_returns_process_type_when_available(self, notify_api):
+        notification = MagicMock()
+        notification.template.process_type = "priority"
+        assert _safe_get_process_type(notification) == "priority"
+
+    def test_returns_none_when_template_access_raises(self, notify_api):
+        notification = MagicMock()
+        type(notification).template = PropertyMock(side_effect=Exception("DetachedInstanceError"))
+        assert _safe_get_process_type(notification) is None
+
+
+class TestDeliverSmsRetryCountdown:
+    @pytest.mark.parametrize("sms_method,sms_method_name", sms_methods)
+    def test_priority_notification_retries_with_short_countdown(
+        self,
+        notify_api,
+        mocker,
+        sms_method,
+        sms_method_name,
+    ):
+        notification = MagicMock()
+        notification.template.process_type = "priority"
+        mocker.patch(
+            "app.celery.provider_tasks.notifications_dao.get_notification_by_id",
+            return_value=notification,
+        )
+        mocker.patch(
+            "app.delivery.send_to_providers.send_sms_to_provider",
+            side_effect=Exception("provider error"),
+        )
+        mocker.patch(f"app.celery.provider_tasks.{sms_method_name}.retry")
+
+        sms_method("some-notification-id")
+
+        getattr(provider_tasks, sms_method_name).retry.assert_called_with(queue="retry-tasks", countdown=25)
+
+    @pytest.mark.parametrize("sms_method,sms_method_name", sms_methods)
+    def test_retries_with_high_priority_countdown_when_db_lookup_raises(
+        self,
+        notify_api,
+        mocker,
+        sms_method,
+        sms_method_name,
+    ):
+        mocker.patch(
+            "app.celery.provider_tasks.notifications_dao.get_notification_by_id",
+            side_effect=Exception("DB connection error"),
+        )
+        mocker.patch(f"app.celery.provider_tasks.{sms_method_name}.retry")
+
+        sms_method("some-notification-id")
+
+        # None process_type maps to RETRY_HIGH (25s) — treat unknown as high priority
+        getattr(provider_tasks, sms_method_name).retry.assert_called_with(queue="retry-tasks", countdown=25)
+
+    @pytest.mark.parametrize("sms_method,sms_method_name", sms_methods)
+    def test_retries_with_high_priority_countdown_when_template_is_none(
+        self,
+        notify_api,
+        mocker,
+        sms_method,
+        sms_method_name,
+    ):
+        notification = MagicMock()
+        notification.template = None
+        mocker.patch(
+            "app.celery.provider_tasks.notifications_dao.get_notification_by_id",
+            return_value=notification,
+        )
+        mocker.patch(
+            "app.delivery.send_to_providers.send_sms_to_provider",
+            side_effect=Exception("provider error"),
+        )
+        mocker.patch(f"app.celery.provider_tasks.{sms_method_name}.retry")
+
+        sms_method("some-notification-id")
+
+        # None process_type maps to RETRY_HIGH (25s) — treat unknown as high priority
+        getattr(provider_tasks, sms_method_name).retry.assert_called_with(queue="retry-tasks", countdown=25)
