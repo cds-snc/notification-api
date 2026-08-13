@@ -1,4 +1,5 @@
 import json
+import random
 
 from flask import current_app
 from notifications_utils.statsd_decorators import statsd
@@ -6,6 +7,21 @@ from requests import HTTPError, RequestException, request
 
 from app import notify_celery, signer_complaint, signer_delivery_status
 from app.config import QueueNames
+
+
+def _calculate_callback_retry_countdown(retries: int) -> int:
+    """Compute exponential retry delay with jitter and a hard cap."""
+    base_delay_seconds = max(1, int(current_app.config["CALLBACK_RETRY_BACKOFF_BASE_SECONDS"]))
+    max_delay_seconds = max(base_delay_seconds, int(current_app.config["CALLBACK_RETRY_BACKOFF_MAX_SECONDS"]))
+    jitter_factor = float(current_app.config["CALLBACK_RETRY_JITTER_FACTOR"])
+    jitter_factor = min(max(jitter_factor, 0.0), 1.0)
+
+    backoff_seconds = min(base_delay_seconds * (2**retries), max_delay_seconds)
+    jitter_delta = backoff_seconds * jitter_factor
+    jittered_seconds = random.uniform(backoff_seconds - jitter_delta, backoff_seconds + jitter_delta)
+
+    # Keep retry delay bounded so we can tune behavior safely with config values.
+    return max(1, min(max_delay_seconds, int(round(jittered_seconds))))
 
 
 @notify_celery.task(bind=True, name="send-delivery-status", max_retries=5, default_retry_delay=300)
@@ -86,8 +102,9 @@ def _send_data_to_service_callback_api(self, service_id, data, service_callback_
         )
         # Retry if the response status code is server-side or 429 (too many requests).
         if not isinstance(e, HTTPError) or e.response.status_code >= 500 or e.response.status_code == 429:
+            countdown = _calculate_callback_retry_countdown(self.request.retries)
             try:
-                self.retry(queue=QueueNames.CALLBACKS_RETRY)
+                self.retry(queue=QueueNames.CALLBACKS_RETRY, countdown=countdown)
             except self.MaxRetriesExceededError:
                 current_app.logger.warning(
                     "Retry: {function_name} has retried the max num of times for callback url {service_callback_url} notification_id: {notification_id} service: {service_id}"

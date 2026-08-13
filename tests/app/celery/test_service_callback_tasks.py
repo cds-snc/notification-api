@@ -3,6 +3,7 @@ from datetime import datetime
 
 import pytest
 import requests_mock
+from flask import current_app
 from freezegun import freeze_time
 from tests.app.db import (
     create_complaint,
@@ -15,6 +16,7 @@ from tests.app.db import (
 
 from app import DATETIME_FORMAT, signer_complaint, signer_delivery_status
 from app.celery.service_callback_tasks import (
+    _calculate_callback_retry_countdown,
     send_complaint_to_service,
     send_delivery_status_to_service,
 )
@@ -109,12 +111,38 @@ def test__send_data_to_service_callback_api_retries_if_request_returns_error_cod
     )
     signed_data = _set_up_data_for_status_update(callback_api, notification)
     mocked = mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.retry")
+    mocker.patch("app.celery.service_callback_tasks.random.uniform", return_value=5)
     with requests_mock.Mocker() as request_mock:
         request_mock.post(callback_api.url, json={}, status_code=status_code)
         send_delivery_status_to_service(notification.id, signed_status_update=signed_data, service_id=notification.service_id)
 
     assert mocked.call_count == 1
     assert mocked.call_args[1]["queue"] == "service-callbacks-retry"
+    assert mocked.call_args[1]["countdown"] == 5
+
+
+def test_calculate_callback_retry_countdown_uses_exponential_backoff_and_cap(notify_db_session):
+    current_app.config["CALLBACK_RETRY_BACKOFF_BASE_SECONDS"] = 5
+    current_app.config["CALLBACK_RETRY_BACKOFF_MAX_SECONDS"] = 20
+    current_app.config["CALLBACK_RETRY_JITTER_FACTOR"] = 0.0
+
+    assert _calculate_callback_retry_countdown(retries=0) == 5
+    assert _calculate_callback_retry_countdown(retries=1) == 10
+    assert _calculate_callback_retry_countdown(retries=2) == 20
+    assert _calculate_callback_retry_countdown(retries=3) == 20
+
+
+def test_calculate_callback_retry_countdown_applies_jitter_with_expected_bounds(notify_db_session, mocker):
+    current_app.config["CALLBACK_RETRY_BACKOFF_BASE_SECONDS"] = 10
+    current_app.config["CALLBACK_RETRY_BACKOFF_MAX_SECONDS"] = 300
+    current_app.config["CALLBACK_RETRY_JITTER_FACTOR"] = 0.2
+
+    mocked_uniform = mocker.patch("app.celery.service_callback_tasks.random.uniform", return_value=13.1)
+
+    countdown = _calculate_callback_retry_countdown(retries=0)
+
+    mocked_uniform.assert_called_once_with(8.0, 12.0)
+    assert countdown == 13
 
 
 @pytest.mark.parametrize("notification_type", ["email", "letter", "sms"])
