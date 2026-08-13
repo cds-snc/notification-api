@@ -35,7 +35,7 @@ jobs:
           persist-credentials: false
 
       - name: "Run analysis"
-        uses: ossf/scorecard-action@169c9b9248e36d400bebded8160c7fe2cbbc7762
+        uses: ossf/scorecard-action@2d1146689b8cda280b9bc96326124645441f03bc # v2.4.4
         with:
           results_file: ossf-results.json
           results_format: json
@@ -49,7 +49,7 @@ jobs:
           jq -c '. + {"metadata_owner": "'$OWNER'", "metadata_repo": "'$REPO'", "metadata_query": "ossf"}' ossf-results.json > ossf-results-modified.json
 
       - name: "Post results to Sentinel"
-        uses: cds-snc/sentinel-forward-data-action@2b0831903177e4ba07c850c71ab2645f72cab269
+        uses: cds-snc/sentinel-forward-data-action@2b0831903177e4ba07c850c71ab2645f72cab269 # main (no tagged releases)
         with:
           file_name: ossf-results-modified.json
           dce_endpoint: ${{ secrets.SENTINEL_DCE_ENDPOINT }}

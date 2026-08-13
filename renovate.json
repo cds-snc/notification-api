@@ -1,6 +1,19 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "local>cds-snc/renovate-config"
+    "local>cds-snc/renovate-config",
+    "helpers:pinGitHubActionDigests"
+  ],
+  "packageRules": [
+    {
+      "matchManagers": [
+        "github-actions",
+        "terraform",
+        "helmv3",
+        "helm-requirements",
+        "helm-values"
+      ],
+      "pinDigests": true
+    }
   ]
 }

@@ -1,0 +1,57 @@
+name: Enforce SHA-pinned GitHub Actions
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+      - '.github/actions/**'
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/**'
+      - '.github/actions/**'
+
+permissions:
+  contents: read
+
+jobs:
+  check-pinned-actions:
+    runs-on: ubuntu-latest
+    name: Check actions are pinned to a commit SHA
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Verify every action reference uses a 40-character commit SHA
+        run: |
+          set -euo pipefail
+          # Allowed: local refs (./...), reusable workflows in this repo, docker image digests,
+          # and third-party actions pinned to a full 40-character commit SHA.
+          violations=$(grep -rEn "^[[:space:]]*(-[[:space:]]+)?uses:" \
+            .github/workflows .github/actions 2>/dev/null \
+            | grep -vE "uses:[[:space:]]*\./" \
+            | grep -vE "uses:[[:space:]]*docker://[^@]+@sha256:[0-9a-f]{64}" \
+            | grep -vE "uses:[[:space:]]*[^@[:space:]]+@[0-9a-f]{40}([[:space:]]|$)" \
+            || true)
+
+          if [ -n "$violations" ]; then
+            echo "::error::The following action references are not pinned to a full 40-character commit SHA:"
+            echo "$violations"
+            echo ""
+            echo "Pin them like: uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2"
+            exit 1
+          fi
+          echo "All action references are pinned to commit SHAs."
+
+      - name: Verify pinned actions carry a version comment
+        run: |
+          set -euo pipefail
+          missing=$(grep -rEn "uses:[[:space:]]*[^@[:space:]]+@[0-9a-f]{40}[[:space:]]*$" \
+            .github/workflows .github/actions 2>/dev/null || true)
+
+          if [ -n "$missing" ]; then
+            echo "::error::The following pinned actions are missing a trailing version comment (e.g. '# v4.2.2'):"
+            echo "$missing"
+            exit 1
+          fi
+          echo "All pinned action references include a version comment."
