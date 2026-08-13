@@ -304,6 +304,32 @@ class TestRedisQueue:
 
         self.delete_all_list(redis)
 
+    def test_scripts_registry_is_isolated_per_instance(self):
+        queue_one = RedisQueue("sms")
+        queue_two = RedisQueue("sms")
+
+        script_one_move = object()
+        script_one_expire = object()
+        script_two_move = object()
+        script_two_expire = object()
+
+        redis_client_one = mock.Mock()
+        redis_client_one.register_script.side_effect = [script_one_move, script_one_expire]
+        redis_client_two = mock.Mock()
+        redis_client_two.register_script.side_effect = [script_two_move, script_two_expire]
+
+        queue_one.init_app(redis_client_one, metrics_logger)
+        queue_two.init_app(redis_client_two, metrics_logger)
+
+        queue_one_scripts = queue_one._scripts
+        queue_two_scripts = queue_two._scripts
+
+        assert queue_one_scripts is not queue_two_scripts
+        assert queue_one_scripts[RedisQueue.LUA_MOVE_TO_INFLIGHT] is script_one_move
+        assert queue_one_scripts[RedisQueue.LUA_EXPIRE_INFLIGHTS] is script_one_expire
+        assert queue_two_scripts[RedisQueue.LUA_MOVE_TO_INFLIGHT] is script_two_move
+        assert queue_two_scripts[RedisQueue.LUA_EXPIRE_INFLIGHTS] is script_two_expire
+
 
 @pytest.mark.usefixtures("notify_api")
 class TestMockQueue:
