@@ -7,6 +7,12 @@ from requests import HTTPError, RequestException, request
 
 from app import notify_celery, signer_complaint, signer_delivery_status
 from app.config import QueueNames
+from app.dao.service_callback_api_dao import (
+    get_service_complaint_callback_api_for_service,
+    get_service_delivery_status_callback_api_for_service,
+    suspend_unsuspend_service_callback_api,
+)
+from app.models import COMPLAINT_CALLBACK_TYPE, DELIVERY_STATUS_CALLBACK_TYPE
 
 
 def _calculate_callback_retry_countdown(retries: int) -> int:
@@ -48,6 +54,7 @@ def send_delivery_status_to_service(self, notification_id, signed_status_update,
         status_update["service_callback_api_url"],
         status_update["service_callback_api_bearer_token"],
         "send_delivery_status_to_service",
+        DELIVERY_STATUS_CALLBACK_TYPE,
     )
 
 
@@ -71,10 +78,11 @@ def send_complaint_to_service(self, complaint_data, service_id):
         complaint["service_callback_api_url"],
         complaint["service_callback_api_bearer_token"],
         "send_complaint_to_service",
+        COMPLAINT_CALLBACK_TYPE,
     )
 
 
-def _send_data_to_service_callback_api(self, service_id, data, service_callback_url, token, function_name):
+def _send_data_to_service_callback_api(self, service_id, data, service_callback_url, token, function_name, callback_type):
     notification_id = data["notification_id"] if "notification_id" in data else data["id"]
     try:
         current_app.logger.info(
@@ -106,6 +114,43 @@ def _send_data_to_service_callback_api(self, service_id, data, service_callback_
             try:
                 self.retry(queue=QueueNames.CALLBACKS_RETRY, countdown=countdown)
             except self.MaxRetriesExceededError:
+                _suspend_service_callback_and_send_email(service_id=service_id, callback_type=callback_type)
                 current_app.logger.warning(
-                    "Retry: {function_name} has retried the max num of times for callback url {service_callback_url} notification_id: {notification_id} service: {service_id}"
+                    f"Retry: {function_name} has retried the max num of times for callback url {service_callback_url} "
+                    f"notification_id: {notification_id} service: {service_id}"
                 )
+
+
+def _get_service_callback_api_for_type(service_id, callback_type):
+    if callback_type == DELIVERY_STATUS_CALLBACK_TYPE:
+        return get_service_delivery_status_callback_api_for_service(service_id=service_id)
+    if callback_type == COMPLAINT_CALLBACK_TYPE:
+        return get_service_complaint_callback_api_for_service(service_id=service_id)
+
+    current_app.logger.warning(f"Unknown callback type {callback_type} for service {service_id}")
+    return None
+
+
+def _suspend_service_callback_and_send_email(service_id, callback_type):
+    callback_api = _get_service_callback_api_for_type(service_id=service_id, callback_type=callback_type)
+    if not callback_api:
+        current_app.logger.warning(f"No callback config found to suspend for service {service_id} callback_type {callback_type}")
+        return
+
+    if callback_api.is_suspended:
+        current_app.logger.info(
+            f"Callback config {callback_api.id} for service {service_id} callback_type {callback_type} is already suspended"
+        )
+        return
+
+    suspend_unsuspend_service_callback_api(
+        callback_api,
+        updated_by_id=current_app.config["NOTIFY_USER_ID"],
+        suspend=True,
+    )
+
+    notify_celery.send_task(
+        "send-service-callback-suspension-email",
+        kwargs={"service_id": str(callback_api.service_id)},
+        queue=QueueNames.NOTIFY,
+    )
