@@ -1,5 +1,5 @@
 """
-Revision ID: 0524_update_callback_susp_wording
+Revision ID: 0524_update_callback_susp_word
 Revises: 0523_add_callback_susp_template
 Create Date: 2026-08-13
 
@@ -11,7 +11,7 @@ from datetime import datetime
 from alembic import op
 from flask import current_app
 
-revision = "0524_update_callback_susp_wording"
+revision = "0524_update_callback_susp_word"
 down_revision = "0523_add_callback_susp_template"
 
 
