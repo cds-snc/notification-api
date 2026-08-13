@@ -890,7 +890,7 @@ def send_method_stats_by_service(start_time, end_time):
 
 @statsd(namespace="dao")
 @transactional
-def overall_bounce_rate_for_day(min_emails_sent=1000, default_time=datetime.utcnow()):
+def overall_bounce_rate_for_day(min_emails_sent=1000, default_time=None):
     """
     This function returns the bounce rate for all services for the last 24 hours.
     The bounce rate is calculated by dividing the number of hard bounces by the total number of emails sent.
@@ -900,6 +900,8 @@ def overall_bounce_rate_for_day(min_emails_sent=1000, default_time=datetime.utcn
     :param default_time: the time to calculate the bounce rate for
     :return: a list of tuple of the service_id, total number of email, # of hard bounces and the bounce rate
     """
+    if default_time is None:
+        default_time = datetime.utcnow()
     twenty_four_hours_ago = default_time - timedelta(hours=24)
     query = (
         db.session.query(
@@ -920,7 +922,7 @@ def overall_bounce_rate_for_day(min_emails_sent=1000, default_time=datetime.utcn
 
 @statsd(namespace="dao")
 @transactional
-def service_bounce_rate_for_day(service_id, min_emails_sent=1000, default_time=datetime.utcnow()):
+def service_bounce_rate_for_day(service_id, min_emails_sent=1000, default_time=None):
     """
     This function returns the bounce rate for a single services for the last 24 hours.
     The bounce rate is calculated by dividing the number of hard bounces by the total number of emails sent.
@@ -931,6 +933,8 @@ def service_bounce_rate_for_day(service_id, min_emails_sent=1000, default_time=d
     :param default_time: the time to calculate the bounce rate for
     :return: a tuple of the total number of emails sent, # of bounced emails and the bounce rate or None if not enough emails
     """
+    if default_time is None:
+        default_time = datetime.utcnow()
     twenty_four_hours_ago = default_time - timedelta(hours=24)
     query = (
         db.session.query(
@@ -950,7 +954,9 @@ def service_bounce_rate_for_day(service_id, min_emails_sent=1000, default_time=d
 
 @statsd(namespace="dao")
 @transactional
-def total_notifications_grouped_by_hour(service_id, default_time=datetime.utcnow(), interval: int = 24):
+def total_notifications_grouped_by_hour(service_id, default_time=None, interval: int = 24):
+    if default_time is None:
+        default_time = datetime.utcnow()
     twenty_four_hours_ago = default_time - timedelta(hours=interval)
     query = (
         db.session.query(
@@ -968,7 +974,9 @@ def total_notifications_grouped_by_hour(service_id, default_time=datetime.utcnow
 
 @statsd(namespace="dao")
 @transactional
-def total_hard_bounces_grouped_by_hour(service_id, default_time=datetime.utcnow(), interval: int = 24):
+def total_hard_bounces_grouped_by_hour(service_id, default_time=None, interval: int = 24):
+    if default_time is None:
+        default_time = datetime.utcnow()
     twenty_four_hours_ago = default_time - timedelta(hours=interval)
     query = (
         db.session.query(

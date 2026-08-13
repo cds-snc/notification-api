@@ -44,7 +44,7 @@ from celery.exceptions import Ignore
     rate_limit="30/m",
 )
 @statsd(namespace="tasks")
-def deliver_throttled_sms(self, notification_id):
+def deliver_throttled_sms(self, notification_id: str):
     _deliver_sms(self, notification_id)
 
 
@@ -62,7 +62,7 @@ def deliver_throttled_sms(self, notification_id):
     rate_limit=Config.CELERY_DELIVER_SMS_RATE_LIMIT,
 )
 @statsd(namespace="tasks")
-def deliver_sms(self, notification_id):
+def deliver_sms(self, notification_id: str):
     _deliver_sms(self, notification_id)
 
 
@@ -135,6 +135,7 @@ def deliver_email(self, notification_id):
 
 
 def _deliver_sms(self, notification_id):
+    notification = None
     try:
         current_app.logger.info("Start sending SMS for notification id: {}".format(notification_id))
         notification = notifications_dao.get_notification_by_id(notification_id)
@@ -158,7 +159,8 @@ def _deliver_sms(self, notification_id):
     except Exception:
         try:
             current_app.logger.exception("SMS notification delivery for id: {} failed".format(notification_id))
-            self.retry(**CeleryParams.retry(None if notification is None else notification.template.process_type))
+            process_type = _safe_get_process_type(notification)
+            self.retry(**CeleryParams.retry(process_type))
         except self.MaxRetriesExceededError:
             message = (
                 "RETRY FAILED: Max retries reached. The task send_sms_to_provider failed for notification {}. "
@@ -169,8 +171,18 @@ def _deliver_sms(self, notification_id):
             raise NotificationTechnicalFailureException(message)
 
 
+def _safe_get_process_type(notification: Optional[Notification]) -> Optional[str]:
+    """Safely extract process_type, defaulting to None (treated as high priority for retry)."""
+    try:
+        if notification is None or notification.template is None:
+            return None
+        return notification.template.process_type
+    except Exception:
+        return None
+
+
 def _handle_error_with_email_retry(
-    task: Task, e: Exception, notification_id: int, notification: Optional[Notification], countdown: Optional[None] = None
+    task: Task, e: Exception, notification_id: str, notification: Optional[Notification], countdown: Optional[int] = None
 ):
     try:
         if task.request.retries <= 10:
@@ -178,10 +190,8 @@ def _handle_error_with_email_retry(
         else:
             current_app.logger.exception("RETRY: Email notification {} failed".format(notification_id), exc_info=e)
         # There is an edge case when a notification is not found in the database.
-        if notification is None or notification.template is None:
-            task.retry(**CeleryParams.retry(countdown=countdown))
-        else:
-            task.retry(**CeleryParams.retry(notification.template.process_type, countdown))
+        process_type = _safe_get_process_type(notification)
+        task.retry(**CeleryParams.retry(process_type, countdown))
     except task.MaxRetriesExceededError:
         message = (
             "RETRY FAILED: Max retries reached. "
