@@ -121,10 +121,16 @@ def test__send_data_to_service_callback_api_retries_if_request_returns_error_cod
     assert mocked.call_args[1]["countdown"] == 5
 
 
-def test_calculate_callback_retry_countdown_uses_exponential_backoff_and_cap(notify_db_session):
-    current_app.config["CALLBACK_RETRY_BACKOFF_BASE_SECONDS"] = 5
-    current_app.config["CALLBACK_RETRY_BACKOFF_MAX_SECONDS"] = 20
-    current_app.config["CALLBACK_RETRY_JITTER_FACTOR"] = 0.0
+def test_calculate_callback_retry_countdown_uses_exponential_backoff_and_cap(notify_db_session, mocker):
+    mocker.patch.dict(
+        current_app.config,
+        {
+            "CALLBACK_RETRY_BACKOFF_BASE_SECONDS": 5,
+            "CALLBACK_RETRY_BACKOFF_MAX_SECONDS": 20,
+            "CALLBACK_RETRY_JITTER_FACTOR": 0.0,
+        },
+        clear=False,
+    )
 
     assert _calculate_callback_retry_countdown(retries=0) == 5
     assert _calculate_callback_retry_countdown(retries=1) == 10
