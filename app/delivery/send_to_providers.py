@@ -294,6 +294,12 @@ def send_sms_to_provider(notification):
                     send_sms_response(provider.get_name(), notification.to, reference)
                 update_notification_to_sending(notification, provider)
 
+    if notification.international:
+        current_app.logger.info(
+            "International text sent, service_id=%(service_id)s notification_id=%(notification_id)s",
+            {"service_id": notification.service_id, "notification_id": notification.id},
+        )
+
     # Record StatsD stats to compute SLOs
     statsd_client.timing_with_dates("sms.total-time", notification.sent_at, notification.created_at)
     statsd_key = f"sms.process_type-{template_dict['process_type']}"
