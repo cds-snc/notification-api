@@ -27,9 +27,11 @@ from app import (
     clients,
     create_uuid,
     document_download_client,
+    metrics_logger,
     redis_store,
     statsd_client,
 )
+from app.aws.metrics import put_international_sms_metric
 from app.celery.research_mode_tasks import send_email_response, send_sms_response
 from app.clients.sms import SmsSendingVehicles
 from app.config import Config
@@ -299,6 +301,7 @@ def send_sms_to_provider(notification):
             "International text sent, service_id=%(service_id)s notification_id=%(notification_id)s",
             {"service_id": notification.service_id, "notification_id": notification.id},
         )
+        put_international_sms_metric(metrics_logger, notification.service_id)
 
     # Record StatsD stats to compute SLOs
     statsd_client.timing_with_dates("sms.total-time", notification.sent_at, notification.created_at)
