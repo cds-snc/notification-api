@@ -258,6 +258,8 @@ def send_sms_to_provider(notification):
         empty_message_failure(notification=notification)
         return
 
+    sent_to_provider_successfully = False
+
     if service.research_mode or notification.key_type == KEY_TYPE_TEST or sending_to_internal_test_number:
         current_app.logger.info(f"notification {notification.id} is sending to INTERNAL_TEST_NUMBER, no boto call to AWS.")
         notification.reference = str(create_uuid())
@@ -295,8 +297,9 @@ def send_sms_to_provider(notification):
                 if sending_to_dryrun_number:
                     send_sms_response(provider.get_name(), notification.to, reference)
                 update_notification_to_sending(notification, provider)
+                sent_to_provider_successfully = True
 
-    if notification.international:
+    if notification.international and sent_to_provider_successfully:
         current_app.logger.info(
             "International text sent, service_id=%(service_id)s notification_id=%(notification_id)s",
             {"service_id": notification.service_id, "notification_id": notification.id},
