@@ -187,10 +187,11 @@ def create_history(obj, history_cls=None):
         # not yet have a value before insert
 
         elif isinstance(prop, RelationshipProperty):
-            if hasattr(history_cls, prop.key + "_id"):
+            foreign_key = prop.key + "_id"
+            if hasattr(history_cls, foreign_key) and foreign_key not in data:
                 foreign_obj = getattr(obj, prop.key)
-                # if it's a nullable relationship, foreign_obj will be None, and we actually want to record that
-                data[prop.key + "_id"] = getattr(foreign_obj, "id", None)
+                # If it's a nullable relationship, foreign_obj will be None, and we want to record that.
+                data[foreign_key] = getattr(foreign_obj, "id", None)
 
     if not obj.version:
         obj.version = 1

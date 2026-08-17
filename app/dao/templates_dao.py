@@ -20,6 +20,29 @@ from app.models import (
 )
 
 
+def _create_template_history_row(template):
+    return TemplateHistory(
+        **{
+            "id": template.id,
+            "name": template.name,
+            "template_type": template.template_type,
+            "created_at": template.created_at,
+            "updated_at": template.updated_at,
+            "content": template.content,
+            "service_id": template.service_id,
+            "subject": template.subject,
+            "postage": template.postage,
+            "created_by_id": template.created_by_id,
+            "version": template.version,
+            "archived": template.archived,
+            # Keep history aligned with the DB column: only explicit overrides are stored here.
+            "process_type": template.process_type_column,
+            "template_category_id": template.template_category_id,
+            "service_letter_contact_id": template.service_letter_contact_id,
+        }
+    )
+
+
 @transactional
 @version_class(VersionOptions(Template, history_class=TemplateHistory))
 def dao_create_template(template, redact_personalisation=False, folder=None):
@@ -64,25 +87,7 @@ def dao_update_template_reply_to(template_id, reply_to):
     )
     template = Template.query.filter_by(id=template_id).one()
 
-    history = TemplateHistory(
-        **{
-            "id": template.id,
-            "name": template.name,
-            "template_type": template.template_type,
-            "created_at": template.created_at,
-            "updated_at": template.updated_at,
-            "content": template.content,
-            "service_id": template.service_id,
-            "subject": template.subject,
-            "postage": template.postage,
-            "created_by_id": template.created_by_id,
-            "version": template.version,
-            "archived": template.archived,
-            "process_type": template.process_type,
-            "service_letter_contact_id": template.service_letter_contact_id,
-        }
-    )
-    db.session.add(history)
+    db.session.add(_create_template_history_row(template))
     return template
 
 
@@ -90,30 +95,14 @@ def dao_update_template_reply_to(template_id, reply_to):
 def dao_update_template_process_type(template_id, process_type):
     Template.query.filter_by(id=template_id).update(
         {
-            "process_type": process_type,
+            Template.process_type_column: process_type,
+            Template.updated_at: datetime.utcnow(),
+            Template.version: Template.version + 1,
         }
     )
     template = Template.query.filter_by(id=template_id).one()
 
-    history = TemplateHistory(
-        **{
-            "id": template.id,
-            "name": template.name,
-            "template_type": template.template_type,
-            "created_at": template.created_at,
-            "updated_at": template.updated_at,
-            "content": template.content,
-            "service_id": template.service_id,
-            "subject": template.subject,
-            "postage": template.postage,
-            "created_by_id": template.created_by_id,
-            "version": template.version,
-            "archived": template.archived,
-            "process_type": template.process_type,
-            "service_letter_contact_id": template.service_letter_contact_id,
-        }
-    )
-    db.session.add(history)
+    db.session.add(_create_template_history_row(template))
     return template
 
 
@@ -129,25 +118,7 @@ def dao_update_template_category(template_id, category_id):
 
     template = Template.query.filter_by(id=template_id).one()
 
-    history = TemplateHistory(
-        **{
-            "id": template.id,
-            "name": template.name,
-            "template_type": template.template_type,
-            "created_at": template.created_at,
-            "updated_at": template.updated_at,
-            "content": template.content,
-            "service_id": template.service_id,
-            "subject": template.subject,
-            "postage": template.postage,
-            "created_by_id": template.created_by_id,
-            "version": template.version,
-            "archived": template.archived,
-            "process_type": template.process_type,
-            "service_letter_contact_id": template.service_letter_contact_id,
-        }
-    )
-    db.session.add(history)
+    db.session.add(_create_template_history_row(template))
     return template
 
 

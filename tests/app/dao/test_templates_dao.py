@@ -18,6 +18,7 @@ from app.dao.templates_dao import (
     dao_redact_template,
     dao_update_template,
     dao_update_template_category,
+    dao_update_template_process_type,
     dao_update_template_reply_to,
 )
 from app.models import Template, TemplateHistory, TemplateRedacted
@@ -416,7 +417,7 @@ def test_create_template_creates_a_history_record_with_current_data(sample_servi
     assert template_from_db.created_by.id == template_history.created_by_id
 
 
-def test_update_template_creates_a_history_record_with_current_data(sample_service, sample_user):
+def test_update_template_creates_a_history_record_with_current_data(sample_service, sample_user, sample_template_category):
     assert Template.query.count() == 0
     assert TemplateHistory.query.count() == 0
     data = {
@@ -448,6 +449,12 @@ def test_update_template_creates_a_history_record_with_current_data(sample_servi
 
     assert TemplateHistory.query.filter_by(name="Sample Template").one().version == 1
     assert TemplateHistory.query.filter_by(name="new name").one().version == 2
+
+    created.template_category_id = sample_template_category.id
+    dao_update_template(created)
+
+    history = TemplateHistory.query.filter_by(id=created.id, version=3).one()
+    assert history.template_category_id == sample_template_category.id
 
 
 def test_get_template_history_version(sample_user, sample_service, sample_template):
@@ -536,7 +543,7 @@ def test_dao_update_template_category(sample_template, sample_template_category)
     assert updated_template.version == 2
 
     history = TemplateHistory.query.filter_by(id=sample_template.id, version=updated_template.version).one()
-    assert not history.template_category_id
+    assert history.template_category_id == sample_template_category.id
     assert history.updated_at == updated_template.updated_at
 
 
@@ -568,3 +575,83 @@ class TestProcessType:
         assert template.template_category_id == sample_template_category.id
         assert template.process_type == sample_template_category.email_process_type
         assert template.process_type_column is None
+
+
+class TestTemplateHistoryManualUpdatePaths:
+    def test_reply_to_update_preserves_template_category_id_in_history(
+        self,
+        sample_service,
+        sample_user,
+        sample_template_category,
+    ):
+        letter_contact = create_letter_contact(sample_service, "Edinburgh, ED1 1AA")
+        template = Template(
+            **{
+                "name": "Sample Template",
+                "template_type": "letter",
+                "content": "Template content",
+                "service": sample_service,
+                "created_by": sample_user,
+                "postage": "second",
+                "template_category_id": sample_template_category.id,
+            }
+        )
+        dao_create_template(template)
+
+        dao_update_template_reply_to(template_id=template.id, reply_to=letter_contact.id)
+
+        updated = Template.query.get(template.id)
+        history = TemplateHistory.query.filter_by(id=template.id, version=updated.version).one()
+        assert history.template_category_id == sample_template_category.id
+
+    def test_process_type_update_increments_version_and_creates_matching_history(
+        self,
+        sample_service,
+        sample_template_category,
+    ):
+        template = create_template(
+            service=sample_service,
+            template_type="sms",
+            template_category=sample_template_category,
+            process_type="normal",
+        )
+
+        original_version = template.version
+        dao_update_template_process_type(template.id, "priority")
+
+        updated = Template.query.get(template.id)
+        assert updated.version == original_version + 1
+        assert updated.updated_at is not None
+        assert updated.process_type_column == "priority"
+
+        history = TemplateHistory.query.filter_by(id=template.id, version=updated.version).one()
+        assert history.process_type_column == "priority"
+        assert history.process_type == "priority"
+        assert history.template_category_id == sample_template_category.id
+        assert history.updated_at == updated.updated_at
+
+    def test_process_type_update_to_none_stores_null_override_and_keeps_category(
+        self,
+        sample_service,
+        sample_template_category,
+    ):
+        template = create_template(
+            service=sample_service,
+            template_type="sms",
+            template_category=sample_template_category,
+            process_type="bulk",
+        )
+
+        dao_update_template_process_type(template.id, None)
+
+        updated = Template.query.get(template.id)
+        assert updated.version == 2
+        assert updated.updated_at is not None
+        assert updated.process_type_column is None
+        assert updated.process_type == sample_template_category.sms_process_type
+
+        history = TemplateHistory.query.filter_by(id=template.id, version=updated.version).one()
+        assert history.process_type_column is None
+        assert history.process_type == sample_template_category.sms_process_type
+        assert history.template_category_id == sample_template_category.id
+        assert history.updated_at == updated.updated_at
