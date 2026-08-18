@@ -97,9 +97,15 @@ def delete_service_callback_api(service_callback_api):
 
 @transactional
 @version_class(ServiceCallbackApi)
-def suspend_unsuspend_service_callback_api(service_callback_api, updated_by_id, suspend=False):
+def suspend_unsuspend_service_callback_api(
+    service_callback_api,
+    updated_by_id,
+    suspend=False,
+    suspended_by_user_id=None,
+):
     service_callback_api.is_suspended = suspend
     service_callback_api.suspended_at = datetime.now(timezone.utc)
+    service_callback_api.suspended_by_user_id = suspended_by_user_id if suspend else None
     service_callback_api.updated_by_id = updated_by_id
     service_callback_api.updated_at = datetime.now(timezone.utc)
     db.session.add(service_callback_api)

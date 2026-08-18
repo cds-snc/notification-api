@@ -946,8 +946,10 @@ class ServiceCallbackApi(BaseModel, Versioned):
     _bearer_token = db.Column("bearer_token", db.String(), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, nullable=True)
-    updated_by = db.relationship("User")
     updated_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), index=True, nullable=False)
+    updated_by = db.relationship("User", foreign_keys=[updated_by_id])
+    suspended_by_user_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=True)
+    suspended_by_user = db.relationship("User", foreign_keys=[suspended_by_user_id])
     is_suspended = db.Column(db.Boolean, nullable=True, default=False)
     # If is_suspended is False and suspended_at is not None, then the callback was suspended and then unsuspended
     suspended_at = db.Column(db.DateTime, nullable=True)
@@ -973,6 +975,7 @@ class ServiceCallbackApi(BaseModel, Versioned):
             "updated_by_id": str(self.updated_by_id),
             "created_at": self.created_at.strftime(DATETIME_FORMAT),
             "updated_at": self.updated_at.strftime(DATETIME_FORMAT) if self.updated_at else None,
+            "suspended_by_user_id": str(self.suspended_by_user_id) if self.suspended_by_user_id else None,
             "is_suspended": self.is_suspended,
             "suspended_at": self.suspended_at.strftime(DATETIME_FORMAT) if self.suspended_at else None,
         }

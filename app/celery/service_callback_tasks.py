@@ -147,6 +147,7 @@ def _suspend_service_callback_and_send_email(service_id, callback_type):
         callback_api,
         updated_by_id=current_app.config["NOTIFY_USER_ID"],
         suspend=True,
+        suspended_by_user_id=None,
     )
 
     notify_celery.send_task(

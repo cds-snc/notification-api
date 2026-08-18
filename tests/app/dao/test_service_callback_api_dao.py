@@ -242,6 +242,7 @@ class TestSuspendedServiceCallback:
             saved_callback_api,
             updated_by_id=sample_service.users[0].id,
             suspend=True,
+            suspended_by_user_id=sample_service.users[0].id,
         )
         updated_results = ServiceCallbackApi.query.all()
         assert len(updated_results) == 1
@@ -255,14 +256,30 @@ class TestSuspendedServiceCallback:
         assert updated.updated_at is not None
         assert updated.is_suspended is True
         assert updated.suspended_at is not None
+        assert updated.suspended_by_user_id == sample_service.users[0].id
+
+        suspend_unsuspend_service_callback_api(
+            updated,
+            updated_by_id=sample_service.users[0].id,
+            suspend=False,
+            suspended_by_user_id=sample_service.users[0].id,
+        )
+        unsuspended = ServiceCallbackApi.query.get(updated.id)
+        assert unsuspended.is_suspended is False
+        assert unsuspended.suspended_by_user_id is None
 
         versioned_results = ServiceCallbackApi.get_history_model().query.filter_by(id=saved_callback_api.id).all()
-        assert len(versioned_results) == 2
+        assert len(versioned_results) == 3
         for x in versioned_results:
             if x.version == 1:
                 assert x.is_suspended is None
+                assert x.suspended_by_user_id is None
             elif x.version == 2:
                 assert x.is_suspended is True
+                assert x.suspended_by_user_id == sample_service.users[0].id
+            elif x.version == 3:
+                assert x.is_suspended is False
+                assert x.suspended_by_user_id is None
             else:
                 pytest.fail("version should not exist")
             assert x.id is not None

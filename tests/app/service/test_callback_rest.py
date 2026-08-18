@@ -218,6 +218,10 @@ class TestSuspendCallbackApi:
         callback = ServiceCallbackApi.query.get(service_callback_api.id)
         assert callback.is_suspended is suspend_unsuspend
         assert callback.updated_by_id == sample_service.users[0].id
+        if suspend_unsuspend:
+            assert callback.suspended_by_user_id == sample_service.users[0].id
+        else:
+            assert callback.suspended_by_user_id is None
 
 
 @pytest.mark.parametrize(

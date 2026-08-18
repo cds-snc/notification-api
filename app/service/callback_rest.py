@@ -149,7 +149,12 @@ def suspend_callback_api(service_id):
     updated_by_id = data["updated_by_id"]
     suspend_unsuspend = data["suspend_unsuspend"]
 
-    suspend_unsuspend_service_callback_api(callback_api[0], updated_by_id, suspend_unsuspend)
+    suspend_unsuspend_service_callback_api(
+        callback_api[0],
+        updated_by_id,
+        suspend_unsuspend,
+        suspended_by_user_id=updated_by_id,
+    )
     return jsonify(data=callback_api[0].serialize()), 200
 
 

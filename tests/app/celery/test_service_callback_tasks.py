@@ -156,6 +156,7 @@ def test_send_delivery_status_to_service_suspends_callback_and_sends_email_when_
     assert suspend_call[0][0].id == callback_api.id
     assert suspend_call[1]["updated_by_id"] == notify_api.config["NOTIFY_USER_ID"]
     assert suspend_call[1]["suspend"] is True
+    assert suspend_call[1]["suspended_by_user_id"] is None
 
     mocked_send_task.assert_called_once_with(
         "send-service-callback-suspension-email",
