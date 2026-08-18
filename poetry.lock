@@ -1159,6 +1159,17 @@ test = ["certifi (>=2024)", "cryptography-vectors (==46.0.7)", "pretend (>=0.7)"
 test-randomorder = ["pytest-randomly"]
 
 [[package]]
+name = "decorator"
+version = "5.3.1"
+description = "Decorators for Humans"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "decorator-5.3.1-py3-none-any.whl", hash = "sha256:f47fe6fdbd2edd623ecfe36875d37aba411624e2670dd395dddae1358689bb3c"},
+    {file = "decorator-5.3.1.tar.gz", hash = "sha256:4cbcdd55a6efadb9dbea26b858f4fb3264567b52d69ca0d25b721b553f60ea82"},
+]
+
+[[package]]
 name = "distlib"
 version = "0.4.0"
 description = "Distribution utilities"
@@ -1189,6 +1200,31 @@ files = [
     {file = "docutils-0.19-py3-none-any.whl", hash = "sha256:5e1de4d849fee02c63b040a4a3fd567f4ab104defd8a5511fbbc24a8a017efbc"},
     {file = "docutils-0.19.tar.gz", hash = "sha256:33995a6753c30b7f577febfc2c50411fec6aac7f7ffeb7c4cfe5991072dcf9e6"},
 ]
+
+[[package]]
+name = "dogpile-cache"
+version = "1.5.0"
+description = "A caching front-end based on the Dogpile lock."
+optional = false
+python-versions = ">=3.10"
+files = [
+    {file = "dogpile_cache-1.5.0-py3-none-any.whl", hash = "sha256:dc7b47d37844db15e8fdc0243c1b58857a2ddc52a5118237a97127bac200e18d"},
+    {file = "dogpile_cache-1.5.0.tar.gz", hash = "sha256:849c5573c9a38f155cd4173103c702b637ede0361c12e864876877d0cd125eec"},
+]
+
+[package.dependencies]
+decorator = ">=4.0.0"
+redis = {version = "*", optional = true, markers = "extra == \"redis\""}
+stevedore = ">=3.0.0"
+
+[package.extras]
+bmemcached = ["python-binary-memcached"]
+memcached = ["python-memcached"]
+pifpaf = ["pifpaf (>=3.3.0)"]
+pylibmc = ["pylibmc"]
+pymemcache = ["pymemcache"]
+redis = ["redis"]
+valkey = ["valkey"]
 
 [[package]]
 name = "environs"
@@ -4540,6 +4576,17 @@ files = [
 ]
 
 [[package]]
+name = "stevedore"
+version = "5.9.0"
+description = "Manage dynamic plugins for Python applications"
+optional = false
+python-versions = ">=3.11"
+files = [
+    {file = "stevedore-5.9.0-py3-none-any.whl", hash = "sha256:e520945d4c257700eddc1eb1d79df04b2ea578eef185e0e3fa5b442fc848d3f7"},
+    {file = "stevedore-5.9.0.tar.gz", hash = "sha256:abbd0af7a38a8bbb1d6adea2e35b17609cf004eaac323e88a8d8963640dd2b3c"},
+]
+
+[[package]]
 name = "strict-rfc3339"
 version = "0.7"
 description = "Strict, simple, lightweight RFC3339 functions"
@@ -5212,4 +5259,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.12.7"
-content-hash = "5ecc832d72b660126e740edb813012dad2d00722770ab50afa0f4a6c36238171"
+content-hash = "1c8a055b72d9dfaa46501875fa74ab5f4ab7951939eedff6cdae63f0a41cf4fd"

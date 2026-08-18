@@ -226,6 +226,10 @@ class Config(object):
     EXPIRE_CACHE_TEN_MINUTES = 600
     EXPIRE_CACHE_EIGHT_DAYS = 8 * 24 * 60 * 60
 
+    # Dogpile caching
+    DOGPILE_CACHE_EXPIRATION = 600
+    DOGPILE_CACHE_BACKEND = "dogpile.cache.redis"
+
     # Performance platform
     PERFORMANCE_PLATFORM_ENABLED = False
     PERFORMANCE_PLATFORM_URL = "https://www.performance.service.gov.uk/data/govuk-notify/"

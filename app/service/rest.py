@@ -76,6 +76,7 @@ from app.dao.services_dao import (
     dao_fetch_all_services_by_user,
     dao_fetch_live_services_data,
     dao_fetch_service_by_id,
+    dao_fetch_service_by_id_cached,
     dao_fetch_service_creator,
     dao_fetch_service_ids_of_sensitive_services,
     dao_fetch_todays_stats_for_all_services,
@@ -85,6 +86,7 @@ from app.dao.services_dao import (
     dao_suspend_service,
     dao_update_service,
     get_services_by_partial_name,
+    invalidate_service_cache,
 )
 from app.dao.templates_dao import dao_get_template_by_id
 from app.dao.users_dao import get_user_by_id
@@ -225,7 +227,7 @@ def get_service_by_id(service_id):
     if request.args.get("detailed") == "True":
         data = get_detailed_service(service_id, today_only=request.args.get("today_only") == "True")
     else:
-        fetched = dao_fetch_service_by_id(service_id)
+        fetched = dao_fetch_service_by_id_cached(service_id)
 
         data = service_schema.dump(fetched)
     return jsonify(data=data)
@@ -309,6 +311,7 @@ def update_service(service_id):
         service.letter_branding = None if not letter_branding_id else LetterBranding.query.get(letter_branding_id)
 
     dao_update_service(service)
+    invalidate_service_cache(str(service_id))
 
     if message_limit_changed:
         redis_store.delete(daily_limit_cache_key(service_id))
