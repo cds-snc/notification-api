@@ -6,7 +6,7 @@ from typing import Union
 from flask import current_app
 from notifications_utils.clients.redis import template_version_cache_key
 from sqlalchemy import asc, desc
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import attributes, joinedload
 
 from app import db, redis_store
 from app.dao.dao_utils import VersionOptions, transactional, version_class
@@ -15,6 +15,7 @@ from app.models import (
     LETTER_TYPE,
     SECOND_CLASS,
     Template,
+    TemplateCategory,
     TemplateHistory,
     TemplateRedacted,
 )
@@ -43,6 +44,31 @@ def _create_template_history_row(template):
     )
 
 
+def _sync_template_category_state(template):
+    state_dict = attributes.instance_state(template).dict
+    category_relationship_loaded = "template_category" in state_dict
+    loaded_category = state_dict.get("template_category") if category_relationship_loaded else None
+
+    category_id_loaded = "template_category_id" in state_dict
+    loaded_category_id = state_dict.get("template_category_id") if category_id_loaded else None
+
+    if category_id_loaded:
+        if loaded_category_id is None:
+            if category_relationship_loaded and loaded_category is not None:
+                template.template_category_id = loaded_category.id
+            return
+
+        if category_relationship_loaded and (loaded_category is None or loaded_category.id != loaded_category_id):
+            with db.session.no_autoflush:
+                category = TemplateCategory.query.get(loaded_category_id)
+            if category is not None:
+                template.template_category = category
+        return
+
+    if category_relationship_loaded and loaded_category is not None:
+        template.template_category_id = loaded_category.id
+
+
 @transactional
 @version_class(VersionOptions(Template, history_class=TemplateHistory))
 def dao_create_template(template, redact_personalisation=False, folder=None):
@@ -55,6 +81,8 @@ def dao_create_template(template, redact_personalisation=False, folder=None):
     # function can assign the id — leading to a PK-changing UPDATE that violates FKs.
     if folder:
         template.folder = folder
+
+    _sync_template_category_state(template)
 
     redacted_dict = {
         "template": template,
@@ -73,6 +101,7 @@ def dao_create_template(template, redact_personalisation=False, folder=None):
 @transactional
 @version_class(VersionOptions(Template, history_class=TemplateHistory))
 def dao_update_template(template):
+    _sync_template_category_state(template)
     db.session.add(template)
 
 

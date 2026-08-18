@@ -655,3 +655,53 @@ class TestTemplateHistoryManualUpdatePaths:
         assert history.process_type == sample_template_category.sms_process_type
         assert history.template_category_id == sample_template_category.id
         assert history.updated_at == updated.updated_at
+
+
+class TestTemplateHistoryRegressionCoverage:
+    def test_update_template_category_id_wins_over_loaded_stale_relationship(
+        self,
+        sample_service,
+        sample_template_category,
+        sample_template_category_bulk,
+    ):
+        create_template(
+            service=sample_service,
+            template_type="email",
+            template_category=sample_template_category,
+            process_type=None,
+        )
+
+        # dao_get_all_templates_for_service eager-loads template_category, which reproduces
+        # the stale-relationship scenario if only template_category_id is changed.
+        loaded_template = dao_get_all_templates_for_service(sample_service.id)[0]
+        assert loaded_template.template_category_id == sample_template_category.id
+        assert loaded_template.template_category.id == sample_template_category.id
+
+        loaded_template.template_category_id = sample_template_category_bulk.id
+        dao_update_template(loaded_template)
+
+        history = TemplateHistory.query.filter_by(id=loaded_template.id, version=2).one()
+        assert history.template_category_id == sample_template_category_bulk.id
+
+    def test_create_template_history_records_category_id_when_set_via_relationship(
+        self,
+        sample_service,
+        sample_user,
+        sample_template_category,
+    ):
+        template = Template(
+            **{
+                "name": "Sample Template",
+                "template_type": "email",
+                "subject": "subject",
+                "content": "Template content",
+                "service": sample_service,
+                "created_by": sample_user,
+                "template_category": sample_template_category,
+            }
+        )
+
+        dao_create_template(template)
+
+        history = TemplateHistory.query.filter_by(id=template.id, version=1).one()
+        assert history.template_category_id == sample_template_category.id
