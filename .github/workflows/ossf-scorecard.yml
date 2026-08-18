@@ -49,7 +49,7 @@ jobs:
           jq -c '. + {"metadata_owner": "'$OWNER'", "metadata_repo": "'$REPO'", "metadata_query": "ossf"}' ossf-results.json > ossf-results-modified.json
 
       - name: "Post results to Sentinel"
-        uses: cds-snc/sentinel-forward-data-action@2b0831903177e4ba07c850c71ab2645f72cab269 # main (no tagged releases)
+        uses: cds-snc/sentinel-forward-data-action@2b0831903177e4ba07c850c71ab2645f72cab269 # main as of 2026-08-18
         with:
           file_name: ossf-results-modified.json
           dce_endpoint: ${{ secrets.SENTINEL_DCE_ENDPOINT }}

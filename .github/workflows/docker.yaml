@@ -83,7 +83,7 @@ jobs:
         app_id: ${{ secrets.NOTIFY_PR_BOT_APP_ID }}
         private_key: ${{ secrets.NOTIFY_PR_BOT_PRIVATE_KEY }}
 
-    - uses: cds-snc/notification-pr-bot@b70dc73610a8e72a7af40e5ccc320e14ce773988 # main (no tagged releases)
+    - uses: cds-snc/notification-pr-bot@b70dc73610a8e72a7af40e5ccc320e14ce773988 # main as of 2026-08-18
       env:
         TOKEN: ${{ steps.notify-pr-bot.outputs.token }}
 
