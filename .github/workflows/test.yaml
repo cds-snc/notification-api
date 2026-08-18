@@ -8,7 +8,7 @@ jobs:
       changes: ${{ steps.filter.outputs.changes }}
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3.0.4
         id: filter
         with:
           filters: |
@@ -110,7 +110,7 @@ jobs:
         cp -f .env.example .env
 
     - name: Checks for new endpoints against AWS WAF rules
-      uses: cds-snc/notification-utils/.github/actions/waffles@53.2.34
+      uses: cds-snc/notification-utils/.github/actions/waffles@a27df2c71ab173d57c384e65bdeb2d10dd5196a8 # 53.2.34
       with:
         app-loc: '/github/workspace'
         app-libs: '/github/workspace/env/site-packages'
