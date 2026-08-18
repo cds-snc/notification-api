@@ -40,6 +40,9 @@ def _create_template_history_row(template):
             "process_type": template.process_type_column,
             "template_category_id": template.template_category_id,
             "service_letter_contact_id": template.service_letter_contact_id,
+            "hidden": template.hidden,
+            "text_direction_rtl": template.text_direction_rtl,
+            "use_custom_unsubscribe_url": template.use_custom_unsubscribe_url,
         }
     )
 

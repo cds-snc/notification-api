@@ -604,6 +604,37 @@ class TestTemplateHistoryManualUpdatePaths:
         history = TemplateHistory.query.filter_by(id=template.id, version=updated.version).one()
         assert history.template_category_id == sample_template_category.id
 
+    def test_reply_to_update_preserves_template_flags_in_history(
+        self,
+        sample_service,
+        sample_user,
+        sample_template_category,
+    ):
+        letter_contact = create_letter_contact(sample_service, "Edinburgh, ED1 1AA")
+        template = Template(
+            **{
+                "name": "Sample Template",
+                "template_type": "letter",
+                "content": "Template content",
+                "service": sample_service,
+                "created_by": sample_user,
+                "postage": "second",
+                "template_category_id": sample_template_category.id,
+                "hidden": True,
+                "text_direction_rtl": True,
+                "use_custom_unsubscribe_url": True,
+            }
+        )
+        dao_create_template(template)
+
+        dao_update_template_reply_to(template_id=template.id, reply_to=letter_contact.id)
+
+        updated = Template.query.get(template.id)
+        history = TemplateHistory.query.filter_by(id=template.id, version=updated.version).one()
+        assert history.hidden is True
+        assert history.text_direction_rtl is True
+        assert history.use_custom_unsubscribe_url is True
+
     def test_process_type_update_increments_version_and_creates_matching_history(
         self,
         sample_service,
@@ -630,6 +661,30 @@ class TestTemplateHistoryManualUpdatePaths:
         assert history.template_category_id == sample_template_category.id
         assert history.updated_at == updated.updated_at
 
+    def test_process_type_update_preserves_template_flags_in_history(
+        self,
+        sample_service,
+        sample_template_category,
+    ):
+        template = create_template(
+            service=sample_service,
+            template_type="sms",
+            template_category=sample_template_category,
+            process_type="normal",
+            text_direction_rtl=True,
+        )
+        template.hidden = True
+        template.use_custom_unsubscribe_url = True
+        dao_update_template(template)
+
+        dao_update_template_process_type(template.id, "priority")
+
+        updated = Template.query.get(template.id)
+        history = TemplateHistory.query.filter_by(id=template.id, version=updated.version).one()
+        assert history.hidden is True
+        assert history.text_direction_rtl is True
+        assert history.use_custom_unsubscribe_url is True
+
     def test_process_type_update_to_none_stores_null_override_and_keeps_category(
         self,
         sample_service,
@@ -655,6 +710,31 @@ class TestTemplateHistoryManualUpdatePaths:
         assert history.process_type == sample_template_category.sms_process_type
         assert history.template_category_id == sample_template_category.id
         assert history.updated_at == updated.updated_at
+
+    def test_category_update_preserves_template_flags_in_history(
+        self,
+        sample_service,
+        sample_template_category,
+        sample_template_category_bulk,
+    ):
+        template = create_template(
+            service=sample_service,
+            template_type="email",
+            template_category=sample_template_category,
+            process_type=None,
+            text_direction_rtl=True,
+        )
+        template.hidden = True
+        template.use_custom_unsubscribe_url = True
+        dao_update_template(template)
+
+        dao_update_template_category(template.id, sample_template_category_bulk.id)
+
+        updated = Template.query.get(template.id)
+        history = TemplateHistory.query.filter_by(id=template.id, version=updated.version).one()
+        assert history.hidden is True
+        assert history.text_direction_rtl is True
+        assert history.use_custom_unsubscribe_url is True
 
 
 class TestTemplateHistoryRegressionCoverage:
