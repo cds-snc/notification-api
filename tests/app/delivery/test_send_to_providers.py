@@ -213,6 +213,74 @@ def test_should_handle_opted_out_phone_numbers_if_using_pinpoint(notify_api, sam
         assert notification.provider_response == "Phone number is opted out"
 
 
+def test_should_not_emit_international_signal_for_key_type_test_sms(sample_template, mocker):
+    notification = save_notification(
+        create_notification(
+            template=sample_template,
+            to_field="+447512501324",
+            international=True,
+            key_type=KEY_TYPE_TEST,
+            status="created",
+            reply_to_text=sample_template.service.get_default_sms_sender(),
+        )
+    )
+
+    info_log_mock = mocker.patch("app.delivery.send_to_providers.current_app.logger.info")
+    metric_mock = mocker.patch("app.delivery.send_to_providers.put_international_sms_metric")
+    send_mock = mocker.patch("app.aws_sns_client.send_sms")
+    mocker.patch("app.delivery.send_to_providers.send_sms_response", return_value="not-used")
+
+    send_to_providers.send_sms_to_provider(notification)
+
+    send_mock.assert_not_called()
+    assert not any(call.args and call.args[0].startswith("International text sent") for call in info_log_mock.call_args_list)
+    metric_mock.assert_not_called()
+
+
+def test_should_not_emit_international_signal_for_opted_out_sms(sample_template, mocker):
+    notification = save_notification(
+        create_notification(
+            template=sample_template,
+            to_field="+447512501324",
+            international=True,
+            status="created",
+            reply_to_text=sample_template.service.get_default_sms_sender(),
+        )
+    )
+
+    info_log_mock = mocker.patch("app.delivery.send_to_providers.current_app.logger.info")
+    metric_mock = mocker.patch("app.delivery.send_to_providers.put_international_sms_metric")
+    mocker.patch("app.aws_sns_client.send_sms", return_value="opted_out")
+
+    send_to_providers.send_sms_to_provider(notification)
+
+    persisted_notification = Notification.query.filter_by(id=notification.id).one()
+    assert persisted_notification.status == "technical-failure"
+    assert not any(call.args and call.args[0].startswith("International text sent") for call in info_log_mock.call_args_list)
+    metric_mock.assert_not_called()
+
+
+def test_should_emit_international_signal_for_successfully_sent_sms(sample_template, mocker):
+    notification = save_notification(
+        create_notification(
+            template=sample_template,
+            to_field="+447512501324",
+            international=True,
+            status="created",
+            reply_to_text=sample_template.service.get_default_sms_sender(),
+        )
+    )
+
+    info_log_mock = mocker.patch("app.delivery.send_to_providers.current_app.logger.info")
+    metric_mock = mocker.patch("app.delivery.send_to_providers.put_international_sms_metric")
+    mocker.patch("app.aws_sns_client.send_sms", return_value="message_id_from_sns")
+
+    send_to_providers.send_sms_to_provider(notification)
+
+    assert any(call.args and call.args[0].startswith("International text sent") for call in info_log_mock.call_args_list)
+    metric_mock.assert_called_once_with(send_to_providers.metrics_logger, notification.service_id)
+
+
 def test_should_send_personalised_template_to_correct_sms_provider_and_persist(sample_sms_template_with_html, mocker):
     db_notification = save_notification(
         create_notification(
