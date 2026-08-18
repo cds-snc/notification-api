@@ -7,6 +7,7 @@ from app.notifications.callbacks import (
     create_complaint_callback_data,
     create_delivery_status_callback_data,
 )
+from app.notifications.notifications_ses_callback import _check_and_queue_complaint_callback_task
 from tests.app.conftest import create_sample_notification
 from tests.app.db import create_complaint, create_service_callback_api
 
@@ -116,4 +117,60 @@ def test_check_and_queue_callback_task_does_not_call_delivery_task_when_notifica
 
     with patch("app.notifications.callbacks.send_delivery_status_to_service.apply_async") as mock_apply_async:
         _check_and_queue_callback_task(None)
+        mock_apply_async.assert_not_called()
+
+
+def test_check_and_queue_complaint_callback_task_calls_complaint_task(
+    notify_db,
+    notify_db_session,
+    sample_email_template,
+):
+    notification = create_sample_notification(
+        notify_db,
+        notify_db_session,
+        template=sample_email_template,
+        status="delivered",
+        sent_at=datetime.utcnow(),
+    )
+    complaint = create_complaint(notification=notification, service=notification.service)
+    callback_api = create_service_callback_api(
+        service=sample_email_template.service,
+        url="https://original_url.com",
+        callback_type="complaint",
+    )
+
+    with patch("app.notifications.notifications_ses_callback.send_complaint_to_service.apply_async") as mock_apply_async:
+        _check_and_queue_complaint_callback_task(complaint, notification, "recipient@example.com")
+
+        mock_apply_async.assert_called_once_with(
+            [
+                create_complaint_callback_data(complaint, notification, callback_api, "recipient@example.com"),
+                notification.service_id,
+            ],
+            queue="service-callbacks",
+        )
+
+
+def test_check_and_queue_complaint_callback_task_does_not_call_complaint_task_when_suspended(
+    notify_db,
+    notify_db_session,
+    sample_email_template,
+):
+    notification = create_sample_notification(
+        notify_db,
+        notify_db_session,
+        template=sample_email_template,
+        status="delivered",
+        sent_at=datetime.utcnow(),
+    )
+    complaint = create_complaint(notification=notification, service=notification.service)
+    create_service_callback_api(
+        service=sample_email_template.service,
+        url="https://original_url.com",
+        callback_type="complaint",
+        is_suspended=True,
+    )
+
+    with patch("app.notifications.notifications_ses_callback.send_complaint_to_service.apply_async") as mock_apply_async:
+        _check_and_queue_complaint_callback_task(complaint, notification, "recipient@example.com")
         mock_apply_async.assert_not_called()
