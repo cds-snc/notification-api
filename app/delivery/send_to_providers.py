@@ -27,9 +27,11 @@ from app import (
     clients,
     create_uuid,
     document_download_client,
+    metrics_logger,
     redis_store,
     statsd_client,
 )
+from app.aws.metrics import put_international_sms_metric
 from app.celery.research_mode_tasks import send_email_response, send_sms_response
 from app.clients.sms import SmsSendingVehicles
 from app.config import Config
@@ -256,6 +258,8 @@ def send_sms_to_provider(notification):
         empty_message_failure(notification=notification)
         return
 
+    sent_to_provider_successfully = False
+
     if service.research_mode or notification.key_type == KEY_TYPE_TEST or sending_to_internal_test_number:
         current_app.logger.info(f"notification {notification.id} is sending to INTERNAL_TEST_NUMBER, no boto call to AWS.")
         notification.reference = str(create_uuid())
@@ -293,6 +297,14 @@ def send_sms_to_provider(notification):
                 if sending_to_dryrun_number:
                     send_sms_response(provider.get_name(), notification.to, reference)
                 update_notification_to_sending(notification, provider)
+                sent_to_provider_successfully = True
+
+    if notification.international and sent_to_provider_successfully:
+        current_app.logger.info(
+            "International text sent, service_id=%(service_id)s notification_id=%(notification_id)s",
+            {"service_id": notification.service_id, "notification_id": notification.id},
+        )
+        put_international_sms_metric(metrics_logger, notification.service_id)
 
     # Record StatsD stats to compute SLOs
     statsd_client.timing_with_dates("sms.total-time", notification.sent_at, notification.created_at)
