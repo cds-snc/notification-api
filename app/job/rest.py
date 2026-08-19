@@ -2,7 +2,6 @@ import time
 import uuid
 from datetime import datetime
 
-import dateutil
 from flask import Blueprint, current_app, jsonify, request
 from notifications_utils.recipients import RecipientCSV
 from notifications_utils.template import Template
@@ -11,16 +10,15 @@ from app.annual_limit_utils import get_annual_limit_notifications_v2
 from app.aws.s3 import get_job_from_s3, get_job_metadata_from_s3
 from app.celery.tasks import process_job
 from app.config import QueueNames
-from app.dao.fact_notification_status_dao import fetch_notification_statuses_for_job_batch
 from app.dao.jobs_dao import (
     can_letter_job_be_cancelled,
     dao_cancel_letter_job,
     dao_create_job,
     dao_get_future_scheduled_job_by_id_and_service_id,
     dao_get_job_by_service_id_and_job_id,
+    dao_get_job_statistics_for_jobs,
     dao_get_jobs_by_service_id,
     dao_get_notification_outcomes_for_job,
-    dao_get_notification_outcomes_for_job_batch,
     dao_service_has_jobs,
     dao_update_job,
 )
@@ -53,7 +51,7 @@ from app.schemas import (
     notifications_filter_schema,
     unarchived_template_schema,
 )
-from app.utils import midnight_n_days_ago, pagination_links
+from app.utils import pagination_links
 
 job_blueprint = Blueprint("job", __name__, url_prefix="/service/<uuid:service_id>/job")
 
@@ -275,52 +273,9 @@ def get_paginated_jobs(service_id, limit_days, statuses, page, page_size=None):
     )
     data = job_schema.dump(pagination.items, many=True)
 
-    cutoff = midnight_n_days_ago(3)
-    recent_job_ids = []
-    old_job_ids = []
-
-    # Find jobs < the cutoff (ft_notification_status) and those within the cutoff (notifications/notification_history)
-    # Categorize them into recent and old jobs based on their processing_started date
-    for job_data in data:  # TODO: figure out what idx is, job_id?
-        raw_start = job_data["processing_started"]
-        start = dateutil.parser.parse(raw_start).replace(tzinfo=None) if raw_start else None
-        # Temporarily store the parsed start time to avoid parsing it again later during stat assignment
-        job_data["_parsed_start"] = start
-
-        if start is None:
-            job_data["statistics"] = []
-            continue
-        if start < cutoff:
-            old_job_ids.append(job_data["id"])
-        else:
-            recent_job_ids.append(job_data["id"])
-
-    # Fetch statistics for recent and old jobs in batches instead of job by job to reduce # of DB queries
-    recent_stats = {}
-    if recent_job_ids:
-        stats = dao_get_notification_outcomes_for_job_batch(service_id, recent_job_ids)
-        for job_id, status, count in stats:
-            recent_stats.setdefault(job_id, []).append({"status": status, "count": count})
-
-    old_stats = {}
-    if old_job_ids:
-        stats = fetch_notification_statuses_for_job_batch(service_id, old_job_ids)
-        for job_id, status, count in stats:
-            old_stats.setdefault(job_id, []).append({"status": status, "count": count})
-
-    # Assign statistics to each job
+    statistics_by_job = dao_get_job_statistics_for_jobs(pagination.items)
     for job_data in data:
-        job_id = job_data["id"]
-        start = job_data.get("_parsed_start")
-
-        if start is None:
-            # We set this in the first loop so we can just skip it here
-            continue
-        elif start < cutoff:
-            job_data["statistics"] = old_stats.get(uuid.UUID(job_id), [])
-        else:
-            job_data["statistics"] = recent_stats.get(uuid.UUID(job_id), [])
-        del job_data["_parsed_start"]  # Clean up that temporary field
+        job_data["statistics"] = statistics_by_job.get(uuid.UUID(job_data["id"]), [])
 
     end_time = time.time()
     current_app.logger.info(f"[get_paginated_jobs] took {"{:.3f}".format(end_time - start_time)} seconds")
