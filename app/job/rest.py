@@ -278,7 +278,7 @@ def get_paginated_jobs(service_id, limit_days, statuses, page, page_size=None):
         job_data["statistics"] = statistics_by_job.get(uuid.UUID(job_data["id"]), [])
 
     end_time = time.time()
-    current_app.logger.info(f"[get_paginated_jobs] took {"{:.3f}".format(end_time - start_time)} seconds")
+    current_app.logger.info(f"[get_paginated_jobs] took {end_time - start_time:.3f} seconds")
 
     # Build extra kwargs so pagination links preserve all original query params.
     link_kwargs = {"service_id": service_id}

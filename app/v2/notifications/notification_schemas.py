@@ -126,7 +126,7 @@ get_notifications_response = {
 }
 
 get_bulk_job_request = {
-    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$schema": "http://json-schema.org/draft-04/schema#",
     "description": "schema for path parameters when getting a bulk job",
     "type": "object",
     "properties": {
@@ -137,7 +137,7 @@ get_bulk_job_request = {
 }
 
 get_bulk_jobs_request = {
-    "$schema": "http://json-schema.org/draft-07/schema#",
+    "$schema": "http://json-schema.org/draft-04/schema#",
     "description": "schema for query parameters allowed when getting bulk jobs",
     "type": "object",
     "properties": {
