@@ -311,21 +311,21 @@ def _create_quarterly_email_markdown_list(service_info, service_ids, cummulative
         markdown_list_en += f"## {service_name} \n"
         markdown_list_fr += f"## {service_name} \n"
 
-        email_percentage = round(float(email_count / email_annual_limit), 4) * 100 if email_count else 0
+        email_percentage = round(float(email_count / email_annual_limit) * 100, 2) if email_count else 0
         email_count_en = _format_number(email_count)
         email_annual_limit_en = _format_number(email_annual_limit)
         email_count_fr = _format_number(email_count, use_space=True)
         email_annual_limit_fr = _format_number(email_annual_limit, use_space=True)
-        markdown_list_en += f"Emails: you've sent {email_count_en} out of {email_annual_limit_en} ({email_percentage}%)\n"
-        markdown_list_fr += f"Courriels: {email_count_fr} envoyés sur {email_annual_limit_fr} ({email_percentage}%)\n"
+        markdown_list_en += f"Emails: you've sent {email_count_en} out of {email_annual_limit_en} ({email_percentage:.2f}%)\n"
+        markdown_list_fr += f"Courriels: {email_count_fr} envoyés sur {email_annual_limit_fr} ({email_percentage:.2f}%)\n"
 
-        sms_percentage = round(float(sms_count / sms_annual_limit), 4) * 100 if sms_count else 0
+        sms_percentage = round(float(sms_count / sms_annual_limit) * 100, 2) if sms_count else 0
         sms_count_en = _format_number(sms_count)
         sms_annual_limit_en = _format_number(sms_annual_limit)
         sms_count_fr = _format_number(sms_count, use_space=True)
         sms_annual_limit_fr = _format_number(sms_annual_limit, use_space=True)
-        markdown_list_en += f"Text messages: you've sent {sms_count_en} out of {sms_annual_limit_en} ({sms_percentage}%)\n"
-        markdown_list_fr += f"Messages texte : {sms_count_fr} envoyés sur {sms_annual_limit_fr} ({sms_percentage}%)\n"
+        markdown_list_en += f"Text messages: you've sent {sms_count_en} out of {sms_annual_limit_en} ({sms_percentage:.2f}%)\n"
+        markdown_list_fr += f"Messages texte : {sms_count_fr} envoyés sur {sms_annual_limit_fr} ({sms_percentage:.2f}%)\n"
 
         markdown_list_en += "\n"
         markdown_list_fr += "\n"
