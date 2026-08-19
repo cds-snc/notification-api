@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from functools import partial
 
 import pytest
@@ -11,6 +11,7 @@ from app.dao.jobs_dao import (
     dao_create_job,
     dao_get_future_scheduled_job_by_id_and_service_id,
     dao_get_job_by_service_id_and_job_id,
+    dao_get_job_statistics_for_jobs,
     dao_get_jobs_by_service_id,
     dao_get_jobs_older_than_data_retention,
     dao_get_notification_outcomes_for_job,
@@ -21,6 +22,7 @@ from app.dao.jobs_dao import (
 from app.dao.service_data_retention_dao import insert_service_data_retention
 from app.models import EMAIL_TYPE, LETTER_TYPE, SMS_TYPE, Job
 from tests.app.db import (
+    create_ft_notification_status,
     create_job,
     create_notification,
     create_notification_history,
@@ -32,6 +34,37 @@ from tests.app.db import (
 
 def test_should_have_decorated_notifications_dao_functions():
     assert dao_get_notification_outcomes_for_job.__wrapped__.__name__ == "dao_get_notification_outcomes_for_job"  # noqa
+
+
+@freeze_time("2026-08-18")
+def test_dao_get_job_statistics_for_jobs_uses_notifications_for_recent_jobs(sample_template):
+    job = create_job(sample_template, processing_started=datetime(2026, 8, 17))
+    save_notification(create_notification(template=sample_template, job=job, status="sending"))
+
+    assert dao_get_job_statistics_for_jobs([job]) == {job.id: [{"status": "sending", "count": 1}]}
+
+
+@freeze_time("2026-08-18")
+def test_dao_get_job_statistics_for_jobs_uses_facts_for_old_jobs(sample_template):
+    job = create_job(sample_template, processing_started=datetime(2026, 8, 5))
+    create_ft_notification_status(date(2026, 8, 5), template=sample_template, job=job, notification_status="delivered")
+
+    assert dao_get_job_statistics_for_jobs([job]) == {job.id: [{"status": "delivered", "count": 1}]}
+
+
+@freeze_time("2026-08-18")
+def test_dao_get_job_statistics_for_jobs_uses_facts_for_archived_jobs(sample_template):
+    job = create_job(sample_template, processing_started=datetime(2026, 8, 5), archived=True)
+    create_ft_notification_status(date(2026, 8, 5), template=sample_template, job=job, notification_status="temporary-failure")
+
+    assert dao_get_job_statistics_for_jobs([job]) == {job.id: [{"status": "temporary-failure", "count": 1}]}
+
+
+@freeze_time("2026-08-18")
+def test_dao_get_job_statistics_for_jobs_returns_no_entry_without_fact_rows(sample_template):
+    job = create_job(sample_template, processing_started=datetime(2026, 8, 5), archived=True)
+
+    assert dao_get_job_statistics_for_jobs([job]) == {}
 
 
 def test_should_count_of_statuses_for_notifications_associated_with_job(sample_template, sample_job):
