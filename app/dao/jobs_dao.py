@@ -53,9 +53,13 @@ def dao_get_notification_outcomes_for_job_batch(service_id, job_ids):
 
 
 def dao_get_job_statistics_for_jobs(jobs):
-    """Return notification statistics grouped by job ID for a collection of jobs."""
+    """Return statistics for jobs from a single service, grouped by job ID."""
     if not jobs:
         return {}
+
+    service_ids = {job.service_id for job in jobs}
+    if len(service_ids) > 1:
+        raise ValueError("Job statistics must be requested for one service at a time")
 
     cutoff = midnight_n_days_ago(3)
     recent_job_ids = [job.id for job in jobs if job.processing_started and job.processing_started >= cutoff]

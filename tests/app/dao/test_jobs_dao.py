@@ -67,6 +67,16 @@ def test_dao_get_job_statistics_for_jobs_returns_no_entry_without_fact_rows(samp
     assert dao_get_job_statistics_for_jobs([job]) == {}
 
 
+def test_dao_get_job_statistics_for_jobs_rejects_jobs_from_multiple_services(sample_template):
+    other_service = create_service(service_name="Other statistics service")
+    other_template = create_template(service=other_service)
+    job = create_job(sample_template)
+    other_job = create_job(other_template)
+
+    with pytest.raises(ValueError, match="one service at a time"):
+        dao_get_job_statistics_for_jobs([job, other_job])
+
+
 def test_should_count_of_statuses_for_notifications_associated_with_job(sample_template, sample_job):
     save_notification(create_notification(sample_template, job=sample_job, status="created"))
     save_notification(create_notification(sample_template, job=sample_job, status="created"))
