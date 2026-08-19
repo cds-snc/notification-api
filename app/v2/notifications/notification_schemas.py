@@ -125,6 +125,27 @@ get_notifications_response = {
     "definitions": {"notification": get_notification_response},
 }
 
+get_bulk_job_request = {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "description": "schema for path parameters when getting a bulk job",
+    "type": "object",
+    "properties": {
+        "job_id": uuid,
+    },
+    "required": ["job_id"],
+    "additionalProperties": False,
+}
+
+get_bulk_jobs_request = {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "description": "schema for query parameters allowed when getting bulk jobs",
+    "type": "object",
+    "properties": {
+        "older_than": uuid,
+    },
+    "additionalProperties": False,
+}
+
 post_sms_request = {
     "$schema": "http://json-schema.org/draft-04/schema#",
     "description": "POST sms notification schema",
