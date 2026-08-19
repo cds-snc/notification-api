@@ -53,6 +53,10 @@ def test_get_bulk_job_returns_404_for_unknown_job(client, sample_service):
     )
 
     assert response.status_code == 404
+    assert response.get_json() == {
+        "status_code": 404,
+        "errors": [{"error": "JobNotFoundError", "message": "Job not found in database"}],
+    }
 
 
 def test_get_bulk_jobs_returns_only_jobs_for_authenticated_service(client, sample_template):

@@ -11,6 +11,7 @@ from app.dao.jobs_dao import (
 from app.errors import InvalidRequest
 from app.schema_validation import validate
 from app.schemas import job_schema
+from app.v2.errors import JobNotFoundError
 from app.v2.notifications import v2_notification_blueprint
 from app.v2.notifications.notification_schemas import (
     get_bulk_job_request,
@@ -24,7 +25,7 @@ def get_bulk_job(job_id):
     job = dao_get_job_by_service_id_and_job_id(authenticated_service.id, job_id)
 
     if job is None:
-        return jsonify(result="error", message="Job not found in database"), 404
+        raise JobNotFoundError()
 
     data = _serialize_jobs_with_statistics([job])[0]
     return jsonify(data=data), 200
