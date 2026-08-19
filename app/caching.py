@@ -15,29 +15,25 @@ def _uuidish(value):
 
 
 def cache_key_generator(namespace, fn, **kw):
-    """Basic cache key generator, parents keys in the specified dogpile namespace
-    and formats like so: `dao_function_name_being_cached-primary_entity_id` e.g
+    """Generate a cache key from namespace, function name, and argument list values e.g:
 
     ```
     service
     |
-    +--> service:dao_fetch_service_by_id_cached-<service_id>
+    +--> service:dao_fetch_service_by_id_cached|<service_id>|other|args|here
     ```
 
-    This is rudimentary for now as it operates under the assumption that the first
-    uuid-like value encountered maps 1:1 with the primary entity being fetched which
-    may not be true across the codebase.
+    UUIDs are normalized to their string form so that UUID objs resolve to the same cache key.
     """
     fname = fn.__name__
 
     def generate_key(*args):
+        parts = []
         for value in args:
-            id = _uuidish(value)
-            if id:
-                primary_id = id
-                break
-
-        return f"{namespace}:{fname}-{primary_id}"
+            normalized = _uuidish(value)
+            parts.append(normalized if normalized else str(value))
+        suffix = "|".join(parts)
+        return f"{namespace}:{fname}|{suffix}" if suffix else f"{namespace}:{fname}"
 
     return generate_key
 
