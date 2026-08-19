@@ -702,12 +702,3 @@ def dao_fetch_service_creator(service_id: uuid.UUID) -> User:
 def dao_fetch_service_ids_of_sensitive_services():
     sensitive_service_ids = Service.query.filter(Service.sensitive_service.is_(True)).with_entities(Service.id).all()
     return [str(service_id) for (service_id,) in sensitive_service_ids]
-
-
-def invalidate_service_cache(service_id: str) -> None:
-    """Helper function to invalidate a service cache.
-
-    Avoids unresolved-attribute type check errors as dogpile decorators will dynamically add
-    various utilities to function objects at runtime e.g `invalidate()`, `set()`, `get()` etc.
-    """
-    dao_fetch_service_by_id_cached.invalidate(service_id)  # type: ignore
