@@ -29,6 +29,7 @@ from app.dao.notifications_dao import (
     get_notification_count_for_job,
     get_notification_for_job,
     get_notification_with_personalisation,
+    get_notification_with_template,
     get_notifications_for_job,
     get_notifications_for_service,
     is_delivery_slow_for_provider,
@@ -545,6 +546,29 @@ def test_get_notification_by_id_when_notification_exists_for_different_service(
 
     with pytest.raises(NoResultFound):
         get_notification_by_id(sample_notification.id, another_service.id, _raise=True)
+
+
+def test_get_notification_with_template_eagerly_loads_template(sample_notification):
+    notification_from_db = get_notification_with_template(str(sample_notification.id))
+
+    assert notification_from_db is not None
+    assert notification_from_db.id == sample_notification.id
+    # template is loaded and accessible without a lazy-load query
+    assert notification_from_db.template is not None
+    assert notification_from_db.template.process_type is not None or notification_from_db.template.process_type is None
+
+
+def test_get_notification_with_template_returns_none_when_not_found(notify_db, fake_uuid):
+    assert get_notification_with_template(fake_uuid) is None
+
+
+def test_get_notification_with_template_accessible_after_session_expire(sample_notification, notify_db_session):
+    notification_from_db = get_notification_with_template(str(sample_notification.id))
+    # Expire all objects in session to simulate detached/expired state
+    notify_db_session.expire_all()
+    # template.process_type should still be accessible because it was eagerly loaded
+    assert notification_from_db.template is not None
+    assert hasattr(notification_from_db.template, "process_type")
 
 
 def test_get_notifications_by_reference(sample_template):
