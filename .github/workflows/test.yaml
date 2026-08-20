@@ -29,6 +29,7 @@ jobs:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
 
     - name: Set up Python 3.12
+      id: setup-python
       uses: actions/setup-python@b64ffcaf5b410884ad320a9cfac8866006a109aa # v4.8.0
       with:
         python-version: '3.12'
@@ -47,9 +48,9 @@ jobs:
       id: venv-cache
       with:
         path: .venv
-        key: ${{ runner.os }}-py312-venv-${{ hashFiles('poetry.lock') }}
+        key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-venv-${{ hashFiles('poetry.lock') }}
         restore-keys: |
-          ${{ runner.os }}-py312-venv-
+          ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-venv-
 
     - uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
       with:
@@ -74,7 +75,6 @@ jobs:
       run: poetry check --lock
 
     - name: Install requirements
-      if: steps.venv-cache.outputs.cache-hit != 'true'
       run: poetry install --with test --no-interaction --no-ansi
 
     - name: Ruff check
@@ -154,6 +154,7 @@ jobs:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
 
     - name: Set up Python 3.12
+      id: setup-python
       uses: actions/setup-python@b64ffcaf5b410884ad320a9cfac8866006a109aa # v4.8.0
       with:
         python-version: '3.12'
@@ -172,9 +173,9 @@ jobs:
       id: venv-cache
       with:
         path: .venv
-        key: ${{ runner.os }}-py312-venv-${{ hashFiles('poetry.lock') }}
+        key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-venv-${{ hashFiles('poetry.lock') }}
         restore-keys: |
-          ${{ runner.os }}-py312-venv-
+          ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-venv-
 
     - name: Install poetry
       env:
@@ -182,7 +183,6 @@ jobs:
       run: pip install poetry==${POETRY_VERSION} poetry-plugin-sort && poetry --version
 
     - name: Install requirements
-      if: steps.venv-cache.outputs.cache-hit != 'true'
       run: poetry install --with test --no-interaction --no-ansi
 
     - name: Generate version file
@@ -254,6 +254,7 @@ jobs:
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
 
     - name: Set up Python 3.12
+      id: setup-python
       uses: actions/setup-python@b64ffcaf5b410884ad320a9cfac8866006a109aa # v4.8.0
       with:
         python-version: '3.12'
@@ -272,9 +273,9 @@ jobs:
       id: venv-cache
       with:
         path: .venv
-        key: ${{ runner.os }}-py312-venv-${{ hashFiles('poetry.lock') }}
+        key: ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-venv-${{ hashFiles('poetry.lock') }}
         restore-keys: |
-          ${{ runner.os }}-py312-venv-
+          ${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-venv-
 
     - name: Install poetry
       env:
@@ -282,7 +283,6 @@ jobs:
       run: pip install poetry==${POETRY_VERSION} poetry-plugin-sort && poetry --version
 
     - name: Install requirements
-      if: steps.venv-cache.outputs.cache-hit != 'true'
       run: poetry install --with test --no-interaction --no-ansi
 
     - name: Generate version file
