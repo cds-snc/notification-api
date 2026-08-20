@@ -337,7 +337,7 @@ class TestDeliverSmsRetryCountdown:
         notification = MagicMock()
         notification.template.process_type = "priority"
         mocker.patch(
-            "app.celery.provider_tasks.notifications_dao.get_notification_by_id",
+            "app.celery.provider_tasks.get_notification_with_template",
             return_value=notification,
         )
         mocker.patch(
@@ -359,7 +359,7 @@ class TestDeliverSmsRetryCountdown:
         sms_method_name,
     ):
         mocker.patch(
-            "app.celery.provider_tasks.notifications_dao.get_notification_by_id",
+            "app.celery.provider_tasks.get_notification_with_template",
             side_effect=Exception("DB connection error"),
         )
         mocker.patch(f"app.celery.provider_tasks.{sms_method_name}.retry")
@@ -380,7 +380,7 @@ class TestDeliverSmsRetryCountdown:
         notification = MagicMock()
         notification.template = None
         mocker.patch(
-            "app.celery.provider_tasks.notifications_dao.get_notification_by_id",
+            "app.celery.provider_tasks.get_notification_with_template",
             return_value=notification,
         )
         mocker.patch(
