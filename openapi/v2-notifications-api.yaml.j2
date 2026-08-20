@@ -1147,6 +1147,52 @@ paths:
 
 
   /v2/notifications/bulk:
+    get:
+      summary: {{ t("Get list of bulk jobs") }}
+      description: {{ t("Retrieve a paginated list of bulk jobs and their statuses") }}
+      operationId: getBulkNotificationJobs
+      tags:
+        - Notifications
+      parameters:
+        - name: older_than
+          in: query
+          description: {{ t("Filter bulk jobs older than this job ID (UUID)") }}
+          required: false
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '200':
+          description: {{ t("Successfully retrieved bulk jobs") }}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkJobsResponse'
+        '400':
+          description: {{ t("Bad request - invalid cursor") }}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: {{ t("Unauthorized") }}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '403':
+          description: {{ t("Forbidden") }}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '500':
+          description: {{ t("Internal server error") }}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+        - apiKey: []
     post:
       summary: {{ t("Send a batch of notifications") }}
       description: |
@@ -1660,6 +1706,61 @@ paths:
                 errors:
                   - error: "S3ReportDownloadError"
                     message: "Failed to retrieve report content"
+      security:
+        - apiKey: []
+
+
+  /v2/notifications/bulk/{job_id}:
+    get:
+      summary: {{ t("Get bulk job by ID") }}
+      description: {{ t("Retrieve a bulk job and its current status") }}
+      operationId: getBulkNotificationJobById
+      tags:
+        - Notifications
+      parameters:
+        - name: job_id
+          in: path
+          description: {{ t("Unique identifier for the bulk job") }}
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '200':
+          description: {{ t("Bulk job retrieved successfully") }}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostBulkResponse'
+        '400':
+          description: {{ t("Bad request - invalid job ID format") }}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: {{ t("Unauthorized") }}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '403':
+          description: {{ t("Forbidden") }}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '404':
+          description: {{ t("Bulk job not found") }}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: {{ t("Internal server error") }}
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
       security:
         - apiKey: []
 
@@ -2334,6 +2435,112 @@ components:
               $ref: '#/components/schemas/UUID'
               nullable: true
               description: {{ t("The ID of the sender used for this job, if applicable") }}
+            statistics:
+              type: array
+              items:
+                type: object
+                required: [status, count]
+                properties:
+                  status:
+                    type: string
+                  count:
+                    type: integer
+
+    BulkJob:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        original_file_name:
+          type: string
+        notification_count:
+          type: integer
+        template:
+          $ref: '#/components/schemas/UUID'
+        template_version:
+          type: integer
+        service:
+          $ref: '#/components/schemas/UUID'
+        created_by:
+          type: object
+          properties:
+            id:
+              $ref: '#/components/schemas/UUID'
+            name:
+              type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+        job_status:
+          type: string
+          enum: ['pending', 'in progress', 'finished', 'sending limits exceeded', 'scheduled', 'cancelled', 'ready to send', 'sent to dvla', 'error']
+        scheduled_for:
+          type: string
+          format: date-time
+          nullable: true
+        processing_started:
+          type: string
+          format: date-time
+          nullable: true
+        processing_finished:
+          type: string
+          format: date-time
+          nullable: true
+        service_name:
+          type: object
+          properties:
+            name:
+              type: string
+        template_type:
+          type: string
+          enum: [email, sms]
+        api_key:
+          type: object
+          nullable: true
+          properties:
+            id:
+              $ref: '#/components/schemas/UUID'
+            name:
+              type: string
+            key_type:
+              type: string
+              enum: [normal, team, test]
+        archived:
+          type: boolean
+        sender_id:
+          $ref: '#/components/schemas/UUID'
+          nullable: true
+        statistics:
+          type: array
+          items:
+            type: object
+            required: [status, count]
+            properties:
+              status:
+                type: string
+              count:
+                type: integer
+      required:
+        - id
+        - job_status
+        - notification_count
+
+    BulkJobsResponse:
+      type: object
+      properties:
+        bulk_jobs:
+          type: array
+          items:
+            $ref: '#/components/schemas/BulkJob'
+        links:
+          $ref: '#/components/schemas/Links'
+      required:
+        - bulk_jobs
+        - links
 
     Report:
       type: object
