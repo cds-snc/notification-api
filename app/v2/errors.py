@@ -148,6 +148,14 @@ class TemplateCategoryNotFoundError(BadRequestError):
         super().__init__(message=self.__class__.message)
 
 
+class JobNotFoundError(InvalidRequest):
+    status_code = 404
+    message = "Job not found in database"
+
+    def __init__(self):
+        super().__init__(message=self.__class__.message, status_code=self.__class__.status_code)
+
+
 class ReportRateLimitError(InvalidRequest):
     status_code = 429
 
