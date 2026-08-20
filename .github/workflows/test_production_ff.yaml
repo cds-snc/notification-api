@@ -78,7 +78,7 @@ jobs:
 
     - name: Run serial tests
       run: |
-        poetry run py.test --disable-pytest-warnings --cov=app --cov-report=term-missing \
+        poetry run pytest --disable-pytest-warnings --cov=app --cov-report=term-missing \
           tests/ --junitxml=test_results_serial.xml -v --maxfail=10 -m "serial"
 
     - name: Notify Slack channel if this job fails
@@ -158,7 +158,7 @@ jobs:
 
     - name: Run parallel tests (${{ matrix.name }})
       run: |
-        poetry run py.test --disable-pytest-warnings --cov=app --cov-report=term-missing \
+        poetry run pytest --disable-pytest-warnings --cov=app --cov-report=term-missing \
           --junitxml=test_results_${{ matrix.name }}.xml -v --maxfail=10 \
           -m "not serial" -n auto \
           ${{ matrix.test-args }}

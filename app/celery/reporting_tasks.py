@@ -360,8 +360,9 @@ def send_quarter_email(process_date=None):
             cummulative_data = fetch_quarter_cummulative_stats(quarters_list, all_service_ids)
             cummulative_data_dict = {str(c_data_id): c_data for c_data_id, c_data in cummulative_data}
             for user_id, _, service_ids in chunk:
+                sorted_service_ids = sorted(service_ids, key=lambda service_id: service_info[service_id][0])
                 markdown_list_en, markdown_list_fr = _create_quarterly_email_markdown_list(
-                    service_info, service_ids, cummulative_data_dict
+                    service_info, sorted_service_ids, cummulative_data_dict
                 )
                 send_annual_usage_data(user_id, start_year, end_year, markdown_list_en, markdown_list_fr)
                 current_app.logger.info("send_quarter_email task completed for user {} ".format(user_id))
