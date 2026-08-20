@@ -188,6 +188,13 @@ jobs:
     - name: Generate version file
       run: make generate-version-file
 
+    - name: Ensure pytest is available
+      run: |
+        if ! poetry run pytest --version >/dev/null 2>&1; then
+          echo "pytest missing; repairing virtualenv dependencies"
+          poetry install --with test --no-interaction --no-ansi
+        fi
+
     - name: Run serial tests
       run: |
         poetry run pytest --disable-pytest-warnings --cov=app --cov-report=term-missing \
@@ -283,10 +290,18 @@ jobs:
       run: pip install poetry==${POETRY_VERSION} poetry-plugin-sort && poetry --version
 
     - name: Install requirements
+      if: steps.venv-cache.outputs.cache-hit != 'true'
       run: poetry install --with test --no-interaction --no-ansi
 
     - name: Generate version file
       run: make generate-version-file
+
+    - name: Ensure pytest is available
+      run: |
+        if ! poetry run pytest --version >/dev/null 2>&1; then
+          echo "pytest missing; repairing virtualenv dependencies"
+          poetry install --with test --no-interaction --no-ansi
+        fi
 
     - name: Run parallel tests (${{ matrix.name }})
       run: |
