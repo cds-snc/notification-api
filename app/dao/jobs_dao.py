@@ -12,6 +12,7 @@ from sqlalchemy import asc, desc, func
 from app import db
 from app.dao.dao_utils import transactional
 from app.dao.date_util import get_query_date_based_on_retention_period
+from app.dao.fact_notification_status_dao import fetch_notification_statuses_for_job_batch
 from app.dao.templates_dao import dao_get_template_by_id
 from app.models import (
     JOB_STATUS_CANCELLED,
@@ -28,6 +29,7 @@ from app.models import (
     ServiceDataRetention,
     Template,
 )
+from app.utils import midnight_n_days_ago
 
 
 @statsd(namespace="dao")
@@ -48,6 +50,33 @@ def dao_get_notification_outcomes_for_job_batch(service_id, job_ids):
         .group_by(Notification.job_id, Notification.status)
         .all()
     )
+
+
+def dao_get_job_statistics_for_jobs(jobs):
+    """Return statistics for jobs from a single service, grouped by job ID."""
+    if not jobs:
+        return {}
+
+    service_ids = {job.service_id for job in jobs}
+    if len(service_ids) > 1:
+        raise ValueError("Job statistics must be requested for one service at a time")
+
+    cutoff = midnight_n_days_ago(3)
+    recent_job_ids = [job.id for job in jobs if job.processing_started and job.processing_started >= cutoff]
+    old_job_ids = [job.id for job in jobs if job.processing_started and job.processing_started < cutoff]
+    statistics_by_job = {}
+
+    if recent_job_ids:
+        statistics = dao_get_notification_outcomes_for_job_batch(jobs[0].service_id, recent_job_ids)
+        for job_id, status, count in statistics:
+            statistics_by_job.setdefault(job_id, []).append({"status": status, "count": count})
+
+    if old_job_ids:
+        statistics = fetch_notification_statuses_for_job_batch(jobs[0].service_id, old_job_ids)
+        for job_id, status, count in statistics:
+            statistics_by_job.setdefault(job_id, []).append({"status": status, "count": count})
+
+    return statistics_by_job
 
 
 @statsd(namespace="dao")
@@ -80,6 +109,23 @@ def dao_get_jobs_by_service_id(service_id, limit_days=None, page=1, page_size=50
     if statuses is not None and statuses != [""]:
         query_filter.append(Job.job_status.in_(statuses))
     return Job.query.filter(*query_filter).order_by(Job.created_at.desc()).paginate(page=page, per_page=page_size)
+
+
+def dao_get_bulk_jobs_for_service(service_id, older_than=None, page_size=50):
+    filters = [Job.service_id == service_id]
+
+    if older_than:
+        older_than_row = (
+            db.session.query(Job.created_at, Job.id).filter(Job.id == older_than, Job.service_id == service_id).subquery()
+        )
+        filters.append(
+            db.or_(
+                Job.created_at < older_than_row.c.created_at,
+                db.and_(Job.created_at == older_than_row.c.created_at, Job.id < older_than_row.c.id),
+            )
+        )
+
+    return Job.query.filter(*filters).order_by(Job.created_at.desc(), Job.id.desc()).paginate(per_page=page_size, count=False)
 
 
 def dao_get_job_by_id(job_id) -> Job:
