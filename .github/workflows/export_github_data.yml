@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Audit DNS requests
-        uses: cds-snc/dns-proxy-action@2aee21aebfddefac5839497648a36a9f84342d8b
+        uses: cds-snc/dns-proxy-action@f0796e7f3d6bec5d40aecb0321ed8012f5602f84 # v1.0.2
         env:
           DNS_PROXY_FORWARDTOSENTINEL: "true"
           DNS_PROXY_LOGANALYTICSWORKSPACEID: ${{ secrets.LOG_ANALYTICS_WORKSPACE_ID }}
@@ -29,7 +29,7 @@ jobs:
           role-session-name: GithubDataExport
           aws-region: ca-central-1
       - name: Export Data
-        uses: cds-snc/github-repository-metadata-exporter@fe65ed89fcabde7d0ea0d1fe022ea85825b6f6f8
+        uses: cds-snc/github-repository-metadata-exporter@fe65ed89fcabde7d0ea0d1fe022ea85825b6f6f8 # main as of 2026-08-18
         with:
           github-app-id: ${{ secrets.SRE_BOT_RO_APP_ID }}
           github-app-installation-id: ${{ secrets.SRE_BOT_RO_INSTALLATION_ID }}
