@@ -183,6 +183,7 @@ jobs:
       run: pip install poetry==${POETRY_VERSION} poetry-plugin-sort && poetry --version
 
     - name: Install requirements
+      if: steps.venv-cache.outputs.cache-hit != 'true'
       run: poetry install --with test --no-interaction --no-ansi
 
     - name: Generate version file
