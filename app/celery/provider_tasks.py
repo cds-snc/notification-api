@@ -103,15 +103,15 @@ SCAN_MAX_BACKOFF_RETRIES = 5
 def deliver_email(self, notification_id):
     notification = None
     try:
-        template_process_type = notification.template.process_type if notification.template else None
+        notification = notifications_dao.get_notification_by_id(notification_id)
+        if not notification:
+            raise NoResultFound()
+        template_process_type = _safe_get_process_type(notification)
         current_app.logger.debug(
             "Start sending email for notification id: {} with template process type: {}".format(
                 notification_id, template_process_type
             )
         )
-        notification = notifications_dao.get_notification_by_id(notification_id)
-        if not notification:
-            raise NoResultFound()
         send_to_providers.send_email_to_provider(notification)
     except InvalidEmailError as e:
         if not notification.to.isascii():
@@ -147,15 +147,15 @@ def deliver_email(self, notification_id):
 def _deliver_sms(self, notification_id):
     notification = None
     try:
-        template_process_type = notification.template.process_type if notification.template else None
+        notification = notifications_dao.get_notification_by_id(notification_id)
+        if not notification:
+            raise NoResultFound()
+        template_process_type = _safe_get_process_type(notification)
         current_app.logger.info(
             "Start sending SMS for notification id: {} and template_process_type: {}".format(
                 notification_id, template_process_type
             )
         )
-        notification = notifications_dao.get_notification_by_id(notification_id)
-        if not notification:
-            raise NoResultFound()
         send_to_providers.send_sms_to_provider(notification)
     except InvalidUrlException:
         current_app.logger.error(f"Cannot send notification {notification_id}, got an invalid direct file url.")
