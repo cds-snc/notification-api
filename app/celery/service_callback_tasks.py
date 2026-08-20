@@ -99,37 +99,39 @@ def _send_data_to_service_callback_api(self, service_id, data, service_callback_
         )
         return
 
+    callback_target_url = callback_api.url
+    callback_target_token = callback_api.bearer_token
+
     if callback_api.url != service_callback_url:
         current_app.logger.info(
             f"{function_name} callback URL changed for service: {service_id} callback_type: {callback_type}. "
             f"Current URL {callback_api.url} does not match task URL {service_callback_url}. "
-            f"Skipping stale callback task for notification_id: {notification_id}."
+            f"Rebinding callback send to current URL for notification_id: {notification_id}."
         )
-        return
 
     try:
         current_app.logger.info(
-            "{} sending {} to {} service: {}".format(function_name, notification_id, service_callback_url, service_id)
+            "{} sending {} to {} service: {}".format(function_name, notification_id, callback_target_url, service_id)
         )
         response = request(
             method="POST",
-            url=service_callback_url,
+            url=callback_target_url,
             data=json.dumps(data),
             headers={
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {token}",
+                "Authorization": f"Bearer {callback_target_token}",
             },
             timeout=5,
         )
 
         current_app.logger.info(
-            f"{function_name} sent {notification_id} to {service_callback_url} service: {service_id}, response {response.status_code}"
+            f"{function_name} sent {notification_id} to {callback_target_url} service: {service_id}, response {response.status_code}"
         )
 
         response.raise_for_status()
     except RequestException as e:
         current_app.logger.warning(
-            f"{function_name} request failed for notification_id: {notification_id} to url: {service_callback_url} service: {service_id} exc: {e}"
+            f"{function_name} request failed for notification_id: {notification_id} to url: {callback_target_url} service: {service_id} exc: {e}"
         )
         # Retry if the response status code is server-side or 429 (too many requests).
         if not isinstance(e, HTTPError) or e.response.status_code >= 500 or e.response.status_code == 429:
@@ -139,11 +141,12 @@ def _send_data_to_service_callback_api(self, service_id, data, service_callback_
             except self.MaxRetriesExceededError:
                 _suspend_service_callback_and_send_email(
                     service_id=service_id,
+                    callback_api=callback_api,
                     callback_type=callback_type,
-                    failed_callback_url=service_callback_url,
+                    failed_callback_url=callback_target_url,
                 )
                 current_app.logger.warning(
-                    f"Retry: {function_name} has retried the max num of times for callback url {service_callback_url} "
+                    f"Retry: {function_name} has retried the max num of times for callback url {callback_target_url} "
                     f"notification_id: {notification_id} service: {service_id}"
                 )
 
@@ -158,8 +161,7 @@ def _get_service_callback_api_for_type(service_id, callback_type):
     return None
 
 
-def _suspend_service_callback_and_send_email(service_id, callback_type, failed_callback_url):
-    callback_api = _get_service_callback_api_for_type(service_id=service_id, callback_type=callback_type)
+def _suspend_service_callback_and_send_email(service_id, callback_api, callback_type, failed_callback_url):
     if callback_api:
         callback_api = suspend_unsuspend_service_callback_api(
             callback_api,
