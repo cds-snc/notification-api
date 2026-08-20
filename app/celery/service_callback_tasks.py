@@ -84,6 +84,29 @@ def send_complaint_to_service(self, complaint_data, service_id):
 
 def _send_data_to_service_callback_api(self, service_id, data, service_callback_url, token, function_name, callback_type):
     notification_id = data["notification_id"] if "notification_id" in data else data["id"]
+    callback_api = _get_service_callback_api_for_type(service_id=service_id, callback_type=callback_type)
+    if not callback_api:
+        current_app.logger.warning(
+            f"{function_name} callback config missing for service: {service_id} callback_type: {callback_type}. "
+            f"Skipping callback for notification_id: {notification_id}."
+        )
+        return
+
+    if callback_api.is_suspended:
+        current_app.logger.info(
+            f"{function_name} callback config {callback_api.id} for service: {service_id} callback_type: {callback_type} "
+            f"is suspended. Skipping callback for notification_id: {notification_id}."
+        )
+        return
+
+    if callback_api.url != service_callback_url:
+        current_app.logger.info(
+            f"{function_name} callback URL changed for service: {service_id} callback_type: {callback_type}. "
+            f"Current URL {callback_api.url} does not match task URL {service_callback_url}. "
+            f"Skipping stale callback task for notification_id: {notification_id}."
+        )
+        return
+
     try:
         current_app.logger.info(
             "{} sending {} to {} service: {}".format(function_name, notification_id, service_callback_url, service_id)
@@ -114,7 +137,11 @@ def _send_data_to_service_callback_api(self, service_id, data, service_callback_
             try:
                 self.retry(queue=QueueNames.CALLBACKS_RETRY, countdown=countdown)
             except self.MaxRetriesExceededError:
-                _suspend_service_callback_and_send_email(service_id=service_id, callback_type=callback_type)
+                _suspend_service_callback_and_send_email(
+                    service_id=service_id,
+                    callback_type=callback_type,
+                    failed_callback_url=service_callback_url,
+                )
                 current_app.logger.warning(
                     f"Retry: {function_name} has retried the max num of times for callback url {service_callback_url} "
                     f"notification_id: {notification_id} service: {service_id}"
@@ -131,23 +158,21 @@ def _get_service_callback_api_for_type(service_id, callback_type):
     return None
 
 
-def _suspend_service_callback_and_send_email(service_id, callback_type):
+def _suspend_service_callback_and_send_email(service_id, callback_type, failed_callback_url):
     callback_api = _get_service_callback_api_for_type(service_id=service_id, callback_type=callback_type)
+    if callback_api:
+        callback_api = suspend_unsuspend_service_callback_api(
+            callback_api,
+            updated_by_id=current_app.config["NOTIFY_USER_ID"],
+            suspend=True,
+            failed_callback_url=failed_callback_url,
+        )
     if not callback_api:
-        current_app.logger.warning(f"No callback config found to suspend for service {service_id} callback_type {callback_type}")
-        return
-
-    if callback_api.is_suspended:
         current_app.logger.info(
-            f"Callback config {callback_api.id} for service {service_id} callback_type {callback_type} is already suspended"
+            f"Skipping callback suspension for service {service_id} callback_type {callback_type}. "
+            "Callback may be missing, already suspended, or updated since this task was queued."
         )
         return
-
-    suspend_unsuspend_service_callback_api(
-        callback_api,
-        updated_by_id=current_app.config["NOTIFY_USER_ID"],
-        suspend=True,
-    )
 
     notify_celery.send_task(
         "send-service-callback-suspension-email",
