@@ -31,8 +31,6 @@ def upgrade():
         )
     )
 
-    print(f"Updated {result.rowcount} templates_history rows")
-
 
 def downgrade():
     # Data correction migration; no safe automatic rollback.
