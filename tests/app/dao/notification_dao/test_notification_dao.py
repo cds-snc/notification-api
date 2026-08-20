@@ -565,7 +565,7 @@ def test_get_notification_with_template_returns_none_when_not_found(notify_db, f
 def test_get_notification_with_template_accessible_after_session_expire(sample_notification, notify_db_session):
     notification_from_db = get_notification_with_template(str(sample_notification.id))
     # Expire all objects in session to simulate detached/expired state
-    notify_db_session.expire_all()
+    notify_db_session.session.expire_all()
     # template.process_type should still be accessible because it was eagerly loaded
     assert notification_from_db.template is not None
     assert hasattr(notification_from_db.template, "process_type")
