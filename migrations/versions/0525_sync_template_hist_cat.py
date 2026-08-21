@@ -18,7 +18,7 @@ down_revision = "0524_update_callback_susp_word"
 def upgrade():
     conn = op.get_bind()
 
-    result = conn.execute(
+    conn.execute(
         sa.text(
             """
             UPDATE templates_history th
