@@ -354,6 +354,17 @@ def get_notification_by_id(notification_id, service_id=None, _raise=False) -> No
     return query.one() if _raise else query.first()
 
 
+@statsd(namespace="dao")
+def get_notification_with_template(notification_id: str) -> Notification | None:
+    return (
+        db.on_reader()
+        .query(Notification)
+        .filter(Notification.id == notification_id)
+        .options(joinedload("template").joinedload("template_category"))
+        .first()
+    )
+
+
 def get_notifications(filter_dict=None):
     return _filter_query(Notification.query, filter_dict=filter_dict)
 

@@ -337,7 +337,7 @@ class TestDeliverSmsRetryCountdown:
         notification = MagicMock()
         notification.template.process_type = "priority"
         mocker.patch(
-            "app.celery.provider_tasks.notifications_dao.get_notification_by_id",
+            "app.celery.provider_tasks.get_notification_with_template",
             return_value=notification,
         )
         mocker.patch(
@@ -359,7 +359,7 @@ class TestDeliverSmsRetryCountdown:
         sms_method_name,
     ):
         mocker.patch(
-            "app.celery.provider_tasks.notifications_dao.get_notification_by_id",
+            "app.celery.provider_tasks.get_notification_with_template",
             side_effect=Exception("DB connection error"),
         )
         mocker.patch(f"app.celery.provider_tasks.{sms_method_name}.retry")
@@ -380,7 +380,7 @@ class TestDeliverSmsRetryCountdown:
         notification = MagicMock()
         notification.template = None
         mocker.patch(
-            "app.celery.provider_tasks.notifications_dao.get_notification_by_id",
+            "app.celery.provider_tasks.get_notification_with_template",
             return_value=notification,
         )
         mocker.patch(
@@ -393,3 +393,57 @@ class TestDeliverSmsRetryCountdown:
 
         # None process_type maps to RETRY_HIGH (25s) — treat unknown as high priority
         getattr(provider_tasks, sms_method_name).retry.assert_called_with(queue="retry-tasks", countdown=25)
+
+
+class TestDeliverEmailRetryCountdown:
+    def test_priority_email_retries_with_short_countdown(self, notify_api, mocker):
+        notification = MagicMock()
+        notification.template.process_type = "priority"
+        mocker.patch(
+            "app.celery.provider_tasks.get_notification_with_template",
+            return_value=notification,
+        )
+        mocker.patch(
+            "app.delivery.send_to_providers.send_email_to_provider",
+            side_effect=Exception("provider error"),
+        )
+        mocker.patch("app.celery.provider_tasks.deliver_email.retry")
+
+        deliver_email("some-notification-id")
+
+        provider_tasks.deliver_email.retry.assert_called_with(queue="retry-tasks", countdown=25)
+
+    def test_priority_preserved_when_template_access_fails_after_capture(self, notify_api, mocker):
+        """process_type is captured before delivery; template access failure in error handler doesn't lose it."""
+        notification = MagicMock()
+        notification.template.process_type = "priority"
+        mocker.patch(
+            "app.celery.provider_tasks.get_notification_with_template",
+            return_value=notification,
+        )
+
+        def break_template_then_raise(n):
+            # Simulate template becoming inaccessible after send attempt (e.g. session error state)
+            type(n).template = PropertyMock(side_effect=Exception("DetachedInstanceError"))
+            raise Exception("provider error")
+
+        mocker.patch(
+            "app.delivery.send_to_providers.send_email_to_provider",
+            side_effect=break_template_then_raise,
+        )
+        mocker.patch("app.celery.provider_tasks.deliver_email.retry")
+
+        deliver_email("some-notification-id")
+
+        provider_tasks.deliver_email.retry.assert_called_with(queue="retry-tasks", countdown=25)
+
+    def test_email_retries_with_high_priority_countdown_when_db_lookup_raises(self, notify_api, mocker):
+        mocker.patch(
+            "app.celery.provider_tasks.get_notification_with_template",
+            side_effect=Exception("DB connection error"),
+        )
+        mocker.patch("app.celery.provider_tasks.deliver_email.retry")
+
+        deliver_email("some-notification-id")
+
+        provider_tasks.deliver_email.retry.assert_called_with(queue="retry-tasks", countdown=25)
