@@ -8,8 +8,7 @@ from sqlalchemy.orm.exc import NoResultFound
 from app import notify_celery
 from app.celery.utils import CeleryParams
 from app.config import Config
-from app.dao import notifications_dao
-from app.dao.notifications_dao import update_notification_status_by_id
+from app.dao.notifications_dao import get_notification_with_template, update_notification_status_by_id
 from app.delivery import send_to_providers
 from app.exceptions import (
     InvalidUrlException,
@@ -102,15 +101,14 @@ SCAN_MAX_BACKOFF_RETRIES = 5
 @statsd(namespace="tasks")
 def deliver_email(self, notification_id):
     notification = None
+    process_type = None
     try:
-        notification = notifications_dao.get_notification_by_id(notification_id)
+        notification = get_notification_with_template(notification_id)
         if not notification:
             raise NoResultFound()
-        template_process_type = _safe_get_process_type(notification)
+        process_type = _safe_get_process_type(notification)
         current_app.logger.debug(
-            "Start sending email for notification id: {} with template process type: {}".format(
-                notification_id, template_process_type
-            )
+            "Start sending email for notification id: {} with template process type: {}".format(notification_id, process_type)
         )
         send_to_providers.send_email_to_provider(notification)
     except InvalidEmailError as e:
@@ -134,27 +132,25 @@ def deliver_email(self, notification_id):
         current_app.logger.warning(
             "RETRY {}: Email notification {} is waiting on pending malware scanning".format(self.request.retries, notification_id)
         )
-        _handle_error_with_email_retry(self, me, notification_id, notification, countdown)
+        _handle_error_with_email_retry(self, me, notification_id, notification, countdown, process_type)
     except Exception as e:
-        template_is_none = notification is not None and notification.template is None
         current_app.logger.warning(
             f"Email delivery failed: notification_id={notification_id} exception_type={type(e).__name__} "
-            f"notification_is_none={notification is None} template_is_none={template_is_none}"
+            f"notification_is_none={notification is None} process_type={process_type}"
         )
-        _handle_error_with_email_retry(self, e, notification_id, notification)
+        _handle_error_with_email_retry(self, e, notification_id, notification, process_type=process_type)
 
 
 def _deliver_sms(self, notification_id):
     notification = None
+    process_type = None
     try:
-        notification = notifications_dao.get_notification_by_id(notification_id)
+        notification = get_notification_with_template(notification_id)
         if not notification:
             raise NoResultFound()
-        template_process_type = _safe_get_process_type(notification)
+        process_type = _safe_get_process_type(notification)
         current_app.logger.info(
-            "Start sending SMS for notification id: {} and template_process_type: {}".format(
-                notification_id, template_process_type
-            )
+            "Start sending SMS for notification id: {} and process_type: {}".format(notification_id, process_type)
         )
         send_to_providers.send_sms_to_provider(notification)
     except InvalidUrlException:
@@ -174,12 +170,10 @@ def _deliver_sms(self, notification_id):
     except Exception:
         try:
             current_app.logger.exception("SMS notification delivery for id: {} failed".format(notification_id))
-            template_is_none = notification is not None and notification.template is None
             current_app.logger.warning(
-                f"SMS delivery failed: notification_id={notification_id} exception_type={type(Exception).__name__} "
-                f"notification_is_none={notification is None} template_is_none={template_is_none}"
+                f"SMS delivery failed: notification_id={notification_id} "
+                f"notification_is_none={notification is None} process_type={process_type}"
             )
-            process_type = _safe_get_process_type(notification)
             retry_params = CeleryParams.retry(process_type)
             current_app.logger.warning(
                 f"SMS retry scheduled: notification_id={notification_id} process_type={process_type} "
@@ -217,15 +211,20 @@ def _safe_get_process_type(notification: Optional[Notification]) -> Optional[str
 
 
 def _handle_error_with_email_retry(
-    task: Task, e: Exception, notification_id: str, notification: Optional[Notification], countdown: Optional[int] = None
+    task: Task,
+    e: Exception,
+    notification_id: str,
+    notification: Optional[Notification],
+    countdown: Optional[int] = None,
+    process_type: Optional[str] = None,
 ):
     try:
         if task.request.retries <= 10:
             current_app.logger.warning("RETRY {}: Email notification {} failed".format(task.request.retries, notification_id))
         else:
             current_app.logger.exception("RETRY: Email notification {} failed".format(notification_id), exc_info=e)
-        # There is an edge case when a notification is not found in the database.
-        process_type = _safe_get_process_type(notification)
+        if process_type is None:
+            process_type = _safe_get_process_type(notification)
         retry_params = CeleryParams.retry(process_type, countdown)
         current_app.logger.warning(
             f"Email retry scheduled: notification_id={notification_id} process_type={process_type} "

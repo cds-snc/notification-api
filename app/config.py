@@ -439,6 +439,7 @@ class Config(object):
         "app.celery.nightly_tasks",
         "app.celery.process_pinpoint_receipts_tasks",
         "app.celery.bounce_rate_tasks",
+        "app.celery.service_callback_suspension_tasks",
     )
     CELERYBEAT_SCHEDULE = {
         # app/celery/scheduled_tasks.py
@@ -636,6 +637,11 @@ class Config(object):
     STATSD_ENABLED = bool(STATSD_HOST)
 
     SENDING_NOTIFICATIONS_TIMEOUT_PERIOD = 259_200  # 3 days
+
+    # Callback retry policy: exponential backoff with jitter.
+    CALLBACK_RETRY_BACKOFF_BASE_SECONDS = env.int("CALLBACK_RETRY_BACKOFF_BASE_SECONDS", 300)
+    CALLBACK_RETRY_BACKOFF_MAX_SECONDS = env.int("CALLBACK_RETRY_BACKOFF_MAX_SECONDS", 300)
+    CALLBACK_RETRY_JITTER_FACTOR = float(os.getenv("CALLBACK_RETRY_JITTER_FACTOR", 0.2))
 
     SIMULATED_EMAIL_ADDRESSES = (
         "simulate-delivered@notification.canada.ca",
