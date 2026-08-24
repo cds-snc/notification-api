@@ -207,10 +207,10 @@ def dao_fetch_service_by_id_cached(service_id: str, only_active=False) -> dict:
     if only_active:
         query = query.filter(Service.active)
 
-    # dogpile returns serializeable dicts, not ORM objects
+    # dogpile cache backend is JSON-serialized, so return a JSON-serializable dict.
     service = service_schema.dump(query.one())
 
-    return Service.from_json(service)
+    return service
 
 
 def dao_fetch_service_by_id(service_id, only_active=False, use_cache=False) -> Service:

@@ -11,7 +11,7 @@ import time
 from dogpile.cache import make_region
 from dogpile.cache.api import NO_VALUE
 
-from app.caching import cache_key_generator
+from app.caching import _json_cache_deserializer, _json_cache_serializer, cache_key_generator
 
 
 def _make_memory_region(expiration_time=600):
@@ -240,6 +240,17 @@ class TestCacheKeyGenerator:
         assert "dao_fetch_service_by_id_cached" in key
         assert "d4e5f6a7-1234-5678-9abc-def012345678" in key
 
+    def test_grouped_key_uses_compact_prefix_and_excludes_primary_param_from_fingerprint(self):
+        def dao_fetch_service_by_id_cached(service_id, only_active=False):
+            pass
+
+        gen = cache_key_generator("service", dao_fetch_service_by_id_cached)
+        key = gen("d4e5f6a7-1234-5678-9abc-def012345678", False)
+
+        assert key.startswith("service:d4e5f6a7-1234-5678-9abc-def012345678:dao_fetch_service_by_id_cached:")
+        assert "only_active=False" in key
+        assert "service_id=" not in key
+
     def test_same_args_produce_same_key(self):
         def my_func(service_id):
             pass
@@ -275,3 +286,18 @@ class TestCacheKeyGenerator:
         key_str = gen("aaaaaaaa-1111-2222-3333-444444444444")
         key_obj = gen(UUID("aaaaaaaa-1111-2222-3333-444444444444"))
         assert key_str == key_obj
+
+
+class TestJsonSerializer:
+    def test_serializer_returns_bytes(self):
+        payload = {"id": "abc-123", "active": True}
+        serialized = _json_cache_serializer(payload)
+
+        assert isinstance(serialized, bytes)
+
+    def test_serializer_and_deserializer_roundtrip(self):
+        payload = {"id": "abc-123", "active": True, "count": 2}
+        serialized = _json_cache_serializer(payload)
+        deserialized = _json_cache_deserializer(serialized)
+
+        assert deserialized == payload

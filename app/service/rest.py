@@ -228,8 +228,7 @@ def get_service_by_id(service_id):
         data = get_detailed_service(service_id, today_only=request.args.get("today_only") == "True")
     else:
         fetched = dao_fetch_service_by_id_cached(service_id)
-
-        data = service_schema.dump(fetched)
+        data = fetched
     return jsonify(data=data)
 
 
