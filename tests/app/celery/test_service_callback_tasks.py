@@ -14,7 +14,7 @@ from tests.app.db import (
 )
 from tests.conftest import set_config_values
 
-from app import DATETIME_FORMAT, signer_complaint, signer_delivery_status
+from app import DATETIME_FORMAT, db, signer_complaint, signer_delivery_status
 from app.celery.service_callback_tasks import (
     _calculate_callback_retry_countdown,
     send_complaint_to_service,
@@ -119,6 +119,191 @@ def test__send_data_to_service_callback_api_retries_if_request_returns_error_cod
     assert mocked.call_count == 1
     assert mocked.call_args[1]["queue"] == "service-callbacks-retry"
     assert mocked.call_args[1]["countdown"] == 5
+
+
+def test_send_delivery_status_to_service_suspends_callback_and_sends_email_when_retries_exhausted(
+    notify_db_session,
+    notify_api,
+    mocker,
+):
+    callback_api, template = _set_up_test_data("email", "delivery_status")
+    datestr = datetime(2017, 6, 20)
+    notification = save_notification(
+        create_notification(
+            template=template,
+            created_at=datestr,
+            updated_at=datestr,
+            sent_at=datestr,
+            status="sent",
+        )
+    )
+    signed_data = _set_up_data_for_status_update(callback_api, notification)
+
+    mocker.patch(
+        "app.celery.service_callback_tasks.send_delivery_status_to_service.retry",
+        side_effect=send_delivery_status_to_service.MaxRetriesExceededError(),
+    )
+    mocker.patch("app.celery.service_callback_tasks.random.uniform", return_value=5)
+    mocked_suspend = mocker.patch(
+        "app.celery.service_callback_tasks.suspend_unsuspend_service_callback_api",
+        return_value=callback_api,
+    )
+    mocked_send_task = mocker.patch("app.celery.service_callback_tasks.notify_celery.send_task")
+
+    with requests_mock.Mocker() as request_mock:
+        request_mock.post(callback_api.url, json={}, status_code=500)
+        send_delivery_status_to_service(notification.id, signed_status_update=signed_data, service_id=notification.service_id)
+
+    mocked_suspend.assert_called_once()
+    suspend_call = mocked_suspend.call_args
+    assert suspend_call.args[0].id == callback_api.id
+    assert suspend_call.kwargs["updated_by_id"] == notify_api.config["NOTIFY_USER_ID"]
+    assert suspend_call.kwargs["suspend"] is True
+    assert suspend_call.kwargs["failed_callback_url"] == callback_api.url
+
+    mocked_send_task.assert_called_once_with(
+        "send-service-callback-suspension-email",
+        kwargs={"service_id": str(notification.service_id)},
+        queue="notify-internal-tasks",
+    )
+
+
+def test_send_delivery_status_to_service_does_not_send_suspension_email_if_callback_already_suspended(
+    notify_db_session,
+    mocker,
+):
+    service = create_service(restricted=True)
+    template = create_template(service=service, template_type="email", subject="Hello")
+    callback_api = create_service_callback_api(
+        service=service,
+        url="https://some.service.gov.uk/",
+        bearer_token="something_unique",
+        callback_type="delivery_status",
+        is_suspended=True,
+    )
+
+    datestr = datetime(2017, 6, 20)
+    notification = save_notification(
+        create_notification(
+            template=template,
+            created_at=datestr,
+            updated_at=datestr,
+            sent_at=datestr,
+            status="sent",
+        )
+    )
+    signed_data = _set_up_data_for_status_update(callback_api, notification)
+
+    mocked_retry = mocker.patch(
+        "app.celery.service_callback_tasks.send_delivery_status_to_service.retry",
+        side_effect=send_delivery_status_to_service.MaxRetriesExceededError(),
+    )
+    mocker.patch("app.celery.service_callback_tasks.random.uniform", return_value=5)
+    mocked_suspend = mocker.patch("app.celery.service_callback_tasks.suspend_unsuspend_service_callback_api")
+    mocked_send_task = mocker.patch("app.celery.service_callback_tasks.notify_celery.send_task")
+
+    with requests_mock.Mocker() as request_mock:
+        request_mock.post(callback_api.url, json={}, status_code=500)
+        send_delivery_status_to_service(notification.id, signed_status_update=signed_data, service_id=notification.service_id)
+
+    assert request_mock.call_count == 0
+    mocked_retry.assert_not_called()
+    mocked_suspend.assert_not_called()
+    mocked_send_task.assert_not_called()
+
+
+def test_send_delivery_status_to_service_rebinds_to_current_callback_when_callback_url_changes(
+    notify_db_session,
+    mocker,
+):
+    callback_api, template = _set_up_test_data("email", "delivery_status")
+    datestr = datetime(2017, 6, 20)
+    notification = save_notification(
+        create_notification(
+            template=template,
+            created_at=datestr,
+            updated_at=datestr,
+            sent_at=datestr,
+            status="sent",
+        )
+    )
+    signed_data = _set_up_data_for_status_update(callback_api, notification)
+    new_url = "https://new.service.gov.uk/"
+    new_token = "new-bearer-token"
+
+    callback_api.url = new_url
+    callback_api.bearer_token = new_token
+    db.session.commit()
+
+    mocked_retry = mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.retry")
+    mocked_send_task = mocker.patch("app.celery.service_callback_tasks.notify_celery.send_task")
+    mocked_suspend = mocker.patch("app.celery.service_callback_tasks.suspend_unsuspend_service_callback_api")
+
+    with requests_mock.Mocker() as request_mock:
+        request_mock.post(new_url, json={}, status_code=200)
+        send_delivery_status_to_service(notification.id, signed_status_update=signed_data, service_id=notification.service_id)
+
+    assert request_mock.call_count == 1
+    assert request_mock.request_history[0].url == new_url
+    assert request_mock.request_history[0].headers["Authorization"] == f"Bearer {new_token}"
+    mocked_retry.assert_not_called()
+    mocked_suspend.assert_not_called()
+    mocked_send_task.assert_not_called()
+
+
+def test_send_delivery_status_to_service_suspends_current_callback_when_stale_payload_retries_exhausted(
+    notify_db_session,
+    notify_api,
+    mocker,
+):
+    callback_api, template = _set_up_test_data("email", "delivery_status")
+    datestr = datetime(2017, 6, 20)
+    notification = save_notification(
+        create_notification(
+            template=template,
+            created_at=datestr,
+            updated_at=datestr,
+            sent_at=datestr,
+            status="sent",
+        )
+    )
+    signed_data = _set_up_data_for_status_update(callback_api, notification)
+
+    stale_url = callback_api.url
+    new_url = "https://new.service.gov.uk/"
+
+    callback_api.url = new_url
+    db.session.commit()
+
+    mocker.patch(
+        "app.celery.service_callback_tasks.send_delivery_status_to_service.retry",
+        side_effect=send_delivery_status_to_service.MaxRetriesExceededError(),
+    )
+    mocker.patch("app.celery.service_callback_tasks.random.uniform", return_value=5)
+    mocked_suspend = mocker.patch(
+        "app.celery.service_callback_tasks.suspend_unsuspend_service_callback_api",
+        return_value=callback_api,
+    )
+    mocked_send_task = mocker.patch("app.celery.service_callback_tasks.notify_celery.send_task")
+
+    with requests_mock.Mocker() as request_mock:
+        request_mock.post(new_url, json={}, status_code=500)
+        send_delivery_status_to_service(notification.id, signed_status_update=signed_data, service_id=notification.service_id)
+
+    assert request_mock.call_count == 1
+    assert request_mock.request_history[0].url == new_url
+    mocked_suspend.assert_called_once()
+    suspend_call = mocked_suspend.call_args
+    assert suspend_call.args[0].id == callback_api.id
+    assert suspend_call.kwargs["updated_by_id"] == notify_api.config["NOTIFY_USER_ID"]
+    assert suspend_call.kwargs["suspend"] is True
+    assert suspend_call.kwargs["failed_callback_url"] == new_url
+    mocked_send_task.assert_called_once_with(
+        "send-service-callback-suspension-email",
+        kwargs={"service_id": str(notification.service_id)},
+        queue="notify-internal-tasks",
+    )
+    assert stale_url != new_url
 
 
 def test_calculate_callback_retry_countdown_uses_exponential_backoff_and_cap(notify_db_session, notify_api):
