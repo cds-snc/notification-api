@@ -82,6 +82,7 @@ jobs:
       with:
         app_id: ${{ secrets.NOTIFY_PR_BOT_APP_ID }}
         private_key: ${{ secrets.NOTIFY_PR_BOT_PRIVATE_KEY }}
+        scope: cds-snc
 
     - name: Debug notification-pr-bot token scope (temporary)
       env:
