@@ -83,6 +83,44 @@ jobs:
         app_id: ${{ secrets.NOTIFY_PR_BOT_APP_ID }}
         private_key: ${{ secrets.NOTIFY_PR_BOT_PRIVATE_KEY }}
 
+    - name: Debug notification-pr-bot token scope (temporary)
+      env:
+        GH_APP_TOKEN: ${{ steps.notify-pr-bot.outputs.token }}
+      run: |
+        set -euo pipefail
+
+        echo "Checking app installation repositories..."
+        install_repos="$(curl -sS \
+          -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer ${GH_APP_TOKEN}" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          https://api.github.com/installation/repositories?per_page=100)"
+
+        repo_count="$(echo "${install_repos}" | jq -r '.total_count // 0')"
+        has_manifests="$(echo "${install_repos}" | jq -r '[.repositories[]?.full_name] | index("cds-snc/notification-manifests") != null')"
+
+        echo "Installed repo count: ${repo_count}"
+        echo "Includes cds-snc/notification-manifests: ${has_manifests}"
+
+        echo "Checking pull request read access on notification-manifests..."
+        pr_http_code="$(curl -sS -o /tmp/pr_check.json -w "%{http_code}" \
+          -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer ${GH_APP_TOKEN}" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          "https://api.github.com/repos/cds-snc/notification-manifests/pulls?per_page=1&state=all")"
+
+        echo "GET pulls?per_page=1&state=all status: ${pr_http_code}"
+        if [ "${pr_http_code}" -ne 200 ]; then
+          echo "GET /pulls?per_page=1&state=all failed:"
+          cat /tmp/pr_check.json
+          exit 1
+        fi
+
+        if [ "${has_manifests}" != "true" ]; then
+          echo "Token installation does not include cds-snc/notification-manifests."
+          exit 1
+        fi
+
     - uses: cds-snc/notification-pr-bot@b70dc73610a8e72a7af40e5ccc320e14ce773988 # main as of 2026-08-18
       env:
         TOKEN: ${{ steps.notify-pr-bot.outputs.token }}
