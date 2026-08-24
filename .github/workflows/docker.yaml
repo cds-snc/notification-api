@@ -122,7 +122,7 @@ jobs:
           exit 1
         fi
 
-    - uses: cds-snc/notification-pr-bot@b70dc73610a8e72a7af40e5ccc320e14ce773988 # main as of 2026-08-18
+    - uses: cds-snc/notification-pr-bot@main
       env:
         TOKEN: ${{ steps.notify-pr-bot.outputs.token }}
 
