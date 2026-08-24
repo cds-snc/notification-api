@@ -1580,10 +1580,12 @@ class TestSendingDocuments:
         assert f"personalisation {sending_method} is not one of [attach, link]" in resp_json["errors"][0]["message"]
 
     @pytest.mark.parametrize(
-        "file_data, message",
+        "file_data, expected_message",
         [
-            ("abc", "Incorrect padding"),
-            ("🤡", "string argument should contain only ASCII characters"),
+            ("abc", "document : Incorrect padding : Error decoding base64 field"),
+            ("YWJj$%", "document : Only base64 data is allowed : Error decoding base64 field"),
+            ("🤡", "document : string argument should contain only ASCII characters : Error decoding base64 field"),
+            ("", "document : File cannot be empty"),
         ],
     )
     def test_post_notification_with_document_upload_not_base64_file(
@@ -1591,7 +1593,7 @@ class TestSendingDocuments:
         client,
         notify_db_session,
         file_data,
-        message,
+        expected_message,
         mock_annual_limits,
     ):
         service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
@@ -1618,7 +1620,7 @@ class TestSendingDocuments:
 
         assert response.status_code == 400
         resp_json = json.loads(response.get_data(as_text=True))
-        assert f"{message} : Error decoding base64 field" in resp_json["errors"][0]["message"]
+        assert expected_message in resp_json["errors"][0]["message"]
 
     def test_post_notification_with_document_upload_simulated(self, client, notify_db_session, mocker, mock_annual_limits):
         service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
