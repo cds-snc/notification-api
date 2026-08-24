@@ -185,6 +185,7 @@ class Config(object):
     FF_SALESFORCE_CONTACT = env.bool("FF_SALESFORCE_CONTACT", False)
     FF_SMS_RATELIMIT = env.bool("FF_SMS_RATELIMIT", False)
     FF_USE_BILLABLE_UNITS = env.bool("FF_USE_BILLABLE_UNITS", False)
+    FF_USE_DOGPILE_CACHING = env.bool("FF_USE_DOGPILE_CACHING", False)
 
     # URL of admin app
     ADMIN_BASE_URL = os.getenv("ADMIN_BASE_URL", "http://localhost:6012")

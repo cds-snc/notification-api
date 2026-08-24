@@ -227,8 +227,11 @@ def get_service_by_id(service_id):
     if request.args.get("detailed") == "True":
         data = get_detailed_service(service_id, today_only=request.args.get("today_only") == "True")
     else:
-        fetched = dao_fetch_service_by_id_cached(service_id)
-        data = fetched
+        data = (
+            dao_fetch_service_by_id_cached(service_id)
+            if current_app.config["FF_USE_DOGPILE_CACHING"] is True
+            else dao_fetch_service_by_id(service_id)
+        )
     return jsonify(data=data)
 
 
