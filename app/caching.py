@@ -156,6 +156,7 @@ def init_dogpile_cache(app):
     dogpile_region.configure(
         backend=app.config.get("DOGPILE_CACHE_BACKEND", "dogpile.cache.redis"),
         expiration_time=expiration_time,
+        replace_existing_backend=True,
         arguments={
             "url": redis_url,
             "redis_expiration_time": expiration_time,
