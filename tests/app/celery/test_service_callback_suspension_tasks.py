@@ -19,7 +19,7 @@ def test_send_service_callback_suspension_email_sends_to_service_owners_and_supp
         {
             "ADMIN_BASE_URL": "https://notification.canada.ca",
             "NOTIFY_ENVIRONMENT": "production",
-            "FRESHDESK_SUPPORT_EMAIL_ID": "assistance+notification@cds-snc.ca",
+            "FRESHDESK_SUPPORT_EMAIL_ID": notify_api.config["FRESHDESK_SUPPORT_EMAIL_ID"],
         },
     ):
         send_service_callback_suspension_email(service_id=service_id)
@@ -34,7 +34,7 @@ def test_send_service_callback_suspension_email_sends_to_service_owners_and_supp
 
     mock_send_to_email_address.assert_called_once()
     support_kwargs = mock_send_to_email_address.call_args.kwargs
-    assert support_kwargs["email_address"] == "assistance+notification@cds-snc.ca"
+    assert support_kwargs["email_address"] == notify_api.config["FRESHDESK_SUPPORT_EMAIL_ID"]
     assert support_kwargs["template_id"] == notify_api.config["SERVICE_CALLBACK_SUSPENDED_TEMPLATE_ID"]
     assert "personalisation" in support_kwargs
     assert isinstance(support_kwargs["personalisation"], dict)
@@ -55,7 +55,7 @@ def test_send_service_callback_suspension_email_does_not_send_support_copy_outsi
         {
             "ADMIN_BASE_URL": "https://notification.canada.ca",
             "NOTIFY_ENVIRONMENT": "staging",
-            "FRESHDESK_SUPPORT_EMAIL_ID": "assistance+notification@cds-snc.ca",
+            "FRESHDESK_SUPPORT_EMAIL_ID": notify_api.config["FRESHDESK_SUPPORT_EMAIL_ID"],
         },
     ):
         send_service_callback_suspension_email(service_id=service_id)

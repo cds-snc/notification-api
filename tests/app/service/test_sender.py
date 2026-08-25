@@ -106,7 +106,7 @@ def test_send_notification_to_email_address_persists_and_queues_notification(not
     mock_send_to_queue = mocker.patch("app.service.sender.send_notification_to_queue")
 
     personalisation = {"service_name": "Platform service", "name": "Freshdesk support"}
-    recipient = "assistance+notification@cds-snc.ca"
+    recipient = notify_api.config["FRESHDESK_SUPPORT_EMAIL_ID"]
 
     send_notification_to_email_address(
         email_address=recipient,
