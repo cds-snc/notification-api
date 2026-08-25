@@ -32,7 +32,7 @@ def test_bounce_rate_tasks_send_to_service_owners(
         notify_api,
         {
             "ADMIN_BASE_URL": "https://admin.notification.canada.ca",
-            "FRESHDESK_SUPPORT_EMAIL_ID": "assistance+notification@cds-snc.ca",
+            "FRESHDESK_SUPPORT_EMAIL_ID": notify_api.config["FRESHDESK_SUPPORT_EMAIL_ID"],
             "NOTIFY_ENVIRONMENT": "production",
         },
     ):
@@ -56,7 +56,7 @@ def test_bounce_rate_tasks_send_to_service_owners(
     )
     if should_send_support_copy:
         mock_send_to_email_address.assert_called_once_with(
-            email_address="assistance+notification@cds-snc.ca",
+            email_address=notify_api.config["FRESHDESK_SUPPORT_EMAIL_ID"],
             template_id=notify_api.config[template_id_key],
             personalisation={**expected_personalisation, "name": "Freshdesk support"},
         )
