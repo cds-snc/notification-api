@@ -34,7 +34,10 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          uvx "zizmor@1.29.0" --format=json-v1 --no-exit-codes .github/workflows .github/actions > zizmor-results.json
+          TARGETS=".github/workflows"
+          [ -d ".github/actions" ] && TARGETS="$TARGETS .github/actions"
+
+          uvx "zizmor@1.29.0" --format=json-v1 --no-exit-codes $TARGETS > zizmor-results.json
 
           UNPINNED=$(jq '[.[] | select(.ident == "unpinned-uses")]' zizmor-results.json)
           COUNT=$(echo "$UNPINNED" | jq 'length')
