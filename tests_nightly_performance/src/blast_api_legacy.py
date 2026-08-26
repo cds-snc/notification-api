@@ -23,9 +23,8 @@ logger = logging.getLogger(__name__)
 @events.test_start.add_listener
 def log_waf_secret_status(environment, **kwargs):
     if Config.WAF_SECRET:
-        secret_last_5 = Config.WAF_SECRET[-5:]
-        logger.info(f"WAF secret detected in config (ending in: ...{secret_last_5})")
-        print(f"[INFO] WAF secret detected in config (ending in: ...{secret_last_5})")
+        logger.info("WAF secret detected in config.")
+        print("[INFO] WAF secret detected in config.")
     else:
         logger.warning("ALERT: WAF secret NOT detected in config! WAF rate limiting will not be bypassed.")
         print("ALERT: WAF secret NOT detected in config! WAF rate limiting will not be bypassed.")
