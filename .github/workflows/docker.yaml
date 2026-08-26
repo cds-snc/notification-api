@@ -122,8 +122,7 @@ jobs:
           exit 1
         fi
 
-    # First-party bot intentionally tracks main (see renovate.json ignoreDeps) - can't hash-pin without losing that.
-    - uses: cds-snc/notification-pr-bot@main # zizmor: ignore[unpinned-uses]
+    - uses: cds-snc/notification-pr-bot@main # zizmor: ignore[unpinned-uses] First-party bot intentionally tracks main (see renovate.json ignoreDeps) - can't hash-pin without losing that.
       env:
         TOKEN: ${{ steps.notify-pr-bot.outputs.token }}
 
