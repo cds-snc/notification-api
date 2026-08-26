@@ -44,7 +44,11 @@ jobs:
 
           if [ "$COUNT" -gt 0 ]; then
             echo "::error::Found $COUNT unpinned GitHub Action reference(s). All actions must be pinned to a full 40-character commit SHA."
-            echo "$UNPINNED" | jq -r '.[] | "  - \(.locations[0].symbolic.key.Local.verbatim_path // .locations[0].concrete.feature // "unknown location"): \(.desc)"'
+            echo "$UNPINNED" | jq -r '
+              .[] as $finding |
+              (($finding.locations[] | select(.symbolic.kind == "Primary")) // $finding.locations[0]) as $loc |
+              "  - \($loc.symbolic.key.Local.verbatim_path // $loc.concrete.feature // "unknown location"):\(($loc.concrete.location.start_point.row // 0) + 1): \($finding.desc)"
+            '
             echo ""
             echo "To fix: replace the tag/branch with the action's full commit SHA and add a '# vX.Y.Z' comment, e.g."
             echo "    uses: owner/repo@<40-char-sha> # v1.2.3"
