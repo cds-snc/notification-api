@@ -20,7 +20,6 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from app import redis_store, salesforce_client
 from app.annual_limit_utils import get_annual_limit_notifications_v2
-from app.caching import invalidate_group_keys
 from app.clients.salesforce.salesforce_engagement import ENGAGEMENT_STAGE_LIVE
 from app.config import QueueNames
 from app.dao import fact_notification_status_dao, notifications_dao
@@ -315,7 +314,6 @@ def update_service(service_id):
         service.letter_branding = None if not letter_branding_id else LetterBranding.query.get(letter_branding_id)
 
     dao_update_service(service)
-    invalidate_group_keys("service", str(service_id))
 
     if message_limit_changed:
         redis_store.delete(daily_limit_cache_key(service_id))

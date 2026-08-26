@@ -11,12 +11,16 @@ import time
 from dogpile.cache import make_region
 from dogpile.cache.api import NO_VALUE
 
-from app.caching import _json_cache_deserializer, _json_cache_serializer, cache_key_generator
+from app.caching import _json_cache_deserializer, _json_cache_serializer, cache_key_generator, init_dogpile_cache
 
 
 def _make_memory_region(expiration_time=600):
     """Create a throwaway in-memory region for a single test."""
-    return make_region(function_key_generator=cache_key_generator).configure(
+    return make_region(
+        function_key_generator=cache_key_generator,
+        serializer=_json_cache_serializer,
+        deserializer=_json_cache_deserializer,
+    ).configure(
         "dogpile.cache.memory",
         expiration_time=expiration_time,
     )
@@ -301,3 +305,20 @@ class TestJsonSerializer:
         deserialized = _json_cache_deserializer(serialized)
 
         assert deserialized == payload
+
+
+class TestInitDogpileCache:
+    def test_uses_localhost_when_redis_url_is_none(self, mocker):
+        app = mocker.MagicMock()
+        app.config.get.side_effect = lambda key, default=None: {
+            "REDIS_URL": None,
+            "DOGPILE_CACHE_EXPIRATION": 600,
+            "DOGPILE_CACHE_BACKEND": "dogpile.cache.redis",
+        }.get(key, default)
+
+        mock_configure = mocker.patch("app.caching.dogpile_region.configure")
+
+        init_dogpile_cache(app)
+
+        _, kwargs = mock_configure.call_args
+        assert kwargs["arguments"]["url"] == "redis://localhost:6379/0"

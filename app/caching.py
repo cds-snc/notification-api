@@ -150,7 +150,7 @@ dogpile_region = make_region(
 
 
 def init_dogpile_cache(app):
-    redis_url = app.config.get("REDIS_URL", "redis://localhost:6379/0")
+    redis_url = app.config.get("REDIS_URL") or "redis://localhost:6379/0"
     expiration_time = app.config.get("DOGPILE_CACHE_EXPIRATION", 600)
 
     dogpile_region.configure(

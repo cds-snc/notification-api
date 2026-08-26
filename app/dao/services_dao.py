@@ -199,7 +199,7 @@ def dao_fetch_live_services_data(filter_heartbeats=None):
     return results
 
 
-@dogpile_region.cache_on_arguments(namespace="service", expiration_time=600)
+@dogpile_region.cache_on_arguments(namespace="service")
 def dao_fetch_service_by_id_cached(service_id: str, only_active=False) -> dict:
     """Dogpile cached version of fetching a service by id"""
     query = Service.query.filter_by(id=service_id).options(joinedload("users"))
