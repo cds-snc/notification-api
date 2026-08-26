@@ -51,6 +51,7 @@ from app.models import (
     User,
     VerifyCode,
 )
+from app.schemas import service_schema
 from app.service.utils import add_pt_data_retention, get_organisation_by_id
 from app.utils import (
     email_address_is_nhs,
@@ -206,7 +207,9 @@ def dao_fetch_service_by_id_cached(service_id: str, only_active=False) -> dict:
     if only_active:
         query = query.filter(Service.active)
 
-    return query.one()
+    service = service_schema.dump(query.one())
+
+    return service
 
 
 def dao_fetch_service_by_id(service_id, only_active=False, use_cache=False) -> Service:
