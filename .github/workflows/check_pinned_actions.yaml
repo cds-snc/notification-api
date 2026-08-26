@@ -1,0 +1,54 @@
+name: "Check pinned GitHub Actions"
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/**"
+      - ".github/actions/**"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/**"
+      - ".github/actions/**"
+
+permissions: {}
+
+jobs:
+  check-pinned-actions:
+    name: "Scan for unpinned actions"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: "Checkout code"
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: "Install uv"
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+
+      # Only fails on unpinned-uses: zizmor's other audits are out of scope for this check.
+      - name: "Scan for unpinned actions"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          uvx "zizmor@1.29.0" --format=json-v1 --no-exit-codes .github/workflows .github/actions > zizmor-results.json
+
+          UNPINNED=$(jq '[.[] | select(.ident == "unpinned-uses")]' zizmor-results.json)
+          COUNT=$(echo "$UNPINNED" | jq 'length')
+
+          if [ "$COUNT" -gt 0 ]; then
+            echo "::error::Found $COUNT unpinned GitHub Action reference(s). All actions must be pinned to a full 40-character commit SHA."
+            echo "$UNPINNED" | jq -r '.[] | "  - \(.locations[0].symbolic.key.Local.verbatim_path): \(.desc)"'
+            echo ""
+            echo "To fix: replace the tag/branch with the action's full commit SHA and add a '# vX.Y.Z' comment, e.g."
+            echo "    uses: owner/repo@<40-char-sha> # v1.2.3"
+            echo ""
+            echo "If a version genuinely cannot be pinned to a SHA, add an inline exception with justification:"
+            echo "    uses: owner/repo@ref # zizmor: ignore[unpinned-uses] <reason>"
+            exit 1
+          fi
+
+          echo "No unpinned GitHub Actions found."
