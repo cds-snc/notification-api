@@ -221,16 +221,6 @@ def fetch_delivered_notification_stats_by_month():
         )
     )
 
-    if filter_heartbeats:
-        query = query.filter(
-            MonthlyNotificationStatsSummary.service_id.notin_(
-                [
-                    current_app.config["NOTIFY_SERVICE_ID"],
-                    current_app.config["HEARTBEAT_SERVICE_ID"],
-                ]
-            ),
-        )
-
     return query.order_by(
         MonthlyNotificationStatsSummary.month.desc(),
         MonthlyNotificationStatsSummary.notification_type,
