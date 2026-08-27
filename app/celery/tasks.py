@@ -517,7 +517,16 @@ def try_to_send_notifications_to_queue(notification_id_queue, service, saved_not
     research_mode = service.research_mode  # type: ignore
     for notification_obj in saved_notifications:
         try:
-            queue = notification_id_queue.get(notification_obj.id) or get_delivery_queue_for_template(template)
+            # TODO: remove notification_id_queue once persist_notifications knows about the CSV bulk-redirect
+            # rule (choose_sending_queue). Until then, the map carries the only signal for that override.
+            queue = (
+                # CSV bulk-redirect override (only useful for CSV jobs)
+                notification_id_queue.get(notification_obj.id)
+                # per-notification correct value from persist_notifications
+                or notification_obj.queue_name
+                # legacy fallback (safe to keep, but essentially unreachable)
+                or get_delivery_queue_for_template(template)
+            )
             send_notification_to_queue(
                 notification_obj,
                 research_mode,
@@ -823,7 +832,7 @@ def send_notify_no_reply(self, data):
             current_app.logger.error(
                 f"""
                 Retry: send_notify_no_reply has retried the max number of
-                 times for sender {payload['sender']}"""
+                 times for sender {payload["sender"]}"""
             )
 
 

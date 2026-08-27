@@ -53,6 +53,7 @@ from app.celery.tasks import (
     seed_bounce_rate_in_redis,
     send_inbound_sms_to_service,
     send_notify_no_reply,
+    try_to_send_notifications_to_queue,
     update_in_progress_jobs,
 )
 from app.config import QueueNames
@@ -511,6 +512,110 @@ class TestBatchSaving:
         assert persisted_notification[0]._personalisation == signer_personalisation.sign({"name": "Jo"})
         assert persisted_notification[0].notification_type == SMS_TYPE
         assert pbsbp_mock.assert_called_with(mock.ANY, 1, notification_type="sms", priority="normal") is None
+
+
+class TestTryToSendNotificationsToQueue:
+    """Regression tests for the mixed-priority routing bug where a stale ``template`` loop
+    variable caused every notification in a batch to inherit the last notification's queue.
+    """
+
+    def _make_notification(self, notification_id, queue_name):
+        notification = MagicMock(spec=Notification)
+        notification.id = notification_id
+        notification.queue_name = queue_name
+        notification.created_at = datetime.utcnow()
+        notification.job = None
+        return notification
+
+    def test_uses_each_notifications_own_queue_name_in_mixed_priority_batch(self, notify_api, mocker):
+        """Batch of priority + normal + bulk notifications must each route to their own queue."""
+        send_mock = mocker.patch("app.celery.tasks.send_notification_to_queue")
+
+        priority_id, normal_id, bulk_id = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
+        saved_notifications = [
+            self._make_notification(priority_id, QueueNames.SEND_EMAIL_HIGH),
+            self._make_notification(normal_id, QueueNames.SEND_EMAIL_MEDIUM),
+            self._make_notification(bulk_id, QueueNames.SEND_EMAIL_LOW),
+        ]
+        # API-buffered flow: notification_id_queue is populated with None values because the
+        # signed payload from post_notifications does not include a "queue" key.
+        notification_id_queue = {priority_id: None, normal_id: None, bulk_id: None}
+
+        service = MagicMock(research_mode=False)
+        # The stale template variable — this used to leak the last batch template's process_type
+        # and (incorrectly) route every notification via get_delivery_queue_for_template(template).
+        stale_template = MagicMock(template_type=EMAIL_TYPE, process_type="bulk")
+
+        try_to_send_notifications_to_queue(notification_id_queue, service, saved_notifications, stale_template)
+
+        assert send_mock.call_count == 3
+        assert send_mock.call_args_list[0] == call(saved_notifications[0], False, QueueNames.SEND_EMAIL_HIGH)
+        assert send_mock.call_args_list[1] == call(saved_notifications[1], False, QueueNames.SEND_EMAIL_MEDIUM)
+        assert send_mock.call_args_list[2] == call(saved_notifications[2], False, QueueNames.SEND_EMAIL_LOW)
+
+    def test_notification_id_queue_override_wins_over_queue_name(self, notify_api, mocker):
+        """CSV bulk-redirect flow: when the map has an explicit queue, it takes precedence."""
+        send_mock = mocker.patch("app.celery.tasks.send_notification_to_queue")
+
+        notification_id = uuid.uuid4()
+        # Notification's own queue_name says HIGH, but the CSV bulk-redirect override
+        # (stored in notification_id_queue) says LOW — override must win.
+        saved_notifications = [self._make_notification(notification_id, QueueNames.SEND_EMAIL_HIGH)]
+        notification_id_queue = {notification_id: QueueNames.SEND_EMAIL_LOW}
+
+        service = MagicMock(research_mode=False)
+        template = MagicMock(template_type=EMAIL_TYPE, process_type="priority")
+
+        try_to_send_notifications_to_queue(notification_id_queue, service, saved_notifications, template)
+
+        send_mock.assert_called_once_with(saved_notifications[0], False, QueueNames.SEND_EMAIL_LOW)
+
+    def test_falls_back_to_template_queue_when_queue_name_and_map_are_both_empty(self, notify_api, mocker):
+        """Legacy fallback: if neither the map nor queue_name is set, use the template's queue."""
+        send_mock = mocker.patch("app.celery.tasks.send_notification_to_queue")
+        get_queue_mock = mocker.patch(
+            "app.celery.tasks.get_delivery_queue_for_template", return_value=QueueNames.SEND_EMAIL_MEDIUM
+        )
+
+        notification_id = uuid.uuid4()
+        saved_notifications = [self._make_notification(notification_id, None)]
+        notification_id_queue = {notification_id: None}
+
+        service = MagicMock(research_mode=False)
+        template = MagicMock(template_type=EMAIL_TYPE, process_type="normal")
+
+        try_to_send_notifications_to_queue(notification_id_queue, service, saved_notifications, template)
+
+        get_queue_mock.assert_called_once_with(template)
+        send_mock.assert_called_once_with(saved_notifications[0], False, QueueNames.SEND_EMAIL_MEDIUM)
+
+    def test_priority_notification_not_routed_to_last_batch_notifications_queue(self, notify_api, mocker):
+        """Specific regression for the production bug: priority notification in position N-1 of a batch
+        whose last notification is normal priority must still route to send-email-high.
+        """
+        send_mock = mocker.patch("app.celery.tasks.send_notification_to_queue")
+
+        priority_id = uuid.uuid4()
+        normal_id = uuid.uuid4()
+        # priority notification is 4th, then a normal one (mirrors the 5-item batch in the bug report)
+        saved_notifications = [
+            self._make_notification(uuid.uuid4(), QueueNames.SEND_EMAIL_MEDIUM),
+            self._make_notification(uuid.uuid4(), QueueNames.SEND_EMAIL_MEDIUM),
+            self._make_notification(uuid.uuid4(), QueueNames.SEND_EMAIL_MEDIUM),
+            self._make_notification(priority_id, QueueNames.SEND_EMAIL_HIGH),
+            self._make_notification(normal_id, QueueNames.SEND_EMAIL_MEDIUM),
+        ]
+        notification_id_queue = {n.id: None for n in saved_notifications}
+
+        service = MagicMock(research_mode=False)
+        # Stale template from the last (normal) iteration of the save_emails loop.
+        stale_template = MagicMock(template_type=EMAIL_TYPE, process_type="normal")
+
+        try_to_send_notifications_to_queue(notification_id_queue, service, saved_notifications, stale_template)
+
+        # The priority notification (index 3) must go to send-email-high, not send-email-medium.
+        priority_call = send_mock.call_args_list[3]
+        assert priority_call == call(saved_notifications[3], False, QueueNames.SEND_EMAIL_HIGH)
 
 
 class TestUpdateJob:
