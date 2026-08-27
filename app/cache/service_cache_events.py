@@ -10,11 +10,11 @@ Why this pattern:
     cache invalidation manually.
 """
 
-from sqlalchemy import event, select
+from sqlalchemy import event
 from sqlalchemy.orm import Session
 
 from app.caching import invalidate_service_cache_keys
-from app.models import LetterBranding, Service, ServiceLetterContact, ServicePermission, ServiceUser, service_letter_branding
+from app.models import Service, ServicePermission, ServiceUser
 
 _SERVICE_CACHE_IDS_KEY = "service_cache_ids_to_invalidate"
 _EVENTS_REGISTERED = False
