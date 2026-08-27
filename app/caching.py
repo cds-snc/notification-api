@@ -142,6 +142,29 @@ def invalidate_group_keys(group_name, group_id, batch_size=500, namespace=None):
     return deleted
 
 
+def invalidate_service_cache_keys(service_id):
+    """Invalidate all dogpile cache entries associated with a service id.
+
+    This invalidates the exact service fetch keys and then best-effort clears
+    all grouped service keys for the id prefix.
+    """
+    normalized_service_id = str(service_id)
+
+    try:
+        from app.dao.services_dao import dao_fetch_service_by_id_cached
+
+        dao_fetch_service_by_id_cached.invalidate(normalized_service_id)  # type: ignore[attr-defined]
+        dao_fetch_service_by_id_cached.invalidate(normalized_service_id, True)  # type: ignore[attr-defined]
+    except Exception:
+        pass
+
+    # Prefix invalidation is best-effort and requires Redis backend access.
+    try:
+        invalidate_group_keys("service", normalized_service_id)
+    except Exception:
+        pass
+
+
 dogpile_region = make_region(
     function_key_generator=cache_key_generator,
     serializer=_json_cache_serializer,
