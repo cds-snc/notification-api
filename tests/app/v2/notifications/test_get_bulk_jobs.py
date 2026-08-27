@@ -73,10 +73,10 @@ def test_get_bulk_jobs_returns_only_jobs_for_authenticated_service(client, sampl
     assert str(other_job.id) not in returned_ids
 
 
-def test_get_bulk_jobs_supports_cursor_pagination(client, sample_template):
+def test_get_bulk_jobs_supports_cursor_pagination(client, sample_template, monkeypatch):
     first_job = create_job(sample_template, created_at=datetime(2026, 8, 18, 12, 0))
     second_job = create_job(sample_template, created_at=datetime(2026, 8, 18, 11, 0))
-    client.application.config["API_PAGE_SIZE"] = 1
+    monkeypatch.setitem(client.application.config, "API_PAGE_SIZE", 1)
 
     first_response = client.get("/v2/notifications/bulk", headers=_get_headers(sample_template.service_id))
     first_page = first_response.get_json()
