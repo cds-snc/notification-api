@@ -519,9 +519,10 @@ def try_to_send_notifications_to_queue(notification_id_queue, service, saved_not
         try:
             # TODO: remove notification_id_queue once persist_notifications knows about the CSV bulk-redirect
             # rule (choose_sending_queue). Until then, the map carries the only signal for that override.
+            # Map keys come from create_uuid() (str); notification_obj.id is a uuid.UUID — cast for lookup.
             queue = (
                 # CSV bulk-redirect override (only useful for CSV jobs)
-                notification_id_queue.get(notification_obj.id)
+                notification_id_queue.get(str(notification_obj.id))
                 # per-notification correct value from persist_notifications
                 or notification_obj.queue_name
                 # legacy fallback (safe to keep, but essentially unreachable)
