@@ -1729,7 +1729,7 @@ class TestSaveEmails:
         assert persisted_notification._personalisation == signer_personalisation.sign({"name": "Jo"})
         assert persisted_notification.notification_type == "email"
         mocked_deliver_email.assert_called_once_with(
-            [str(persisted_notification.id)], queue=QueueNames.SEND_EMAIL_MEDIUM, MessageGroupId=ANY
+            [str(persisted_notification.id)], queue="email_normal_queue", MessageGroupId=ANY
         )
         if sender_id:
             mocked_get_sender_id.assert_called_once_with(persisted_notification.service_id, sender_id)
