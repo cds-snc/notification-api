@@ -306,7 +306,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
     can delete the inflight notifications.
     """
     verified_notifications: List[VerifiedNotification] = []
-    notification_id_queue: Dict[UUID, Optional[str]] = {}
+    notification_id_queue: Dict[str, Optional[str]] = {}
     saved_notifications: List[Notification] = []
     for signed_notification in signed_notifications:
         try:
@@ -356,9 +356,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
         }
 
         verified_notifications.append(notification)
-        # notification_id arrives as a string (from create_uuid()); the DB model exposes it as a
-        # uuid.UUID, so we normalise the map to UUID keys for a lossless lookup later.
-        notification_id_queue[UUID(notification_id)] = notification.get("queue")  # type: ignore
+        notification_id_queue[notification_id] = notification.get("queue")  # type: ignore
         process_type = template.process_type  # type: ignore
 
     try:
@@ -414,7 +412,7 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
     can delete the inflight notifications.
     """
     verified_notifications: List[VerifiedNotification] = []
-    notification_id_queue: Dict[UUID, Optional[str]] = {}
+    notification_id_queue: Dict[str, Optional[str]] = {}
     saved_notifications: List[Notification] = []
 
     # temporarily cache services so we don't get them more than once each batch
@@ -473,9 +471,7 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
         }
 
         verified_notifications.append(notification)
-        # notification_id arrives as a string (from create_uuid()); the DB model exposes it as a
-        # uuid.UUID, so we normalise the map to UUID keys for a lossless lookup later.
-        notification_id_queue[UUID(notification_id)] = notification.get("queue")  # type: ignore
+        notification_id_queue[notification_id] = notification.get("queue")  # type: ignore
         process_type = template.process_type
 
     try:
@@ -523,9 +519,12 @@ def try_to_send_notifications_to_queue(notification_id_queue, service, saved_not
         try:
             # TODO: remove notification_id_queue once persist_notifications knows about the CSV bulk-redirect
             # rule (choose_sending_queue). Until then, the map carries the only signal for that override.
+            # Map keys are strings; notification_obj.id is a string in-session (persist_notifications does
+            # not refresh the SQLAlchemy object) but could be a uuid.UUID after a DB refresh — the str()
+            # cast makes the lookup robust either way.
             queue = (
                 # CSV bulk-redirect override (only useful for CSV jobs)
-                notification_id_queue.get(notification_obj.id)
+                notification_id_queue.get(str(notification_obj.id))
                 # per-notification correct value from persist_notifications
                 or notification_obj.queue_name
                 # legacy fallback (safe to keep, but essentially unreachable)

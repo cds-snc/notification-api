@@ -531,8 +531,9 @@ class TestTryToSendNotificationsToQueue:
         """Batch of priority + normal + bulk notifications must each route to their own queue."""
         send_mock = mocker.patch("app.celery.tasks.send_notification_to_queue")
 
-        # notification.id and map keys are both uuid.UUID in production — aligned types.
-        priority_id, normal_id, bulk_id = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
+        # In save_emails/save_smss, notification.id stays as a string in-session because
+        # persist_notifications does not refresh the SQLAlchemy object. Map keys are strings.
+        priority_id, normal_id, bulk_id = str(uuid.uuid4()), str(uuid.uuid4()), str(uuid.uuid4())
         saved_notifications = [
             self._make_notification(priority_id, QueueNames.SEND_EMAIL_HIGH),
             self._make_notification(normal_id, QueueNames.SEND_EMAIL_MEDIUM),
@@ -558,9 +559,8 @@ class TestTryToSendNotificationsToQueue:
         """CSV bulk-redirect flow: when the map has an explicit queue, it takes precedence."""
         send_mock = mocker.patch("app.celery.tasks.send_notification_to_queue")
 
-        notification_id = uuid.uuid4()
-        # Notification's own queue_name says HIGH, but the CSV bulk-redirect override
-        # (stored in notification_id_queue with a UUID key) says LOW — override must win.
+        notification_id = str(uuid.uuid4())
+        # Notification's own queue_name says HIGH, but the CSV bulk-redirect override says LOW.
         saved_notifications = [self._make_notification(notification_id, QueueNames.SEND_EMAIL_HIGH)]
         notification_id_queue = {notification_id: QueueNames.SEND_EMAIL_LOW}
 
@@ -578,7 +578,7 @@ class TestTryToSendNotificationsToQueue:
             "app.celery.tasks.get_delivery_queue_for_template", return_value=QueueNames.SEND_EMAIL_MEDIUM
         )
 
-        notification_id = uuid.uuid4()
+        notification_id = str(uuid.uuid4())
         saved_notifications = [self._make_notification(notification_id, None)]
         notification_id_queue = {notification_id: None}
 
@@ -596,13 +596,13 @@ class TestTryToSendNotificationsToQueue:
         """
         send_mock = mocker.patch("app.celery.tasks.send_notification_to_queue")
 
-        priority_id = uuid.uuid4()
-        normal_id = uuid.uuid4()
+        priority_id = str(uuid.uuid4())
+        normal_id = str(uuid.uuid4())
         # priority notification is 4th, then a normal one (mirrors the 5-item batch in the bug report)
         saved_notifications = [
-            self._make_notification(uuid.uuid4(), QueueNames.SEND_EMAIL_MEDIUM),
-            self._make_notification(uuid.uuid4(), QueueNames.SEND_EMAIL_MEDIUM),
-            self._make_notification(uuid.uuid4(), QueueNames.SEND_EMAIL_MEDIUM),
+            self._make_notification(str(uuid.uuid4()), QueueNames.SEND_EMAIL_MEDIUM),
+            self._make_notification(str(uuid.uuid4()), QueueNames.SEND_EMAIL_MEDIUM),
+            self._make_notification(str(uuid.uuid4()), QueueNames.SEND_EMAIL_MEDIUM),
             self._make_notification(priority_id, QueueNames.SEND_EMAIL_HIGH),
             self._make_notification(normal_id, QueueNames.SEND_EMAIL_MEDIUM),
         ]
@@ -618,28 +618,24 @@ class TestTryToSendNotificationsToQueue:
         priority_call = send_mock.call_args_list[3]
         assert priority_call == call(saved_notifications[3], False, QueueNames.SEND_EMAIL_HIGH)
 
-    def test_map_keys_are_uuids_not_strings(self, notify_api, mocker):
-        """Contract: the map is keyed by uuid.UUID (aligned with notification.id).
-
-        If save_smss / save_emails ever regresses and stores string keys, the lookup here would
-        miss and the override would be silently ignored. This test locks in the aligned-type invariant.
+    def test_lookup_is_robust_to_notification_id_being_a_uuid_or_string(self, notify_api, mocker):
+        """Defensive str() cast: the lookup must work whether notification.id is a str (current
+        in-session behavior) or a uuid.UUID (if a future refactor refreshes the SQLAlchemy object).
         """
         send_mock = mocker.patch("app.celery.tasks.send_notification_to_queue")
 
-        notification_id = uuid.uuid4()
-        saved_notifications = [self._make_notification(notification_id, QueueNames.SEND_EMAIL_HIGH)]
-
-        # Map keyed by string (simulating a regression where save_emails forgets to cast).
-        # The override must NOT apply — lookup falls through to queue_name.
-        notification_id_queue_str_keyed = {str(notification_id): QueueNames.SEND_EMAIL_LOW}
+        raw_id = uuid.uuid4()
+        saved_notifications = [self._make_notification(raw_id, QueueNames.SEND_EMAIL_HIGH)]
+        # Map keyed by string (matches what save_emails/save_smss build).
+        notification_id_queue = {str(raw_id): QueueNames.SEND_EMAIL_LOW}
 
         service = MagicMock(research_mode=False)
         template = MagicMock(template_type=EMAIL_TYPE, process_type="priority")
 
-        try_to_send_notifications_to_queue(notification_id_queue_str_keyed, service, saved_notifications, template)
+        try_to_send_notifications_to_queue(notification_id_queue, service, saved_notifications, template)
 
-        # String key silently missed; we fell through to queue_name (HIGH).
-        send_mock.assert_called_once_with(saved_notifications[0], False, QueueNames.SEND_EMAIL_HIGH)
+        # Even though notification.id is a UUID object here, the str() cast in the lookup finds it.
+        send_mock.assert_called_once_with(saved_notifications[0], False, QueueNames.SEND_EMAIL_LOW)
 
 
 class TestUpdateJob:
