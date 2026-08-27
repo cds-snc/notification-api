@@ -1,4 +1,5 @@
 queues.csv
+core
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -29,8 +30,7 @@ var/
 *.egg
 /cache
 newrelic-layer.zip
-smoketest.sh
-smoketest-prod.sh
+smoketest*.sh
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -83,6 +83,7 @@ celerybeat.pid
 # VSCode
 .vscode
 .pythonenv
+.devcontainer/devcontainer.local.json
 
 # Misc
 /scripts/run_my_tests.sh
@@ -91,5 +92,5 @@ jinja_templates/
 cypress.env.json
 node_modules/
 tests_cypress/cypress/videos/
-
+.github/instructions/*
 .ruff_cache/

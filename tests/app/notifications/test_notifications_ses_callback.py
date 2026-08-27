@@ -3,7 +3,6 @@ from unittest import mock
 
 import pytest
 from flask import json
-from sqlalchemy.exc import SQLAlchemyError
 
 from app.aws.mocks import (
     ses_complaint_callback,
@@ -185,29 +184,24 @@ def test_ses_callback_should_not_set_status_once_status_is_delivered(
 
 def test_process_ses_results_in_complaint(sample_email_template):
     notification = save_notification(create_notification(template=sample_email_template, reference="ref1"))
-    handle_complaint(json.loads(ses_complaint_callback()["Message"]))
+    handle_complaint(ses_complaint_callback()["Messages"][0], notification)
     complaints = Complaint.query.all()
     assert len(complaints) == 1
     assert complaints[0].notification_id == notification.id
 
 
-def test_handle_complaint_does_not_raise_exception_if_reference_is_missing(notify_api):
-    response = json.loads(ses_complaint_callback_malformed_message_id()["Message"])
-    handle_complaint(response)
-    assert len(Complaint.query.all()) == 0
-
-
-def test_handle_complaint_does_raise_exception_if_notification_not_found(notify_api):
-    response = json.loads(ses_complaint_callback()["Message"])
-    with pytest.raises(expected_exception=SQLAlchemyError):
-        handle_complaint(response)
+def test_handle_complaint_does_not_raise_exception_if_reference_is_missing(notify_api, sample_email_template):
+    response = json.loads(ses_complaint_callback_malformed_message_id()["Messages"])
+    handle_complaint(response, None)
+    complaints = Complaint.query.all()
+    assert len(complaints) == 0
 
 
 def test_process_ses_results_in_complaint_if_notification_history_does_not_exist(
     sample_email_template,
 ):
     notification = save_notification(create_notification(template=sample_email_template, reference="ref1"))
-    handle_complaint(json.loads(ses_complaint_callback()["Message"]))
+    handle_complaint(ses_complaint_callback()["Messages"][0], notification)
     complaints = Complaint.query.all()
     assert len(complaints) == 1
     assert complaints[0].notification_id == notification.id
@@ -217,7 +211,7 @@ def test_process_ses_results_in_complaint_if_notification_does_not_exist(
     sample_email_template,
 ):
     notification = create_notification_history(template=sample_email_template, reference="ref1")
-    handle_complaint(json.loads(ses_complaint_callback()["Message"]))
+    handle_complaint(ses_complaint_callback()["Messages"][0], notification)
     complaints = Complaint.query.all()
     assert len(complaints) == 1
     assert complaints[0].notification_id == notification.id
@@ -225,8 +219,8 @@ def test_process_ses_results_in_complaint_if_notification_does_not_exist(
 
 def test_process_ses_results_in_complaint_save_complaint_with_null_complaint_type(notify_api, sample_email_template):
     notification = save_notification(create_notification(template=sample_email_template, reference="ref1"))
-    msg = json.loads(ses_complaint_callback_with_missing_complaint_type()["Message"])
-    handle_complaint(msg)
+    msg = json.loads(ses_complaint_callback_with_missing_complaint_type()["Messages"])
+    handle_complaint(msg, notification)
     complaints = Complaint.query.all()
     assert len(complaints) == 1
     assert complaints[0].notification_id == notification.id
@@ -237,7 +231,7 @@ def test_account_suppression_list_complaint_updates_notification_status(sample_e
     notification = save_notification(create_notification(template=sample_email_template, reference="ref1"))
     assert get_notification_by_id(notification.id).status == "created"
 
-    handle_complaint(json.loads(ses_complaint_callback_with_subtype("OnAccountSuppressionList")["Message"]))
+    handle_complaint(json.loads(ses_complaint_callback_with_subtype("OnAccountSuppressionList")["Messages"]), notification)
     complaints = Complaint.query.all()
 
     assert len(complaints) == 1
@@ -249,7 +243,7 @@ def test_regular_complaint_does_not_update_notification_status(sample_email_temp
     notification = save_notification(create_notification(template=sample_email_template, reference="ref1"))
     status = get_notification_by_id(notification.id).status
 
-    handle_complaint(json.loads(ses_complaint_callback_with_missing_complaint_type()["Message"]))
+    handle_complaint(json.loads(ses_complaint_callback_with_missing_complaint_type()["Messages"]), notification)
     complaints = Complaint.query.all()
 
     assert len(complaints) == 1
@@ -365,9 +359,9 @@ class TestBounceRates:
     )
     def test_bounce_types(self, notify_api, bounceType, bounceSubType, expected_bounce_classification):
         if bounceType == "Permanent":
-            bounce_message = json.loads(ses_hard_bounce_callback(reference="ref", bounce_subtype=bounceSubType)["Message"])
+            bounce_message = ses_hard_bounce_callback(reference="ref", bounce_subtype=bounceSubType)["Messages"][0]
         elif bounceType == "Transient" or bounceType == "Undetermined":
-            bounce_message = json.loads(ses_soft_bounce_callback(reference="ref", bounce_subtype=bounceSubType)["Message"])
+            bounce_message = ses_soft_bounce_callback(reference="ref", bounce_subtype=bounceSubType)["Messages"][0]
             if bounceType == "Undetermined":
                 bounce_message["bounce"]["bounceType"] = "Undetermined"
 

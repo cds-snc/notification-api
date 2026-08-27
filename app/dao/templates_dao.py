@@ -6,6 +6,7 @@ from typing import Union
 from flask import current_app
 from notifications_utils.clients.redis import template_version_cache_key
 from sqlalchemy import asc, desc
+from sqlalchemy.orm import attributes, joinedload
 
 from app import db, redis_store
 from app.dao.dao_utils import VersionOptions, transactional, version_class
@@ -14,16 +15,77 @@ from app.models import (
     LETTER_TYPE,
     SECOND_CLASS,
     Template,
+    TemplateCategory,
     TemplateHistory,
     TemplateRedacted,
 )
 
 
+def _create_template_history_row(template):
+    return TemplateHistory(
+        **{
+            "id": template.id,
+            "name": template.name,
+            "template_type": template.template_type,
+            "created_at": template.created_at,
+            "updated_at": template.updated_at,
+            "content": template.content,
+            "service_id": template.service_id,
+            "subject": template.subject,
+            "postage": template.postage,
+            "created_by_id": template.created_by_id,
+            "version": template.version,
+            "archived": template.archived,
+            # Keep history aligned with the DB column: only explicit overrides are stored here.
+            "process_type": template.process_type_column,
+            "template_category_id": template.template_category_id,
+            "service_letter_contact_id": template.service_letter_contact_id,
+            "hidden": template.hidden,
+            "text_direction_rtl": template.text_direction_rtl,
+            "use_custom_unsubscribe_url": template.use_custom_unsubscribe_url,
+        }
+    )
+
+
+def _sync_template_category_state(template):
+    state_dict = attributes.instance_state(template).dict
+    category_relationship_loaded = "template_category" in state_dict
+    loaded_category = state_dict.get("template_category") if category_relationship_loaded else None
+
+    category_id_loaded = "template_category_id" in state_dict
+    loaded_category_id = state_dict.get("template_category_id") if category_id_loaded else None
+
+    if category_id_loaded:
+        if loaded_category_id is None:
+            if category_relationship_loaded and loaded_category is not None:
+                template.template_category_id = loaded_category.id
+            return
+
+        if category_relationship_loaded and (loaded_category is None or loaded_category.id != loaded_category_id):
+            with db.session.no_autoflush:
+                category = TemplateCategory.query.get(loaded_category_id)
+            if category is not None:
+                template.template_category = category
+        return
+
+    if category_relationship_loaded and loaded_category is not None:
+        template.template_category_id = loaded_category.id
+
+
 @transactional
 @version_class(VersionOptions(Template, history_class=TemplateHistory))
-def dao_create_template(template, redact_personalisation=False):
+def dao_create_template(template, redact_personalisation=False, folder=None):
     # must be set now so version history model can use same id
     template.id = uuid.uuid4()
+
+    # Set folder AFTER id is assigned. Setting it before (e.g. in from_json) causes
+    # the folder backref to add the template to the session prematurely; any subsequent
+    # lazy-load query then triggers autoflush, persisting the template before this
+    # function can assign the id — leading to a PK-changing UPDATE that violates FKs.
+    if folder:
+        template.folder = folder
+
+    _sync_template_category_state(template)
 
     redacted_dict = {
         "template": template,
@@ -42,6 +104,7 @@ def dao_create_template(template, redact_personalisation=False):
 @transactional
 @version_class(VersionOptions(Template, history_class=TemplateHistory))
 def dao_update_template(template):
+    _sync_template_category_state(template)
     db.session.add(template)
 
 
@@ -56,25 +119,7 @@ def dao_update_template_reply_to(template_id, reply_to):
     )
     template = Template.query.filter_by(id=template_id).one()
 
-    history = TemplateHistory(
-        **{
-            "id": template.id,
-            "name": template.name,
-            "template_type": template.template_type,
-            "created_at": template.created_at,
-            "updated_at": template.updated_at,
-            "content": template.content,
-            "service_id": template.service_id,
-            "subject": template.subject,
-            "postage": template.postage,
-            "created_by_id": template.created_by_id,
-            "version": template.version,
-            "archived": template.archived,
-            "process_type": template.process_type,
-            "service_letter_contact_id": template.service_letter_contact_id,
-        }
-    )
-    db.session.add(history)
+    db.session.add(_create_template_history_row(template))
     return template
 
 
@@ -82,30 +127,14 @@ def dao_update_template_reply_to(template_id, reply_to):
 def dao_update_template_process_type(template_id, process_type):
     Template.query.filter_by(id=template_id).update(
         {
-            "process_type": process_type,
+            Template.process_type_column: process_type,
+            Template.updated_at: datetime.utcnow(),
+            Template.version: Template.version + 1,
         }
     )
     template = Template.query.filter_by(id=template_id).one()
 
-    history = TemplateHistory(
-        **{
-            "id": template.id,
-            "name": template.name,
-            "template_type": template.template_type,
-            "created_at": template.created_at,
-            "updated_at": template.updated_at,
-            "content": template.content,
-            "service_id": template.service_id,
-            "subject": template.subject,
-            "postage": template.postage,
-            "created_by_id": template.created_by_id,
-            "version": template.version,
-            "archived": template.archived,
-            "process_type": template.process_type,
-            "service_letter_contact_id": template.service_letter_contact_id,
-        }
-    )
-    db.session.add(history)
+    db.session.add(_create_template_history_row(template))
     return template
 
 
@@ -121,25 +150,7 @@ def dao_update_template_category(template_id, category_id):
 
     template = Template.query.filter_by(id=template_id).one()
 
-    history = TemplateHistory(
-        **{
-            "id": template.id,
-            "name": template.name,
-            "template_type": template.template_type,
-            "created_at": template.created_at,
-            "updated_at": template.updated_at,
-            "content": template.content,
-            "service_id": template.service_id,
-            "subject": template.subject,
-            "postage": template.postage,
-            "created_by_id": template.created_by_id,
-            "version": template.version,
-            "archived": template.archived,
-            "process_type": template.process_type,
-            "service_letter_contact_id": template.service_letter_contact_id,
-        }
-    )
-    db.session.add(history)
+    db.session.add(_create_template_history_row(template))
     return template
 
 
@@ -178,9 +189,17 @@ def dao_get_template_by_id(template_id, version=None, use_cache=False) -> Union[
 
 
 def dao_get_all_templates_for_service(service_id, template_type=None):
+    # Eager load fields required for serialization; otherwise lazy loading these will trigger thousands of individual queries.
+    query = Template.query.options(
+        joinedload("template_redacted"),
+        joinedload("template_category"),
+        joinedload("created_by"),
+        joinedload("service_letter_contact"),
+    )
+
     if template_type is not None:
         return (
-            Template.query.filter_by(
+            query.filter_by(
                 service_id=service_id,
                 template_type=template_type,
                 hidden=False,
@@ -194,7 +213,7 @@ def dao_get_all_templates_for_service(service_id, template_type=None):
         )
 
     return (
-        Template.query.filter_by(service_id=service_id, hidden=False, archived=False)
+        query.filter_by(service_id=service_id, hidden=False, archived=False)
         .order_by(
             asc(Template.name),
             asc(Template.template_type),

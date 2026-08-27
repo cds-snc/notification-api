@@ -17,6 +17,8 @@ REPORTS_FILE_LOCATION_STRUCTURE = "service-{}/{}.csv"
 THREE_DAYS_IN_SECONDS = 3 * 24 * 60 * 60
 MULTIPART_THRESHOLD = 1024 * 10  # 10MB
 MAX_CONCURRENCY = 10
+REPORT_S3_KEY_STRUCTURE = "reports/{}/{}.csv"
+REPORT_STREAM_CHUNK_SIZE = 1024 * 1024  # 1MB
 
 
 def get_s3_file(bucket_name, file_location):
@@ -152,6 +154,33 @@ def get_list_of_files_by_suffix(bucket_name, subfolder="", suffix="", last_modif
 
 def get_report_location(service_id, report_id):
     return REPORTS_FILE_LOCATION_STRUCTURE.format(service_id, report_id)
+
+
+def stream_report_from_s3(service_id, report_id, chunk_size=REPORT_STREAM_CHUNK_SIZE):
+    """
+    Open the S3 report object eagerly (so connection errors surface before any response is
+    committed) and return a generator that yields the body in ``chunk_size`` byte pieces.
+
+    :param service_id: Service UUID
+    :param report_id: Report UUID
+    :param chunk_size: Read size per chunk (default 1 MB)
+    :raises botocore.exceptions.ClientError: if the object cannot be retrieved from S3
+    """
+    object_key = REPORT_S3_KEY_STRUCTURE.format(service_id, report_id)
+    bucket_name = current_app.config["REPORTS_BUCKET_NAME"]
+    try:
+        body = get_s3_object(bucket_name, object_key).get()["Body"]
+    except botocore.exceptions.ClientError as e:
+        current_app.logger.error(f"Unable to open S3 report {bucket_name}/{object_key}: {e}")
+        raise
+
+    def _generate():
+        chunk = body.read(chunk_size)
+        while chunk:
+            yield chunk
+            chunk = body.read(chunk_size)
+
+    return _generate()
 
 
 def upload_report_to_s3(service_id: str, report_id: str, file_data: bytes) -> str:

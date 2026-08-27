@@ -1,18 +1,13 @@
-import base64
 import json
-import pickle
 import uuid
 from datetime import datetime, timedelta
 
 import pwnedpasswords
-from fido2 import cbor
-from fido2.client import ClientData
-from fido2.ctap2 import AuthenticatorData
 from flask import Blueprint, abort, current_app, jsonify, request
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
-from app import salesforce_client
+from app import db, salesforce_client
 from app.clients.freshdesk import Freshdesk
 from app.clients.salesforce.salesforce_engagement import ENGAGEMENT_STAGE_ACTIVATION
 from app.config import Config, QueueNames
@@ -20,6 +15,7 @@ from app.dao.fido2_key_dao import (
     create_fido2_session,
     decode_and_register,
     delete_fido2_key,
+    deserialize_fido2_key,
     get_fido2_session,
     list_fido2_keys,
     save_fido2_key,
@@ -27,7 +23,12 @@ from app.dao.fido2_key_dao import (
 from app.dao.login_event_dao import list_login_events, save_login_event
 from app.dao.permissions_dao import permission_dao
 from app.dao.service_user_dao import dao_get_service_user, dao_update_service_user
-from app.dao.services_dao import dao_fetch_service_by_id, dao_update_service
+from app.dao.services_dao import (
+    dao_archive_service_no_transaction,
+    dao_fetch_service_by_id,
+    dao_suspend_service_no_transaction,
+    dao_update_service,
+)
 from app.dao.template_folder_dao import dao_get_template_folder_by_id_and_service_id
 from app.dao.templates_dao import dao_get_template_by_id
 from app.dao.users_dao import (
@@ -35,6 +36,7 @@ from app.dao.users_dao import (
     create_secret_code,
     create_user_code,
     dao_archive_user,
+    dao_deactivate_user,
     get_user_and_accounts,
     get_user_by_email,
     get_user_by_id,
@@ -70,6 +72,7 @@ from app.schemas import (
     user_update_password_schema_load_json,
     user_update_schema_load_json,
 )
+from app.service.sender import send_notification_to_service_users, send_notification_to_single_user
 from app.user.contact_request import ContactRequest
 from app.user.users_schema import (
     fido2_key_schema,
@@ -128,6 +131,8 @@ def update_user_attribute(user_id):
     else:
         updated_by = None
 
+    is_editor_default_update = "default_editor_is_rte" in req_json
+
     update_dct = user_update_schema_load_json.load(req_json)
 
     save_user_attribute(user_to_update, update_dict=update_dct)
@@ -138,7 +143,7 @@ def update_user_attribute(user_id):
     user_alert_dct = update_dct.copy()
     user_alert_dct.pop("blocked", None)
     user_alert_dct.pop("current_session_id", None)
-    if not updated_by and user_alert_dct:
+    if not updated_by and user_alert_dct and not is_editor_default_update:
         _update_alert(user_to_update, user_alert_dct)
 
     # Alert that team member edit user
@@ -246,31 +251,86 @@ def verify_user_code(user_id):
     validate(data, post_verify_code_schema)
 
     user_to_verify = get_user_by_id(user_id=user_id)
+    code = None
 
-    code = get_user_code(user_to_verify, data["code"], data["code_type"])
+    email_prefix = current_app.config.get("CYPRESS_EMAIL_PREFIX", "")
+    if not (
+        current_app.config["NOTIFY_ENVIRONMENT"] in ("development", "staging")
+        and "notification.canada.ca" not in request.host
+        and user_to_verify.email_address.startswith(email_prefix)
+        and user_to_verify.email_address.endswith("@cds-snc.ca")
+    ):
+        code = get_user_code(user_to_verify, data["code"], data["code_type"])
 
-    if verify_within_time(user_to_verify) >= 2:
-        raise InvalidRequest("Code already sent", status_code=400)
+        if verify_within_time(user_to_verify) >= 2:
+            raise InvalidRequest("Code already sent", status_code=400)
 
-    if user_to_verify.failed_login_count >= current_app.config.get("MAX_VERIFY_CODE_COUNT"):
-        raise InvalidRequest("Code not found", status_code=404)
-    if not code:
-        increment_failed_login_count(user_to_verify)
-        raise InvalidRequest("Code not found", status_code=404)
-    if datetime.utcnow() > code.expiry_datetime:
-        # sms and email
-        increment_failed_login_count(user_to_verify)
-        raise InvalidRequest("Code has expired", status_code=400)
-    if code.code_used:
-        increment_failed_login_count(user_to_verify)
-        raise InvalidRequest("Code has already been used", status_code=400)
+        if user_to_verify.failed_login_count >= current_app.config.get("MAX_VERIFY_CODE_COUNT"):
+            raise InvalidRequest("Try again. Something’s wrong with this code", status_code=404)
+        if not code:
+            increment_failed_login_count(user_to_verify)
+            raise InvalidRequest("Try again. Something’s wrong with this code", status_code=404)
+        if datetime.utcnow() > code.expiry_datetime:
+            # sms and email
+            increment_failed_login_count(user_to_verify)
+            raise InvalidRequest("Code has expired", status_code=400)
+        if code.code_used:
+            increment_failed_login_count(user_to_verify)
+            raise InvalidRequest("Code has already been used", status_code=400)
 
     user_to_verify.current_session_id = str(uuid.uuid4())
     user_to_verify.logged_in_at = datetime.utcnow()
     user_to_verify.failed_login_count = 0
     save_model_user(user_to_verify)
 
-    use_user_code(code.id)
+    if code:
+        use_user_code(code.id)
+    return jsonify({}), 204
+
+
+@user_blueprint.route("/<uuid:user_id>/verify-2fa", methods=["POST"])
+def verify_2fa_code(user_id):
+    """Verifies a 2FA code for a logged in user who is switching their 2FA method via the user profile.
+    This method differs from `verify_user_code` as it omits failed login count checks
+
+    Args:
+        user_id (_type_): _description_
+
+    Raises:
+        InvalidRequest: Code already sent
+        InvalidRequest: Try again. Something’s wrong with this code
+        InvalidRequest: Code has expired
+        InvalidRequest: Code has already been used
+
+    Returns:
+        Response: An empty 204 response indicating successful verification of the 2FA code.
+    """
+    data = request.get_json()
+    validate(data, post_verify_code_schema)
+
+    user_to_verify = get_user_by_id(user_id=user_id)
+    code = None
+
+    email_prefix = current_app.config.get("CYPRESS_EMAIL_PREFIX", "")
+    if not (
+        current_app.config["NOTIFY_ENVIRONMENT"] in ("development", "staging")
+        and "notification.canada.ca" not in request.host
+        and user_to_verify.email_address.startswith(email_prefix)
+        and user_to_verify.email_address.endswith("@cds-snc.ca")
+    ):
+        code = get_user_code(user_to_verify, data["code"], data["code_type"])
+
+        if verify_within_time(user_to_verify) >= 2:
+            raise InvalidRequest("Code already sent", status_code=400)
+        if not code:
+            raise InvalidRequest("Try again. Something’s wrong with this code", status_code=404)
+        if datetime.utcnow() > code.expiry_datetime:
+            raise InvalidRequest("Code has expired", status_code=400)
+        if code.code_used:
+            raise InvalidRequest("Code has already been used", status_code=400)
+
+    if code:
+        use_user_code(code.id)
     return jsonify({}), 204
 
 
@@ -732,12 +792,12 @@ def list_fido2_keys_user(user_id):
 def create_fido2_keys_user(user_id):
     user = get_user_and_accounts(user_id)
     data = request.get_json()
-    cbor_data = cbor.decode(base64.b64decode(data["payload"]))
     validate(data, fido2_key_schema)
 
     id = uuid.uuid4()
-    key = decode_and_register(cbor_data, get_fido2_session(user_id))
-    save_fido2_key(Fido2Key(id=id, user_id=user_id, name=cbor_data["name"], key=key))
+    # data["credential"] is the standard WebAuthn RegistrationResponse JSON
+    key = decode_and_register(data["credential"], get_fido2_session(user_id))
+    save_fido2_key(Fido2Key(id=id, user_id=user_id, name=data["name"], key=key))
     _update_alert(user, changes={"security_key_created": None})
     return jsonify({"id": id})
 
@@ -747,7 +807,7 @@ def fido2_keys_user_register(user_id):
     user = get_user_and_accounts(user_id)
     keys = list_fido2_keys(user_id)
 
-    credentials = list(map(lambda k: pickle.loads(base64.b64decode(k.key)), keys))
+    credentials = [deserialize_fido2_key(k.key) for k in keys]
 
     registration_data, state = Config.FIDO2_SERVER.register_begin(
         {
@@ -760,51 +820,109 @@ def fido2_keys_user_register(user_id):
     )
     create_fido2_session(user_id, state)
 
-    # API Client only like JSON
-    return jsonify({"data": base64.b64encode(cbor.encode(registration_data)).decode("utf8")})
+    # fido2 v2: CredentialCreationOptions serializes to a JSON-compatible dict
+    return jsonify({"data": dict(registration_data)})
 
 
 @user_blueprint.route("/<uuid:user_id>/fido2_keys/authenticate", methods=["POST"])
 def fido2_keys_user_authenticate(user_id):
-    keys = list_fido2_keys(user_id)
-    credentials = list(map(lambda k: pickle.loads(base64.b64decode(k.key)), keys))
+    try:
+        current_app.logger.info(f"Starting FIDO2 authentication for user {user_id}")
+        keys = list_fido2_keys(user_id)
+        current_app.logger.info(f"Found {len(keys)} FIDO2 keys for user {user_id}")
 
-    auth_data, state = Config.FIDO2_SERVER.authenticate_begin(credentials)
-    create_fido2_session(user_id, state)
+        if not keys:
+            current_app.logger.warning(f"No FIDO2 keys found for user {user_id}")
+            return jsonify({"error": "No security keys registered"}), 400
 
-    # API Client only like JSON
-    return jsonify({"data": base64.b64encode(cbor.encode(auth_data)).decode("utf8")})
+        credentials = [deserialize_fido2_key(k.key) for k in keys]
+
+        # Log credential info at INFO level for debugging
+        from fido2.utils import websafe_encode
+
+        for i, cred in enumerate(credentials):
+            current_app.logger.info(f"Credential {i}: type={type(cred).__name__}")
+            if hasattr(cred, "credential_id"):
+                cred_id_b64 = websafe_encode(cred.credential_id)
+                current_app.logger.info(f"Credential {i} ID from DB: {cred_id_b64}")
+
+        request_options, state = Config.FIDO2_SERVER.authenticate_begin(credentials)
+        create_fido2_session(user_id, state)
+        current_app.logger.info("FIDO2 session created successfully")
+
+        # Log the allowCredentials being sent to browser
+        response_dict = dict(request_options)
+        if "publicKey" in response_dict and "allowCredentials" in response_dict["publicKey"]:
+            allow_creds = response_dict["publicKey"]["allowCredentials"]
+            current_app.logger.info(f"Sending {len(allow_creds)} allowCredentials to browser")
+            for i, ac in enumerate(allow_creds):
+                cred_id = ac.get("id", "MISSING")
+                current_app.logger.info(f"allowCredentials[{i}] ID sent to browser: {cred_id}")
+
+        # fido2 v2: CredentialRequestOptions serializes to a JSON-compatible dict
+        return jsonify({"data": response_dict})
+    except Exception as e:
+        current_app.logger.exception(f"Error in FIDO2 authentication for user {user_id}: {str(e)}")
+        return jsonify({"error": "An internal error has occurred"}), 500
 
 
 @user_blueprint.route("/<uuid:user_id>/fido2_keys/validate", methods=["POST"])
 def fido2_keys_user_validate(user_id):
-    keys = list_fido2_keys(user_id)
-    credentials = list(map(lambda k: pickle.loads(base64.b64decode(k.key)), keys))
+    try:
+        current_app.logger.info(f"Starting FIDO2 validation for user {user_id}")
 
-    data = request.get_json()
-    cbor_data = cbor.decode(base64.b64decode(data["payload"]))
+        # Validate request data BEFORE consuming the session
+        data = request.get_json()
+        if not isinstance(data, dict):
+            current_app.logger.warning(f"FIDO2 validation failed for user {user_id}: invalid or missing JSON body")
+            return jsonify({"error": "Invalid request format"}), 400
 
-    credential_id = cbor_data["credentialId"]
-    client_data = ClientData(cbor_data["clientDataJSON"])
-    auth_data = AuthenticatorData(cbor_data["authenticatorData"])
-    signature = cbor_data["signature"]
+        credential = data.get("credential")
+        if credential is None:
+            current_app.logger.warning(f"FIDO2 validation failed for user {user_id}: missing credential field")
+            return jsonify({"error": "Invalid request format"}), 400
 
-    Config.FIDO2_SERVER.authenticate_complete(
-        get_fido2_session(user_id),
-        credentials,
-        credential_id,
-        client_data,
-        auth_data,
-        signature,
-    )
+        keys = list_fido2_keys(user_id)
+        credentials = [deserialize_fido2_key(k.key) for k in keys]
 
-    user_to_verify = get_user_by_id(user_id=user_id)
-    user_to_verify.current_session_id = str(uuid.uuid4())
-    user_to_verify.logged_in_at = datetime.utcnow()
-    user_to_verify.failed_login_count = 0
-    save_model_user(user_to_verify)
+        # Only fetch (and consume) the session after validating the request
+        session_state = get_fido2_session(user_id)
 
-    return jsonify({"status": "OK"})
+        # credential is the standard WebAuthn AuthenticationResponse JSON
+        Config.FIDO2_SERVER.authenticate_complete(
+            session_state,
+            credentials,
+            credential,
+        )
+
+        user_to_verify = get_user_by_id(user_id=user_id)
+        user_to_verify.current_session_id = str(uuid.uuid4())
+        user_to_verify.logged_in_at = datetime.utcnow()
+        user_to_verify.failed_login_count = 0
+        save_model_user(user_to_verify)
+
+        current_app.logger.info(f"FIDO2 validation successful for user {user_id}")
+        return jsonify({"status": "OK"})
+    except KeyError as e:
+        # Missing required field in request
+        current_app.logger.warning(f"FIDO2 validation failed for user {user_id}: missing field {e}")
+        return jsonify({"error": "Invalid request format"}), 400
+
+    except NoResultFound:
+        # Session expired or not found - could indicate replay attack or timeout
+        current_app.logger.warning(f"FIDO2 validation failed for user {user_id}: session not found")
+        return jsonify({"error": "Authentication session expired"}), 400
+
+    except ValueError as e:
+        # FIDO2 library validation failures (wrong challenge, signature, etc.)
+        # This is the expected error for invalid/forged credentials
+        current_app.logger.warning(f"FIDO2 validation failed for user {user_id}: {str(e)}")
+        return jsonify({"error": "Security key validation failed"}), 401
+
+    except Exception as e:
+        # Unexpected errors - these should be investigated
+        current_app.logger.exception(f"Unexpected error in FIDO2 validation for user {user_id}: {str(e)}")
+        return jsonify({"error": "An internal error occurred"}), 500
 
 
 @user_blueprint.route("/<uuid:user_id>/fido2_keys/<uuid:key_id>", methods=["DELETE"])
@@ -926,3 +1044,72 @@ def send_annual_usage_data(user_id, start_year, end_year, markdown_en, markdown_
     send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
 
     return jsonify({}), 204
+
+
+@user_blueprint.route("/<uuid:user_id>/deactivate", methods=["POST"])
+def deactivate_user(user_id):
+    """
+    Atomically:
+      1. Deactivate eligible services (see business rules below)
+      2. Suspend eligible services (see business rules below)
+      3. Deactivate the user
+    If any DB step fails, everything is rolled back.
+    Notifications are sent only AFTER a successful commit.
+
+    Business rules:
+      - If a service has 0 active members after this user is deactivated, it is DEACTIVATED.
+      - If a service is live and has 1 active member after deactivation, it is SUSPENDED.
+      - Otherwise, the service is not touched.
+    """
+    service_suspension_template_id = current_app.config["SERVICE_SUSPENDED_TEMPLATE_ID"]
+    user_deactivated_template_id = current_app.config["USER_DEACTIVATED_TEMPLATE_ID"]
+
+    try:
+        services_deactivated = []
+        services_suspended = []
+        user = None
+
+        with db.session.begin():  # single transaction
+            user = get_user_by_id(user_id)
+
+            if user.state == "inactive":
+                raise InvalidRequest("User is already inactive", status_code=400)
+
+            for service in user.services:
+                active_members = [m for m in service.users if m.state == "active"]
+                remaining_active_members = [m for m in active_members if m.id != user_id]
+                service_is_live = not service.restricted
+
+                # Deactivate if no active members would remain
+                if len(remaining_active_members) == 0:
+                    dao_archive_service_no_transaction(service.id, user.id)
+                    services_deactivated.append(service.id)
+                # Suspend if it's a live service and only 1 active member would remain
+                elif service_is_live and len(remaining_active_members) == 1:
+                    dao_suspend_service_no_transaction(service.id, user.id)
+                    services_suspended.append(service.id)
+
+            # Deactivate user (helper without its own commit)
+            dao_deactivate_user(user_id)
+
+            # Flush so any integrity issues surface before leaving context
+            db.session.flush()
+
+        # Outside the transaction: send notifications for suspended services only
+        for sid in services_suspended:
+            send_notification_to_service_users(
+                sid, service_suspension_template_id, personalisation={"service_name": service.name}
+            )
+
+        send_notification_to_single_user(user, user_deactivated_template_id)
+
+        return jsonify(
+            {"message": "User deactivated successfully", "services_suspended": services_deactivated + services_suspended}
+        ), 200
+
+    except InvalidRequest as e:
+        current_app.logger.warning(f"Failed to deactivate user {user_id}: {e}")
+        return jsonify({"error": "InvalidRequest: failed to deactivate user"}), 500
+    except Exception as e:
+        current_app.logger.exception(f"Unexpected error while deactivating user {user_id}: {e}")
+        return jsonify({"error": "Failed to deactivate user"}), 500

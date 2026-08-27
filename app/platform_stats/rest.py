@@ -2,8 +2,10 @@ from datetime import datetime
 
 from flask import Blueprint, jsonify, request
 
+from app.billing.billing_schemas import get_sms_cost_for_service_schema
 from app.dao.date_util import get_financial_year_for_datetime
 from app.dao.fact_billing_dao import (
+    dao_fetch_sms_cost_for_all_services_in_range,
     fetch_letter_costs_for_all_services,
     fetch_letter_line_items_for_all_services,
     fetch_sms_billing_for_all_services,
@@ -132,3 +134,47 @@ def get_send_methods_stats_by_service():
     end_date = datetime.strptime(request.args.get("end_date"), "%Y-%m-%d").date()
 
     return jsonify(send_method_stats_by_service(start_date, end_date))
+
+
+@platform_stats_blueprint.route("sms-cost-for-all-services", methods=["GET"])
+def get_sms_cost_for_all_services():
+    """Fetch SMS cost and fragment count for ALL services in a date range.
+
+    Query parameters:
+        start_date (required): ISO format date string (YYYY-MM-DD)
+        end_date (required): ISO format date string (YYYY-MM-DD)
+
+    Returns:
+        JSON object with start_date, end_date, and services array.
+    """
+    data = {
+        "start_date": request.args.get("start_date"),
+        "end_date": request.args.get("end_date"),
+    }
+
+    validate(data, get_sms_cost_for_service_schema)
+
+    start_date = datetime.strptime(data["start_date"], "%Y-%m-%d").date()
+    end_date = datetime.strptime(data["end_date"], "%Y-%m-%d").date()
+
+    if start_date > end_date:
+        raise InvalidRequest("start_date must be on or before end_date", 400)
+
+    result_dict = dao_fetch_sms_cost_for_all_services_in_range(start_date, end_date)
+
+    result_list = [
+        {
+            "service_id": str(service_id),
+            "fragment_count": int(service_costs["fragment_count"]),
+            "total_cost": float(service_costs["total_cost"]),
+        }
+        for service_id, service_costs in sorted(result_dict.items())
+    ]
+
+    return jsonify(
+        {
+            "start_date": data["start_date"],
+            "end_date": data["end_date"],
+            "services": result_list,
+        }
+    ), 200

@@ -9,6 +9,7 @@ from fido2.server import Fido2Server
 from fido2.webauthn import PublicKeyCredentialRpEntity
 from kombu import Exchange, Queue
 from notifications_utils import logging
+from sqlalchemy.pool import NullPool
 
 from celery.schedules import crontab
 
@@ -93,6 +94,11 @@ class QueueNames(object):
     REPORTING = "reporting-tasks"
     GENERATE_REPORTS = "generate-reports"
 
+    # Long-running nightly tasks (delete notifications, etc.) — isolated so that
+    # a dedicated worker deployment can use a higher terminationGracePeriodSeconds
+    # without affecting the short-lived periodic-tasks workers.
+    NIGHTLY = "nightly-tasks"
+
     # Queue for scheduled notifications.
     JOBS = "job-tasks"
 
@@ -130,6 +136,7 @@ class QueueNames(object):
         return [
             QueueNames.PRIORITY,
             QueueNames.PERIODIC,
+            QueueNames.NIGHTLY,
             QueueNames.BULK,
             QueueNames.PRIORITY_DATABASE,
             QueueNames.NORMAL_DATABASE,
@@ -161,6 +168,24 @@ class TaskNames(object):
 
 
 class Config(object):
+    #################
+    # Feature flags #
+    #################
+    # Feature flags are defined first so these can be reused in configuration sections below.
+    FF_BENCHMARK_ENDPOINT = env.bool("FF_BENCHMARK_ENDPOINT", False)
+    # Timestamp in epoch milliseconds to seed the bounce rate. We will seed data for (24, the below config) included.
+    FF_BOUNCE_RATE_SEED_EPOCH_MS = os.getenv("FF_BOUNCE_RATE_SEED_EPOCH_MS", False)
+    # Feature flag to enable custom retry policies such as lowering retry period for certain priority lanes.
+    FF_CELERY_CUSTOM_TASK_PARAMS = env.bool("FF_CELERY_CUSTOM_TASK_PARAMS", True)
+    FF_CLOUDWATCH_METRICS_ENABLED = env.bool("FF_CLOUDWATCH_METRICS_ENABLED", False)
+    FF_IMPROVE_CELERY_WORKER_ISOLATION = env.bool("FF_IMPROVE_CELERY_WORKER_ISOLATION", False)
+    FF_PT_SERVICE_SKIP_FRESHDESK = env.bool("FF_PT_SERVICE_SKIP_FRESHDESK", False)
+    # Enables the /v2/reports API endpoints. Off by default so the feature stays hidden in production until launch.
+    FF_REPORT_API = env.bool("FF_REPORT_API", False)
+    FF_SALESFORCE_CONTACT = env.bool("FF_SALESFORCE_CONTACT", False)
+    FF_SMS_RATELIMIT = env.bool("FF_SMS_RATELIMIT", False)
+    FF_USE_BILLABLE_UNITS = env.bool("FF_USE_BILLABLE_UNITS", False)
+
     # URL of admin app
     ADMIN_BASE_URL = os.getenv("ADMIN_BASE_URL", "http://localhost:6012")
 
@@ -196,7 +221,7 @@ class Config(object):
 
     # URL of redis instance
     REDIS_URL = os.getenv("REDIS_URL")
-    REDIS_PUBLISH_URL = os.getenv("REDIS_PUBLISH_URL", REDIS_URL)
+    CACHE_OPS_URL = os.getenv("CACHE_OPS_URL", REDIS_URL)
     REDIS_ENABLED = env.bool("REDIS_ENABLED", False)
     EXPIRE_CACHE_TEN_MINUTES = 600
     EXPIRE_CACHE_EIGHT_DAYS = 8 * 24 * 60 * 60
@@ -210,6 +235,16 @@ class Config(object):
     FRESH_DESK_API_URL = os.getenv("FRESH_DESK_API_URL")
     FRESH_DESK_API_KEY = os.getenv("FRESH_DESK_API_KEY")
     FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", False)
+
+    # Airtable
+    AIRTABLE_API_KEY = os.getenv("AIRTABLE_API_KEY")
+    AIRTABLE_NEWSLETTER_BASE_ID = os.getenv("AIRTABLE_NEWSLETTER_BASE_ID", "appCP2c4xvXxQOfhN")
+    AIRTABLE_NEWSLETTER_TABLE_NAME = os.getenv("AIRTABLE_NEWSLETTER_TABLE_NAME", "PROD - Mailing List")
+    AIRTABLE_CDS_PLATFORM_BASE_ID = os.getenv("AIRTABLE_CDS_PLATFORM_BASE_ID", "appqflckiY4UkLqUT")
+    AIRTABLE_CDS_PLATFORM_TABLE_NAME = os.getenv("AIRTABLE_CDS_PLATFORM_TABLE_NAME", "Mailing list")
+    AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME = os.getenv(
+        "AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME", "PROD - Current newsletter templates"
+    )
 
     # Salesforce
     SALESFORCE_DOMAIN = os.getenv("SALESFORCE_DOMAIN")
@@ -268,17 +303,20 @@ class Config(object):
     NOTIFY_APP_NAME = "api"
     SQLALCHEMY_RECORD_QUERIES = False
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_POOL_SIZE = env.int("SQLALCHEMY_POOL_SIZE", 5)
-    SQLALCHEMY_POOL_TIMEOUT = 30
+    SQLALCHEMY_DISABLE_POOL = env.bool("SQLALCHEMY_DISABLE_POOL", False)
+    SQLALCHEMY_ENGINE_OPTIONS = {"poolclass": NullPool} if SQLALCHEMY_DISABLE_POOL else {}
+    SQLALCHEMY_POOL_SIZE = None if SQLALCHEMY_DISABLE_POOL else env.int("SQLALCHEMY_POOL_SIZE", 5)
+    SQLALCHEMY_POOL_TIMEOUT = None if SQLALCHEMY_DISABLE_POOL else 30
     SQLALCHEMY_POOL_RECYCLE = 300
+    SQLALCHEMY_DEBUG_POOL_LOGGING = env.bool("SQLALCHEMY_DEBUG_POOL_LOGGING", False)
+    SQLALCHEMY_DEBUG_QUERY_MS = env.int("SQLALCHEMY_DEBUG_QUERY_MS", 250)
     SQLALCHEMY_ECHO = env.bool("SQLALCHEMY_ECHO", False)
+    OTEL_REQUEST_METRICS_ENABLED = env.bool("OTEL_REQUEST_METRICS_ENABLED", False)
     PAGE_SIZE = 50
     PERSONALISATION_SIZE_LIMIT = env.int(
         "PERSONALISATION_SIZE_LIMIT", 1024 * 50
     )  # 50k bytes limit by default for personalisation data per notification
     API_PAGE_SIZE = 250
-    TEST_MESSAGE_FILENAME = "Test message"
-    ONE_OFF_MESSAGE_FILENAME = "Report"
     MAX_VERIFY_CODE_COUNT = 10
     JOBS_MAX_SCHEDULE_HOURS_AHEAD = 96
     FAILED_LOGIN_LIMIT = os.getenv("FAILED_LOGIN_LIMIT", 10)
@@ -292,6 +330,8 @@ class Config(object):
 
     # Notify's notifications templates
     NOTIFY_SERVICE_ID = "d6aa2c68-a2d9-4437-ab19-3ae8eb202553"
+    HEARTBEAT_SERVICE_ID = "30b2fb9c-f8ad-49ad-818a-ed123fc00758"
+    NEWSLETTER_SERVICE_ID = "143806ca-3068-4f5d-9c6d-276b4151a395"
     NOTIFY_USER_ID = "6af522d0-2915-4e52-83a3-3690455a5fe6"
     INVITATION_EMAIL_TEMPLATE_ID = "4f46df42-f795-4cc4-83bb-65ca312f49cc"
     SMS_CODE_TEMPLATE_ID = "36fb0730-6259-4da1-8a80-c8de22ad4246"
@@ -315,9 +355,9 @@ class Config(object):
     ACCOUNT_CHANGE_TEMPLATE_ID = "5b39e16a-9ff8-487c-9bfb-9e06bdb70f36"
     BRANDING_REQUEST_TEMPLATE_ID = "7d423d9e-e94e-4118-879d-d52f383206ae"
     NO_REPLY_TEMPLATE_ID = "86950840-6da4-4865-841b-16028110e980"
-    NEAR_DAILY_LIMIT_TEMPLATE_ID = "5d3e4322-4ee6-457a-a710-c48755f6b643"
-    REACHED_DAILY_LIMIT_TEMPLATE_ID = "fd29f796-fcdc-471b-a0d4-0093880d9173"
-    DAILY_LIMIT_UPDATED_TEMPLATE_ID = "b3c766e6-be32-4edf-b8db-0f04ef404edc"
+    NEAR_DAILY_LIMIT_TEMPLATE_ID = "5d3e4322-4ee6-457a-a710-c48755f6b643"  # no longer used
+    REACHED_DAILY_LIMIT_TEMPLATE_ID = "fd29f796-fcdc-471b-a0d4-0093880d9173"  # no longer used
+    DAILY_LIMIT_UPDATED_TEMPLATE_ID = "b3c766e6-be32-4edf-b8db-0f04ef404edc"  # no longer used
     NEAR_DAILY_SMS_LIMIT_TEMPLATE_ID = "a796568f-a89b-468e-b635-8105554301b9"
     REACHED_DAILY_SMS_LIMIT_TEMPLATE_ID = "a646e614-c527-4f94-a955-ed7185d577f4"
     DAILY_SMS_LIMIT_UPDATED_TEMPLATE_ID = "6ec12dd0-680a-4073-8d58-91d17cc8442f"
@@ -327,6 +367,25 @@ class Config(object):
     REACHED_DAILY_EMAIL_LIMIT_TEMPLATE_ID = "ee036547-e51b-49f1-862b-10ea982cfceb"
     DAILY_EMAIL_LIMIT_UPDATED_TEMPLATE_ID = "97dade64-ea8d-460f-8a34-900b74ee5eb0"
     REPORT_DOWNLOAD_TEMPLATE_ID = "8b5c14e1-2c78-4b87-9797-5b8cc8d9a86c"
+    SERVICE_SUSPENDED_TEMPLATE_ID = (
+        "65bbee1b-9c2a-48a6-b95a-d7d70e8f6726"  # Sent when a service is deactivated due to a user being deactivated
+    )
+    USER_DEACTIVATED_TEMPLATE_ID = "d0fe2b8c-ddcf-4f9b-8bb7-d79006e7cfa7"  # Sent when a user deactivates their own account
+    SERVICE_DEACTIVATED_TEMPLATE_ID = "71263145-8606-43b0-9f42-08a2c227523a"  # Sent when a user deactivates a service
+    SERVICE_BOUNCE_RATE_SUSPENDED_TEMPLATE_ID = (
+        "6963bb3c-a717-46a0-9591-68588193696a"  # Sent when a service is suspended for exceeding bounce-rate limits
+    )
+    SERVICE_SUSPENDED_WARNING_TEMPLATE_ID = (
+        "5e5952b4-a156-44bc-9cc2-059a3c9a7eb3"  # Sent to warn a service about potential suspension due to high bounce rate
+    )
+    SERVICE_CALLBACK_SUSPENDED_TEMPLATE_ID = (
+        "669f28bc-5b15-4b9f-a2d8-90b3641da226"  # Sent when a service's callbacks are suspended because they're not working
+    )
+
+    # Newsletter templates
+    NEWSLETTER_CONFIRMATION_EMAIL_TEMPLATE_ID_EN = "c8ee07a2-7cf4-4a32-9cc2-6763b5bc47a6"
+    NEWSLETTER_CONFIRMATION_EMAIL_TEMPLATE_ID_FR = "109807d5-3a2d-49ca-9bd8-d6eae3ac1770"
+    NEWSLETTER_SAMPLE_FOOTER_EMAIL_TEMPLATE_ID = "c3a0273c-ea55-4de4-a688-018ab909795d"
 
     # Templates for annual limits
     REACHED_ANNUAL_LIMIT_TEMPLATE_ID = "ca6d9205-d923-4198-acdd-d0aa37725c37"
@@ -375,6 +434,8 @@ class Config(object):
         "app.celery.reporting_tasks",
         "app.celery.nightly_tasks",
         "app.celery.process_pinpoint_receipts_tasks",
+        "app.celery.bounce_rate_tasks",
+        "app.celery.service_callback_suspension_tasks",
     )
     CELERYBEAT_SCHEDULE = {
         # app/celery/scheduled_tasks.py
@@ -462,22 +523,22 @@ class Config(object):
         "delete-sms-notifications": {
             "task": "delete-sms-notifications",
             "schedule": crontab(hour=9, minute=15),  # 4:15 EST in UTC,  after 'create-nightly-notification-status'
-            "options": {"queue": QueueNames.PERIODIC},
+            "options": {"queue": QueueNames.NIGHTLY if FF_IMPROVE_CELERY_WORKER_ISOLATION else QueueNames.PERIODIC},
         },
         "delete-email-notifications": {
             "task": "delete-email-notifications",
             "schedule": crontab(hour=9, minute=30),  # 4:30 EST in UTC, after 'create-nightly-notification-status'
-            "options": {"queue": QueueNames.PERIODIC},
+            "options": {"queue": QueueNames.NIGHTLY if FF_IMPROVE_CELERY_WORKER_ISOLATION else QueueNames.PERIODIC},
         },
         "delete-letter-notifications": {
             "task": "delete-letter-notifications",
             "schedule": crontab(hour=9, minute=45),  # 4:45 EST in UTC, after 'create-nightly-notification-status'
-            "options": {"queue": QueueNames.PERIODIC},
+            "options": {"queue": QueueNames.NIGHTLY if FF_IMPROVE_CELERY_WORKER_ISOLATION else QueueNames.PERIODIC},
         },
         "delete-inbound-sms": {
             "task": "delete-inbound-sms",
             "schedule": crontab(hour=6, minute=40),  # 1:40 EST in UTC
-            "options": {"queue": QueueNames.PERIODIC},
+            "options": {"queue": QueueNames.NIGHTLY if FF_IMPROVE_CELERY_WORKER_ISOLATION else QueueNames.PERIODIC},
         },
         "send-daily-performance-platform-stats": {
             "task": "send-daily-performance-platform-stats",
@@ -493,6 +554,12 @@ class Config(object):
             "task": "remove_sms_email_jobs",
             "schedule": crontab(hour=9, minute=0),  # 4:00 EST in UTC
             "options": {"queue": QueueNames.PERIODIC},
+        },
+        # Make the monthly-notification-stats-status table everyday
+        "create-monthly-notification-stats-summary": {
+            "task": "create-monthly-notification-stats-summary",
+            "schedule": crontab(hour=6, minute=30),  # 01:30 EST in UTC, after 'create-nightly-notification-status'
+            "options": {"queue": QueueNames.REPORTING},
         },
         # quarterly queue
         "insert-quarter-data-for-annual-limits-q1": {
@@ -547,10 +614,17 @@ class Config(object):
     }
     CELERY_QUEUES: List[Any] = []
     CELERY_DELIVER_SMS_RATE_LIMIT = os.getenv("CELERY_DELIVER_SMS_RATE_LIMIT", "1/s")
+    CELERY_DELIVER_SMS_RATE_LIMIT_PER_MINUTE = env.int("CELERY_DELIVER_SMS_RATE_LIMIT_PER_MINUTE", 6_000)
+    # SMS rate limiter backend class name. Must match a key in an implementation class in the rate_limiter module.
+    # Options: "InMemoryRateLimiter", "RedisSlidingWindowLogRateLimiter", "RedisTokenBucketRateLimiter"
+    SMS_RATE_LIMITER_BACKEND = os.getenv("SMS_RATE_LIMITER_BACKEND", "InMemoryRateLimiter")
+    # Number of tokens to pre-fetch from the underlying rate limiter per Redis call (BufferedRateLimiter batch size).
+    SMS_RATE_LIMITER_BATCH = env.int("SMS_RATE_LIMITER_BATCH", 100)
     AWS_SEND_SMS_BOTO_CALL_LATENCY = os.getenv("AWS_SEND_SMS_BOTO_CALL_LATENCY", 0.06)  # average delay in production
 
     CONTACT_FORM_EMAIL_ADDRESS = os.getenv("CONTACT_FORM_EMAIL_ADDRESS", "helpdesk@cds-snc.ca")
     SENSITIVE_SERVICE_EMAIL = os.getenv("SENSITIVE_SERVICE_EMAIL", "ESDC.Support.CDS-SNC.Soutien.EDSC@servicecanada.gc.ca")
+    FRESHDESK_SUPPORT_EMAIL_ID = os.getenv("FRESHDESK_SUPPORT_EMAIL_ID", "cds-snccaassistance+notification@cds-snc.freshdesk.com")
 
     FROM_NUMBER = "development"
 
@@ -559,6 +633,11 @@ class Config(object):
     STATSD_ENABLED = bool(STATSD_HOST)
 
     SENDING_NOTIFICATIONS_TIMEOUT_PERIOD = 259_200  # 3 days
+
+    # Callback retry policy: exponential backoff with jitter.
+    CALLBACK_RETRY_BACKOFF_BASE_SECONDS = env.int("CALLBACK_RETRY_BACKOFF_BASE_SECONDS", 300)
+    CALLBACK_RETRY_BACKOFF_MAX_SECONDS = env.int("CALLBACK_RETRY_BACKOFF_MAX_SECONDS", 300)
+    CALLBACK_RETRY_JITTER_FACTOR = float(os.getenv("CALLBACK_RETRY_JITTER_FACTOR", 0.2))
 
     SIMULATED_EMAIL_ADDRESSES = (
         "simulate-delivered@notification.canada.ca",
@@ -598,10 +677,7 @@ class Config(object):
     AWS_REGION = os.getenv("AWS_REGION", "us-east-1")
     NOTIFY_LOG_PATH = ""
 
-    FIDO2_SERVER = Fido2Server(
-        PublicKeyCredentialRpEntity(os.getenv("FIDO2_DOMAIN", "localhost"), "Notification"),
-        verify_origin=lambda x: True,
-    )
+    FIDO2_SERVER = Fido2Server(PublicKeyCredentialRpEntity(name="Notification", id=os.getenv("FIDO2_DOMAIN", "localhost")))
 
     HC_EN_SERVICE_ID = os.getenv("HC_EN_SERVICE_ID", "")
     HC_FR_SERVICE_ID = os.getenv("HC_FR_SERVICE_ID", "")
@@ -615,19 +691,11 @@ class Config(object):
     CLOUDWATCH_AGENT_ENDPOINT = os.getenv("CLOUDWATCH_AGENT_ENDPOINT", f"tcp://{STATSD_HOST}:{CLOUDWATCH_AGENT_EMF_PORT}")
 
     # Bounce Rate parameters
-    BR_VOLUME_MINIMUM = 1000
+    BR_VOLUME_MINIMUM = int(os.getenv("BR_VOLUME_MINIMUM", 1000))
     BR_WARNING_PERCENTAGE = 0.05
     BR_CRITICAL_PERCENTAGE = 0.1
 
-    # Feature flags for bounce rate
-    # Timestamp in epoch milliseconds to seed the bounce rate. We will seed data for (24, the below config) included.
-    FF_BOUNCE_RATE_SEED_EPOCH_MS = os.getenv("FF_BOUNCE_RATE_SEED_EPOCH_MS", False)
-    # Feature flag to enable custom retry policies such as lowering retry period for certain priority lanes.
-    FF_CELERY_CUSTOM_TASK_PARAMS = env.bool("FF_CELERY_CUSTOM_TASK_PARAMS", True)
-    FF_CLOUDWATCH_METRICS_ENABLED = env.bool("FF_CLOUDWATCH_METRICS_ENABLED", False)
-    FF_SALESFORCE_CONTACT = env.bool("FF_SALESFORCE_CONTACT", False)
-    FF_ANNUAL_LIMIT = env.bool("FF_ANNUAL_LIMIT", False)
-    FF_PT_SERVICE_SKIP_FRESHDESK = env.bool("FF_PT_SERVICE_SKIP_FRESHDESK", False)
+    WAF_SECRET = os.getenv("WAF_SECRET")
 
     # SRE Tools auth keys
     SRE_USER_NAME = "SRE_CLIENT_USER"
@@ -637,6 +705,11 @@ class Config(object):
     CACHE_CLEAR_CLIENT_SECRET = os.getenv("CACHE_CLEAR_CLIENT_SECRET")
     CYPRESS_AUTH_USER_NAME = "CYPRESS_AUTH_USER"
     CYPRESS_AUTH_CLIENT_SECRET = os.getenv("CYPRESS_AUTH_CLIENT_SECRET")
+    CYPRESS_EMAIL_PREFIX = "notify-ui-tests"
+    # scan files callback auth
+    SCAN_VERDICT_CALLBACK_TOKEN = os.getenv("SCAN_VERDICT_CALLBACK_TOKEN")
+    SCAN_VERDICT_CALLBACK_USER_NAME = "scan-verdict-callback"
+    TEST_OLD_BOUNCE_RATE = env.bool("TEST_OLD_BOUNCE_RATE", False)
 
     @classmethod
     def get_sensitive_config(cls) -> list[str]:
@@ -690,6 +763,7 @@ class Development(Config):
     CACHE_CLEAR_CLIENT_SECRET = os.getenv("CACHE_CLEAR_CLIENT_SECRET", "dev-notify-cache-client-secret")
     CYPRESS_AUTH_CLIENT_SECRET = os.getenv("CYPRESS_AUTH_CLIENT_SECRET", "dev-notify-cypress-secret-key")
     CYPRESS_USER_PW_SECRET = os.getenv("CYPRESS_USER_PW_SECRET", "dev-notify-cypress-secret-key")
+    WAF_SECRET = os.getenv("WAF_SECRET", "dev-waf-secret")
 
     NOTIFY_ENVIRONMENT = "development"
     NOTIFICATION_QUEUE_PREFIX = os.getenv("NOTIFICATION_QUEUE_PREFIX", "notification-canada-ca")
@@ -697,7 +771,7 @@ class Development(Config):
 
     SQLALCHEMY_DATABASE_URI = os.getenv("SQLALCHEMY_DATABASE_URI", "postgresql://postgres@localhost/notification_api")
     REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-    REDIS_PUBLISH_URL = os.getenv("REDIS_PUBLISH_URL", REDIS_URL)
+    CACHE_OPS_URL = os.getenv("CACHE_OPS_URL", REDIS_URL)
 
     ANTIVIRUS_ENABLED = env.bool("ANTIVIRUS_ENABLED", False)
 
@@ -707,12 +781,19 @@ class Development(Config):
     API_HOST_NAME = "http://localhost:6011"
     API_RATE_LIMIT_ENABLED = True
 
+    AIRTABLE_NEWSLETTER_TABLE_NAME = os.getenv("AIRTABLE_NEWSLETTER_TABLE_NAME", "DEV - Mailing List")
+    AIRTABLE_CDS_PLATFORM_TABLE_NAME = os.getenv("AIRTABLE_CDS_PLATFORM_TABLE_NAME", "Mailing list (test)")
+    AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME = os.getenv(
+        "AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME", "DEV - Current newsletter templates"
+    )
+
 
 class Test(Development):
     NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "notification.canada.ca")
     FROM_NUMBER = "testing"
     NOTIFY_ENVIRONMENT = "test"
     TESTING = True
+    REDIS_ENABLED = True  # Required for annual limit tracking and other Redis-dependent features
 
     # CSV_UPLOAD_BUCKET_NAME = 'test-notifications-csv-upload'
     TEST_LETTERS_BUCKET_NAME = "test-test-letters"
@@ -740,9 +821,16 @@ class Test(Development):
     TEMPLATE_PREVIEW_API_HOST = "http://localhost:9999"
     FAILED_LOGIN_LIMIT = 0
     GC_ORGANISATIONS_BUCKET_NAME = "test-gc-organisations"
+    FF_USE_BILLABLE_UNITS = True
+    FF_REPORT_API = True
 
 
 class Production(Config):
+    AIRTABLE_NEWSLETTER_TABLE_NAME = os.getenv("AIRTABLE_NEWSLETTER_TABLE_NAME", "PROD - Mailing List")
+    AIRTABLE_CDS_PLATFORM_TABLE_NAME = os.getenv("AIRTABLE_CDS_PLATFORM_TABLE_NAME", "Mailing list")
+    AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME = os.getenv(
+        "AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME", "PROD - Current newsletter templates"
+    )
     FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", True)
     NOTIFY_EMAIL_DOMAIN = os.getenv("NOTIFY_EMAIL_DOMAIN", "notification.canada.ca")
     NOTIFY_ENVIRONMENT = "production"
@@ -760,9 +848,21 @@ class Production(Config):
     CRONITOR_ENABLED = False
 
 
+class ProductionFF(Test):
+    """Test configuration with feature flags turned off for production parity testing"""
+
+    NOTIFY_ENVIRONMENT = "production_ff"
+    FF_USE_BILLABLE_UNITS = False
+
+
 class Staging(Production):
     FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", False)
     NOTIFY_ENVIRONMENT = "staging"
+    AIRTABLE_NEWSLETTER_TABLE_NAME = os.getenv("AIRTABLE_NEWSLETTER_TABLE_NAME", "STAGING - Mailing List")
+    AIRTABLE_CDS_PLATFORM_TABLE_NAME = os.getenv("AIRTABLE_CDS_PLATFORM_TABLE_NAME", "Mailing list (test)")
+    AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME = os.getenv(
+        "AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME", "STAGING - Current newsletter templates"
+    )
 
 
 class Scratch(Production):
@@ -782,4 +882,5 @@ configs = {
     "staging": Staging,
     "scratch": Scratch,
     "dev": Dev,
+    "production_ff": ProductionFF,
 }

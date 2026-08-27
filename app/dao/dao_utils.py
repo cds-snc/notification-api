@@ -36,7 +36,7 @@ def version_class(*version_options):
     def versioned(func):
         @wraps(func)
         def record_version(*args, **kwargs):
-            func(*args, **kwargs)
+            result = func(*args, **kwargs)
 
             session_objects = []
 
@@ -61,6 +61,8 @@ def version_class(*version_options):
 
             for session_object, history_class in session_objects:
                 db.session.add(create_history(session_object, history_cls=history_class))
+
+            return result
 
         return record_version
 

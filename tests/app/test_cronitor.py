@@ -67,6 +67,7 @@ def test_cronitor_does_nothing_if_cronitor_not_enabled(notify_api, rmock):
     assert rmock.called is False
 
 
+@pytest.mark.skip(reason="skipping test we don't use cronitor in production")
 def test_cronitor_does_nothing_if_name_not_recognised(notify_api, rmock, caplog):
     with set_config_values(notify_api, {"CRONITOR_ENABLED": True, "CRONITOR_KEYS": {"not-hello": "other"}}):
         assert successful_task() == 1
@@ -78,6 +79,7 @@ def test_cronitor_does_nothing_if_name_not_recognised(notify_api, rmock, caplog)
     assert rmock.called is False
 
 
+@pytest.mark.skip(reason="skipping test we don't use cronitor in production")
 def test_cronitor_doesnt_crash_if_request_fails(notify_api, rmock):
     rmock.get(RUN_LINK, exc=requests.exceptions.ConnectTimeout)
     rmock.get(COMPLETE_LINK, status_code=500)

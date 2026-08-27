@@ -28,7 +28,7 @@ jobs:
         aws --version
 
     - name: Configure credentials to CDS public ECR using OIDC
-      uses: aws-actions/configure-aws-credentials@master
+      uses: aws-actions/configure-aws-credentials@ececac1a45f3b08a01d2dd070d28d111c5fe6722 # v4.1.0
       with:
         role-to-assume: arn:aws:iam::283582579564:role/notification-api-apply
         role-session-name: NotifyApiGitHubActions
@@ -45,7 +45,7 @@ jobs:
         docker pull $DOCKER_SLUG:latest
         docker build \
         --cache-from $DOCKER_SLUG:latest \
-        --build-arg GIT_SHA=${GITHUB_SHA::7} \
+        --build-arg GIT_SHA=${GITHUB_SHA} \
         -t $DOCKER_SLUG:${GITHUB_SHA::7} \
         -t $DOCKER_SLUG:latest \
         -f ci/Dockerfile .
@@ -82,13 +82,52 @@ jobs:
       with:
         app_id: ${{ secrets.NOTIFY_PR_BOT_APP_ID }}
         private_key: ${{ secrets.NOTIFY_PR_BOT_PRIVATE_KEY }}
+        scope: cds-snc
+
+    - name: Debug notification-pr-bot token scope (temporary)
+      env:
+        GH_APP_TOKEN: ${{ steps.notify-pr-bot.outputs.token }}
+      run: |
+        set -euo pipefail
+
+        echo "Checking app installation repositories..."
+        install_repos="$(curl -sS \
+          -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer ${GH_APP_TOKEN}" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          https://api.github.com/installation/repositories?per_page=100)"
+
+        repo_count="$(echo "${install_repos}" | jq -r '.total_count // 0')"
+        has_manifests="$(echo "${install_repos}" | jq -r '[.repositories[]?.full_name] | index("cds-snc/notification-manifests") != null')"
+
+        echo "Installed repo count: ${repo_count}"
+        echo "Includes cds-snc/notification-manifests: ${has_manifests}"
+
+        echo "Checking pull request read access on notification-manifests..."
+        pr_http_code="$(curl -sS -o /tmp/pr_check.json -w "%{http_code}" \
+          -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer ${GH_APP_TOKEN}" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          "https://api.github.com/repos/cds-snc/notification-manifests/pulls?per_page=1&state=all")"
+
+        echo "GET pulls?per_page=1&state=all status: ${pr_http_code}"
+        if [ "${pr_http_code}" -ne 200 ]; then
+          echo "GET /pulls?per_page=1&state=all failed:"
+          cat /tmp/pr_check.json
+          exit 1
+        fi
+
+        if [ "${has_manifests}" != "true" ]; then
+          echo "Token installation does not include cds-snc/notification-manifests."
+          exit 1
+        fi
 
     - uses: cds-snc/notification-pr-bot@main
       env:
         TOKEN: ${{ steps.notify-pr-bot.outputs.token }}
 
     - name: Generate docker SBOM
-      uses: cds-snc/security-tools/.github/actions/generate-sbom@34794baf2af592913bb5b51d8df4f8d0acc49b6f # v3.2.0
+      uses: cds-snc/security-tools/.github/actions/generate-sbom@12a0cdea1c5a515dfcbe353693db804a1793c0ed # v4.0.1
       env:
         TRIVY_DB_REPOSITORY: ${{ vars.TRIVY_DB_REPOSITORY }}
       with:

@@ -1,12 +1,14 @@
 import uuid
 
+from sqlalchemy.orm import joinedload
+
 from app import db
 from app.dao.dao_utils import transactional
 from app.models import InboundNumber
 
 
 def dao_get_inbound_numbers():
-    return InboundNumber.query.order_by(InboundNumber.updated_at).all()
+    return InboundNumber.query.options(joinedload(InboundNumber.service)).order_by(InboundNumber.updated_at).all()
 
 
 def dao_get_available_inbound_numbers():

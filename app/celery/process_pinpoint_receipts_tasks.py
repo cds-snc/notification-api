@@ -6,9 +6,10 @@ from notifications_utils.statsd_decorators import statsd
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import annual_limit_client, notify_celery, statsd_client
-from app.annual_limit_utils import get_annual_limit_notifications_v2
+from app.annual_limit_utils import get_annual_limit_notifications_v3
 from app.config import QueueNames
 from app.dao import notifications_dao
+from app.dao.notifications_dao import dao_update_notification
 from app.models import (
     NOTIFICATION_DELIVERED,
     NOTIFICATION_PERMANENT_FAILURE,
@@ -44,7 +45,6 @@ from celery.exceptions import Retry
 #     }
 
 
-# TODO FF_ANNUAL_LIMIT removal: Temporarily ignore complexity
 # flake8: noqa: C901
 @notify_celery.task(bind=True, name="process-pinpoint-result", max_retries=5, default_retry_delay=300)
 @statsd(namespace="tasks")
@@ -66,12 +66,9 @@ def process_pinpoint_results(self, response):
 
         notification_status = determine_pinpoint_status(status, provider_response, isFinal)
 
-        if notification_status == NOTIFICATION_SENT:
-            return  # we don't want to update the status to sent if it's already sent
-
         if not notification_status:
             current_app.logger.warning(f"unhandled provider response for reference {reference}, received '{provider_response}'")
-            notification_status = NOTIFICATION_TECHNICAL_FAILURE  # revert to tech failure by default
+            notification_status = NOTIFICATION_PERMANENT_FAILURE  # revert to permanent failure by default
 
         try:
             notification = notifications_dao.dao_get_notification_by_reference(reference)
@@ -95,6 +92,25 @@ def process_pinpoint_results(self, response):
             notifications_dao._duplicate_update_warning(notification, notification_status)
             return
 
+        if notification_status == NOTIFICATION_SENT:
+            # Carrier has accepted the message but it hasn't been delivered to the handset yet.
+            # Don't update the notification status, but capture any pricing/metadata present in this receipt.
+            # Only overwrite fields when Pinpoint provides a value, to avoid nulling previously captured data.
+            if total_message_price is not None:
+                notification.sms_total_message_price = total_message_price
+            if total_carrier_fee is not None:
+                notification.sms_total_carrier_fee = total_carrier_fee
+            if iso_country_code is not None:
+                notification.sms_iso_country_code = iso_country_code
+            if carrier_name is not None:
+                notification.sms_carrier_name = carrier_name
+            if message_encoding is not None:
+                notification.sms_message_encoding = message_encoding
+            if origination_phone_number is not None:
+                notification.sms_origination_phone_number = origination_phone_number
+            dao_update_notification(notification)
+            return
+
         notifications_dao._update_notification_status(
             notification=notification,
             status=notification_status,
@@ -110,11 +126,7 @@ def process_pinpoint_results(self, response):
         service_id = notification.service_id
         # Flags if seeding has occurred. Since we seed after updating the notification status in the DB then the current notification
         # is included in the fetch_notification_status_for_service_for_day call below, thus we don't need to increment the count.
-        notifications_to_seed = None
-
-        if current_app.config["FF_ANNUAL_LIMIT"]:
-            if not annual_limit_client.was_seeded_today(service_id):
-                notifications_to_seed = get_annual_limit_notifications_v2(service_id)
+        _, did_we_seed = get_annual_limit_notifications_v3(service_id)
 
         if notification_status != NOTIFICATION_DELIVERED:
             current_app.logger.info(
@@ -123,28 +135,38 @@ def process_pinpoint_results(self, response):
                     f"Provider response: {provider_response}"
                 )
             )
-            # TODO FF_ANNUAL_LIMIT removal
-            if current_app.config["FF_ANNUAL_LIMIT"]:
-                # Only increment if we didn't just seed.
-                if notifications_to_seed is None:
-                    annual_limit_client.increment_sms_failed(service_id)
-                current_app.logger.info(
-                    f"Incremented sms_delivered count in Redis. Service: {service_id} Notification: {notification.id} Current counts: {annual_limit_client.get_all_notification_counts(service_id)}"
-                )
+            # Only increment if we didn't just seed.
+            if not did_we_seed:
+                annual_limit_client.increment_sms_failed(service_id)
+                # TODO: Remove FF_USE_BILLABLE_UNITS
+                if current_app.config.get("FF_USE_BILLABLE_UNITS"):
+                    annual_limit_client.increment_sms_billable_units_failed(notification.service_id, notification.billable_units)
+                    current_app.logger.info(
+                        f"Incremented sms_failed billable units in Redis. Service: {service_id} Notification: {notification.id} Current counts: {annual_limit_client.get_all_notification_counts(service_id)}"
+                    )
+                else:
+                    current_app.logger.info(
+                        f"Incremented sms_failed count in Redis. Service: {service_id} Notification: {notification.id} Current counts: {annual_limit_client.get_all_notification_counts(service_id)}"
+                    )
         else:
             current_app.logger.info(
                 f"Pinpoint callback return status of {notification_status} for notification: {notification.id}"
             )
 
-            # TODO FF_ANNUAL_LIMIT removal
-            if current_app.config["FF_ANNUAL_LIMIT"]:
-                # Only increment if we didn't just seed.
-                if notifications_to_seed is None:
-                    annual_limit_client.increment_sms_delivered(service_id)
-                current_app.logger.info(
-                    f"Incremented sms_delivered count in Redis. Service: {service_id} Notification: {notification.id} Current counts: {annual_limit_client.get_all_notification_counts(service_id)}"
-                )
-
+            # Only increment if we didn't just seed.
+            if not did_we_seed:
+                annual_limit_client.increment_sms_delivered(service_id)
+                if current_app.config.get("FF_USE_BILLABLE_UNITS"):
+                    annual_limit_client.increment_sms_billable_units_delivered(
+                        notification.service_id, notification.billable_units
+                    )
+                    current_app.logger.info(
+                        f"Incremented sms_delivered billable units in Redis. Service: {service_id} Notification: {notification.id} Current counts: {annual_limit_client.get_all_notification_counts(service_id)}"
+                    )
+                else:
+                    current_app.logger.info(
+                        f"Incremented sms_delivered count in Redis. Service: {service_id} Notification: {notification.id} Current counts: {annual_limit_client.get_all_notification_counts(service_id)}"
+                    )
         statsd_client.incr(f"callback.pinpoint.{notification_status}")
 
         if notification.sent_at:
@@ -183,19 +205,25 @@ def determine_pinpoint_status(status: str, provider_response: str, isFinal: bool
 
     response_lower = provider_response.lower()
 
-    if "blocked" in response_lower:
-        return NOTIFICATION_TECHNICAL_FAILURE
-    elif "invalid" in response_lower:
-        return NOTIFICATION_TECHNICAL_FAILURE
-    elif "is opted out" in response_lower:
+    if "blocked as spam" in response_lower or "destination is on a blocked list" in response_lower:
         return NOTIFICATION_PERMANENT_FAILURE
+    elif "blocked" in response_lower:
+        return NOTIFICATION_TEMPORARY_FAILURE
+    elif "invalid" in response_lower:
+        return NOTIFICATION_PERMANENT_FAILURE
+    elif "is opted out" in response_lower:
+        return NOTIFICATION_TECHNICAL_FAILURE
     elif "unknown error" in response_lower:
-        return NOTIFICATION_TECHNICAL_FAILURE
+        return NOTIFICATION_PERMANENT_FAILURE
     elif "exceed max price" in response_lower:
-        return NOTIFICATION_TECHNICAL_FAILURE
+        return NOTIFICATION_TEMPORARY_FAILURE
     elif "phone carrier is currently unreachable/unavailable" in response_lower:
         return NOTIFICATION_TEMPORARY_FAILURE
     elif "phone is currently unreachable/unavailable" in response_lower:
+        return NOTIFICATION_PERMANENT_FAILURE
+    elif "unhandled provider" in response_lower:
+        return NOTIFICATION_PERMANENT_FAILURE
+    elif "delivery TTL has expired" in response_lower:
         return NOTIFICATION_PERMANENT_FAILURE
     else:
         return None

@@ -5,6 +5,7 @@ import pytest
 from freezegun import freeze_time
 
 from tests.app.db import create_notification, save_notification
+from tests.conftest import set_config
 
 
 def set_up_get_all_from_hash(mock_redis, side_effect):
@@ -77,37 +78,59 @@ def test_get_template_statistics_for_service_by_day_accepts_old_query_string(
 
 
 @freeze_time("2018-01-02 12:00:00")
-def test_get_template_statistics_for_service_by_day_goes_to_db(admin_request, mocker, sample_template):
-    # first time it is called redis returns data, second time returns none
-    mock_dao = mocker.patch(
-        "app.template_statistics.rest.fetch_notification_status_for_service_for_today_and_7_previous_days",
-        return_value=[
-            Mock(
-                template_id=sample_template.id,
-                count=3,
-                template_name=sample_template.name,
-                notification_type=sample_template.template_type,
-                status="created",
-                is_precompiled_letter=False,
-            )
-        ],
-    )
+def test_get_template_statistics_for_service_by_day_goes_to_db(admin_request, mocker, sample_template, notify_api):
+    # Mock the appropriate DAO function based on FF_USE_BILLABLE_UNITS
+    use_billable_units = notify_api.config.get("FF_USE_BILLABLE_UNITS", False)
+
+    if use_billable_units:
+        mock_dao = mocker.patch(
+            "app.template_statistics.rest.fetch_notification_billable_units_for_service_for_today_and_7_previous_days",
+            return_value=[
+                Mock(
+                    template_id=sample_template.id,
+                    count=3,
+                    billable_units=3,
+                    template_name=sample_template.name,
+                    notification_type=sample_template.template_type,
+                    status="created",
+                    is_precompiled_letter=False,
+                )
+            ],
+        )
+    else:
+        mock_dao = mocker.patch(
+            "app.template_statistics.rest.fetch_notification_status_for_service_for_today_and_7_previous_days",
+            return_value=[
+                Mock(
+                    template_id=sample_template.id,
+                    count=3,
+                    template_name=sample_template.name,
+                    notification_type=sample_template.template_type,
+                    status="created",
+                    is_precompiled_letter=False,
+                )
+            ],
+        )
+
     json_resp = admin_request.get(
         "template_statistics.get_template_statistics_for_service_by_day",
         service_id=sample_template.service_id,
         whole_days=1,
     )
 
-    assert json_resp["data"] == [
-        {
-            "template_id": str(sample_template.id),
-            "count": 3,
-            "template_name": sample_template.name,
-            "template_type": sample_template.template_type,
-            "status": "created",
-            "is_precompiled_letter": False,
-        }
-    ]
+    expected_data = {
+        "template_id": str(sample_template.id),
+        "count": 3,
+        "template_name": sample_template.name,
+        "template_type": sample_template.template_type,
+        "status": "created",
+        "is_precompiled_letter": False,
+    }
+
+    if use_billable_units:
+        expected_data["billable_units"] = 3
+
+    assert json_resp["data"] == [expected_data]
     # dao only called for 2nd, since redis returned values for first call
     mock_dao.assert_called_once_with(str(sample_template.service_id), limit_days=1, by_template=True)
 
@@ -172,3 +195,43 @@ def test_get_template_statistics_for_template_returns_empty_for_old_notification
     )
 
     assert not json_resp["data"]
+
+
+@freeze_time("2018-01-02 12:00:00")
+def test_get_template_statistics_for_service_by_day_with_billable_units_ff(admin_request, mocker, sample_template, notify_api):
+    # TODO FF_USE_BILLABLE_UNITS removal - Remove this test when feature flag is removed
+
+    mock_dao = mocker.patch(
+        "app.template_statistics.rest.fetch_notification_billable_units_for_service_for_today_and_7_previous_days",
+        return_value=[
+            Mock(
+                template_id=sample_template.id,
+                count=3,
+                billable_units=5,
+                template_name=sample_template.name,
+                notification_type=sample_template.template_type,
+                status="delivered",
+                is_precompiled_letter=False,
+            )
+        ],
+    )
+
+    with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
+        json_resp = admin_request.get(
+            "template_statistics.get_template_statistics_for_service_by_day",
+            service_id=sample_template.service_id,
+            whole_days=1,
+        )
+
+        assert json_resp["data"] == [
+            {
+                "template_id": str(sample_template.id),
+                "count": 3,
+                "billable_units": 5,
+                "template_name": sample_template.name,
+                "template_type": sample_template.template_type,
+                "status": "delivered",
+                "is_precompiled_letter": False,
+            }
+        ]
+        mock_dao.assert_called_once_with(str(sample_template.service_id), limit_days=1, by_template=True)

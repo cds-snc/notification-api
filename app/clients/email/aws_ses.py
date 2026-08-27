@@ -40,6 +40,7 @@ class AwsSesClient(EmailClient):
         html_body="",
         reply_to_address=None,
         attachments=None,
+        extra_headers=None,
     ):
         def create_mime_base(attachments, html):
             msg_type = "mixed" if attachments or (not attachments and not html) else "alternative"
@@ -52,6 +53,8 @@ class AwsSesClient(EmailClient):
                     "reply-to",
                     ",".join([punycode_encode_email(addr) for addr in reply_to_addresses]),
                 )
+            for header_name, header_value in (extra_headers or {}).items():
+                ret[header_name] = header_value
             return ret
 
         def attach_html(m, content):

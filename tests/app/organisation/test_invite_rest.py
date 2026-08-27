@@ -1,3 +1,5 @@
+from unittest.mock import ANY
+
 import pytest
 from tests.app.db import create_invited_org_user
 
@@ -53,7 +55,7 @@ def test_create_invited_org_user(
     assert notification.personalisation["url"].startswith(expected_start_of_invite_url)
     assert len(notification.personalisation["url"]) > len(expected_start_of_invite_url)
 
-    mocked.assert_called_once_with([(str(notification.id))], queue="notify-internal-tasks")
+    mocked.assert_called_once_with([(str(notification.id))], queue="notify-internal-tasks", MessageGroupId=ANY)
 
 
 def test_create_invited_user_invalid_email(admin_request, sample_organisation, sample_user, mocker):

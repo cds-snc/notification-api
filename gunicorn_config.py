@@ -4,16 +4,27 @@ import time
 import traceback
 
 import gunicorn  # type: ignore
-import newrelic.agent  # See https://bit.ly/2xBVKBH
+from environs import Env
 
 environment = os.environ.get("NOTIFY_ENVIRONMENT")
-newrelic.agent.initialize(environment=environment)  # noqa: E402
 
-workers = 4
-worker_class = "gevent"
-worker_connections = 256
+# Ensure these are always defined so other code can rely on them.
+os.environ.setdefault("FF_ENABLE_OTEL", os.getenv("FF_ENABLE_OTEL", "False"))
+
+env = Env()
+
+ff_enable_otel = env.bool("FF_ENABLE_OTEL", default=False)
+
+default_worker_class = "gevent_otel_worker.OTelAwareGeventWorker" if ff_enable_otel else "gevent"
+
+workers = int(os.getenv("GUNICORN_WORKERS", "4"))
+worker_class = os.getenv("GUNICORN_WORKER_CLASS", default_worker_class)
+worker_connections = int(os.getenv("GUNICORN_WORKER_CONNECTIONS", "256"))
+threads = int(os.getenv("GUNICORN_THREADS", "4"))  # Only valid with gthread
+preload_app = env.bool("GUNICORN_PRELOAD_APP", default=False)
 bind = "0.0.0.0:{}".format(os.getenv("PORT"))
 accesslog = "-"
+access_log_format = '%(h)s %(l)s %(u)s [%(t)s] "%(r)s" %(s)s %(b)s "%(f)s" "%(a)s" request_time_us=%(D)s request_time_s=%(T)s'
 # Guincorn sets the server type on our app. We don't want to show it in the header in the response.
 gunicorn.SERVER = "Undisclosed"
 
@@ -41,9 +52,7 @@ if on_aws:
     # will not be able to finish processing the request. This can lead to
     # 502 errors being returned to the client.
     #
-    # Also, some libraries such as NewRelic might need some time to finish
-    # initialization before the worker can start processing requests. The
-    # timeout values should consider these factors.
+    # The timeout values should consider initialization time for libraries.
     #
     # Gunicorn config:
     # https://docs.gunicorn.org/en/stable/settings.html#graceful-timeout

@@ -194,6 +194,8 @@ def _decide_permanent_temporary_failure(current_status, status):
 
 
 def country_records_delivery(phone_prefix):
+    if phone_prefix not in INTERNATIONAL_BILLING_RATES:
+        return False
     dlr = INTERNATIONAL_BILLING_RATES[phone_prefix]["attributes"]["dlr"]
     return dlr and dlr.lower() == "yes"
 
@@ -232,6 +234,33 @@ def _update_notification_status(
 
     dao_update_notification(notification)
     return notification
+
+
+@transactional
+def _update_notification_statuses(updates):
+    for update in updates:
+        notification = update.get("notification")
+        bounce_response = update.get("bounce_response")
+        provider_response = update.get("provider_response")
+        feedback_reason = update.get("feedback_reason")
+
+        final_status = _decide_permanent_temporary_failure(current_status=notification.status, status=update.get("new_status"))
+        notification.status = final_status
+        if provider_response:
+            notification.provider_response = update.get("provider_response")
+        if bounce_response:
+            notification.feedback_type = bounce_response.get("feedback_type")
+            notification.feedback_subtype = bounce_response.get("feedback_subtype")
+            notification.ses_feedback_id = bounce_response.get("ses_feedback_id")
+            notification.ses_feedback_date = bounce_response.get("ses_feedback_date")
+        if feedback_reason:
+            notification.feedback_reason = feedback_reason
+    update_notification_statuses([update.get("notification") for update in updates])
+
+
+@transactional
+def update_notification_statuses(notifications):
+    db.session.bulk_save_objects(notifications)
 
 
 @statsd(namespace="dao")
@@ -325,6 +354,17 @@ def get_notification_by_id(notification_id, service_id=None, _raise=False) -> No
     return query.one() if _raise else query.first()
 
 
+@statsd(namespace="dao")
+def get_notification_with_template(notification_id: str) -> Notification | None:
+    return (
+        db.on_reader()
+        .query(Notification)
+        .filter(Notification.id == notification_id)
+        .options(joinedload("template").joinedload("template_category"))
+        .first()
+    )
+
+
 def get_notifications(filter_dict=None):
     return _filter_query(Notification.query, filter_dict=filter_dict)
 
@@ -374,6 +414,7 @@ def get_notifications_for_service(
 
     query = Notification.query.filter(*filters)
     query = _filter_query(query, filter_dict)
+    query = query.options(joinedload(Notification.scheduled_notification))
     if personalisation:
         query = query.options(joinedload("template"))
     else:
@@ -483,11 +524,11 @@ def _delete_notifications(notification_type, date_to_delete_from, service_id, qu
 
 
 def _delete_for_query(subquery):
-    number_deleted = db.session.query(Notification).filter(Notification.id.in_(subquery)).delete(synchronize_session="fetch")
+    number_deleted = db.session.query(Notification).filter(Notification.id.in_(subquery)).delete(synchronize_session=False)
     deleted = number_deleted
     db.session.commit()
     while number_deleted > 0:
-        number_deleted = db.session.query(Notification).filter(Notification.id.in_(subquery)).delete(synchronize_session="fetch")
+        number_deleted = db.session.query(Notification).filter(Notification.id.in_(subquery)).delete(synchronize_session=False)
         deleted += number_deleted
         db.session.commit()
     return deleted
@@ -685,7 +726,11 @@ def dao_get_notification_history_by_reference(reference):
 
 @statsd(namespace="dao")
 def dao_get_notifications_by_references(references):
-    return Notification.query.filter(Notification.reference.in_(references)).all()
+    results = Notification.query.filter(Notification.reference.in_(references)).all()
+
+    if not results:
+        raise NoResultFound(f"No notifications found for reference_ids {", ".join(references)}")
+    return results
 
 
 @statsd(namespace="dao")
@@ -856,7 +901,7 @@ def send_method_stats_by_service(start_time, end_time):
 
 @statsd(namespace="dao")
 @transactional
-def overall_bounce_rate_for_day(min_emails_sent=1000, default_time=datetime.utcnow()):
+def overall_bounce_rate_for_day(min_emails_sent=1000, default_time=None):
     """
     This function returns the bounce rate for all services for the last 24 hours.
     The bounce rate is calculated by dividing the number of hard bounces by the total number of emails sent.
@@ -866,6 +911,8 @@ def overall_bounce_rate_for_day(min_emails_sent=1000, default_time=datetime.utcn
     :param default_time: the time to calculate the bounce rate for
     :return: a list of tuple of the service_id, total number of email, # of hard bounces and the bounce rate
     """
+    if default_time is None:
+        default_time = datetime.utcnow()
     twenty_four_hours_ago = default_time - timedelta(hours=24)
     query = (
         db.session.query(
@@ -886,7 +933,7 @@ def overall_bounce_rate_for_day(min_emails_sent=1000, default_time=datetime.utcn
 
 @statsd(namespace="dao")
 @transactional
-def service_bounce_rate_for_day(service_id, min_emails_sent=1000, default_time=datetime.utcnow()):
+def service_bounce_rate_for_day(service_id, min_emails_sent=1000, default_time=None):
     """
     This function returns the bounce rate for a single services for the last 24 hours.
     The bounce rate is calculated by dividing the number of hard bounces by the total number of emails sent.
@@ -897,6 +944,8 @@ def service_bounce_rate_for_day(service_id, min_emails_sent=1000, default_time=d
     :param default_time: the time to calculate the bounce rate for
     :return: a tuple of the total number of emails sent, # of bounced emails and the bounce rate or None if not enough emails
     """
+    if default_time is None:
+        default_time = datetime.utcnow()
     twenty_four_hours_ago = default_time - timedelta(hours=24)
     query = (
         db.session.query(
@@ -916,7 +965,9 @@ def service_bounce_rate_for_day(service_id, min_emails_sent=1000, default_time=d
 
 @statsd(namespace="dao")
 @transactional
-def total_notifications_grouped_by_hour(service_id, default_time=datetime.utcnow(), interval: int = 24):
+def total_notifications_grouped_by_hour(service_id, default_time=None, interval: int = 24):
+    if default_time is None:
+        default_time = datetime.utcnow()
     twenty_four_hours_ago = default_time - timedelta(hours=interval)
     query = (
         db.session.query(
@@ -934,7 +985,9 @@ def total_notifications_grouped_by_hour(service_id, default_time=datetime.utcnow
 
 @statsd(namespace="dao")
 @transactional
-def total_hard_bounces_grouped_by_hour(service_id, default_time=datetime.utcnow(), interval: int = 24):
+def total_hard_bounces_grouped_by_hour(service_id, default_time=None, interval: int = 24):
+    if default_time is None:
+        default_time = datetime.utcnow()
     twenty_four_hours_ago = default_time - timedelta(hours=interval)
     query = (
         db.session.query(

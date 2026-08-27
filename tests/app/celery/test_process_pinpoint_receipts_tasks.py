@@ -41,6 +41,8 @@ from celery.exceptions import MaxRetriesExceededError
 def test_process_pinpoint_results_delivered(
     sample_template, notify_db, notify_db_session, callback, expected_response, origination_phone_number, mocker
 ):
+    mocker.patch("app.celery.process_pinpoint_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
+    mocker.patch("app.annual_limit_client.get_all_notification_counts", return_value={})
     mock_info_logger = mocker.patch("app.celery.process_pinpoint_receipts_tasks.current_app.logger.info")
     mock_callback_task = mocker.patch("app.celery.process_pinpoint_receipts_tasks._check_and_queue_callback_task")
     notification = create_sample_notification(
@@ -66,7 +68,7 @@ def test_process_pinpoint_results_delivered(
     assert updated_notification.sms_carrier_name == "Bell"
     assert updated_notification.sms_message_encoding == "GSM"
     assert updated_notification.sms_origination_phone_number == origination_phone_number
-    mock_info_logger.assert_called_once_with(f"Pinpoint callback return status of delivered for notification: {notification.id}")
+    mock_info_logger.assert_any_call(f"Pinpoint callback return status of delivered for notification: {notification.id}")
 
 
 def test_process_pinpoint_results_succeeded(sample_template, notify_db, notify_db_session, mocker):
@@ -89,10 +91,18 @@ def test_process_pinpoint_results_succeeded(sample_template, notify_db, notify_d
     mock_callback_task.assert_not_called()
     assert updated_notification.status == NOTIFICATION_SENT
     assert updated_notification.provider_response is None
+    assert float(updated_notification.sms_total_message_price) == 0.00581
+    assert float(updated_notification.sms_total_carrier_fee) == 0.00767
+    assert updated_notification.sms_iso_country_code == "CA"
+    assert updated_notification.sms_carrier_name == "Bell Cellular Inc. / Aliant Telecom"
+    assert updated_notification.sms_message_encoding == "GSM"
+    assert updated_notification.sms_origination_phone_number == "+13655550100"
 
 
-def test_process_pinpoint_results_missing_sms_data(sample_template, notify_db, notify_db_session, mocker):
+def test_process_pinpoint_results_missing_sms_data(notify_api, sample_template, notify_db, notify_db_session, mocker):
     mock_callback_task = mocker.patch("app.celery.process_pinpoint_receipts_tasks._check_and_queue_callback_task")
+    mocker.patch("app.celery.process_pinpoint_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
+    mocker.patch("app.annual_limit_client.get_all_notification_counts", return_value={})
 
     notification = create_sample_notification(
         notify_db,
@@ -105,7 +115,8 @@ def test_process_pinpoint_results_missing_sms_data(sample_template, notify_db, n
     )
     assert get_notification_by_id(notification.id).status == NOTIFICATION_SENT
 
-    process_pinpoint_results(pinpoint_delivered_callback_missing_sms_data(reference="ref"))
+    with set_config(notify_api, "REDIS_ENABLED", True):
+        process_pinpoint_results(pinpoint_delivered_callback_missing_sms_data(reference="ref"))
 
     updated_notification = get_notification_by_id(notification.id)
     mock_callback_task.assert_called_once_with(updated_notification)
@@ -121,7 +132,31 @@ def test_process_pinpoint_results_missing_sms_data(sample_template, notify_db, n
     [
         (
             "Blocked as spam by phone carrier",
-            NOTIFICATION_TECHNICAL_FAILURE,
+            NOTIFICATION_PERMANENT_FAILURE,
+            False,
+            True,
+        ),
+        (
+            "Destination is on a blocked list",
+            NOTIFICATION_PERMANENT_FAILURE,
+            False,
+            True,
+        ),
+        (
+            "Invalid phone number",
+            NOTIFICATION_PERMANENT_FAILURE,
+            False,
+            True,
+        ),
+        (
+            "Message body is invalid",
+            NOTIFICATION_PERMANENT_FAILURE,
+            False,
+            True,
+        ),
+        (
+            "Phone carrier has blocked this message",
+            NOTIFICATION_TEMPORARY_FAILURE,
             False,
             True,
         ),
@@ -132,12 +167,48 @@ def test_process_pinpoint_results_missing_sms_data(sample_template, notify_db, n
             True,
         ),
         (
+            "Phone has blocked SMS",
+            NOTIFICATION_TEMPORARY_FAILURE,
+            False,
+            True,
+        ),
+        (
+            "Phone is on a blocked list",
+            NOTIFICATION_TEMPORARY_FAILURE,
+            False,
+            True,
+        ),
+        (
             "Phone is currently unreachable/unavailable",
             NOTIFICATION_PERMANENT_FAILURE,
             False,
             True,
         ),
-        ("This is not a real response", NOTIFICATION_TECHNICAL_FAILURE, True, True),
+        (
+            "Phone number is opted out",
+            NOTIFICATION_TECHNICAL_FAILURE,
+            False,
+            True,
+        ),
+        (
+            "This delivery would exceed max price",
+            NOTIFICATION_TEMPORARY_FAILURE,
+            False,
+            True,
+        ),
+        (
+            "Unknown error attempting to reach phone",
+            NOTIFICATION_PERMANENT_FAILURE,
+            False,
+            True,
+        ),
+        (
+            "Unhandled provider",
+            NOTIFICATION_PERMANENT_FAILURE,
+            False,
+            True,
+        ),
+        ("This is not a real response", NOTIFICATION_PERMANENT_FAILURE, True, True),
     ],
 )
 def test_process_pinpoint_results_failed(
@@ -150,6 +221,8 @@ def test_process_pinpoint_results_failed(
     should_log_warning,
     should_save_provider_response,
 ):
+    mocker.patch("app.celery.process_pinpoint_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
+    mocker.patch("app.annual_limit_client.get_all_notification_counts", return_value={})
     mock_logger = mocker.patch("app.celery.process_pinpoint_receipts_tasks.current_app.logger.info")
     mock_warning_logger = mocker.patch("app.celery.process_pinpoint_receipts_tasks.current_app.logger.warning")
     mock_callback_task = mocker.patch("app.celery.process_pinpoint_receipts_tasks._check_and_queue_callback_task")
@@ -176,7 +249,7 @@ def test_process_pinpoint_results_failed(
     else:
         assert updated_notification.provider_response is None
 
-    mock_logger.assert_called_once_with(
+    mock_logger.assert_any_call(
         (
             f"Pinpoint delivery failed: notification id {notification.id} and reference ref has error found. "
             f"Provider response: {provider_response}"
@@ -255,6 +328,8 @@ def test_process_pinpoint_results_calls_service_callback(sample_template, notify
         mocker.patch("app.statsd_client.incr")
         mocker.patch("app.statsd_client.timing_with_dates")
         mock_send_status = mocker.patch("app.celery.service_callback_tasks.send_delivery_status_to_service.apply_async")
+        mocker.patch("app.celery.process_pinpoint_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
+        mocker.patch("app.annual_limit_client.get_all_notification_counts", return_value={})
 
         notification = create_sample_notification(
             notify_db,
@@ -297,6 +372,7 @@ class TestAnnualLimits:
             "Phone number is opted out",
             "This delivery would exceed max price",
             "Unknown error attempting to reach phone",
+            "Unhandled provider",
         ],
     )
     def test_process_pinpoint_results_should_increment_sms_failed_when_delivery_receipt_is_failure(
@@ -308,7 +384,8 @@ class TestAnnualLimits:
     ):
         mocker.patch("app.annual_limit_client.increment_sms_delivered")
         mocker.patch("app.annual_limit_client.increment_sms_failed")
-        mocker.patch("app.annual_limit_client.was_seeded_today", return_value=True)
+        mocker.patch("app.celery.process_pinpoint_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
+        mocker.patch("app.annual_limit_client.get_all_notification_counts", return_value={})
 
         notification = save_notification(
             create_notification(
@@ -319,11 +396,9 @@ class TestAnnualLimits:
                 sent_by="pinpoint",
             )
         )
-        # TODO FF_ANNUAL_LIMIT removal
-        with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
-            process_pinpoint_results(pinpoint_failed_callback(reference="ref", provider_response=provider_response))
-            annual_limit_client.increment_sms_failed.assert_called_once_with(notification.service_id)
-            annual_limit_client.increment_sms_delivered.assert_not_called()
+        process_pinpoint_results(pinpoint_failed_callback(reference="ref", provider_response=provider_response))
+        annual_limit_client.increment_sms_failed.assert_called_once_with(notification.service_id)
+        annual_limit_client.increment_sms_delivered.assert_not_called()
 
     @pytest.mark.parametrize(
         "callback",
@@ -341,7 +416,8 @@ class TestAnnualLimits:
     ):
         mocker.patch("app.annual_limit_client.increment_sms_delivered")
         mocker.patch("app.annual_limit_client.increment_sms_failed")
-        mocker.patch("app.annual_limit_client.was_seeded_today", return_value=True)
+        mocker.patch("app.celery.process_pinpoint_receipts_tasks.get_annual_limit_notifications_v3", return_value=({}, False))
+        mocker.patch("app.annual_limit_client.get_all_notification_counts", return_value={})
 
         notification = save_notification(
             create_notification(
@@ -352,11 +428,9 @@ class TestAnnualLimits:
                 sent_by="pinpoint",
             )
         )
-        # TODO FF_ANNUAL_LIMIT removal
-        with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
-            process_pinpoint_results(callback(reference="ref"))
-            annual_limit_client.increment_sms_delivered.assert_called_once_with(notification.service_id)
-            annual_limit_client.increment_sms_failed.assert_not_called()
+        process_pinpoint_results(callback(reference="ref"))
+        annual_limit_client.increment_sms_delivered.assert_called_once_with(notification.service_id)
+        annual_limit_client.increment_sms_failed.assert_not_called()
 
     @pytest.mark.parametrize(
         "callback, provider_response, data",
@@ -434,7 +508,6 @@ class TestAnnualLimits:
     ):
         mocker.patch("app.annual_limit_client.increment_sms_delivered")
         mocker.patch("app.annual_limit_client.increment_sms_failed")
-        mocker.patch("app.annual_limit_client.was_seeded_today", return_value=False)
         mock_seed_annual_limit = mocker.patch("app.annual_limit_client.seed_annual_limit_notifications")
 
         notification = save_notification(
@@ -446,11 +519,22 @@ class TestAnnualLimits:
                 sent_by="pinpoint",
             )
         )
-        # TODO FF_ANNUAL_LIMIT removal
-        with set_config(notify_api, "FF_ANNUAL_LIMIT", True), set_config(notify_api, "REDIS_ENABLED", True):
+        with set_config(notify_api, "REDIS_ENABLED", True):
             process_pinpoint_results(
                 callback(provider_response, reference="ref") if provider_response else callback(reference="ref")
             )
-            mock_seed_annual_limit.assert_called_once_with(notification.service_id, data)
+
+            # When FF_USE_BILLABLE_UNITS is enabled, the seed call includes billable unit fields
+            expected_data = data.copy()
+            if notify_api.config.get("FF_USE_BILLABLE_UNITS"):
+                expected_data.update(
+                    {
+                        "total_sms_billable_units_fiscal_year_to_yesterday": 0,
+                        "sms_billable_units_failed_today": data["sms_failed_today"],
+                        "sms_billable_units_delivered_today": data["sms_delivered_today"],
+                    }
+                )
+
+            mock_seed_annual_limit.assert_called_once_with(notification.service_id, expected_data)
             annual_limit_client.increment_sms_delivered.assert_not_called()
             annual_limit_client.increment_sms_failed.assert_not_called()

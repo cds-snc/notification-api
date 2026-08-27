@@ -25,6 +25,7 @@ from app.models import (
     SMS_TYPE,
     ApiKey,
     FactNotificationStatus,
+    MonthlyNotificationStatsSummary,
     Notification,
     NotificationHistory,
     Service,
@@ -152,9 +153,7 @@ def fetch_notification_status_for_service_by_month(start_date, end_date, service
         FactNotificationStatus.key_type != KEY_TYPE_TEST,
     ]
 
-    # TODO FF_ANNUAL_LIMIT removal
-    if current_app.config["FF_ANNUAL_LIMIT"]:
-        filters.append(FactNotificationStatus.bst_date != datetime.utcnow().date().strftime("%Y-%m-%d"))
+    filters.append(FactNotificationStatus.bst_date != datetime.utcnow().date().strftime("%Y-%m-%d"))
 
     return (
         db.session.query(
@@ -174,7 +173,12 @@ def fetch_notification_status_for_service_by_month(start_date, end_date, service
 
 
 def fetch_delivered_notification_stats_by_month():
-    query = (
+    """
+    Fetch delivered/sent notification stats by month from the summary table.
+    This is much faster than querying the 28M+ row ft_notification_status table.
+
+    This originally used to call ft_notification_status
+        query = (
         db.session.query(
             func.date_trunc("month", FactNotificationStatus.bst_date).cast(db.Text).label("month"),
             FactNotificationStatus.notification_type,
@@ -183,7 +187,7 @@ def fetch_delivered_notification_stats_by_month():
         .filter(
             FactNotificationStatus.key_type != KEY_TYPE_TEST,
             FactNotificationStatus.notification_status.in_([NOTIFICATION_DELIVERED, NOTIFICATION_SENT]),
-            FactNotificationStatus.bst_date >= "2019-11-01",  # GC Notify start date
+            FactNotificationStatus.bst_date >= "2019-11-01",  # ~6 years of data
         )
         .group_by(
             func.date_trunc("month", FactNotificationStatus.bst_date),
@@ -195,6 +199,42 @@ def fetch_delivered_notification_stats_by_month():
         )
     )
     return query.all()
+
+    But now we store the results of this query in MonthlyNotificationStatsSummary. We only store
+    delivered, and sent notifications in this table, and we aggregate it as well. We also exclude any
+    TEST keys.
+
+    See the celery task in reporting_tasks.py called create_monthly_notification_status_summary
+    """
+    query = (
+        db.session.query(
+            MonthlyNotificationStatsSummary.month,
+            MonthlyNotificationStatsSummary.notification_type,
+            func.sum(MonthlyNotificationStatsSummary.notification_count).label("count"),
+        )
+        .filter(
+            MonthlyNotificationStatsSummary.month >= "2019-11-01",  # GC Notify start date
+        )
+        .group_by(
+            MonthlyNotificationStatsSummary.month,
+            MonthlyNotificationStatsSummary.notification_type,
+        )
+    )
+
+    if filter_heartbeats:
+        query = query.filter(
+            MonthlyNotificationStatsSummary.service_id.notin_(
+                [
+                    current_app.config["NOTIFY_SERVICE_ID"],
+                    current_app.config["HEARTBEAT_SERVICE_ID"],
+                ]
+            ),
+        )
+
+    return query.order_by(
+        MonthlyNotificationStatsSummary.month.desc(),
+        MonthlyNotificationStatsSummary.notification_type,
+    ).all()
 
 
 def fetch_notification_stats_for_trial_services():
@@ -265,12 +305,58 @@ def fetch_notification_status_for_service_for_day(bst_day, service_id):
     )
 
 
+def fetch_billable_units_for_service_for_day(bst_day, service_id):
+    """Fetch SMS billable units for a service for a specific day."""
+    bst_day = bst_day.replace(hour=0, minute=0, second=0)
+    return (
+        db.session.query(
+            literal(bst_day.replace(day=1), type_=DateTime).label("month"),
+            Notification.notification_type,
+            Notification.status.label("notification_status"),
+            func.coalesce(func.sum(Notification.billable_units), 0).label("count"),
+        )
+        .filter(
+            Notification.created_at >= bst_day,
+            Notification.created_at < bst_day + timedelta(days=1),
+            Notification.service_id == service_id,
+            Notification.key_type != KEY_TYPE_TEST,
+            Notification.notification_type == SMS_TYPE,
+        )
+        .group_by(Notification.notification_type, Notification.status)
+        .all()
+    )
+
+
+def fetch_notification_status_for_emails_service_for_day(bst_day, service_id):
+    # Fetch data from bst_day 00:00:00 to bst_day 23:59:59
+    # bst_dat is currently in UTC and the return is in UTC
+    bst_day = bst_day.replace(hour=0, minute=0, second=0)
+    return (
+        db.session.query(
+            # return current month as a datetime so the data has the same shape as the ft_notification_status query
+            literal(bst_day.replace(day=1), type_=DateTime).label("month"),
+            Notification.notification_type,
+            Notification.status.label("notification_status"),
+            func.count().label("count"),
+        )
+        .filter(
+            Notification.created_at >= bst_day,
+            Notification.created_at < bst_day + timedelta(days=1),
+            Notification.service_id == service_id,
+            Notification.key_type != KEY_TYPE_TEST,
+            Notification.notification_type == EMAIL_TYPE,
+        )
+        .group_by(Notification.notification_type, Notification.status)
+        .all()
+    )
+
+
 def _stats_for_days_facts(service_id, start_time, by_template=False, notification_type=None):
     """
     We want to take the data from the fact_notification_status table for bst_data>=start_date
 
     Returns:
-        Aggregate data in a certain format for total notifications
+        Aggregate data in a certain format for total notifications FOR SMS billable
     """
     stats_from_facts = db.session.query(
         FactNotificationStatus.notification_type.label("notification_type"),
@@ -289,10 +375,68 @@ def _stats_for_days_facts(service_id, start_time, by_template=False, notificatio
     return stats_from_facts
 
 
+def _stats_for_days_facts_with_billable_units(service_id, start_time, by_template=False):
+    """
+    We want to take the data from the fact_notification_status table for bst_data>=start_date
+
+    Returns:
+        Aggregate data in a certain format for total billable units
+    """
+    stats_from_facts = (
+        db.session.query(
+            FactNotificationStatus.notification_type.label("notification_type"),
+            FactNotificationStatus.notification_status.label("status"),
+            *([FactNotificationStatus.template_id.label("template_id")] if by_template else []),
+            *([func.sum(FactNotificationStatus.notification_count).label("count")]),
+            *([func.sum(FactNotificationStatus.billable_units).label("billable_units")]),
+        )
+        .filter(
+            FactNotificationStatus.service_id == service_id,
+            FactNotificationStatus.bst_date >= start_time,
+            FactNotificationStatus.key_type != KEY_TYPE_TEST,
+        )
+        .group_by(
+            FactNotificationStatus.notification_type,
+            FactNotificationStatus.notification_status,
+            *([FactNotificationStatus.template_id] if by_template else []),
+        )
+    )
+
+    return stats_from_facts
+
+
+def _stats_for_today_with_billable_units(service_id, start_time, by_template=False):
+    stats_for_today = (
+        db.session.query(
+            Notification.notification_type.cast(db.Text),
+            Notification.status,
+            *([Notification.template_id] if by_template else []),
+            *([func.count().label("count")]),
+            *([func.coalesce(func.sum(Notification.billable_units), 0).label("billable_units")]),
+        )
+        .filter(
+            Notification.created_at >= start_time,
+            Notification.service_id == service_id,
+            Notification.key_type != KEY_TYPE_TEST,
+        )
+        .group_by(
+            Notification.notification_type,
+            *([Notification.template_id] if by_template else []),
+            Notification.status,
+        )
+    )
+
+    return stats_for_today
+
+
 def _timing_notification_table(service_id):
     max_date_from_facts = (
         FactNotificationStatus.query.with_entities(func.max(FactNotificationStatus.bst_date))
         .filter(FactNotificationStatus.service_id == service_id)
+        # We want to get the max date from the facts table which we will then input into the notifications table
+        # We know the notifications table is populated with data for today and the last 6 days, so we are checking
+        # that the max date is within the last 10 days, to ensure we are not scanning the entire table.
+        .filter(FactNotificationStatus.bst_date >= datetime.now(timezone.utc) - timedelta(days=10))
         .scalar()
     )
     date_to_use = max_date_from_facts + timedelta(days=1) if max_date_from_facts else datetime.now(timezone.utc)
@@ -367,6 +511,48 @@ def fetch_notification_status_for_service_for_today_and_7_previous_days(
         all_stats_table.c.notification_type,
         all_stats_table.c.status,
         func.cast(func.sum(all_stats_table.c.count), Integer).label("count"),
+    )
+
+    if by_template:
+        query = query.filter(all_stats_table.c.template_id == Template.id)
+
+    return query.group_by(
+        *(
+            [
+                Template.name,
+                Template.is_precompiled_letter,
+                all_stats_table.c.template_id,
+            ]
+            if by_template
+            else []
+        ),
+        all_stats_table.c.notification_type,
+        all_stats_table.c.status,
+    ).all()
+
+
+def fetch_notification_billable_units_for_service_for_today_and_7_previous_days(service_id, by_template=False, limit_days=7):
+    facts_notification_start_time = get_query_date_based_on_retention_period(limit_days)
+    stats_from_facts = _stats_for_days_facts_with_billable_units(service_id, facts_notification_start_time, by_template)
+    start_time_notify_table = _timing_notification_table(service_id)
+    stats_for_today = _stats_for_today_with_billable_units(service_id, start_time_notify_table, by_template)
+
+    all_stats_table = stats_from_facts.union_all(stats_for_today).subquery()
+
+    query = db.session.query(
+        *(
+            [
+                Template.name.label("template_name"),
+                Template.is_precompiled_letter,
+                all_stats_table.c.template_id,
+            ]
+            if by_template
+            else []
+        ),
+        all_stats_table.c.notification_type,
+        all_stats_table.c.status,
+        func.cast(func.sum(all_stats_table.c.count), Integer).label("count"),
+        func.cast(func.sum(all_stats_table.c.billable_units), Integer).label("billable_units"),
     )
 
     if by_template:
@@ -585,6 +771,25 @@ def fetch_notification_status_totals_for_all_services(start_date, end_date):
     return query.all()
 
 
+def fetch_notification_statuses_for_job_batch(service_id, job_ids):
+    """
+    Returns a list of (job_id, status, count) tuples for the given job_ids.
+    """
+    return (
+        db.session.query(
+            FactNotificationStatus.job_id,
+            FactNotificationStatus.notification_status.label("status"),
+            func.sum(FactNotificationStatus.notification_count).label("count"),
+        )
+        .filter(
+            FactNotificationStatus.service_id == service_id,
+            FactNotificationStatus.job_id.in_(job_ids),
+        )
+        .group_by(FactNotificationStatus.job_id, FactNotificationStatus.notification_status)
+        .all()
+    )
+
+
 def fetch_notification_statuses_for_job(job_id):
     return (
         db.session.query(
@@ -790,7 +995,158 @@ def fetch_monthly_template_usage_for_service(start_date, end_date, service_id):
         )
     else:
         query = stats
+
     return query.all()
+
+
+def fetch_monthly_template_usage_for_service_paginated(start_date, end_date, service_id, page=1, page_size=50):
+    """
+    Returns monthly template usage for a service, paginated by unique template
+    (sorted by total count descending). Pagination is performed at the DB level via
+    a two-step query:
+    1. The page of template IDs is selected with LIMIT/OFFSET,
+    2. Only those template's monthly rows are fetched.
+
+    Returns a tuple of (results, total_unique_templates).
+    """
+    today_in_range = start_date <= datetime.utcnow() <= end_date
+    today = get_local_timezone_midnight_in_utc(datetime.utcnow()) if today_in_range else None
+
+    # Step 1: Get the page of template IDs sorted by total count desc.
+    fact_template_counts = db.session.query(
+        FactNotificationStatus.template_id.label("template_id"),
+        FactNotificationStatus.notification_count.label("count"),
+    ).filter(
+        FactNotificationStatus.service_id == service_id,
+        FactNotificationStatus.bst_date >= start_date.strftime("%Y-%m-%d"),
+        FactNotificationStatus.bst_date < end_date.strftime("%Y-%m-%d"),
+        FactNotificationStatus.key_type != KEY_TYPE_TEST,
+        FactNotificationStatus.notification_status != NOTIFICATION_CANCELLED,
+    )
+
+    if today_in_range:
+        today_template_counts = (
+            db.session.query(
+                Notification.template_id.label("template_id"),
+                func.count().label("count"),
+            )
+            .filter(
+                Notification.created_at >= today,
+                Notification.service_id == service_id,
+                Notification.key_type != KEY_TYPE_TEST,
+                Notification.status != NOTIFICATION_CANCELLED,
+            )
+            .group_by(Notification.template_id)
+        )
+        combined_subq = fact_template_counts.union_all(today_template_counts).subquery()
+    else:
+        combined_subq = fact_template_counts.subquery()
+
+    template_id_query = (
+        db.session.query(
+            combined_subq.c.template_id.label("template_id"),
+            func.sum(combined_subq.c.count).label("total_count"),
+        )
+        .group_by(combined_subq.c.template_id)
+        .order_by(func.sum(combined_subq.c.count).desc(), combined_subq.c.template_id)
+    )
+
+    total = template_id_query.count()
+    paginated_template_ids = [row.template_id for row in template_id_query.offset((page - 1) * page_size).limit(page_size).all()]
+
+    if not paginated_template_ids:
+        return [], total
+
+    # Step 2: Fetch full monthly rows for only the templates on this page.
+    stats = (
+        db.session.query(
+            FactNotificationStatus.template_id.label("template_id"),
+            Template.name.label("name"),
+            Template.template_type.label("template_type"),
+            Template.is_precompiled_letter.label("is_precompiled_letter"),
+            extract("month", FactNotificationStatus.bst_date).label("month"),
+            extract("year", FactNotificationStatus.bst_date).label("year"),
+            func.sum(FactNotificationStatus.notification_count).label("count"),
+        )
+        .join(Template, FactNotificationStatus.template_id == Template.id)
+        .filter(
+            FactNotificationStatus.service_id == service_id,
+            FactNotificationStatus.bst_date >= start_date.strftime("%Y-%m-%d"),
+            FactNotificationStatus.bst_date < end_date.strftime("%Y-%m-%d"),
+            FactNotificationStatus.key_type != KEY_TYPE_TEST,
+            FactNotificationStatus.notification_status != NOTIFICATION_CANCELLED,
+            FactNotificationStatus.template_id.in_(paginated_template_ids),
+        )
+        .group_by(
+            FactNotificationStatus.template_id,
+            Template.name,
+            Template.template_type,
+            Template.is_precompiled_letter,
+            extract("month", FactNotificationStatus.bst_date).label("month"),
+            extract("year", FactNotificationStatus.bst_date).label("year"),
+        )
+        .order_by(
+            extract("year", FactNotificationStatus.bst_date),
+            extract("month", FactNotificationStatus.bst_date),
+            Template.name,
+        )
+    )
+
+    if today_in_range:
+        month = get_local_timezone_month_from_utc_column(Notification.created_at)
+
+        stats_for_today = (
+            db.session.query(
+                Notification.template_id.label("template_id"),
+                Template.name.label("name"),
+                Template.template_type.label("template_type"),
+                Template.is_precompiled_letter.label("is_precompiled_letter"),
+                extract("month", month).label("month"),
+                extract("year", month).label("year"),
+                func.count().label("count"),
+            )
+            .join(Template, Notification.template_id == Template.id)
+            .filter(
+                Notification.created_at >= today,
+                Notification.service_id == service_id,
+                Notification.key_type != KEY_TYPE_TEST,
+                Notification.status != NOTIFICATION_CANCELLED,
+                Notification.template_id.in_(paginated_template_ids),
+            )
+            .group_by(
+                Notification.template_id,
+                Template.hidden,
+                Template.name,
+                Template.template_type,
+                month,
+            )
+        )
+
+        all_stats_table = stats.union_all(stats_for_today).subquery()
+        query = (
+            db.session.query(
+                all_stats_table.c.template_id,
+                all_stats_table.c.name,
+                all_stats_table.c.is_precompiled_letter,
+                all_stats_table.c.template_type,
+                func.cast(all_stats_table.c.month, Integer).label("month"),
+                func.cast(all_stats_table.c.year, Integer).label("year"),
+                func.cast(func.sum(all_stats_table.c.count), Integer).label("count"),
+            )
+            .group_by(
+                all_stats_table.c.template_id,
+                all_stats_table.c.name,
+                all_stats_table.c.is_precompiled_letter,
+                all_stats_table.c.template_type,
+                all_stats_table.c.month,
+                all_stats_table.c.year,
+            )
+            .order_by(all_stats_table.c.year, all_stats_table.c.month, all_stats_table.c.name)
+        )
+    else:
+        query = stats
+
+    return query.all(), total
 
 
 def get_total_sent_notifications_for_day_and_type(day, notification_type):
@@ -945,6 +1301,27 @@ def fetch_notification_status_totals_for_service_by_fiscal_year(service_id, fisc
 
     query = (
         db.session.query(func.sum(FactNotificationStatus.notification_count).label("notification_count"))
+        .filter(*filters)
+        .scalar()
+    )
+    return query or 0
+
+
+def fetch_billable_units_totals_for_service_by_fiscal_year(service_id, fiscal_year, notification_type=None):
+    """Fetch total billable units for a service for a fiscal year."""
+    start_date, end_date = get_fiscal_dates(year=fiscal_year)
+
+    filters = [
+        FactNotificationStatus.service_id == (service_id),
+        FactNotificationStatus.bst_date >= start_date,
+        FactNotificationStatus.bst_date <= end_date,
+    ]
+
+    if notification_type:
+        filters.append(FactNotificationStatus.notification_type == notification_type)
+
+    query = (
+        db.session.query(func.coalesce(func.sum(FactNotificationStatus.billable_units), 0).label("billable_units"))
         .filter(*filters)
         .scalar()
     )

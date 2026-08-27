@@ -44,20 +44,22 @@
             "name": "Python: Celery",
             "type": "debugpy",
             "request": "launch",
+            "python": "${command:python.interpreterPath}",
             "module": "celery",
             "console": "integratedTerminal",
             "justMyCode": false,
             "args": [
-                "--app",
-                "run_celery",
+                "-A",
+                "run_celery.notify_celery",
                 "worker",
+                "--beat",
                 "--pidfile",
                 "/tmp/celery.pid",
-                "--concurrency=4",
-                "-l",
-                "DEBUG",
+                "--loglevel=INFO",
+                "--pool=prefork",
+                "--concurrency=1",
                 "-Q",
-                "database-tasks,-priority-database-tasks.fifo,-normal-database-tasks,-bulk-database-tasks,job-tasks,notify-internal-tasks,periodic-tasks,priority-tasks,normal-tasks,bulk-tasks,reporting-tasks,research-mode-tasks,retry-tasks,service-callbacks-retry,send-sms-tasks,send-sms-high,send-sms-medium,send-sms-low,send-throttled-sms-tasks,send-email-high,send-email-medium,send-email-low,send-email-tasks,service-callbacks,delivery-receipts",
+                "-priority-database-tasks.fifo,-normal-database-tasks,-bulk-database-tasks,job-tasks,notify-internal-tasks,periodic-tasks,priority-tasks,normal-tasks,bulk-tasks,reporting-tasks,research-mode-tasks,retry-tasks,send-sms-high,send-sms-medium,send-sms-low,send-throttled-sms-tasks,send-email-high,send-email-medium,send-email-low,service-callbacks,service-callbacks-retry,delivery-receipts,generate-reports"
             ]
         },
         {
@@ -100,6 +102,13 @@
             ],
             "jinja": true,
             "justMyCode": false
+        }
+    ],
+    "compounds": [
+        {
+            "name": "API/Celery",
+            "configurations": ["Python: Flask", "Python: Celery"],
+            "stopAll": true
         }
     ]
 }

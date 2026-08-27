@@ -1,13 +1,17 @@
+import uuid
 from calendar import monthrange
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+from types import SimpleNamespace
 
 import pytest
 from freezegun import freeze_time
-from notifications_utils.timezones import convert_utc_to_local_timezone
 
 from app import db
 from app.dao.fact_billing_dao import (
+    create_billing_record,
+    dao_fetch_sms_cost_for_all_services_in_range,
+    dao_fetch_sms_cost_for_service_in_range,
     delete_billing_data_for_service_for_day,
     fetch_billing_data_for_day,
     fetch_billing_totals_for_year,
@@ -18,9 +22,11 @@ from app.dao.fact_billing_dao import (
     fetch_sms_free_allowance_remainder,
     get_rate,
     get_rates_for_billing,
+    update_fact_billing,
 )
 from app.dao.organisation_dao import dao_add_service_to_organisation
 from app.models import NOTIFICATION_STATUS_TYPES, FactBilling, Notification
+from tests.app.conftest import create_template_category
 from tests.app.db import (
     create_annual_billing,
     create_ft_billing,
@@ -83,11 +89,11 @@ def test_fetch_billing_data_for_today_includes_data_with_the_right_status(
     notify_db_session,
 ):
     service = create_service()
-    template = create_template(service=service, template_type="email")
+    template = create_template(service=service, template_type="sms")
     for status in ["created", "technical-failure"]:
         save_notification(create_notification(template=template, status=status))
 
-    today = convert_utc_to_local_timezone(datetime.utcnow())
+    today = datetime.utcnow().date()
     results = fetch_billing_data_for_day(today)
     assert results == []
     for status in ["delivered", "sending", "temporary-failure"]:
@@ -101,30 +107,30 @@ def test_fetch_billing_data_for_today_includes_data_with_the_right_key_type(
     notify_db_session,
 ):
     service = create_service()
-    template = create_template(service=service, template_type="email")
+    template = create_template(service=service, template_type="sms")
     for key_type in ["normal", "test", "team"]:
         save_notification(create_notification(template=template, status="delivered", key_type=key_type))
 
-    today = convert_utc_to_local_timezone(datetime.utcnow())
+    today = datetime.utcnow().date()
     results = fetch_billing_data_for_day(today)
     assert len(results) == 1
     assert results[0].notifications_sent == 2
 
 
 @freeze_time("2018-04-02 06:20:00")
-# This test assumes the local timezone is EST
 def test_fetch_billing_data_for_today_includes_data_with_the_right_date(
     notify_db_session,
 ):
-    process_day = datetime(2018, 4, 1, 13, 30, 0)
+    # Uses UTC midnight as the day boundary
+    process_day = datetime(2018, 4, 1, 13, 30, 0)  # UTC
     service = create_service()
-    template = create_template(service=service, template_type="email")
+    template = create_template(service=service, template_type="sms")
     save_notification(create_notification(template=template, status="delivered", created_at=process_day))
     save_notification(
         create_notification(
             template=template,
             status="delivered",
-            created_at=datetime(2018, 4, 1, 4, 23, 23),
+            created_at=datetime(2018, 4, 1, 4, 23, 23),  # UTC - still within April 1 UTC
         )
     )
 
@@ -132,27 +138,74 @@ def test_fetch_billing_data_for_today_includes_data_with_the_right_date(
         create_notification(
             template=template,
             status="delivered",
-            created_at=datetime(2018, 3, 31, 20, 23, 23),
+            created_at=datetime(2018, 3, 31, 20, 23, 23),  # UTC - prior day, excluded
         )
     )
     save_notification(create_notification(template=template, status="sending", created_at=process_day + timedelta(days=1)))
 
-    day_under_test = convert_utc_to_local_timezone(process_day)
-    results = fetch_billing_data_for_day(day_under_test)
+    results = fetch_billing_data_for_day(process_day.date())
     assert len(results) == 1
     assert results[0].notifications_sent == 2
+
+
+def test_fetch_billing_data_for_day_uses_utc_midnight_boundaries(notify_db_session):
+    service = create_service()
+    template = create_template(service=service, template_type="sms")
+
+    # Exactly around UTC midnight: only records in [2026-05-11 00:00:00, 2026-05-12 00:00:00)
+    # should be counted for process_day=2026-05-11.
+    save_notification(
+        create_notification(
+            template=template,
+            status="delivered",
+            created_at=datetime(2026, 5, 10, 23, 59, 59),
+        )
+    )
+    save_notification(
+        create_notification(
+            template=template,
+            status="delivered",
+            created_at=datetime(2026, 5, 11, 0, 0, 0),
+        )
+    )
+    save_notification(
+        create_notification(
+            template=template,
+            status="delivered",
+            created_at=datetime(2026, 5, 11, 23, 59, 59),
+        )
+    )
+    save_notification(
+        create_notification(
+            template=template,
+            status="delivered",
+            created_at=datetime(2026, 5, 12, 0, 0, 0),
+        )
+    )
+
+    day_results = fetch_billing_data_for_day(process_day=date(2026, 5, 11), service_id=service.id)
+    assert len(day_results) == 1
+    assert day_results[0].notifications_sent == 2
+
+    previous_day_results = fetch_billing_data_for_day(process_day=date(2026, 5, 10), service_id=service.id)
+    assert len(previous_day_results) == 1
+    assert previous_day_results[0].notifications_sent == 1
+
+    next_day_results = fetch_billing_data_for_day(process_day=date(2026, 5, 12), service_id=service.id)
+    assert len(next_day_results) == 1
+    assert next_day_results[0].notifications_sent == 1
 
 
 def test_fetch_billing_data_for_day_is_grouped_by_template_and_notification_type(
     notify_db_session,
 ):
     service = create_service()
-    email_template = create_template(service=service, template_type="email")
-    sms_template = create_template(service=service, template_type="sms")
-    save_notification(create_notification(template=email_template, status="delivered"))
-    save_notification(create_notification(template=sms_template, status="delivered"))
+    sms_template_1 = create_template(service=service, template_type="sms")
+    sms_template_2 = create_template(service=service, template_type="sms")
+    save_notification(create_notification(template=sms_template_1, status="delivered"))
+    save_notification(create_notification(template=sms_template_2, status="delivered"))
 
-    today = convert_utc_to_local_timezone(datetime.utcnow())
+    today = datetime.utcnow().date()
     results = fetch_billing_data_for_day(today)
     assert len(results) == 2
     assert results[0].notifications_sent == 1
@@ -162,12 +215,12 @@ def test_fetch_billing_data_for_day_is_grouped_by_template_and_notification_type
 def test_fetch_billing_data_for_day_is_grouped_by_service(notify_db_session):
     service_1 = create_service()
     service_2 = create_service(service_name="Service 2")
-    email_template = create_template(service=service_1)
-    sms_template = create_template(service=service_2)
-    save_notification(create_notification(template=email_template, status="delivered"))
-    save_notification(create_notification(template=sms_template, status="delivered"))
+    sms_template_1 = create_template(service=service_1, template_type="sms")
+    sms_template_2 = create_template(service=service_2, template_type="sms")
+    save_notification(create_notification(template=sms_template_1, status="delivered"))
+    save_notification(create_notification(template=sms_template_2, status="delivered"))
 
-    today = convert_utc_to_local_timezone(datetime.utcnow())
+    today = datetime.utcnow().date()
     results = fetch_billing_data_for_day(today)
     assert len(results) == 2
     assert results[0].notifications_sent == 1
@@ -176,11 +229,11 @@ def test_fetch_billing_data_for_day_is_grouped_by_service(notify_db_session):
 
 def test_fetch_billing_data_for_day_is_grouped_by_provider(notify_db_session):
     service = create_service()
-    template = create_template(service=service)
+    template = create_template(service=service, template_type="sms")
     save_notification(create_notification(template=template, status="delivered", sent_by="sns"))
     save_notification(create_notification(template=template, status="delivered", sent_by="pinpoint"))
 
-    today = convert_utc_to_local_timezone(datetime.utcnow())
+    today = datetime.utcnow().date()
     results = fetch_billing_data_for_day(today)
     assert len(results) == 2
     assert results[0].notifications_sent == 1
@@ -189,11 +242,11 @@ def test_fetch_billing_data_for_day_is_grouped_by_provider(notify_db_session):
 
 def test_fetch_billing_data_for_day_is_grouped_by_rate_mulitplier(notify_db_session):
     service = create_service()
-    template = create_template(service=service)
+    template = create_template(service=service, template_type="sms")
     save_notification(create_notification(template=template, status="delivered", rate_multiplier=1))
     save_notification(create_notification(template=template, status="delivered", rate_multiplier=2))
 
-    today = convert_utc_to_local_timezone(datetime.utcnow())
+    today = datetime.utcnow().date()
     results = fetch_billing_data_for_day(today)
     assert len(results) == 2
     assert results[0].notifications_sent == 1
@@ -202,90 +255,106 @@ def test_fetch_billing_data_for_day_is_grouped_by_rate_mulitplier(notify_db_sess
 
 def test_fetch_billing_data_for_day_is_grouped_by_international(notify_db_session):
     service = create_service()
-    template = create_template(service=service)
+    template = create_template(service=service, template_type="sms")
     save_notification(create_notification(template=template, status="delivered", international=True))
     save_notification(create_notification(template=template, status="delivered", international=False))
 
-    today = convert_utc_to_local_timezone(datetime.utcnow())
+    today = datetime.utcnow().date()
     results = fetch_billing_data_for_day(today)
     assert len(results) == 2
     assert results[0].notifications_sent == 1
     assert results[1].notifications_sent == 1
 
 
+def test_fetch_billing_data_for_day_is_grouped_by_sms_sending_vehicle(notify_db_session):
+    service = create_service()
+    template = create_template(service=service, template_type="sms")
+    # Long code: origination number matches +1 followed by 10 digits
+    save_notification(create_notification(template=template, status="delivered", sms_origination_phone_number="+12025551234"))
+    # Short code: origination number does not match the long code pattern
+    save_notification(create_notification(template=template, status="delivered", sms_origination_phone_number="12345"))
+
+    today = datetime.utcnow().date()
+    results = fetch_billing_data_for_day(today)
+    assert len(results) == 2
+    vehicles = {r.sms_sending_vehicle for r in results}
+    assert vehicles == {"long_code", "short_code"}
+    assert all(r.notifications_sent == 1 for r in results)
+
+
+def test_fetch_billing_data_for_day_null_origination_number_is_long_code(notify_db_session):
+    service = create_service()
+    template = create_template(service=service, template_type="sms")
+    # NULL origination number should fall back to template category's sms_sending_vehicle (long_code by default)
+    save_notification(create_notification(template=template, status="delivered", sms_origination_phone_number=None))
+
+    today = datetime.utcnow().date()
+    results = fetch_billing_data_for_day(today)
+    assert len(results) == 1
+    assert results[0].sms_sending_vehicle == "long_code"
+
+
+def test_fetch_billing_data_for_day_null_origination_uses_template_category_vehicle(notify_db, notify_db_session):
+    service = create_service()
+    short_code_category = create_template_category(notify_db, notify_db_session, sms_sending_vehicle="short_code")
+    template = create_template(service=service, template_type="sms", template_category=short_code_category)
+    # NULL origination + short_code category → should yield short_code
+    save_notification(create_notification(template=template, status="delivered", sms_origination_phone_number=None))
+
+    today = datetime.utcnow().date()
+    results = fetch_billing_data_for_day(today)
+    assert len(results) == 1
+    assert results[0].sms_sending_vehicle == "short_code"
+
+
 def test_fetch_billing_data_for_day_is_grouped_by_notification_type(notify_db_session):
     service = create_service()
     sms_template = create_template(service=service, template_type="sms")
-    email_template = create_template(service=service, template_type="email")
-    letter_template = create_template(service=service, template_type="letter")
-    save_notification(create_notification(template=sms_template, status="delivered"))
-    save_notification(create_notification(template=sms_template, status="delivered"))
-    save_notification(create_notification(template=sms_template, status="delivered"))
-    save_notification(create_notification(template=email_template, status="delivered"))
-    save_notification(create_notification(template=email_template, status="delivered"))
-    save_notification(create_notification(template=letter_template, status="delivered"))
 
-    today = convert_utc_to_local_timezone(datetime.utcnow())
+    save_notification(create_notification(template=sms_template, status="delivered"))
+    save_notification(create_notification(template=sms_template, status="delivered"))
+    save_notification(create_notification(template=sms_template, status="delivered"))
+    save_notification(create_notification(template=sms_template, status="delivered"))
+    save_notification(create_notification(template=sms_template, status="delivered"))
+
+    today = datetime.utcnow().date()
     results = fetch_billing_data_for_day(today)
-    assert len(results) == 3
+    assert len(results) == 1
     notification_types = [x[2] for x in results if x[2] in ["email", "sms", "letter"]]
-    assert len(notification_types) == 3
-
-
-def test_fetch_billing_data_for_day_groups_by_postage(notify_db_session):
-    service = create_service()
-    letter_template = create_template(service=service, template_type="letter")
-    email_template = create_template(service=service, template_type="email")
-    save_notification(create_notification(template=letter_template, status="delivered", postage="first"))
-    save_notification(create_notification(template=letter_template, status="delivered", postage="first"))
-    save_notification(create_notification(template=letter_template, status="delivered", postage="second"))
-    save_notification(create_notification(template=email_template, status="delivered"))
-
-    today = convert_utc_to_local_timezone(datetime.utcnow())
-    results = fetch_billing_data_for_day(today)
-    assert len(results) == 3
-
-
-def test_fetch_billing_data_for_day_sets_postage_for_emails_and_sms_to_none(
-    notify_db_session,
-):
-    service = create_service()
-    sms_template = create_template(service=service, template_type="sms")
-    email_template = create_template(service=service, template_type="email")
-    save_notification(create_notification(template=sms_template, status="delivered"))
-    save_notification(create_notification(template=email_template, status="delivered"))
-
-    today = convert_utc_to_local_timezone(datetime.utcnow())
-    results = fetch_billing_data_for_day(today)
-    assert len(results) == 2
-    assert results[0].postage == "none"
-    assert results[1].postage == "none"
+    assert len(notification_types) == 1
 
 
 def test_fetch_billing_data_for_day_returns_empty_list(notify_db_session):
-    today = convert_utc_to_local_timezone(datetime.utcnow())
+    today = datetime.utcnow().date()
     results = fetch_billing_data_for_day(today)
     assert results == []
 
 
+@freeze_time("2024-01-15 12:00:00")
 def test_fetch_billing_data_for_day_uses_notification_history(notify_db_session):
-    local_now = convert_utc_to_local_timezone(datetime.utcnow())
+    # Use a fixed reference time to avoid timezone race conditions at day boundaries
+    reference_time = datetime(2024, 1, 15, 12, 0, 0)
+    history_time = reference_time - timedelta(days=8)  # 2024-01-07 12:00:00
+
     service = create_service()
     sms_template = create_template(service=service, template_type="sms")
     create_notification_history(
         template=sms_template,
         status="delivered",
-        created_at=datetime.utcnow() - timedelta(days=8),
+        created_at=history_time,
     )
     create_notification_history(
         template=sms_template,
         status="delivered",
-        created_at=datetime.utcnow() - timedelta(days=8),
+        created_at=history_time,
     )
 
     Notification.query.delete()
     db.session.commit()
-    results = fetch_billing_data_for_day(process_day=local_now - timedelta(days=8), service_id=service.id)
+
+    # Query using the UTC date of the same reference time
+    local_history_date = history_time.date()
+    results = fetch_billing_data_for_day(process_day=local_history_date, service_id=service.id)
     assert len(results) == 1
     assert results[0].notifications_sent == 2
 
@@ -298,7 +367,7 @@ def test_fetch_billing_data_for_day_returns_list_for_given_service(notify_db_ses
     save_notification(create_notification(template=template, status="delivered"))
     save_notification(create_notification(template=template_2, status="delivered"))
 
-    today = convert_utc_to_local_timezone(datetime.utcnow())
+    today = datetime.utcnow().date()
     results = fetch_billing_data_for_day(process_day=today, service_id=service.id)
     assert len(results) == 1
     assert results[0].service_id == service.id
@@ -307,33 +376,25 @@ def test_fetch_billing_data_for_day_returns_list_for_given_service(notify_db_ses
 def test_fetch_billing_data_for_day_bills_correctly_for_status(notify_db_session):
     service = create_service()
     sms_template = create_template(service=service, template_type="sms")
-    email_template = create_template(service=service, template_type="email")
-    letter_template = create_template(service=service, template_type="letter")
+
     for status in NOTIFICATION_STATUS_TYPES:
         save_notification(create_notification(template=sms_template, status=status))
-        save_notification(create_notification(template=email_template, status=status))
-        save_notification(create_notification(template=letter_template, status=status))
-    today = convert_utc_to_local_timezone(datetime.utcnow())
+
+    today = datetime.utcnow().date()
     results = fetch_billing_data_for_day(process_day=today, service_id=service.id)
 
     sms_results = [x for x in results if x[2] == "sms"]
-    email_results = [x for x in results if x[2] == "email"]
-    letter_results = [x for x in results if x[2] == "letter"]
+
     assert 7 == sms_results[0][7]
-    assert 7 == email_results[0][7]
-    assert 3 == letter_results[0][7]
 
 
 def test_get_rates_for_billing(notify_db_session):
-    create_rate(start_date=datetime.utcnow(), value=12, notification_type="email")
-    create_rate(start_date=datetime.utcnow(), value=22, notification_type="sms")
-    create_rate(start_date=datetime.utcnow(), value=33, notification_type="email")
-    create_letter_rate(start_date=datetime.utcnow(), rate=0.66, post_class="first")
-    create_letter_rate(start_date=datetime.utcnow(), rate=0.33, post_class="second")
+    create_rate(start_date=datetime.utcnow(), value=22, notification_type="sms", sms_sending_vehicle="long_code")
+    create_rate(start_date=datetime.utcnow(), value=33, notification_type="sms", sms_sending_vehicle="short_code")
     non_letter_rates, letter_rates = get_rates_for_billing()
 
-    assert len(non_letter_rates) == 3
-    assert len(letter_rates) == 2
+    assert len(non_letter_rates) == 2
+    assert len(letter_rates) == 0
 
 
 @freeze_time("2017-06-01 12:00")
@@ -362,6 +423,42 @@ def test_get_rate(notify_db_session):
 
     assert rate == 2.2
     assert letter_rate == Decimal("0.3")
+
+
+@freeze_time("2017-06-01 12:00")
+def test_get_rate_differentiates_by_sms_sending_vehicle(notify_db_session):
+    create_rate(
+        start_date=datetime(2017, 5, 30, 23, 0),
+        value=1.5,
+        notification_type="sms",
+        sms_sending_vehicle="long_code",
+    )
+    create_rate(
+        start_date=datetime(2017, 5, 30, 23, 0),
+        value=3.0,
+        notification_type="sms",
+        sms_sending_vehicle="short_code",
+    )
+
+    non_letter_rates, letter_rates = get_rates_for_billing()
+
+    long_code_rate = get_rate(
+        non_letter_rates=non_letter_rates,
+        letter_rates=letter_rates,
+        notification_type="sms",
+        date=date(2017, 6, 1),
+        sms_sending_vehicle="long_code",
+    )
+    short_code_rate = get_rate(
+        non_letter_rates=non_letter_rates,
+        letter_rates=letter_rates,
+        notification_type="sms",
+        date=date(2017, 6, 1),
+        sms_sending_vehicle="short_code",
+    )
+
+    assert long_code_rate == 1.5
+    assert short_code_rate == 3.0
 
 
 @pytest.mark.parametrize("letter_post_class,expected_rate", [("first", "0.61"), ("second", "0.35")])
@@ -428,6 +525,30 @@ def test_get_rate_for_letters_when_page_count_is_zero(notify_db_session):
     assert letter_rate == 0
 
 
+@freeze_time("2026-03-01 12:00")
+def test_get_rate_logs_error_when_no_rate_exists_for_vehicle(notify_db_session, mocker):
+    """When no rate exists at all for the requested vehicle, get_rate() logs an error and raises ValueError."""
+    mock_logger = mocker.patch("app.dao.fact_billing_dao.current_app")
+
+    # Only a short_code rate exists; requesting long_code should find nothing
+    create_rate(start_date=datetime(2026, 2, 27, 0, 0), value=0.06240, notification_type="sms", sms_sending_vehicle="short_code")
+    non_letter_rates, letter_rates = get_rates_for_billing()
+
+    with pytest.raises(ValueError, match=r"\[error-sms-rates\]"):
+        get_rate(
+            non_letter_rates=non_letter_rates,
+            letter_rates=letter_rates,
+            notification_type="sms",
+            date=date(2026, 3, 1),
+            sms_sending_vehicle="long_code",
+        )
+
+    mock_logger.logger.error.assert_called_once()
+    error_message = mock_logger.logger.error.call_args[0][0]
+    assert "[error-sms-rates]" in error_message
+    assert "long_code" in error_message
+
+
 def test_fetch_monthly_billing_for_year(notify_db_session):
     service = create_service()
     template = create_template(service=service, template_type="sms")
@@ -454,7 +575,7 @@ def test_fetch_monthly_billing_for_year(notify_db_session):
     assert len(results) == 2
     assert str(results[0].month) == "2018-06-01"
     assert results[0].notifications_sent == 30
-    assert results[0].billable_units == Decimal("60")
+    assert results[0].billable_units == Decimal("30")
     assert results[0].rate == Decimal("0.162")
     assert results[0].notification_type == "sms"
     assert results[0].postage == "none"
@@ -468,15 +589,15 @@ def test_fetch_monthly_billing_for_year(notify_db_session):
 
 
 @freeze_time("2018-08-01 13:30:00")
-def test_fetch_monthly_billing_for_year_adds_data_for_today(notify_db_session):
+def test_fetch_monthly_billing_for_year_adds_data_for_today(notify_db_session, billing_rates):
     service = create_service()
-    template = create_template(service=service, template_type="email")
+    template = create_template(service=service, template_type="sms")
     for i in range(1, 32):
         create_ft_billing(
             utc_date="2018-07-{}".format(i),
             service=service,
             template=template,
-            notification_type="email",
+            notification_type="sms",
             rate=0.162,
         )
     save_notification(create_notification(template=template, status="delivered"))
@@ -891,3 +1012,418 @@ def test_fetch_letter_line_items_for_all_service(notify_db_session):
         "second",
         15,
     )
+
+
+def test_fetch_billing_data_for_day_long_code_origination_is_long_code(notify_db_session):
+    """A +1XXXXXXXXXX origination number should map to long_code, not short_code."""
+    service = create_service()
+    template = create_template(service=service, template_type="sms")
+    save_notification(
+        create_notification(
+            template=template,
+            status="delivered",
+            sms_origination_phone_number="+12025551234",
+        )
+    )
+
+    today = datetime.utcnow().date()
+    results = fetch_billing_data_for_day(today)
+    assert len(results) == 1
+    assert results[0].sms_sending_vehicle == "long_code"
+
+
+def test_create_billing_record_sms_billing_total():
+    """billing_total for SMS = billable_units * rate_multiplier * rate."""
+    data = SimpleNamespace(
+        template_id=uuid.uuid4(),
+        service_id=uuid.uuid4(),
+        notification_type="sms",
+        sent_by="sns",
+        rate_multiplier=2,
+        international=False,
+        billable_units=3,
+        notifications_sent=3,
+        postage="none",
+        sms_sending_vehicle="long_code",
+        crown=True,
+        letter_page_count=None,
+    )
+    rate = Decimal("0.0165")
+
+    record = create_billing_record(data, rate, date(2026, 2, 27))
+
+    # 3 units * 2 multiplier * 0.0165 = 0.0990
+    assert record.billing_total == Decimal("0.0990")
+
+
+def test_update_fact_billing_persists_billing_total(notify_db_session, billing_rates):
+    """End-to-end: billing_total is written to ft_billing by update_fact_billing."""
+    service = create_service()
+    template = create_template(service=service, template_type="sms")
+    today = datetime.utcnow().date()
+
+    save_notification(
+        create_notification(
+            template=template,
+            status="delivered",
+            sent_by="sns",
+            rate_multiplier=1,
+            billable_units=2,
+            sms_origination_phone_number="+12025551234",  # long_code
+        )
+    )
+
+    rows = fetch_billing_data_for_day(today)
+    assert len(rows) == 1
+
+    update_fact_billing(rows[0], today)
+
+    record = FactBilling.query.one()
+    # 2 billable_units * 1 rate_multiplier * 0.162 (long_code rate from billing_rates) = 0.324
+    assert record.billing_total == Decimal("2") * Decimal("1") * Decimal("0.162")
+
+
+def test_update_fact_billing_international_sms_uses_long_code_rate(notify_db_session):
+    """International SMS is always rated at long_code rate even if sent via short_code vehicle.
+    The rate_multiplier already accounts for the higher per-country cost.
+    """
+    service = create_service()
+    template = create_template(service=service, template_type="sms")
+    today = datetime.utcnow().date()
+
+    # Insert both rates; short_code is purposely higher to prove it isn't chosen
+    create_rate(start_date=datetime(2016, 1, 1), value=0.162, notification_type="sms", sms_sending_vehicle="long_code")
+    create_rate(start_date=datetime(2016, 1, 1), value=0.999, notification_type="sms", sms_sending_vehicle="short_code")
+
+    # Notification is international (rate_multiplier=2) but sent from a short_code origination
+    save_notification(
+        create_notification(
+            template=template,
+            status="delivered",
+            sent_by="sns",
+            rate_multiplier=2,
+            billable_units=1,
+            international=True,
+            sms_origination_phone_number="12345",  # short_code pattern
+        )
+    )
+
+    rows = fetch_billing_data_for_day(today)
+    assert len(rows) == 1
+    assert rows[0].sms_sending_vehicle == "long_code"  # international always reported as long_code
+
+    update_fact_billing(rows[0], today)
+
+    record = FactBilling.query.one()
+    # Should use long_code rate (0.162), not short_code rate (0.999)
+    # billing_total = 1 unit * 2 multiplier * 0.162 = 0.324
+    assert record.sms_sending_vehicle == "long_code"
+    assert record.rate == Decimal("0.162")
+    assert record.billing_total == Decimal("1") * Decimal("2") * Decimal("0.162")
+
+
+# --- dao_fetch_sms_cost_for_service_in_range tests ---
+
+
+@freeze_time("2026-04-08 14:00:00")
+def test_dao_fetch_sms_cost_for_service_in_range_historical_only(notify_db_session):
+    """When the date range is entirely in the past, only FactBilling is queried."""
+    service = create_service()
+    template = create_template(service=service, template_type="sms")
+
+    create_ft_billing(
+        utc_date="2026-04-05",
+        service=service,
+        template=template,
+        notification_type="sms",
+        billable_unit=3,
+        rate=Decimal("0.0165"),
+        rate_multiplier=1,
+    )
+    create_ft_billing(
+        utc_date="2026-04-06",
+        service=service,
+        template=template,
+        notification_type="sms",
+        billable_unit=5,
+        rate=Decimal("0.0165"),
+        rate_multiplier=2,
+    )
+
+    result = dao_fetch_sms_cost_for_service_in_range(service.id, date(2026, 4, 5), date(2026, 4, 6))
+
+    # fragment_count = sum of billable_units (no multiplier) = 3 + 5 = 8
+    assert result["fragment_count"] == 8
+    # total_cost = (3 * 1 * 0.0165) + (5 * 2 * 0.0165) = 0.0495 + 0.165 = 0.2145
+    assert result["total_cost"] == Decimal("0.2145")
+
+
+@freeze_time("2026-04-08 14:00:00")
+def test_dao_fetch_sms_cost_for_service_in_range_today_only(notify_db_session):
+    """When the date range is today only, data comes from the Notification table."""
+    service = create_service()
+    template = create_template(service=service, template_type="sms")
+
+    notif = save_notification(
+        create_notification(
+            template=template,
+            status="delivered",
+            billable_units=4,
+            key_type="normal",
+        )
+    )
+    notif.sms_total_carrier_fee = Decimal("0.005")
+    notif.sms_total_message_price = Decimal("0.010")
+    db.session.commit()
+
+    result = dao_fetch_sms_cost_for_service_in_range(service.id, date(2026, 4, 8), date(2026, 4, 8))
+
+    assert result["fragment_count"] == 4
+    # total_cost = carrier_fee + message_price = 0.005 + 0.010 = 0.015
+    assert result["total_cost"] == Decimal("0.015")
+
+
+@freeze_time("2026-04-08 14:00:00")
+def test_dao_fetch_sms_cost_for_service_in_range_combined(notify_db_session):
+    """When the range spans historical days and today, both sources are combined."""
+    service = create_service()
+    template = create_template(service=service, template_type="sms")
+
+    # Historical: yesterday in FactBilling
+    create_ft_billing(
+        utc_date="2026-04-07",
+        service=service,
+        template=template,
+        notification_type="sms",
+        billable_unit=10,
+        rate=Decimal("0.02"),
+        rate_multiplier=1,
+    )
+
+    # Today: Notification table
+    notif = save_notification(
+        create_notification(
+            template=template,
+            status="delivered",
+            billable_units=2,
+        )
+    )
+    notif.sms_total_carrier_fee = Decimal("0.003")
+    notif.sms_total_message_price = Decimal("0.007")
+    db.session.commit()
+
+    result = dao_fetch_sms_cost_for_service_in_range(service.id, date(2026, 4, 7), date(2026, 4, 8))
+
+    # fragment_count = 10 (ft_billing) + 2 (notification) = 12
+    assert result["fragment_count"] == 12
+    # total_cost = (10 * 1 * 0.02) + (0.003 + 0.007) = 0.20 + 0.01 = 0.21
+    assert result["total_cost"] == Decimal("0.21")
+
+
+@freeze_time("2026-04-08 14:00:00")
+def test_dao_fetch_sms_cost_for_service_in_range_excludes_test_keys(notify_db_session):
+    """Notifications sent with test keys should not be counted for today's data."""
+    service = create_service()
+    template = create_template(service=service, template_type="sms")
+
+    # A 'test' key notification
+    notif_test = save_notification(
+        create_notification(
+            template=template,
+            status="delivered",
+            billable_units=5,
+            key_type="test",
+        )
+    )
+    notif_test.sms_total_carrier_fee = Decimal("0.100")
+    notif_test.sms_total_message_price = Decimal("0.100")
+
+    # A 'normal' key notification
+    notif_normal = save_notification(
+        create_notification(
+            template=template,
+            status="delivered",
+            billable_units=1,
+            key_type="normal",
+        )
+    )
+    notif_normal.sms_total_carrier_fee = Decimal("0.002")
+    notif_normal.sms_total_message_price = Decimal("0.003")
+    db.session.commit()
+
+    result = dao_fetch_sms_cost_for_service_in_range(service.id, date(2026, 4, 8), date(2026, 4, 8))
+
+    # Only the normal-key notification should count
+    assert result["fragment_count"] == 1
+    assert result["total_cost"] == Decimal("0.005")
+
+
+@freeze_time("2026-04-08 14:00:00")
+def test_dao_fetch_sms_cost_for_service_in_range_excludes_non_billable_status(notify_db_session):
+    """Notifications with non-billable statuses (e.g. created) should not be counted."""
+    service = create_service()
+    template = create_template(service=service, template_type="sms")
+
+    notif_created = save_notification(
+        create_notification(
+            template=template,
+            status="created",
+            billable_units=3,
+        )
+    )
+    notif_created.sms_total_carrier_fee = Decimal("0.100")
+    notif_created.sms_total_message_price = Decimal("0.100")
+
+    notif_delivered = save_notification(
+        create_notification(
+            template=template,
+            status="delivered",
+            billable_units=2,
+        )
+    )
+    notif_delivered.sms_total_carrier_fee = Decimal("0.004")
+    notif_delivered.sms_total_message_price = Decimal("0.006")
+    db.session.commit()
+
+    result = dao_fetch_sms_cost_for_service_in_range(service.id, date(2026, 4, 8), date(2026, 4, 8))
+
+    assert result["fragment_count"] == 2
+    assert result["total_cost"] == Decimal("0.010")
+
+
+@freeze_time("2026-04-08 14:00:00")
+def test_dao_fetch_sms_cost_for_service_in_range_null_carrier_fees(notify_db_session):
+    """Null sms_total_carrier_fee / sms_total_message_price are treated as 0."""
+    service = create_service()
+    template = create_template(service=service, template_type="sms")
+
+    save_notification(
+        create_notification(
+            template=template,
+            status="delivered",
+            billable_units=3,
+        )
+    )
+    # Don't set carrier fees — they remain NULL
+
+    result = dao_fetch_sms_cost_for_service_in_range(service.id, date(2026, 4, 8), date(2026, 4, 8))
+
+    assert result["fragment_count"] == 3
+    assert result["total_cost"] == Decimal("0")
+
+
+@freeze_time("2026-04-08 14:00:00")
+def test_dao_fetch_sms_cost_for_service_in_range_empty_range(notify_db_session):
+    """Returns zeros when there is no data in the range."""
+    service = create_service()
+
+    result = dao_fetch_sms_cost_for_service_in_range(service.id, date(2026, 4, 1), date(2026, 4, 8))
+
+    assert result["fragment_count"] == 0
+    assert result["total_cost"] == Decimal("0")
+
+
+@freeze_time("2026-04-08 14:00:00")
+def test_dao_fetch_sms_cost_for_all_services_historical_only(notify_db_session):
+    """When the date range is entirely in the past, only FactBilling is queried."""
+    service_a = create_service(service_name="Service A")
+    template_a = create_template(service=service_a, template_type="sms")
+    service_b = create_service(service_name="Service B")
+    template_b = create_template(service=service_b, template_type="sms")
+
+    create_ft_billing(
+        utc_date="2026-04-05",
+        service=service_a,
+        template=template_a,
+        notification_type="sms",
+        billable_unit=3,
+        rate=Decimal("0.0165"),
+        rate_multiplier=1,
+    )
+    create_ft_billing(
+        utc_date="2026-04-06",
+        service=service_b,
+        template=template_b,
+        notification_type="sms",
+        billable_unit=5,
+        rate=Decimal("0.0165"),
+        rate_multiplier=2,
+    )
+
+    result = dao_fetch_sms_cost_for_all_services_in_range(date(2026, 4, 5), date(2026, 4, 6))
+
+    assert len(result) == 2
+    assert result[service_a.id]["fragment_count"] == 3
+    assert result[service_a.id]["total_cost"] == Decimal("0.0495")
+    assert result[service_b.id]["fragment_count"] == 5
+    assert result[service_b.id]["total_cost"] == Decimal("0.165")
+
+
+@freeze_time("2026-04-08 14:00:00")
+def test_dao_fetch_sms_cost_for_all_services_today_only_returns_empty(notify_db_session):
+    """When the date range is today only, no FactBilling data exists yet so result is empty."""
+    service = create_service()
+    template = create_template(service=service, template_type="sms")
+
+    # Notification table data for today -- should NOT be picked up
+    notif = save_notification(
+        create_notification(
+            template=template,
+            status="delivered",
+            billable_units=4,
+            key_type="normal",
+        )
+    )
+    notif.sms_total_carrier_fee = Decimal("0.005")
+    notif.sms_total_message_price = Decimal("0.010")
+    db.session.commit()
+
+    result = dao_fetch_sms_cost_for_all_services_in_range(date(2026, 4, 8), date(2026, 4, 8))
+
+    # No FactBilling rows for today, so empty
+    assert result == {}
+
+
+@freeze_time("2026-04-08 14:00:00")
+def test_dao_fetch_sms_cost_for_all_services_combined_uses_only_fact_billing(notify_db_session):
+    """When the range spans historical days and today, only FactBilling data is used."""
+    service = create_service()
+    template = create_template(service=service, template_type="sms")
+
+    # Historical: yesterday in FactBilling
+    create_ft_billing(
+        utc_date="2026-04-07",
+        service=service,
+        template=template,
+        notification_type="sms",
+        billable_unit=10,
+        rate=Decimal("0.02"),
+        rate_multiplier=1,
+    )
+
+    # Today: Notification table -- should NOT be picked up
+    notif = save_notification(
+        create_notification(
+            template=template,
+            status="delivered",
+            billable_units=2,
+        )
+    )
+    notif.sms_total_carrier_fee = Decimal("0.003")
+    notif.sms_total_message_price = Decimal("0.007")
+    db.session.commit()
+
+    result = dao_fetch_sms_cost_for_all_services_in_range(date(2026, 4, 7), date(2026, 4, 8))
+
+    assert len(result) == 1
+    # Only FactBilling data: fragment_count = 10, total_cost = 10 * 1 * 0.02 = 0.20
+    assert result[service.id]["fragment_count"] == 10
+    assert result[service.id]["total_cost"] == Decimal("0.20")
+
+
+@freeze_time("2026-04-08 14:00:00")
+def test_dao_fetch_sms_cost_for_all_services_empty_range(notify_db_session):
+    """Returns empty dict when there is no data in the range."""
+    result = dao_fetch_sms_cost_for_all_services_in_range(date(2026, 4, 1), date(2026, 4, 7))
+
+    assert result == {}

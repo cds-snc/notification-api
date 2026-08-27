@@ -1,18 +1,21 @@
 import itertools
-from datetime import datetime, timezone
+from datetime import datetime
 
 from flask import Blueprint, current_app, jsonify, request
 from notifications_utils.clients.redis import (
     daily_limit_cache_key,
+    near_billable_units_sms_daily_limit_cache_key,
     near_daily_limit_cache_key,
     near_email_daily_limit_cache_key,
     near_sms_daily_limit_cache_key,
+    over_billable_units_sms_daily_limit_cache_key,
     over_daily_limit_cache_key,
     over_email_daily_limit_cache_key,
     over_sms_daily_limit_cache_key,
 )
+from psycopg2.errors import UniqueViolation
 from sqlalchemy import func
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import redis_store, salesforce_client
@@ -31,8 +34,8 @@ from app.dao.date_util import get_financial_year
 from app.dao.fact_notification_status_dao import (
     fetch_delivered_notification_stats_by_month,
     fetch_monthly_template_usage_for_service,
+    fetch_monthly_template_usage_for_service_paginated,
     fetch_notification_status_for_service_by_month,
-    fetch_notification_status_for_service_for_day,
     fetch_notification_status_for_service_for_today_and_7_previous_days,
     fetch_stats_for_all_services_by_date_range,
 )
@@ -85,8 +88,9 @@ from app.dao.services_dao import (
 )
 from app.dao.templates_dao import dao_get_template_by_id
 from app.dao.users_dao import get_user_by_id
-from app.errors import CannotRemoveUserError, InvalidRequest, register_errors
+from app.errors import CannotRemoveUserError, InvalidRequest, UserAlreadyInServiceError, register_errors
 from app.models import (
+    DEFAULT_SMS_DAILY_LIMIT,
     EMAIL_TYPE,
     KEY_TYPE_NORMAL,
     LETTER_TYPE,
@@ -123,6 +127,7 @@ from app.service.service_senders_schema import (
     add_service_email_reply_to_request,
     add_service_sms_sender_request,
 )
+from app.service.service_statistics_schema import get_monthly_template_usage_request
 from app.service.utils import (
     get_organisation_id_from_crm_org_notes,
     get_safelist_objects,
@@ -134,9 +139,8 @@ service_blueprint = Blueprint("service", __name__)
 
 register_errors(service_blueprint)
 
-# TODO: FF_ANNUAL_LIMIT - Remove once logic is consolidated in the annual_limit_client
-ANNUAL_LIMIT_SMS_OVER_NEAR_STATUS_FIELDS = ["near_sms_limit", "near_email_limit"]
-ANNUAL_LIMIT_EMAIL_OVER_NEAR_STATUS_FIELDS = ["over_email_limit", "near_email_limit"]
+ANNUAL_LIMIT_SMS_OVER_NEAR_STATUS_FIELDS = ["near_sms_limit", "over_sms_limit"]
+ANNUAL_LIMIT_EMAIL_OVER_NEAR_STATUS_FIELDS = ["near_email_limit", "over_email_limit"]
 
 
 @service_blueprint.errorhandler(IntegrityError)
@@ -240,7 +244,7 @@ def get_service_notification_statistics(service_id):
 def create_service():
     data = request.get_json()
     data["sms_daily_limit"] = data.get(
-        "sms_daily_limit", 1000
+        "sms_daily_limit", DEFAULT_SMS_DAILY_LIMIT
     )  # TODO this is to support current admin. can remove after admin sends an sms_daily_limit
 
     if not data.get("user_id"):
@@ -315,12 +319,18 @@ def update_service(service_id):
     if sms_limit_changed:
         redis_store.delete(near_sms_daily_limit_cache_key(service_id))
         redis_store.delete(over_sms_daily_limit_cache_key(service_id))
+        if current_app.config["FF_USE_BILLABLE_UNITS"]:
+            redis_store.delete(near_billable_units_sms_daily_limit_cache_key(service_id))
+            redis_store.delete(over_billable_units_sms_daily_limit_cache_key(service_id))
         if not fetched_service.restricted:
             _warn_service_users_about_sms_limit_changed(service_id, current_data)
     if sms_annual_limit_changed:
         _warn_service_users_about_annual_limit_change(service, SMS_TYPE)
         # TODO: abstract this in the annual_limits_client
-        redis_store.delete_hash_fields(f"annual-limit:{service_id}:status", ANNUAL_LIMIT_SMS_OVER_NEAR_STATUS_FIELDS)
+        fields_to_clear = list(ANNUAL_LIMIT_SMS_OVER_NEAR_STATUS_FIELDS)
+        if current_app.config.get("FF_USE_BILLABLE_UNITS"):
+            fields_to_clear += ["near_sms_billable_units_limit", "over_sms_billable_units_limit"]
+        redis_store.delete_hash_fields(f"annual-limit:{service_id}:status", fields_to_clear)
     if email_annual_limit_changed:
         _warn_service_users_about_annual_limit_change(service, EMAIL_TYPE)
         # TODO: abstract this in the annual_limits_client
@@ -364,6 +374,7 @@ def _warn_service_users_about_message_limit_changed(service_id, data):
 
 
 def _warn_service_users_about_sms_limit_changed(service_id, data):
+    use_parts = current_app.config.get("FF_USE_BILLABLE_UNITS", False)
     send_notification_to_service_users(
         service_id=service_id,
         template_id=current_app.config["DAILY_SMS_LIMIT_UPDATED_TEMPLATE_ID"],
@@ -371,19 +382,31 @@ def _warn_service_users_about_sms_limit_changed(service_id, data):
             "service_name": data["name"],
             "message_limit_en": "{:,}".format(data["sms_daily_limit"]),
             "message_limit_fr": "{:,}".format(data["sms_daily_limit"]).replace(",", " "),
+            "message_type_en": "text message parts" if use_parts else "text messages",
+            "message_type_fr": "parties de messages texte" if use_parts else "messages texte",
         },
         include_user_fields=["name"],
     )
 
 
 def _warn_service_users_about_annual_limit_change(service: Service, notification_type: NotificationType):
+    if notification_type == EMAIL_TYPE:
+        message_type_en = "emails"
+        message_type_fr = "courriels"
+    elif current_app.config["FF_USE_BILLABLE_UNITS"]:
+        message_type_en = "text message parts"
+        message_type_fr = "parties de messages texte"
+    else:
+        message_type_en = "text messages"
+        message_type_fr = "messages texte"
+
     send_notification_to_service_users(
         service_id=service.id,
         template_id=current_app.config["ANNUAL_LIMIT_UPDATED_TEMPLATE_ID"],
         personalisation={
             "service_name": service.name,
-            "message_type_en": "emails" if notification_type == EMAIL_TYPE else "text messages",
-            "message_type_fr": "courriels" if notification_type == EMAIL_TYPE else "messages texte",
+            "message_type_en": message_type_en,
+            "message_type_fr": message_type_fr,
             "message_limit_en": "{:,}".format(service.email_annual_limit)
             if notification_type == EMAIL_TYPE
             else "{:,}".format(service.sms_annual_limit),
@@ -464,8 +487,9 @@ def add_user_to_service(service_id, user_id):
     user = get_user_by_id(user_id=user_id)
 
     if user in service.users:
-        error = "User id: {} already part of service id: {}".format(user_id, service_id)
-        raise InvalidRequest(error, status_code=400)
+        message = "User id: {} already part of service id: {}".format(user_id, service_id)
+        current_app.logger.info(message)
+        raise UserAlreadyInServiceError(status_code=409, message=message)
 
     data = request.get_json()
     validate(data, post_set_permissions_schema)
@@ -473,7 +497,23 @@ def add_user_to_service(service_id, user_id):
     permissions = [Permission(service_id=service_id, user_id=user_id, permission=p["permission"]) for p in data["permissions"]]
     folder_permissions = data.get("folder_permissions", [])
 
-    dao_add_user_to_service(service, user, permissions, folder_permissions)
+    try:
+        dao_add_user_to_service(service, user, permissions, folder_permissions)
+    except UniqueViolation:
+        message = f"UniqueViolation: User id: {user_id} already part of service id: {service_id}"
+        current_app.logger.info(message)
+        raise UserAlreadyInServiceError(status_code=409, message=message)
+    except IntegrityError as e:
+        if isinstance(e.orig, UniqueViolation):
+            message = f"UniqueViolation: User id: {user_id} already part of service id: {service_id}"
+            current_app.logger.info(message)
+            raise UserAlreadyInServiceError(status_code=409, message=message)
+        else:
+            raise
+    except Exception as e:
+        current_app.logger.exception(e)
+        raise InvalidRequest("An error occurred while adding user to service", status_code=500)
+
     data = service_schema.dump(service)
 
     if current_app.config["FF_SALESFORCE_CONTACT"]:
@@ -662,14 +702,6 @@ def get_monthly_notification_stats(service_id):
     stats = fetch_notification_status_for_service_by_month(start_date, end_date, service_id)
     statistics.add_monthly_notification_status_stats(data, stats)
 
-    now = datetime.now(timezone.utc)
-    # end_date doesn't have tzinfo, so we need to remove it from now
-    end_date_now = now.replace(tzinfo=None)
-    # TODO FF_ANNUAL_LIMIT removal
-    if not current_app.config["FF_ANNUAL_LIMIT"] and end_date > end_date_now:
-        todays_deltas = fetch_notification_status_for_service_for_day(now, service_id=service_id)
-        statistics.add_monthly_notification_status_stats(data, todays_deltas)
-
     return jsonify(data=data)
 
 
@@ -750,18 +782,37 @@ def update_safelist(service_id):
         return "", 204
 
 
+@service_blueprint.route("/<uuid:service_id>/archive/<uuid:user_id>", methods=["POST"])
 @service_blueprint.route("/<uuid:service_id>/archive", methods=["POST"])
-def archive_service(service_id):
+def archive_service(service_id, user_id=None):
     """
     When a service is archived the service is made inactive, templates are archived and api keys are revoked.
     There is no coming back from this operation.
     :param service_id:
+    :param user_id: optional ID of the user performing the archive, recorded for audit purposes
     :return:
     """
-    service = dao_fetch_service_by_id(service_id)
+    service: Service = dao_fetch_service_by_id(service_id)
 
     if service.active:
-        dao_archive_service(service.id)
+        try:
+            service_name = dao_archive_service(service.id, user_id)
+            send_notification_to_service_users(
+                service_id=service_id,
+                template_id=current_app.config["SERVICE_DEACTIVATED_TEMPLATE_ID"],
+                personalisation={
+                    "service_name": service_name,
+                },
+            )
+        except SQLAlchemyError as e:
+            current_app.logger.exception(e)
+            raise InvalidRequest(
+                f"A dao error occurred while archiving service {service_id}. Deactivation confirmation emails were not sent to service users",
+                status_code=500,
+            )
+        except Exception as e:
+            current_app.logger.exception(e)
+
         if current_app.config["FF_SALESFORCE_CONTACT"]:
             try:
                 salesforce_client.engagement_close(service)
@@ -771,8 +822,9 @@ def archive_service(service_id):
     return "", 204
 
 
+@service_blueprint.route("/<uuid:service_id>/suspend/<uuid:user_id>", methods=["POST"])
 @service_blueprint.route("/<uuid:service_id>/suspend", methods=["POST"])
-def suspend_service(service_id):
+def suspend_service(service_id, user_id=None):
     """
     Suspending a service will mark the service as inactive and revoke API keys.
     :param service_id:
@@ -781,7 +833,7 @@ def suspend_service(service_id):
     service = dao_fetch_service_by_id(service_id)
 
     if service.active:
-        dao_suspend_service(service.id)
+        dao_suspend_service(service.id, user_id)
 
     return "", 204
 
@@ -804,26 +856,63 @@ def resume_service(service_id):
 
 @service_blueprint.route("/<uuid:service_id>/notifications/templates_usage/monthly", methods=["GET"])
 def get_monthly_template_usage(service_id):
-    try:
-        start_date, end_date = get_financial_year(int(request.args.get("year", "NaN")))
-        data = fetch_monthly_template_usage_for_service(start_date=start_date, end_date=end_date, service_id=service_id)
-        stats = list()
-        for i in data:
-            stats.append(
-                {
-                    "template_id": str(i.template_id),
-                    "name": i.name,
-                    "type": i.template_type,
-                    "month": i.month,
-                    "year": i.year,
-                    "count": i.count,
-                    "is_precompiled_letter": i.is_precompiled_letter,
-                }
-            )
+    query_args = {"year": request.args.get("year", type=int)}
+    if "page" in request.args:
+        query_args["page"] = request.args.get("page", type=int)
+    if "page_size" in request.args:
+        query_args["page_size"] = request.args.get("page_size", type=int)
+    validate(query_args, get_monthly_template_usage_request)
 
-        return jsonify(stats=stats), 200
-    except ValueError:
-        raise InvalidRequest("Year must be a number", status_code=400)
+    start_date, end_date = get_financial_year(query_args["year"])
+    page = query_args["page"] if "page" in query_args else None
+    page_size = query_args["page_size"] if "page_size" in query_args else 50
+
+    if page is not None:
+        data, total_templates = fetch_monthly_template_usage_for_service_paginated(
+            start_date=start_date,
+            end_date=end_date,
+            service_id=service_id,
+            page=page,
+            page_size=page_size,
+        )
+        paginated_stats = [
+            {
+                "template_id": str(i.template_id),
+                "name": i.name,
+                "type": i.template_type,
+                "month": i.month,
+                "year": i.year,
+                "count": i.count,
+                "is_precompiled_letter": i.is_precompiled_letter,
+            }
+            for i in data
+        ]
+
+        has_next = (page * page_size) < total_templates
+        has_prev = page > 1
+        links = {}
+        if has_prev:
+            links["prev"] = f"page {page - 1}"
+        if has_next:
+            links["next"] = f"page {page + 1}"
+
+        return jsonify(data=paginated_stats, total=total_templates, page=page, page_size=page_size, links=links), 200
+
+    # If no page param provided, return all templates without pagination.
+    data = fetch_monthly_template_usage_for_service(start_date=start_date, end_date=end_date, service_id=service_id)
+    stats = [
+        {
+            "template_id": str(i.template_id),
+            "name": i.name,
+            "type": i.template_type,
+            "month": i.month,
+            "year": i.year,
+            "count": i.count,
+            "is_precompiled_letter": i.is_precompiled_letter,
+        }
+        for i in data
+    ]
+    return jsonify(stats=stats), 200
 
 
 @service_blueprint.route("/<uuid:service_id>/send-notification", methods=["POST"])

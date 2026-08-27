@@ -27,6 +27,7 @@ from app import (
     sms_priority_publish,
     statsd_client,
 )
+from app.annual_limit_utils import get_annual_limit_notifications_v2
 from app.aws.s3 import upload_job_to_s3
 from app.celery.letters_pdf_tasks import create_letters_pdf
 from app.celery.research_mode_tasks import create_fake_letter_response_file
@@ -64,6 +65,7 @@ from app.notifications.process_notifications import (
     choose_queue,
     csv_has_simulated_and_non_simulated_recipients,
     db_save_and_send_notification,
+    number_of_sms_fragments,
     persist_notification,
     persist_scheduled_notification,
     simulated_recipient,
@@ -73,7 +75,6 @@ from app.notifications.validators import (
     check_email_annual_limit,
     check_email_daily_limit,
     check_rate_limiting,
-    check_service_can_schedule_notification,
     check_service_email_reply_to_id,
     check_service_has_permission,
     check_service_sms_sender_id,
@@ -167,6 +168,10 @@ def post_bulk():
             status_code=415,
         )
 
+    # Fail fast if the authenticated service is not active
+    if not getattr(authenticated_service, "active", True):
+        raise BadRequestError(message="Service is suspended", status_code=403)
+
     max_rows = current_app.config["CSV_MAX_ROWS"]
     epoch_seeding_bounce = current_app.config["FF_BOUNCE_RATE_SEED_EPOCH_MS"]
     if epoch_seeding_bounce:
@@ -202,33 +207,25 @@ def post_bulk():
         else:
             file_data = form["csv"]
 
-        if current_app.config["FF_ANNUAL_LIMIT"]:
-            recipient_csv = RecipientCSV(
-                file_data,
-                template_type=template.template_type,
-                placeholders=template._as_utils_template().placeholders,
-                max_rows=max_rows,
-                safelist=safelisted_members(authenticated_service, api_user.key_type),
-                remaining_messages=remaining_daily_messages,
-                remaining_daily_messages=remaining_daily_messages,
-                remaining_annual_messages=remaining_annual_messages,
-                template=Template(template.__dict__),
-            )
-        else:  # TODO FF_ANNUAL_LIMIT REMOVAL - Remove this block
-            recipient_csv = RecipientCSV(
-                file_data,
-                template_type=template.template_type,
-                placeholders=template._as_utils_template().placeholders,
-                max_rows=max_rows,
-                safelist=safelisted_members(authenticated_service, api_user.key_type),
-                remaining_messages=remaining_daily_messages,
-                template=Template(template.__dict__),
-            )
+        recipient_csv = RecipientCSV(
+            file_data,
+            template_type=template.template_type,
+            placeholders=template._as_utils_template().placeholders,
+            max_rows=max_rows,
+            safelist=safelisted_members(authenticated_service, api_user.key_type),
+            remaining_messages=remaining_daily_messages,
+            remaining_daily_messages=remaining_daily_messages,
+            remaining_annual_messages=remaining_annual_messages,
+            template=Template(template.__dict__),
+        )
     except csv.Error as e:
         raise BadRequestError(message=f"Error converting to CSV: {str(e)}", status_code=400)
 
     check_for_csv_errors(recipient_csv, max_rows, remaining_daily_messages, remaining_annual_messages)
-    notification_count_requested = len(list(recipient_csv.get_rows()))
+    notification_count_requested = len(recipient_csv.rows)
+
+    # Pre-seed annual limit data in Redis to avoid slow database queries during limit checks
+    get_annual_limit_notifications_v2(authenticated_service.id)
 
     if template.template_type == EMAIL_TYPE and api_user.key_type != KEY_TYPE_TEST:
         check_email_annual_limit(authenticated_service, notification_count_requested)
@@ -246,7 +243,7 @@ def post_bulk():
             form["validated_sender_id"] = default_sender_id
 
         # calculate the number of simulated recipients
-        requested_recipients = [i["phone_number"].data for i in list(recipient_csv.get_rows())]
+        requested_recipients = [i["phone_number"].data for i in recipient_csv.rows]
         has_simulated, has_real_recipients = csv_has_simulated_and_non_simulated_recipients(
             requested_recipients, template.template_type
         )
@@ -258,9 +255,16 @@ def post_bulk():
         is_test_notification = api_user.key_type == KEY_TYPE_TEST or (has_simulated and not has_real_recipients)
 
         if not is_test_notification:
-            check_sms_annual_limit(authenticated_service, len(recipient_csv))
-            check_sms_daily_limit(authenticated_service, len(recipient_csv))
-            increment_sms_daily_count_send_warnings_if_needed(authenticated_service, len(recipient_csv))
+            # TODO FF_USE_BILLABLE_UNITS removal - Use billable units when feature flag is enabled
+            if current_app.config.get("FF_USE_BILLABLE_UNITS"):
+                total_billable_units = recipient_csv.sms_fragment_count
+                check_sms_annual_limit(authenticated_service, total_billable_units)
+                check_sms_daily_limit(authenticated_service, total_billable_units)
+                increment_sms_daily_count_send_warnings_if_needed(authenticated_service, total_billable_units)
+            else:
+                check_sms_annual_limit(authenticated_service, len(recipient_csv))
+                check_sms_daily_limit(authenticated_service, len(recipient_csv))
+                increment_sms_daily_count_send_warnings_if_needed(authenticated_service, len(recipient_csv))
 
     job = create_bulk_job(authenticated_service, api_user, template, form, recipient_csv)
 
@@ -291,6 +295,10 @@ def post_notification(notification_type: NotificationType):
     else:
         abort(404)
 
+    # Fail fast if the authenticated service is not active
+    if not getattr(authenticated_service, "active", True):
+        raise BadRequestError(message="Service is suspended", status_code=403)
+
     epoch_seeding_bounce = current_app.config["FF_BOUNCE_RATE_SEED_EPOCH_MS"]
     if epoch_seeding_bounce:
         _seed_bounce_data(epoch_seeding_bounce, str(authenticated_service.id))
@@ -298,8 +306,6 @@ def post_notification(notification_type: NotificationType):
     check_service_has_permission(notification_type, authenticated_service.permissions)
 
     scheduled_for = form.get("scheduled_for", None)
-
-    check_service_can_schedule_notification(authenticated_service.permissions, scheduled_for)
 
     check_rate_limiting(authenticated_service, api_user)
 
@@ -318,8 +324,14 @@ def post_notification(notification_type: NotificationType):
     if template.template_type == SMS_TYPE:
         is_test_notification = api_user.key_type == KEY_TYPE_TEST or simulated_recipient(form["phone_number"], notification_type)
         if not is_test_notification:
-            check_sms_annual_limit(authenticated_service, 1)
-            check_sms_daily_limit(authenticated_service, 1)
+            # TODO FF_USE_BILLABLE_UNITS removal - Use billable units when feature flag is enabled
+            if current_app.config.get("FF_USE_BILLABLE_UNITS"):
+                billable_unit = number_of_sms_fragments(template, personalisation)
+                check_sms_annual_limit(authenticated_service, billable_unit)
+                check_sms_daily_limit(authenticated_service, billable_unit)
+            else:
+                check_sms_annual_limit(authenticated_service, 1)
+                check_sms_daily_limit(authenticated_service, 1)
 
     current_app.logger.info(f"Trying to send notification for Template ID: {template.id}")
 
@@ -350,7 +362,9 @@ def post_notification(notification_type: NotificationType):
     if template.template_type == SMS_TYPE:
         is_test_notification = api_user.key_type == KEY_TYPE_TEST or simulated_recipient(form["phone_number"], notification_type)
         if not is_test_notification:
-            increment_sms_daily_count_send_warnings_if_needed(authenticated_service, 1)
+            # TODO FF_USE_BILLABLE_UNITS removal - Use billable_units when feature flag is enabled
+            increment_by = notification.billable_units if current_app.config.get("FF_USE_BILLABLE_UNITS") else 1
+            increment_sms_daily_count_send_warnings_if_needed(authenticated_service, increment_by)
 
     if notification_type == SMS_TYPE:
         create_resp_partial = functools.partial(create_post_sms_response_from_notification, from_number=reply_to)
@@ -485,7 +499,7 @@ def process_sms_or_email_notification(
             notification.queue_name = choose_queue(
                 notification=notification,
                 research_mode=service.research_mode,
-                queue=get_delivery_queue_for_template(template),
+                priority_queue=get_delivery_queue_for_template(template),
             )
             db_save_and_send_notification(notification)
 
@@ -499,6 +513,9 @@ def process_sms_or_email_notification(
         notification["service"] = service
         notification["service_id"] = service.id
         notification["reply_to_text"] = reply_to_text
+        # Calculate billable_units for SMS if feature flag is enabled
+        if current_app.config.get("FF_USE_BILLABLE_UNITS") and notification_type == SMS_TYPE:
+            notification["billable_units"] = number_of_sms_fragments(template, personalisation)
         del notification["template"]
         del notification["api_key"]
         del notification["simulated"]
@@ -672,18 +689,6 @@ def check_for_csv_errors(recipient_csv, max_rows, remaining_daily_messages, rema
             else:
                 raise BadRequestError(
                     message=f"You only have {remaining_annual_messages} remaining messages before you reach your annual limit. You've tried to send {nb_rows} messages.",
-                    status_code=400,
-                )
-        # TODO: FF_ANNUAL_LIMIT - remove this if block in favour of more_rows_than_can_send_today found below
-        if recipient_csv.more_rows_than_can_send:
-            if recipient_csv.template_type == SMS_TYPE:
-                raise BadRequestError(
-                    message=f"You only have {remaining_daily_messages} remaining sms messages before you reach your daily limit. You've tried to send {len(recipient_csv)} sms messages.",
-                    status_code=400,
-                )
-            else:
-                raise BadRequestError(
-                    message=f"You only have {remaining_daily_messages} remaining messages before you reach your daily limit. You've tried to send {nb_rows} messages.",
                     status_code=400,
                 )
         if recipient_csv.more_rows_than_can_send_today:

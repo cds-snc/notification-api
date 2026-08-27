@@ -1,21 +1,19 @@
 from datetime import date, datetime, time, timedelta
+from decimal import Decimal
+from typing import Any
 
 from flask import current_app
-from notifications_utils.timezones import (
-    convert_local_timezone_to_utc,
-    convert_utc_to_local_timezone,
-)
 from sqlalchemy import Date, Integer, and_, case, desc, func
 from sqlalchemy.dialects.postgresql import insert
 
 from app import db
+from app.clients.sms import SmsClient
 from app.dao.date_util import get_financial_year, get_financial_year_for_datetime
 from app.models import (
     EMAIL_TYPE,
     KEY_TYPE_TEST,
     LETTER_TYPE,
     NOTIFICATION_STATUS_TYPES_BILLABLE,
-    NOTIFICATION_STATUS_TYPES_BILLABLE_FOR_LETTERS,
     SMS_TYPE,
     AnnualBilling,
     FactBilling,
@@ -25,8 +23,118 @@ from app.models import (
     Organisation,
     Rate,
     Service,
+    Template,
+    TemplateCategory,
 )
 from app.utils import get_local_timezone_midnight_in_utc
+
+
+def dao_fetch_sms_cost_for_service_in_range(service_id, start_date, end_date):
+    """Return the total SMS cost and fragment count for a service in the given date range (inclusive).
+
+    FactBilling is populated by a nightly task, so it is always ~1 day behind.
+    For the current day we fall back to the Notification table and use the
+    carrier-reported costs (sms_total_carrier_fee + sms_total_message_price).
+
+    Minor edge case:
+    If this API is called at 00:15 EST and prior to `create_nightly_billing_for_day` completing, then
+    this endpoint could return inaccurate data.
+
+    Future improvements could include:
+    1. Check if `ft_billing` has been populated for the requested date range and if not, fall back to the `notifications` table
+    2. Always use the `notifications` table for today and yesterday's data, and `ft_billing` for anything older
+    """
+    today = datetime.utcnow().date()
+
+    fragment_count = 0
+    total_cost = Decimal(0)
+
+    # Historical data from FactBilling (up to yesterday)
+    if start_date < today:
+        fact_end = min(end_date, today - timedelta(days=1))
+        fact_result = (
+            db.session.query(
+                func.coalesce(func.sum(FactBilling.billable_units), 0).label("fragment_count"),
+                func.coalesce(func.sum(FactBilling.billable_units * FactBilling.rate_multiplier * FactBilling.rate), 0).label(
+                    "total_cost"
+                ),
+            )
+            .filter(
+                FactBilling.service_id == service_id,
+                FactBilling.bst_date >= start_date,
+                FactBilling.bst_date <= fact_end,
+                FactBilling.notification_type == SMS_TYPE,
+            )
+            .one()
+        )
+        fragment_count += int(fact_result.fragment_count)
+        total_cost += Decimal(str(fact_result.total_cost))
+
+    # Current-day data from Notification table
+    if start_date <= today and end_date >= today:
+        today_start = datetime.combine(today, time.min)
+        today_end = datetime.combine(today + timedelta(days=1), time.min)
+        notif_result = (
+            db.session.query(
+                func.coalesce(func.sum(Notification.billable_units), 0).label("fragment_count"),
+                func.coalesce(
+                    func.sum(
+                        func.coalesce(Notification.sms_total_carrier_fee, 0)
+                        + func.coalesce(Notification.sms_total_message_price, 0)
+                    ),
+                    0,
+                ).label("total_cost"),
+            )
+            .filter(
+                Notification.service_id == service_id,
+                Notification.created_at >= today_start,
+                Notification.created_at < today_end,
+                Notification.notification_type == SMS_TYPE,
+                Notification.status.in_(NOTIFICATION_STATUS_TYPES_BILLABLE),
+                Notification.key_type != KEY_TYPE_TEST,
+            )
+            .one()
+        )
+        fragment_count += int(notif_result.fragment_count)
+        total_cost += Decimal(str(notif_result.total_cost))
+
+    return {"fragment_count": fragment_count, "total_cost": total_cost}
+
+
+def dao_fetch_sms_cost_for_all_services_in_range(start_date, end_date):
+    """Return the total SMS cost and fragment count for ALL services in the given date range.
+    This EXCLUDES the current_day, as the ft_table aggregation happens in a nightly task
+
+    Returns a dictionary keyed by service_id with fragment_count and total_cost for each service.
+
+    Uses only FactBilling (the nightly-populated aggregate table) for efficiency.
+    For current-day data for a single service, use dao_fetch_sms_cost_for_service_in_range instead.
+    """
+    fact_results = (
+        db.session.query(
+            FactBilling.service_id,
+            func.coalesce(func.sum(FactBilling.billable_units), 0).label("fragment_count"),
+            func.coalesce(func.sum(FactBilling.billable_units * FactBilling.rate_multiplier * FactBilling.rate), 0).label(
+                "total_cost"
+            ),
+        )
+        .filter(
+            FactBilling.bst_date >= start_date,
+            FactBilling.bst_date <= end_date,
+            FactBilling.notification_type == SMS_TYPE,
+        )
+        .group_by(FactBilling.service_id)
+        .all()
+    )
+
+    sms_cost_by_service = {}
+    for row in fact_results:
+        sms_cost_by_service[row.service_id] = {
+            "fragment_count": int(row.fragment_count),
+            "total_cost": Decimal(str(row.total_cost)),
+        }
+
+    return sms_cost_by_service
 
 
 def fetch_sms_free_allowance_remainder(start_date):
@@ -35,6 +143,11 @@ def fetch_sms_free_allowance_remainder(start_date):
     start_of_year = date(billing_year, 4, 1)
 
     billable_units = func.coalesce(func.sum(FactBilling.billable_units * FactBilling.rate_multiplier), 0)
+
+    # NOTE: sms_sending_vehicle_case is defined where it's used below in
+    # `_query_for_billing_data`. A stray definition here would reference
+    # an undefined `table` variable and cause errors, so it is intentionally
+    # omitted from this function.
 
     query = (
         db.session.query(
@@ -247,12 +360,11 @@ def fetch_billing_totals_for_year(service_id, year):
 
 def fetch_monthly_billing_for_year(service_id, year):
     year_start_date, year_end_date = get_financial_year(year)
-    utcnow = datetime.utcnow()
-    today = convert_utc_to_local_timezone(utcnow)
+    today_utc = datetime.utcnow().date()
     # if year end date is less than today, we are calculating for data in the past and have no need for deltas.
-    if year_end_date >= today:
-        yesterday = today - timedelta(days=1)
-        for day in [yesterday, today]:
+    if year_end_date.date() >= today_utc:
+        yesterday_utc = today_utc - timedelta(days=1)
+        for day in [yesterday_utc, today_utc]:
             data = fetch_billing_data_for_day(process_day=day, service_id=service_id)
             for d in data:
                 update_fact_billing(data=d, process_day=day)
@@ -284,7 +396,7 @@ def fetch_monthly_billing_for_year(service_id, year):
         db.session.query(
             func.date_trunc("month", FactBilling.bst_date).cast(Date).label("month"),
             func.sum(FactBilling.notifications_sent).label("notifications_sent"),
-            func.sum(FactBilling.billable_units * FactBilling.rate_multiplier).label("billable_units"),
+            func.sum(FactBilling.billable_units).label("billable_units"),
             FactBilling.rate,
             FactBilling.notification_type,
             FactBilling.postage,
@@ -317,19 +429,19 @@ def delete_billing_data_for_service_for_day(process_day, service_id):
     return FactBilling.query.filter(FactBilling.bst_date == process_day, FactBilling.service_id == service_id).delete()
 
 
-def fetch_billing_data_for_day(process_day, service_id=None):
-    start_date = convert_local_timezone_to_utc(datetime.combine(process_day, time.min))
-    end_date = convert_local_timezone_to_utc(datetime.combine(process_day + timedelta(days=1), time.min))
+def fetch_billing_data_for_day(process_day: date, service_id=None):
+    start_date = datetime.combine(process_day, time.min)
+    end_date = datetime.combine(process_day + timedelta(days=1), time.min)
     # use notification_history if process day is older than 7 days
     # this is useful if we need to rebuild the ft_billing table for a date older than 7 days ago.
-    current_app.logger.info("Populate ft_billing for {} to {}".format(start_date, end_date))
-    transit_data = []
+    transit_data: list[Any] = []
     if not service_id:
         service_ids = [x.id for x in Service.query.all()]
     else:
         service_ids = [service_id]
+
     for id_of_service in service_ids:
-        for notification_type in (SMS_TYPE, EMAIL_TYPE, LETTER_TYPE):
+        for notification_type in (SMS_TYPE,):
             results = _query_for_billing_data(
                 table=Notification,
                 notification_type=notification_type,
@@ -355,9 +467,35 @@ def fetch_billing_data_for_day(process_day, service_id=None):
 def _query_for_billing_data(table, notification_type, start_date, end_date, service_id):
     billable_type_list = {
         SMS_TYPE: NOTIFICATION_STATUS_TYPES_BILLABLE,
-        EMAIL_TYPE: NOTIFICATION_STATUS_TYPES_BILLABLE,
-        LETTER_TYPE: NOTIFICATION_STATUS_TYPES_BILLABLE_FOR_LETTERS,
     }
+    sms_sending_vehicle_case = case(
+        [
+            # International SMS is always treated as long_code — rate_multiplier covers the cost
+            (
+                and_(
+                    table.notification_type == SMS_TYPE,
+                    table.international == True,  # noqa: E712
+                ),
+                "long_code",
+            ),
+            (
+                and_(
+                    table.notification_type == SMS_TYPE,
+                    table.sms_origination_phone_number.isnot(None),
+                    ~(table.sms_origination_phone_number.op("~")(SmsClient.LONG_CODE_REGEX.pattern)),
+                ),
+                "short_code",
+            ),
+            (
+                and_(
+                    table.notification_type == SMS_TYPE,
+                    table.sms_origination_phone_number.is_(None),
+                ),
+                func.coalesce(TemplateCategory.sms_sending_vehicle, "long_code"),
+            ),
+        ],
+        else_="long_code",
+    ).label("sms_sending_vehicle")
     query = (
         db.session.query(
             table.template_id,
@@ -384,6 +522,7 @@ def _query_for_billing_data(table, notification_type, start_date, end_date, serv
             func.count().label("notifications_sent"),
             Service.crown,
             func.coalesce(table.postage, "none").label("postage"),
+            sms_sending_vehicle_case,
         )
         .filter(
             table.status.in_(billable_type_list[notification_type]),
@@ -403,10 +542,16 @@ def _query_for_billing_data(table, notification_type, start_date, end_date, serv
             table.international,
             Service.crown,
             table.postage,
+            sms_sending_vehicle_case,
         )
-        .join(Service)
+        .join(Service, Service.id == table.service_id)
+        .outerjoin(Template, Template.id == table.template_id)
+        .outerjoin(TemplateCategory, TemplateCategory.id == Template.template_category_id)
     )
-    return query.all()
+
+    results = query.all()
+
+    return results
 
 
 def get_rates_for_billing():
@@ -437,6 +582,7 @@ def get_rate(
     crown=None,
     letter_page_count=None,
     post_class="second",
+    sms_sending_vehicle="long_code",
 ):
     start_of_day = get_local_timezone_midnight_in_utc(date)
 
@@ -454,9 +600,28 @@ def get_rate(
             )
         )
     elif notification_type == SMS_TYPE:
-        return next(
-            r.rate for r in non_letter_rates if (notification_type == r.notification_type and start_of_day >= r.valid_from)
+        rate = next(
+            (
+                r.rate
+                for r in non_letter_rates
+                if (
+                    notification_type == r.notification_type
+                    and start_of_day >= r.valid_from
+                    and sms_sending_vehicle == r.sms_sending_vehicle
+                )
+            ),
+            None,
         )
+        if rate is not None:
+            return rate
+
+        # No matching rate — log an error; this indicates a problem with the rates table setup
+        error_msg = (
+            f"[error-sms-rates]: No SMS rate found for vehicle={sms_sending_vehicle!r} on {date!r}. "
+            "Please ensure rates are populated in the rates table."
+        )
+        current_app.logger.error(error_msg)
+        raise ValueError(error_msg)
     else:
         return 0
 
@@ -471,7 +636,9 @@ def update_fact_billing(data, process_day):
         data.crown,
         data.letter_page_count,
         data.postage,
+        data.sms_sending_vehicle,
     )
+
     billing_record = create_billing_record(data, rate, process_day)
 
     table = FactBilling.__table__
@@ -493,6 +660,8 @@ def update_fact_billing(data, process_day):
         notifications_sent=billing_record.notifications_sent,
         rate=billing_record.rate,
         postage=billing_record.postage,
+        sms_sending_vehicle=billing_record.sms_sending_vehicle,
+        billing_total=billing_record.billing_total,
     )
 
     stmt = stmt.on_conflict_do_update(
@@ -500,6 +669,7 @@ def update_fact_billing(data, process_day):
         set_={
             "notifications_sent": stmt.excluded.notifications_sent,
             "billable_units": stmt.excluded.billable_units,
+            "billing_total": stmt.excluded.billing_total,
             "updated_at": datetime.utcnow(),
         },
     )
@@ -520,5 +690,18 @@ def create_billing_record(data, rate, process_day):
         notifications_sent=data.notifications_sent,
         rate=rate,
         postage=data.postage,
+        sms_sending_vehicle=data.sms_sending_vehicle,
     )
+
+    # compute billing total per row:
+    # - SMS: billable_units * rate_multiplier * rate
+    # Use str() when converting float rates to Decimal to avoid float precision issues.
+    if rate is None:
+        billing_record.billing_total = Decimal(0)
+    else:
+        rate_decimal = Decimal(str(rate))
+        if data.notification_type == SMS_TYPE:
+            billable_units = data.billable_units or 0
+            rate_multiplier = data.rate_multiplier or 1
+            billing_record.billing_total = Decimal(billable_units) * Decimal(rate_multiplier) * rate_decimal
     return billing_record

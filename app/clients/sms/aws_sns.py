@@ -20,7 +20,6 @@ class AwsSnsClient(SmsClient):
         self.current_app = current_app
         self.name = "sns"
         self.statsd_client = statsd_client
-        self.long_code_regex = re.compile(r"^\+1\d{10}$")
 
     def get_name(self):
         return self.name
@@ -81,4 +80,4 @@ class AwsSnsClient(SmsClient):
             raise ValueError("No valid numbers found for SMS delivery")
 
     def _send_with_dedicated_phone_number(self, sender):
-        return sender and re.match(self.long_code_regex, sender)
+        return sender and re.match(self.LONG_CODE_REGEX, sender)

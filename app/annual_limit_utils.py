@@ -1,42 +1,129 @@
 from datetime import datetime, timezone
+from typing import Tuple
 from uuid import UUID
 
+from flask import current_app
 from notifications_utils.clients.redis.annual_limit import (
     TOTAL_EMAIL_FISCAL_YEAR_TO_YESTERDAY,
+    TOTAL_SMS_BILLABLE_UNITS_FISCAL_YEAR_TO_YESTERDAY,
     TOTAL_SMS_FISCAL_YEAR_TO_YESTERDAY,
+    annual_limit_notifications_v2_key,
 )
 from notifications_utils.decorators import requires_feature
 
 from app import annual_limit_client
 from app.dao.fact_notification_status_dao import (
+    fetch_billable_units_for_service_for_day,
+    fetch_billable_units_totals_for_service_by_fiscal_year,
     fetch_notification_status_for_service_for_day,
     fetch_notification_status_totals_for_service_by_fiscal_year,
 )
 from app.models import EMAIL_TYPE, SMS_TYPE
-from app.utils import get_fiscal_year, prepare_notification_counts_for_seeding
+from app.utils import (
+    get_fiscal_year,
+    prepare_billable_units_counts_for_seeding,
+    prepare_notification_counts_for_seeding,
+)
+
+
+def seed_data_in_redis(service_id: UUID) -> dict:
+    """
+    Seed the annual limit notification counts for a service in redis.
+    """
+    today = datetime.now(timezone.utc)
+    annual_data_sms = fetch_notification_status_totals_for_service_by_fiscal_year(
+        service_id, get_fiscal_year(today), notification_type=SMS_TYPE
+    )
+    annual_data_email = fetch_notification_status_totals_for_service_by_fiscal_year(
+        service_id, get_fiscal_year(today), notification_type=EMAIL_TYPE
+    )
+    data = prepare_notification_counts_for_seeding(
+        fetch_notification_status_for_service_for_day(
+            datetime.now(timezone.utc),
+            service_id=service_id,
+        )
+    )
+    data[TOTAL_SMS_FISCAL_YEAR_TO_YESTERDAY] = annual_data_sms
+    data[TOTAL_EMAIL_FISCAL_YEAR_TO_YESTERDAY] = annual_data_email
+
+    # TODO FF_USE_BILLABLE_UNITS removal - Also seed billable units when feature flag is enabled
+    if current_app.config.get("FF_USE_BILLABLE_UNITS"):
+        annual_billable_units_sms = fetch_billable_units_totals_for_service_by_fiscal_year(
+            service_id, get_fiscal_year(today), notification_type=SMS_TYPE
+        )
+        billable_units_data = prepare_billable_units_counts_for_seeding(
+            fetch_billable_units_for_service_for_day(
+                datetime.now(timezone.utc),
+                service_id=service_id,
+            )
+        )
+        data[TOTAL_SMS_BILLABLE_UNITS_FISCAL_YEAR_TO_YESTERDAY] = annual_billable_units_sms
+        data.update(billable_units_data)
+        current_app.logger.info(
+            f"[seed-debug] Service {service_id} - Seeded billable units data: annual={annual_billable_units_sms}, today={billable_units_data}"
+        )
+
+    # The below function will also set the SEEDED_AT key for notifications_v2 in redis
+    # — but only when at least one count is non-zero. When all counts are zero it
+    # short-circuits and never calls set_seeded_at(), which causes an infinite
+    # re-seeding loop (every API call re-runs the expensive Postgres queries).
+    annual_limit_client.seed_annual_limit_notifications(service_id, data)
+
+    # Guard: if the mapping was all zeros, seed_annual_limit_notifications
+    # skipped set_seeded_at(). Set it here so was_seeded_today() returns True
+    # on subsequent calls and we don't re-query Postgres.
+    if not data or all(v == 0 for v in data.values()):
+        current_app.logger.info(
+            f"Service {service_id} has zero notification counts — setting seeded_at to prevent re-seeding loop."
+        )
+        annual_limit_client.set_seeded_at(service_id)
+
+    return data
 
 
 @requires_feature("REDIS_ENABLED")
 def get_annual_limit_notifications_v2(service_id: UUID) -> dict:
     if not annual_limit_client.was_seeded_today(service_id):
-        today = datetime.now(timezone.utc)
-        annual_data_sms = fetch_notification_status_totals_for_service_by_fiscal_year(
-            service_id, get_fiscal_year(today), notification_type=SMS_TYPE
-        )
-        annual_data_email = fetch_notification_status_totals_for_service_by_fiscal_year(
-            service_id, get_fiscal_year(today), notification_type=EMAIL_TYPE
-        )
-        data = prepare_notification_counts_for_seeding(
-            fetch_notification_status_for_service_for_day(
-                datetime.now(timezone.utc),
-                service_id=service_id,
-            )
-        )
-        data[TOTAL_SMS_FISCAL_YEAR_TO_YESTERDAY] = annual_data_sms
-        data[TOTAL_EMAIL_FISCAL_YEAR_TO_YESTERDAY] = annual_data_email
-
-        # The below function will also set the SEEDED_AT key for notifications_v2 in redis
-        annual_limit_client.seed_annual_limit_notifications(service_id, data)
+        data = seed_data_in_redis(service_id)
         return data
     else:
-        return annual_limit_client.get_all_notification_counts(service_id)
+        annual_data = annual_limit_client.get_all_notification_counts(service_id)
+        if TOTAL_EMAIL_FISCAL_YEAR_TO_YESTERDAY in annual_data:
+            return annual_data
+        else:
+            data = seed_data_in_redis(service_id)
+            current_app.logger.info(
+                f"Service {service_id} missing seed data. "
+                f"Original Data in redis: {annual_data}. "
+                f"New Data in redis: {data}."
+            )
+            return data
+
+
+@requires_feature("REDIS_ENABLED")
+def get_annual_limit_notifications_v3(service_id: UUID) -> Tuple[dict, bool]:
+    if not annual_limit_client.was_seeded_today(service_id):
+        current_app.logger.info(f"[alimit-debug] Service {service_id} was not seeded.")
+        data = seed_data_in_redis(service_id)
+        return (data, True)
+    else:
+        annual_data = annual_limit_client.get_all_notification_counts(service_id)
+        email_fiscal = annual_limit_client._redis_client.get_hash_field(
+            annual_limit_notifications_v2_key(service_id), TOTAL_EMAIL_FISCAL_YEAR_TO_YESTERDAY
+        )
+        sms_fiscal = annual_limit_client._redis_client.get_hash_field(
+            annual_limit_notifications_v2_key(service_id), TOTAL_SMS_FISCAL_YEAR_TO_YESTERDAY
+        )
+
+        current_app.logger.info(f"[alimit-debug] service_id: {service_id} email_fiscal: {email_fiscal}")
+        if email_fiscal is not None and sms_fiscal is not None:
+            current_app.logger.info(f"[alimit-debug] service {service_id} was seeded. annual_data: {annual_data}")
+            return (annual_data, False)
+        else:
+            data = seed_data_in_redis(service_id)
+            current_app.logger.info(
+                f"[alimit-debug] Service {service_id} missing seed data. "
+                f"Original Data in redis: {annual_data}. "
+                f"New Data in redis: {data}."
+            )
+            return (data, True)

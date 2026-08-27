@@ -1,0 +1,130 @@
+"""
+Celery error classification for CloudWatch alarm differentiation.
+
+Known/expected errors are tagged with a category marker in the logs so that
+the log filters can distinguish them from truly unexpected errors.
+"""
+
+from enum import Enum
+from typing import Optional, Tuple
+
+
+# The categories themselves are defined here, along with the logic to classify
+# exceptions into categories. The actual logging of these classifications is
+# performed by NotifyTask.on_failure in app/celery/celery.py to avoid coupling the
+# error classification logic with the Celery app setup.
+class CeleryErrorCategory(str, Enum):
+    """Categories of Celery errors for log metric differentiation."""
+
+    # Incomplete jobs due to deploys or other interruptions — don't ignore too much though
+    JOB_INCOMPLETE = "CELERY_KNOWN_ERROR::JOB_INCOMPLETE"
+
+    # Metrics related errors — these are expected to be noisy but should be monitored in case of spikes
+    METRICS = "CELERY_KNOWN_ERROR::METRICS"
+
+    # Notification not found for SES references — safe to ignore, but should be investigated if it spikes
+    NOTIFICATION_NOT_FOUND = "CELERY_KNOWN_ERROR::NOTIFICATION_NOT_FOUND"
+
+    # Shutdown related errors — expected during deploys, safe to ignore
+    SHUTDOWN = "CELERY_KNOWN_ERROR::SHUTDOWN"
+
+    # Celery retry mechanism -- these errors are normal and used by Celery to retry a task
+    TASK_RETRY = "CELERY_KNOWN_ERROR::TASK_RETRY"
+
+    # Transient AWS errors — expected under load, retry will handle them
+    THROTTLING = "CELERY_KNOWN_ERROR::THROTTLING"
+
+    # Clients that timed out
+    TIMEOUT_CLIENT = "CELERY_KNOWN_ERROR::TIMEOUT_CLIENT"
+
+    # Notifications that timed out
+    TIMEOUT_NOTIFICATION = "CELERY_KNOWN_ERROR::TIMEOUT_NOTIFICATION"
+
+    # Unknown / unclassified — these should trigger sensitive alarms
+    UNKNOWN = "CELERY_UNKNOWN_ERROR"
+
+
+# Map exception class names (or substrings in the message) to categories.
+# Note: The deepest/root exception in the chain takes precedence over wrapper
+# exceptions, and within each map the insertion order defines which category
+# wins when multiple patterns match the same exception class name or message.
+_EXCEPTION_CLASS_MAP: dict[str, CeleryErrorCategory] = {
+    "MaxRetryError": CeleryErrorCategory.TIMEOUT_CLIENT,
+    "ProtocolError": CeleryErrorCategory.TIMEOUT_CLIENT,
+    "TimeoutError": CeleryErrorCategory.TIMEOUT_CLIENT,
+    "JobIncompleteError": CeleryErrorCategory.JOB_INCOMPLETE,
+    "ThrottlingException": CeleryErrorCategory.THROTTLING,
+    "TooManyRequestsException": CeleryErrorCategory.THROTTLING,
+    "RequestLimitExceeded": CeleryErrorCategory.THROTTLING,
+    "NoResultFound": CeleryErrorCategory.NOTIFICATION_NOT_FOUND,
+    "Retry": CeleryErrorCategory.TASK_RETRY,
+    "WorkerLostError": CeleryErrorCategory.SHUTDOWN,
+}
+
+# Some errors don't have a specific exception class, but can be identified
+# by substrings in their message.
+_MESSAGE_SUBSTRING_MAP: dict[str, CeleryErrorCategory] = {
+    "notifications not found for SES references": CeleryErrorCategory.NOTIFICATION_NOT_FOUND,
+    "SIGKILL": CeleryErrorCategory.SHUTDOWN,
+    "Worker exited prematurely": CeleryErrorCategory.SHUTDOWN,
+    "Rate Exceeded": CeleryErrorCategory.THROTTLING,
+    "rate exceeded": CeleryErrorCategory.THROTTLING,
+    "Retry in ": CeleryErrorCategory.TASK_RETRY,
+    "Throttling": CeleryErrorCategory.THROTTLING,
+    "Too Many Requests": CeleryErrorCategory.THROTTLING,
+    "notifications have been updated to technical-failure because they have timed out": CeleryErrorCategory.TIMEOUT_NOTIFICATION,
+    "Failed to export span batch code": CeleryErrorCategory.METRICS,
+}
+
+
+def classify_error(exception: Optional[BaseException] = None) -> Tuple[CeleryErrorCategory, Optional[BaseException]]:
+    """
+    Walk the exception chain and classify the root cause.
+
+    Traverses the full exception chain (following __cause__ and __context__)
+    to find the deepest/root exception, then classifies it by checking:
+    1. Exception class name against `_EXCEPTION_CLASS_MAP`
+    2. Exception message against `_MESSAGE_SUBSTRING_MAP`
+
+    Returns a tuple of (category, root_exception) where root_exception is the
+    deepest exception in the chain, or None if the input exception is None.
+    """
+    if exception is None:
+        return (CeleryErrorCategory.UNKNOWN, None)
+
+    # Build the full exception chain from outer to root, detecting cycles
+    exception_chain: list[BaseException] = []
+    seen_exception_ids: set[int] = set()
+    exc: Optional[BaseException] = exception
+
+    while exc is not None:
+        exc_id = id(exc)
+        if exc_id in seen_exception_ids:
+            # Break if we detect a cycle (prevents infinite loops)
+            break
+        seen_exception_ids.add(exc_id)
+        exception_chain.append(exc)
+        exc = exc.__cause__ or exc.__context__
+
+    # The last element is the deepest/root exception
+    root_exception = exception_chain[-1] if exception_chain else exception
+
+    # Reverse to start from the deepest/root exception
+    exception_chain.reverse()
+
+    # Check each exception in the chain, starting from the root
+    for exc in exception_chain:
+        exc_class_name = type(exc).__name__
+        exc_message = str(exc)
+
+        # Check class name
+        for pattern, category in _EXCEPTION_CLASS_MAP.items():
+            if pattern in exc_class_name:
+                return (category, root_exception)
+
+        # Check message substrings
+        for pattern, category in _MESSAGE_SUBSTRING_MAP.items():
+            if pattern in exc_message:
+                return (category, root_exception)
+
+    return (CeleryErrorCategory.UNKNOWN, root_exception)

@@ -1,3 +1,4 @@
+import re
 from enum import Enum
 
 from app.clients import Client, ClientException
@@ -24,6 +25,8 @@ class SmsClient(Client):
     """
     Base Sms client for sending smss.
     """
+
+    LONG_CODE_REGEX = re.compile(r"^\+1\d{10}$")
 
     def send_sms(self, *args, **kwargs):
         raise NotImplementedError("TODO Need to implement.")

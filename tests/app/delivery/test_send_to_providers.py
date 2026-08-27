@@ -7,7 +7,6 @@ from unittest.mock import ANY, MagicMock, call
 import pytest
 from flask import current_app
 from notifications_utils.recipients import validate_and_format_phone_number
-from pytest_mock import MockFixture
 
 import app
 from app import aws_sns_client
@@ -16,6 +15,7 @@ from app.dao import notifications_dao, provider_details_dao
 from app.dao.provider_details_dao import (
     dao_switch_sms_provider_to_provider_with_identifier,
 )
+from app.dao.templates_dao import dao_update_template
 from app.delivery import send_to_providers
 from app.exceptions import (
     DocumentDownloadException,
@@ -32,7 +32,6 @@ from app.models import (
     KEY_TYPE_NORMAL,
     KEY_TYPE_TEAM,
     KEY_TYPE_TEST,
-    BounceRateStatus,
     EmailBranding,
     Notification,
     Service,
@@ -87,7 +86,7 @@ class TestProviderToUse:
             provider = send_to_providers.provider_to_use("sms", "1234", "+16135551234", template_id=sc_template)
         assert provider.name == "pinpoint"
 
-    def test_should_use_sns_for_sms_if_dedicated_number(self, restore_provider_details, notify_api):
+    def test_should_use_pinpoint_for_sms_if_dedicated_number(self, restore_provider_details, notify_api):
         with set_config_values(
             notify_api,
             {
@@ -96,9 +95,9 @@ class TestProviderToUse:
             },
         ):
             provider = send_to_providers.provider_to_use("sms", "1234", "+16135551234", False, "+12345678901")
-        assert provider.name == "sns"
+        assert provider.name == "pinpoint"
 
-    def test_should_use_sns_for_sms_if_sending_to_the_US(self, restore_provider_details, notify_api):
+    def test_should_use_pinpoint_for_sms_if_sending_to_the_US(self, restore_provider_details, notify_api):
         with set_config_values(
             notify_api,
             {
@@ -107,7 +106,7 @@ class TestProviderToUse:
             },
         ):
             provider = send_to_providers.provider_to_use("sms", "1234", "+17065551234")
-        assert provider.name == "sns"
+        assert provider.name == "pinpoint"
 
     @pytest.mark.serial
     def test_should_use_pinpoint_for_sms_if_sending_outside_zone_1(self, restore_provider_details, notify_api):
@@ -210,8 +209,76 @@ def test_should_handle_opted_out_phone_numbers_if_using_pinpoint(notify_api, sam
         send_to_providers.send_sms_to_provider(db_notification)
 
         notification = Notification.query.filter_by(id=db_notification.id).one()
-        assert notification.status == "permanent-failure"
+        assert notification.status == "technical-failure"
         assert notification.provider_response == "Phone number is opted out"
+
+
+def test_should_not_emit_international_signal_for_key_type_test_sms(sample_template, mocker):
+    notification = save_notification(
+        create_notification(
+            template=sample_template,
+            to_field="+447512501324",
+            international=True,
+            key_type=KEY_TYPE_TEST,
+            status="created",
+            reply_to_text=sample_template.service.get_default_sms_sender(),
+        )
+    )
+
+    info_log_mock = mocker.patch("app.delivery.send_to_providers.current_app.logger.info")
+    metric_mock = mocker.patch("app.delivery.send_to_providers.put_international_sms_metric")
+    send_mock = mocker.patch("app.aws_sns_client.send_sms")
+    mocker.patch("app.delivery.send_to_providers.send_sms_response", return_value="not-used")
+
+    send_to_providers.send_sms_to_provider(notification)
+
+    send_mock.assert_not_called()
+    assert not any(call.args and call.args[0].startswith("International text sent") for call in info_log_mock.call_args_list)
+    metric_mock.assert_not_called()
+
+
+def test_should_not_emit_international_signal_for_opted_out_sms(sample_template, mocker):
+    notification = save_notification(
+        create_notification(
+            template=sample_template,
+            to_field="+447512501324",
+            international=True,
+            status="created",
+            reply_to_text=sample_template.service.get_default_sms_sender(),
+        )
+    )
+
+    info_log_mock = mocker.patch("app.delivery.send_to_providers.current_app.logger.info")
+    metric_mock = mocker.patch("app.delivery.send_to_providers.put_international_sms_metric")
+    mocker.patch("app.aws_sns_client.send_sms", return_value="opted_out")
+
+    send_to_providers.send_sms_to_provider(notification)
+
+    persisted_notification = Notification.query.filter_by(id=notification.id).one()
+    assert persisted_notification.status == "technical-failure"
+    assert not any(call.args and call.args[0].startswith("International text sent") for call in info_log_mock.call_args_list)
+    metric_mock.assert_not_called()
+
+
+def test_should_emit_international_signal_for_successfully_sent_sms(sample_template, mocker):
+    notification = save_notification(
+        create_notification(
+            template=sample_template,
+            to_field="+447512501324",
+            international=True,
+            status="created",
+            reply_to_text=sample_template.service.get_default_sms_sender(),
+        )
+    )
+
+    info_log_mock = mocker.patch("app.delivery.send_to_providers.current_app.logger.info")
+    metric_mock = mocker.patch("app.delivery.send_to_providers.put_international_sms_metric")
+    mocker.patch("app.aws_sns_client.send_sms", return_value="message_id_from_sns")
+
+    send_to_providers.send_sms_to_provider(notification)
+
+    assert any(call.args and call.args[0].startswith("International text sent") for call in info_log_mock.call_args_list)
+    metric_mock.assert_called_once_with(send_to_providers.metrics_logger, notification.service_id)
 
 
 def test_should_send_personalised_template_to_correct_sms_provider_and_persist(sample_sms_template_with_html, mocker):
@@ -279,6 +346,7 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
         html_body=ANY,
         reply_to_address=None,
         attachments=[],
+        extra_headers={},
     )
 
     assert "<!DOCTYPE html" in app.aws_ses_client.send_email.call_args[1]["html_body"]
@@ -295,6 +363,122 @@ def test_should_send_personalised_template_to_correct_email_provider_and_persist
     assert call("email.total-time", notification.sent_at, notification.created_at) in statsd_timing_calls
     assert call(statsd_key, notification.sent_at, notification.created_at) in statsd_timing_calls
     assert call(statsd_key) in statsd_mock.incr.call_args_list
+
+
+@pytest.mark.parametrize(
+    "personalisation_key, unsubscribe_url",
+    [
+        ("unsubscribe_url", "https://example.com/unsubscribe/abc123"),
+        ("unsub_url", "https://example.com/unsub/abc123"),
+        ("unsub_link", "https://example.com/unsub-link/abc123"),
+    ],
+)
+def test_send_email_adds_one_click_unsubscribe_headers_when_use_custom_unsubscribe_url_enabled(
+    sample_service, mocker, personalisation_key, unsubscribe_url
+):
+    template = create_template(
+        sample_service,
+        template_type="email",
+        subject="Hello",
+        content=f"Body with (({personalisation_key}))",
+    )
+    template.use_custom_unsubscribe_url = True
+    dao_update_template(template)
+
+    db_notification = save_notification(
+        create_notification(
+            template=template,
+            to_field="user@example.com",
+            personalisation={personalisation_key: unsubscribe_url},
+        )
+    )
+
+    send_mock = mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+    mocker.patch("app.delivery.send_to_providers.statsd_client")
+    mocker.patch("app.delivery.send_to_providers.bounce_rate_client")
+
+    send_to_providers.send_email_to_provider(db_notification)
+
+    send_mock.assert_called_once()
+    call_kwargs = send_mock.call_args[1]
+    assert call_kwargs["extra_headers"] == {
+        "List-Unsubscribe": f"<{unsubscribe_url}>",
+        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    }
+
+
+def test_send_email_does_not_add_unsubscribe_headers_when_use_custom_unsubscribe_url_disabled(sample_service, mocker):
+    template = create_template(
+        sample_service,
+        template_type="email",
+        subject="Hello",
+        content="Body with ((unsubscribe_url))",
+    )
+    # use_custom_unsubscribe_url defaults to False — no DB update needed
+
+    db_notification = save_notification(
+        create_notification(
+            template=template,
+            to_field="user@example.com",
+            personalisation={"unsubscribe_url": "https://example.com/unsub"},
+        )
+    )
+
+    send_mock = mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+    mocker.patch("app.delivery.send_to_providers.statsd_client")
+    mocker.patch("app.delivery.send_to_providers.bounce_rate_client")
+
+    send_to_providers.send_email_to_provider(db_notification)
+
+    send_mock.assert_called_once()
+    assert send_mock.call_args[1]["extra_headers"] == {}
+
+
+@pytest.mark.parametrize(
+    "bad_url",
+    [
+        "ftp://example.com/unsub",
+        "file:///etc/passwd",
+        "javascript:alert(1)",
+        "//example.com/unsub",
+        "example.com/unsub",
+        "http://example.com/unsub",  # http is not allowed, only https
+        "https://hi",  # no dot in hostname
+        "https://example.com/unsub\r\nX-Injected: evil",  # CRLF header injection attempt
+        "https://example.com/unsub\nX-Injected: evil",  # LF header injection attempt
+        "",
+    ],
+)
+def test_send_email_does_not_add_unsubscribe_headers_for_invalid_url_scheme(sample_service, mocker, bad_url):
+    template = create_template(
+        sample_service,
+        template_type="email",
+        subject="Hello",
+        content="Body with ((unsubscribe_url))",
+    )
+    template.use_custom_unsubscribe_url = True
+    dao_update_template(template)
+
+    db_notification = save_notification(
+        create_notification(
+            template=template,
+            to_field="user@example.com",
+            personalisation={"unsubscribe_url": bad_url},
+        )
+    )
+
+    send_mock = mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+    mocker.patch("app.delivery.send_to_providers.statsd_client")
+    mocker.patch("app.delivery.send_to_providers.bounce_rate_client")
+    logger_mock = mocker.patch("app.delivery.send_to_providers.current_app.logger.warning")
+
+    send_to_providers.send_email_to_provider(db_notification)
+
+    send_mock.assert_called_once()
+    assert send_mock.call_args[1]["extra_headers"] == {}
+    if bad_url:
+        logger_mock.assert_called_once()
+        assert "invalid unsubscribe_url" in logger_mock.call_args[0][0]
 
 
 @pytest.mark.skip(reason="the validator can throw a 500 causing us to fail all tests")
@@ -325,6 +509,7 @@ def test_should_send_personalised_template_with_html_enabled(sample_email_templa
         html_body=ANY,
         reply_to_address=None,
         attachments=[],
+        extra_headers={},
     )
 
     assert "<!DOCTYPE html" in app.aws_ses_client.send_email.call_args[1]["html_body"]
@@ -370,6 +555,7 @@ def test_should_respect_custom_sending_domains(sample_service, mocker, sample_em
         html_body=ANY,
         reply_to_address=None,
         attachments=[],
+        extra_headers={},
     )
 
 
@@ -614,6 +800,7 @@ def test_send_email_should_use_service_reply_to_email(sample_service, sample_ema
         html_body=ANY,
         reply_to_address="foo@bar.com",
         attachments=[],
+        extra_headers={},
     )
 
 
@@ -638,6 +825,7 @@ def test_send_email_should_use_default_service_reply_to_email_when_two_are_set(s
         html_body=ANY,
         reply_to_address="foo@bar.com",
         attachments=[],
+        extra_headers={},
     )
 
 
@@ -662,6 +850,7 @@ def test_send_email_should_use_non_default_service_reply_to_email_when_it_is_set
         html_body=ANY,
         reply_to_address="foo_two@bar.com",
         attachments=[],
+        extra_headers={},
     )
 
 
@@ -945,6 +1134,7 @@ def test_send_email_to_provider_uses_reply_to_from_notification(sample_email_tem
         html_body=ANY,
         reply_to_address="test@test.com",
         attachments=[],
+        extra_headers={},
     )
 
 
@@ -983,6 +1173,7 @@ def test_send_email_to_provider_should_format_reply_to_email_address(sample_emai
         html_body=ANY,
         reply_to_address="test@test.com",
         attachments=[],
+        extra_headers={},
     )
 
 
@@ -1012,6 +1203,7 @@ def test_send_email_to_provider_should_format_email_address(sample_email_notific
         html_body=ANY,
         reply_to_address=ANY,
         attachments=[],
+        extra_headers={},
     )
 
 
@@ -1022,7 +1214,7 @@ def test_file_attachment_retry(mocker, notify_db, notify_db_session):
         status_code = 200
 
         def json():
-            return {"av-status": "clean"}
+            return {"GuardDutyMalwareScanStatus": "NO_THREATS_FOUND"}
 
     mocker.patch("app.delivery.send_to_providers.document_download_client.check_scan_verdict", return_value=mock_response)
 
@@ -1081,7 +1273,7 @@ def test_file_attachment_max_retries(mocker, notify_db, notify_db_session):
         status_code = 200
 
         def json():
-            return {"av-status": "clean"}
+            return {"GuardDutyMalwareScanStatus": "NO_THREATS_FOUND"}
 
     mocker.patch("app.delivery.send_to_providers.document_download_client.check_scan_verdict", return_value=mock_response)
 
@@ -1131,7 +1323,7 @@ def test_notification_document_with_pdf_attachment(
         status_code = 200
 
         def json():
-            return {"av-status": "clean"}
+            return {"GuardDutyMalwareScanStatus": "NO_THREATS_FOUND"}
 
     mocker.patch("app.delivery.send_to_providers.document_download_client.check_scan_verdict", return_value=mock_response)
 
@@ -1185,6 +1377,7 @@ def test_notification_document_with_pdf_attachment(
         html_body=ANY,
         reply_to_address=ANY,
         attachments=attachments,
+        extra_headers=ANY,
     )
     if not filename_attribute_present:
         assert "http://foo.bar/url" in send_mock.call_args[1]["html_body"]
@@ -1314,7 +1507,7 @@ class TestMalware:
             status_code = 423
 
             def json():
-                return {"av-status": "malicious"}
+                return {"GuardDutyMalwareScanStatus": "THREATS_FOUND"}
 
         mocker.patch("app.delivery.send_to_providers.document_download_client.check_scan_verdict", return_value=mock_response)
         personalisation = {"file": document_download_response()}
@@ -1335,7 +1528,7 @@ class TestMalware:
             status_code = 428
 
             def json():
-                return {"av-status": "in_progress"}
+                return {}
 
         mocker.patch("app.delivery.send_to_providers.document_download_client.check_scan_verdict", return_value=mock_response)
         personalisation = {"file": document_download_response()}
@@ -1344,7 +1537,7 @@ class TestMalware:
 
         with pytest.raises(MalwareScanInProgressException) as e:
             send_to_providers.send_email_to_provider(db_notification)
-            assert db_notification.id in e.value
+        assert isinstance(e.value, MalwareScanInProgressException)
         send_mock.assert_not_called()
 
         assert Notification.query.get(db_notification.id).status == "created"
@@ -1354,6 +1547,8 @@ class TestMalware:
         [
             (200, "clean"),
             (408, "scan_timed_out"),
+            (422, "scan_unsupported"),
+            (422, "scan_failed"),
         ],
     )
     def test_send_to_providers_succeeds_if_malware_verdict_clean(
@@ -1366,7 +1561,7 @@ class TestMalware:
             status_code = status_code_returned
 
             def json():
-                return {"av-status": scan_verdict}
+                return {"GuardDutyMalwareScanStatus": scan_verdict}
 
         mocker.patch("app.delivery.send_to_providers.document_download_client.check_scan_verdict", return_value=mock_response)
         personalisation = {"file": document_download_response()}
@@ -1385,7 +1580,7 @@ class TestMalware:
             status_code = 404
 
             def json():
-                return {"av-status": "None"}
+                return {"GuardDutyMalwareScanStatus": "None"}
 
         mocker.patch("app.delivery.send_to_providers.document_download_client.check_scan_verdict", return_value=mock_response)
         personalisation = {"file": document_download_response()}
@@ -1411,34 +1606,6 @@ class TestBounceRate:
             db_notification,
         )
         app.bounce_rate_client.set_sliding_notifications.assert_called_once_with(sample_service.id, str(db_notification.id))
-
-    def test_check_service_over_bounce_rate_critical(self, mocker: MockFixture, notify_api, fake_uuid):
-        with notify_api.app_context():
-            mocker.patch("app.bounce_rate_client.check_bounce_rate_status", return_value=BounceRateStatus.CRITICAL.value)
-            mocker.patch("app.bounce_rate_client.get_bounce_rate", return_value=current_app.config["BR_CRITICAL_PERCENTAGE"])
-            mock_logger = mocker.patch("app.delivery.send_to_providers.current_app.logger.warning")
-            send_to_providers.check_service_over_bounce_rate(fake_uuid)
-            mock_logger.assert_called_once_with(
-                f"Service: {fake_uuid} has met or exceeded a critical bounce rate threshold of 10%. Bounce rate: {current_app.config['BR_CRITICAL_PERCENTAGE']}"
-            )
-
-    def test_check_service_over_bounce_rate_warning(self, mocker: MockFixture, notify_api, fake_uuid):
-        with notify_api.app_context():
-            mocker.patch("app.bounce_rate_client.check_bounce_rate_status", return_value=BounceRateStatus.WARNING.value)
-            mocker.patch("app.bounce_rate_client.get_bounce_rate", return_value=current_app.config["BR_WARNING_PERCENTAGE"])
-            mock_logger = mocker.patch("app.notifications.validators.current_app.logger.warning")
-            send_to_providers.check_service_over_bounce_rate(fake_uuid)
-            mock_logger.assert_called_once_with(
-                f"Service: {fake_uuid} has met or exceeded a warning bounce rate threshold of 5%. Bounce rate: {current_app.config['BR_WARNING_PERCENTAGE']}"
-            )
-
-    def test_check_service_over_bounce_rate_normal(self, mocker: MockFixture, notify_api, fake_uuid):
-        with notify_api.app_context():
-            mocker.patch("app.bounce_rate_client.check_bounce_rate_status", return_value=BounceRateStatus.NORMAL.value)
-            mocker.patch("app.bounce_rate_client.get_bounce_rate", return_value=0.0)
-            mock_logger = mocker.patch("app.notifications.validators.current_app.logger.warning")
-            assert send_to_providers.check_service_over_bounce_rate(fake_uuid) is None
-            mock_logger.assert_not_called()
 
 
 @pytest.mark.parametrize(

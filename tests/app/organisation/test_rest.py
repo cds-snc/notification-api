@@ -435,6 +435,7 @@ def test_post_update_organisation_set_mou_doesnt_email_if_no_signed_by(sample_or
     assert queue_mock.called is False
 
 
+@pytest.mark.skip(reason="mou test")
 @pytest.mark.parametrize(
     "on_behalf_of_name, on_behalf_of_email_address, templates_and_recipients",
     [

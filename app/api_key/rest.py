@@ -124,12 +124,12 @@ def revoke_api_keys():
         api_key_token = api_key_data["token"]
         api_key = get_api_key_by_secret(api_key_token)
     except Exception:
-        current_app.logger.error(
+        current_app.logger.info(
             "Revoke api key: API key not found for token {}".format(api_key_data["token"])
             if api_key_data.get("token")
             else "Revoke api key: no token provided"
         )
-        raise InvalidRequest("Invalid request", status_code=400)
+        return jsonify(result="ok"), 200
 
     # Step 2
     expire_api_key(api_key.service_id, api_key.id)

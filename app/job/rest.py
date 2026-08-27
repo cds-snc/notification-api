@@ -1,22 +1,25 @@
+import time
+import uuid
 from datetime import datetime
 
-import dateutil
 from flask import Blueprint, current_app, jsonify, request
 from notifications_utils.recipients import RecipientCSV
 from notifications_utils.template import Template
 
+from app.annual_limit_utils import get_annual_limit_notifications_v2
 from app.aws.s3 import get_job_from_s3, get_job_metadata_from_s3
 from app.celery.tasks import process_job
 from app.config import QueueNames
-from app.dao.fact_notification_status_dao import fetch_notification_statuses_for_job
 from app.dao.jobs_dao import (
     can_letter_job_be_cancelled,
     dao_cancel_letter_job,
     dao_create_job,
     dao_get_future_scheduled_job_by_id_and_service_id,
     dao_get_job_by_service_id_and_job_id,
+    dao_get_job_statistics_for_jobs,
     dao_get_jobs_by_service_id,
     dao_get_notification_outcomes_for_job,
+    dao_service_has_jobs,
     dao_update_job,
 )
 from app.dao.notifications_dao import get_notifications_for_job
@@ -48,7 +51,7 @@ from app.schemas import (
     notifications_filter_schema,
     unarchived_template_schema,
 )
-from app.utils import midnight_n_days_ago, pagination_links
+from app.utils import pagination_links
 
 job_blueprint = Blueprint("job", __name__, url_prefix="/service/<uuid:service_id>/job")
 
@@ -131,10 +134,21 @@ def get_jobs_by_service(service_id):
     else:
         limit_days = None
 
+    page_size = None
+    if request.args.get("page_size"):
+        try:
+            page_size = int(request.args["page_size"])
+        except ValueError:
+            errors = {"page_size": ["{} is not an integer".format(request.args["page_size"])]}
+            raise InvalidRequest(errors, status_code=400)
+        if page_size < 1:
+            raise InvalidRequest({"page_size": ["page_size must be a positive integer"]}, status_code=400)
+
     statuses = [x.strip() for x in request.args.get("statuses", "").split(",")]
 
     page = int(request.args.get("page", 1))
-    return jsonify(**get_paginated_jobs(service_id, limit_days, statuses, page))
+
+    return jsonify(**get_paginated_jobs(service_id, limit_days, statuses, page, page_size=page_size))
 
 
 @job_blueprint.route("", methods=["POST"])
@@ -146,6 +160,7 @@ def create_job(service_id):
     data = request.get_json()
     data.update({"service": service_id})
 
+    # timing: get metadata from S3
     try:
         data.update(**get_job_metadata_from_s3(service_id, data["id"]))
     except KeyError:
@@ -162,13 +177,18 @@ def create_job(service_id):
     if template_errors:
         raise InvalidRequest(template_errors, status_code=400)
 
+    # timing: fetch job file from S3 and parse CSV
     job = get_job_from_s3(service_id, data["id"])
+
     recipient_csv = RecipientCSV(
         job,
         template_type=template.template_type,
         placeholders=template._as_utils_template().placeholders,
         template=Template(template.__dict__),
     )
+
+    # Pre-seed annual limit data in Redis to avoid slow database queries during limit checks
+    get_annual_limit_notifications_v2(service_id)
 
     if template.template_type == SMS_TYPE:
         # set sender_id if missing
@@ -177,7 +197,8 @@ def create_job(service_id):
         data["sender_id"] = data.get("sender_id", default_sender_id)
 
         # calculate the number of simulated recipients
-        requested_recipients = [i["phone_number"].data for i in list(recipient_csv.get_rows())]
+        requested_recipients = [i["phone_number"].data for i in recipient_csv.rows]
+
         has_simulated, has_real_recipients = csv_has_simulated_and_non_simulated_recipients(
             requested_recipients, template.template_type
         )
@@ -187,9 +208,16 @@ def create_job(service_id):
 
         # Check and track limits if we're not sending test notifications
         if has_real_recipients and not has_simulated:
-            check_sms_annual_limit(service, len(recipient_csv))
-            check_sms_daily_limit(service, len(recipient_csv))
-            increment_sms_daily_count_send_warnings_if_needed(service, len(recipient_csv))
+            csv_length = len(recipient_csv)
+            if current_app.config.get("FF_USE_BILLABLE_UNITS"):
+                total_billable_units = recipient_csv.sms_fragment_count
+                check_sms_annual_limit(service, total_billable_units)
+                check_sms_daily_limit(service, total_billable_units)
+                increment_sms_daily_count_send_warnings_if_needed(service, total_billable_units)
+            else:
+                check_sms_annual_limit(service, csv_length)
+                check_sms_daily_limit(service, csv_length)
+                increment_sms_daily_count_send_warnings_if_needed(service, csv_length)
 
     elif template.template_type == EMAIL_TYPE:
         if "notification_count" in data:
@@ -201,6 +229,7 @@ def create_job(service_id):
             notification_count = len(recipient_csv)
 
         check_email_annual_limit(service, notification_count)
+
         check_email_daily_limit(service, notification_count)
 
         scheduled_for = datetime.fromisoformat(data.get("scheduled_for")) if data.get("scheduled_for") else None
@@ -226,32 +255,43 @@ def create_job(service_id):
     return jsonify(data=job_json), 201
 
 
-def get_paginated_jobs(service_id, limit_days, statuses, page):
+@job_blueprint.route("/has_jobs", methods=["GET"])
+def get_service_has_jobs(service_id):
+    """Check if a service has any jobs in the database."""
+    has_jobs = dao_service_has_jobs(service_id)
+    return jsonify(data={"has_jobs": has_jobs}), 200
+
+
+def get_paginated_jobs(service_id, limit_days, statuses, page, page_size=None):
+    start_time = time.time()
     pagination = dao_get_jobs_by_service_id(
         service_id,
         limit_days=limit_days,
         page=page,
-        page_size=current_app.config["PAGE_SIZE"],
+        page_size=page_size if page_size is not None else current_app.config["PAGE_SIZE"],
         statuses=statuses,
     )
     data = job_schema.dump(pagination.items, many=True)
-    for job_data in data:
-        start = job_data["processing_started"]
-        start = dateutil.parser.parse(start).replace(tzinfo=None) if start else None
 
-        if start is None:
-            statistics = []
-        elif start.replace(tzinfo=None) < midnight_n_days_ago(3):
-            # ft_notification_status table
-            statistics = fetch_notification_statuses_for_job(job_data["id"])
-        else:
-            # notifications table
-            statistics = dao_get_notification_outcomes_for_job(service_id, job_data["id"])
-        job_data["statistics"] = [{"status": statistic.status, "count": statistic.count} for statistic in statistics]
+    statistics_by_job = dao_get_job_statistics_for_jobs(pagination.items)
+    for job_data in data:
+        job_data["statistics"] = statistics_by_job.get(uuid.UUID(job_data["id"]), [])
+
+    end_time = time.time()
+    current_app.logger.info(f"[get_paginated_jobs] took {end_time - start_time:.3f} seconds")
+
+    # Build extra kwargs so pagination links preserve all original query params.
+    link_kwargs = {"service_id": service_id}
+    if limit_days is not None:
+        link_kwargs["limit_days"] = limit_days
+    if page_size is not None:
+        link_kwargs["page_size"] = page_size
+    if statuses:
+        link_kwargs["statuses"] = ",".join(statuses)
 
     return {
         "data": data,
         "page_size": pagination.per_page,
         "total": pagination.total,
-        "links": pagination_links(pagination, ".get_jobs_by_service", service_id=service_id),
+        "links": pagination_links(pagination, ".get_jobs_by_service", **link_kwargs),
     }

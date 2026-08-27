@@ -222,6 +222,12 @@ class UserUpdateAttributeSchema(BaseSchema):
         except InvalidPhoneError as error:
             raise ValidationError("Invalid phone number: {}".format(error))
 
+    @validates("verified_phonenumber")
+    def validate_verified_phonenumber(self, value):
+        if value is not None:
+            if not isinstance(value, bool):
+                raise ValidationError("verified_phonenumber must be a boolean")
+
     @validates_schema(pass_original=True)
     def check_unknown_fields(self, data, original_data, **kwargs):
         for key in original_data:
@@ -413,6 +419,7 @@ class TemplateSchema(BaseTemplateSchema):
     created_at = FlexibleDateTime()
     updated_at = FlexibleDateTime()
     text_direction_rtl = field_for(models.Template, "text_direction_rtl")
+    use_custom_unsubscribe_url = field_for(models.Template, "use_custom_unsubscribe_url")
 
     def get_is_precompiled_letter(self, template):
         return template.is_precompiled_letter
@@ -451,6 +458,18 @@ class TemplateHistorySchema(BaseSchema):
 
     class Meta(BaseSchema.Meta):
         model = models.TemplateHistory
+
+
+class FilesSchema(BaseSchema):
+    template_id = field_for(models.Files, "template_id", required=True)
+    service_id = field_for(models.Files, "service_id", required=True)
+    document_id = field_for(models.Files, "document_id", required=True)
+    created_at = FlexibleDateTime()
+    updated_at = FlexibleDateTime()
+
+    class Meta(BaseSchema.Meta):
+        model = models.Files
+        exclude = ("template", "service")
 
 
 class ApiKeySchema(BaseSchema):
@@ -839,6 +858,7 @@ class ReportSchema(BaseSchema):
 
     id = fields.UUID()
     requesting_user_id = fields.UUID()
+    api_key_id = fields.UUID(required=False, allow_none=True)
     report_type = fields.String()
     service_id = fields.UUID()
     status = fields.String()
@@ -852,6 +872,15 @@ class ReportSchema(BaseSchema):
 
     requesting_user = fields.Nested(
         UserSchema,
+        only=[
+            "id",
+            "name",
+        ],
+        dump_only=True,
+    )
+
+    api_key = fields.Nested(
+        ApiKeySchema,
         only=[
             "id",
             "name",
@@ -913,3 +942,4 @@ provider_details_history_schema = ProviderDetailsHistorySchema()
 day_schema = DaySchema()
 unarchived_template_schema = UnarchivedTemplateSchema()
 report_schema = ReportSchema()
+files_schema = FilesSchema()

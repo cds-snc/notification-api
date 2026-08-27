@@ -1,13 +1,15 @@
-import base64
 import json
+from datetime import datetime
 from unittest import mock
+from unittest.mock import ANY
 from uuid import UUID
 
 import pytest
-from fido2 import cbor
-from flask import url_for
+from flask import current_app, url_for
 from freezegun import freeze_time
+from sqlalchemy.orm.exc import NoResultFound
 
+from app import db
 from app.clients.salesforce.salesforce_engagement import ENGAGEMENT_STAGE_ACTIVATION
 from app.dao.fido2_key_dao import create_fido2_session, save_fido2_key
 from app.dao.login_event_dao import save_login_event
@@ -22,6 +24,7 @@ from app.models import (
     LoginEvent,
     Notification,
     Permission,
+    Service,
     User,
 )
 from app.user.contact_request import ContactRequest
@@ -75,6 +78,7 @@ def test_get_user(admin_request, sample_service, sample_organisation):
     assert fetched["permissions"].keys() == {str(sample_service.id)}
     assert fetched["services"] == [str(sample_service.id)]
     assert fetched["organisations"] == [str(sample_organisation.id)]
+    assert fetched["default_editor_is_rte"] is True
     assert sorted(fetched["permissions"][str(sample_service.id)]) == sorted(expected_permissions)
 
 
@@ -287,6 +291,27 @@ def test_post_user_attribute(client, mocker, sample_user, user_attribute, user_v
     assert json_resp["data"][user_attribute] == user_value
 
     mocked_salesforce_client.contact_update.assert_called_once_with(sample_user)
+
+
+def test_post_user_attribute_send_no_notification_when_default_editor_preference_changed(
+    client,
+    mocker,
+    sample_user,
+):
+    update_dict = {"default_editor_is_rte": True}
+    auth_header = create_authorization_header()
+    headers = [("Content-Type", "application/json"), auth_header]
+
+    mock_persist_notification = mocker.patch("app.user.rest.persist_notification")
+    mocker.patch("app.user.rest.send_notification_to_queue")
+    mocker.patch("app.user.rest.salesforce_client")
+
+    client.post(
+        url_for("user.update_user_attribute", user_id=sample_user.id),
+        data=json.dumps(update_dict),
+        headers=headers,
+    )
+    mock_persist_notification.assert_not_called()
 
 
 @pytest.mark.parametrize(
@@ -707,7 +732,7 @@ def test_send_user_reset_password_should_send_reset_password_link(client, sample
 
     assert resp.status_code == 204
     notification = Notification.query.first()
-    mocked.assert_called_once_with([str(notification.id)], queue="notify-internal-tasks")
+    mocked.assert_called_once_with([str(notification.id)], queue="notify-internal-tasks", MessageGroupId=ANY)
     assert notification.reply_to_text == notify_service.get_default_reply_to_email_address()
 
 
@@ -727,7 +752,7 @@ def test_send_user_forced_reset_password_should_send_reset_password_link(
 
     assert resp.status_code == 204
     notification = Notification.query.first()
-    mocked.assert_called_once_with([str(notification.id)], queue="notify-internal-tasks")
+    mocked.assert_called_once_with([str(notification.id)], queue="notify-internal-tasks", MessageGroupId=ANY)
     assert notification.reply_to_text == notify_service.get_default_reply_to_email_address()
 
 
@@ -811,7 +836,7 @@ def test_send_already_registered_email(client, sample_user, already_registered_t
     assert resp.status_code == 204
 
     notification = Notification.query.first()
-    mocked.assert_called_once_with(([str(notification.id)]), queue="notify-internal-tasks")
+    mocked.assert_called_once_with(([str(notification.id)]), queue="notify-internal-tasks", MessageGroupId=ANY)
     assert notification.reply_to_text == notify_service.get_default_reply_to_email_address()
 
 
@@ -1071,7 +1096,7 @@ def test_send_user_confirm_new_email_returns_204(client, sample_user, change_ema
     )
     assert resp.status_code == 204
     notification = Notification.query.first()
-    mocked.assert_called_once_with(([str(notification.id)]), queue="notify-internal-tasks")
+    mocked.assert_called_once_with(([str(notification.id)]), queue="notify-internal-tasks", MessageGroupId=ANY)
     assert notification.reply_to_text == notify_service.get_default_reply_to_email_address()
 
 
@@ -1519,9 +1544,18 @@ def test_create_fido2_keys_for_a_user(client, sample_service, mocker, account_ch
 
     create_fido2_session(sample_user.id, "ABCD")
 
-    data = {"name": "sample key one", "key": "abcd"}
-    data = cbor.encode(data)
-    data = {"payload": base64.b64encode(data).decode("utf-8")}
+    # Standard WebAuthn RegistrationResponse JSON format
+    data = {
+        "name": "sample key one",
+        "credential": {
+            "rawId": "dGVzdA",
+            "response": {
+                "clientDataJSON": "dGVzdA",
+                "attestationObject": "dGVzdA",
+            },
+            "type": "public-key",
+        },
+    }
 
     mocker.patch("app.user.rest.decode_and_register", return_value="abcd")
     mocker.patch("app.user.rest.persist_notification")
@@ -1574,15 +1608,29 @@ def test_start_fido2_registration(client, sample_service):
     )
     assert response.status_code == 200
     data = json.loads(response.get_data())
-    data = base64.b64decode(data["data"])
-    data = cbor.decode(data)
-    assert data["publicKey"]["rp"]["id"] == "localhost"
-    assert data["publicKey"]["user"]["id"] == sample_user.id.bytes
+    # fido2 v2: response is JSON with a nested publicKey object
+    public_key = data["data"]["publicKey"]
+    assert public_key["rp"]["id"] == "localhost"
+    assert public_key["user"]["id"]  # base64url-encoded user ID
 
 
-def test_start_fido2_authentication(client, sample_service):
+def test_start_fido2_authentication(client, sample_service, mocker):
     sample_user = sample_service.users[0]
     auth_header = create_authorization_header()
+
+    mock_cred = mocker.Mock()
+    mock_cred.credential_id = b"test_cred_id"
+    mocker.patch("app.user.rest.deserialize_fido2_key", return_value=mock_cred)
+
+    # Mock the FIDO2 server to return a dict-like object.
+    # In fido2 v2, authenticate_begin returns (CredentialRequestOptions, state)
+    # dict() on the options object produces a JSON-compatible dict.
+    mock_server = mocker.patch("app.user.rest.Config.FIDO2_SERVER")
+    mock_options = {"publicKey": {"rpId": "localhost"}}
+    mock_server.authenticate_begin.return_value = (mock_options, "state")
+
+    key = Fido2Key(name="sample key", key="abcd", user_id=sample_user.id)
+    save_fido2_key(key)
 
     response = client.post(
         url_for("user.fido2_keys_user_authenticate", user_id=sample_user.id),
@@ -1590,9 +1638,105 @@ def test_start_fido2_authentication(client, sample_service):
     )
     assert response.status_code == 200
     data = json.loads(response.get_data())
-    data = base64.b64decode(data["data"])
-    data = cbor.decode(data)
-    assert data["publicKey"]["rpId"] == "localhost"
+    # fido2 v2: response is JSON directly
+    assert data["data"]["publicKey"]["rpId"] == "localhost"
+
+
+def test_fido2_validate_returns_400_when_credential_missing(client, sample_service, mocker):
+    """Test that missing credential field returns 400 Bad Request without consuming session."""
+    sample_user = sample_service.users[0]
+    auth_header = create_authorization_header()
+
+    key = Fido2Key(name="sample key", key="abcd", user_id=sample_user.id)
+    save_fido2_key(key)
+
+    mock_cred = mocker.Mock()
+    mocker.patch("app.user.rest.deserialize_fido2_key", return_value=mock_cred)
+    mock_get_session = mocker.patch("app.user.rest.get_fido2_session", return_value={"challenge": "test"})
+
+    # Missing 'credential' key in request body
+    response = client.post(
+        url_for("user.fido2_keys_user_validate", user_id=sample_user.id),
+        data=json.dumps({}),
+        headers=[("Content-Type", "application/json"), auth_header],
+    )
+
+    assert response.status_code == 400
+    assert json.loads(response.get_data(as_text=True))["error"] == "Invalid request format"
+    # Session should NOT be consumed when request is malformed
+    mock_get_session.assert_not_called()
+
+
+def test_fido2_validate_returns_400_when_session_expired(client, sample_service, mocker):
+    """Test that expired/missing session returns 400 Bad Request."""
+    sample_user = sample_service.users[0]
+    auth_header = create_authorization_header()
+
+    key = Fido2Key(name="sample key", key="abcd", user_id=sample_user.id)
+    save_fido2_key(key)
+
+    mock_cred = mocker.Mock()
+    mocker.patch("app.user.rest.deserialize_fido2_key", return_value=mock_cred)
+    mocker.patch("app.user.rest.get_fido2_session", side_effect=NoResultFound())
+
+    response = client.post(
+        url_for("user.fido2_keys_user_validate", user_id=sample_user.id),
+        data=json.dumps({"credential": {"id": "test"}}),
+        headers=[("Content-Type", "application/json"), auth_header],
+    )
+
+    assert response.status_code == 400
+    assert json.loads(response.get_data(as_text=True))["error"] == "Authentication session expired"
+
+
+def test_fido2_validate_returns_401_when_validation_fails(client, sample_service, mocker):
+    """Test that FIDO2 validation failure returns 401 Unauthorized."""
+    sample_user = sample_service.users[0]
+    auth_header = create_authorization_header()
+
+    key = Fido2Key(name="sample key", key="abcd", user_id=sample_user.id)
+    save_fido2_key(key)
+
+    mock_cred = mocker.Mock()
+    mocker.patch("app.user.rest.deserialize_fido2_key", return_value=mock_cred)
+    mocker.patch("app.user.rest.get_fido2_session", return_value={"challenge": "test"})
+
+    mock_server = mocker.patch("app.user.rest.Config.FIDO2_SERVER")
+    mock_server.authenticate_complete.side_effect = ValueError("Wrong challenge in response.")
+
+    response = client.post(
+        url_for("user.fido2_keys_user_validate", user_id=sample_user.id),
+        data=json.dumps({"credential": {"id": "test"}}),
+        headers=[("Content-Type", "application/json"), auth_header],
+    )
+
+    assert response.status_code == 401
+    assert json.loads(response.get_data(as_text=True))["error"] == "Security key validation failed"
+
+
+def test_fido2_validate_returns_500_on_unexpected_error(client, sample_service, mocker):
+    """Test that unexpected errors return 500 Internal Server Error."""
+    sample_user = sample_service.users[0]
+    auth_header = create_authorization_header()
+
+    key = Fido2Key(name="sample key", key="abcd", user_id=sample_user.id)
+    save_fido2_key(key)
+
+    mock_cred = mocker.Mock()
+    mocker.patch("app.user.rest.deserialize_fido2_key", return_value=mock_cred)
+    mocker.patch("app.user.rest.get_fido2_session", return_value={"challenge": "test"})
+
+    mock_server = mocker.patch("app.user.rest.Config.FIDO2_SERVER")
+    mock_server.authenticate_complete.side_effect = RuntimeError("Unexpected database error")
+
+    response = client.post(
+        url_for("user.fido2_keys_user_validate", user_id=sample_user.id),
+        data=json.dumps({"credential": {"id": "test"}}),
+        headers=[("Content-Type", "application/json"), auth_header],
+    )
+
+    assert response.status_code == 500
+    assert json.loads(response.get_data(as_text=True))["error"] == "An internal error occurred"
 
 
 def test_list_login_events_for_a_user(client, sample_service):
@@ -1657,3 +1801,185 @@ class TestFailedLogin:
         )
         assert resp.status_code == 400
         assert "Incorrect password for user_id" in resp.json["message"]["password"][0]
+
+
+class TestUserDeactivation:
+    @pytest.mark.parametrize(
+        "is_live, other_members_count, expected_service_active, should_send_suspension_email",
+        [
+            (True, 0, False, False),  # Live service, 0 other members → deactivated
+            (False, 0, False, False),  # Trial service, 0 other members → deactivated
+            (True, 1, False, True),  # Live service, 1 other member → suspended
+            (False, 1, True, False),  # Trial service, 1 other member → no change
+            (True, 2, True, False),  # Live service, 2 other members → no change
+            (False, 2, True, False),  # Trial service, 2 other members → no change
+        ],
+        ids=[
+            "live_service_no_other_members",
+            "trial_service_no_other_members",
+            "live_service_one_other_member",
+            "trial_service_one_other_member",
+            "live_service_two_other_members",
+            "trial_service_two_other_members",
+        ],
+    )
+    @freeze_time("2025-10-21 12:00:00")
+    def test_deactivate_user(
+        self,
+        is_live,
+        other_members_count,
+        expected_service_active,
+        should_send_suspension_email,
+        client,
+        notify_db_session,
+    ):
+        service_suspension_template_id = current_app.config["SERVICE_SUSPENDED_TEMPLATE_ID"]
+        user_deactivated_template_id = current_app.config["USER_DEACTIVATED_TEMPLATE_ID"]
+
+        user = create_user(name="Service Manago", email="notify_manago@cds-snc.ca")
+        user.state = "active"  # Ensure the user is active before deactivation
+        service = create_service(user=user, restricted=not is_live)
+
+        # Add other members to the service and commit so relationships are persisted
+        other_users = [create_user(email=f"other{i}@test.com") for i in range(other_members_count)]
+        service.users.extend(other_users)
+        db.session.commit()
+
+        # Patch the functions as they are imported into the user REST module so the
+        # real notification sending code is not executed during the test.
+        # Ensure any test-side DB transaction is finished and the scoped session is
+        # detached so the view can start its own transaction with db.session.begin().
+        # Capture the user id before removing the session so we can use it in the
+        # request URL without accessing a detached instance.
+        user_id = user.id
+        service_id = service.id
+        notify_db_session.session.commit()
+        notify_db_session.session.remove()
+        with (
+            mock.patch("app.user.rest.send_notification_to_service_users") as mock_send_service,
+            mock.patch("app.user.rest.send_notification_to_single_user") as mock_send_single,
+        ):
+            auth_header = create_authorization_header()
+            headers = [("Content-Type", "application/json"), auth_header]
+            response = client.post(url_for("user.deactivate_user", user_id=user_id), headers=headers)
+            # Assertions: reload fresh instances from the DB because the test's
+            # scoped session was removed before making the request.
+            assert response.status_code == 200
+            user_db = User.query.get(user_id)
+            svc_db = Service.query.get(service_id)
+            assert user_db.state == "inactive"
+            assert svc_db.active == expected_service_active
+
+            # Check that the suspension email was sent to team members when applicable
+            # (only for live services with 1 other member remaining)
+            if should_send_suspension_email:
+                mock_send_service.assert_any_call(service_id, service_suspension_template_id, personalisation=mock.ANY)
+            else:
+                # If no suspension email expected, verify it was not called for this service
+                if mock_send_service.called:
+                    calls = mock_send_service.call_args_list
+                    service_ids_in_calls = [call[0][0] for call in calls]
+                    assert service_id not in service_ids_in_calls
+
+            # Check that the deactivation email was sent to the single user. We can't
+            # compare ORM instances across sessions, so inspect the actual call args
+            # and verify the user id and template id used.
+            assert mock_send_single.called
+            called_args = mock_send_single.call_args[0]
+            called_user = called_args[0]
+            called_template = called_args[1]
+            assert getattr(called_user, "id", None) == user_id
+            assert called_template == user_deactivated_template_id
+
+            # Service should only have suspended_at/suspended_by_id if it was actually suspended
+            # or archived (both operations now record these fields).
+            if should_send_suspension_email:
+                assert svc_db.suspended_at == datetime(2025, 10, 21, 12, 0, 0)
+                assert svc_db.suspended_by_id == user_id
+            elif not expected_service_active:
+                # Archived (deactivated) services also record suspended_at and suspended_by_id
+                # (set to the deactivated user's id so there is an audit trail).
+                assert svc_db.suspended_at == datetime(2025, 10, 21, 12, 0, 0)
+                assert svc_db.suspended_by_id == user_id
+
+    def test_deactivate_user_commits_on_success(self, client, notify_db_session, mocker):
+        """Simple commit test: successful deactivate should persist changes."""
+        user = create_user(name="Commit Test", email="commit@test.com")
+        user.state = "active"
+        service = create_service(user=user)
+
+        # Patch notification functions so they don't execute during the test
+        mocker.patch("app.user.rest.send_notification_to_service_users")
+        mocker.patch("app.user.rest.send_notification_to_single_user")
+
+        # persist setup and detach the scoped session so the view can start
+        # its own transaction using db.session.begin()
+        user_id = user.id
+        service_id = service.id
+        notify_db_session.session.commit()
+        notify_db_session.session.remove()
+
+        response = client.post(url_for("user.deactivate_user", user_id=user_id), headers=[create_authorization_header()])
+
+        assert response.status_code == 200
+
+        # reload fresh instances from the DB because the test's scoped session was removed
+        user_db = User.query.get(user_id)
+        svc_db = Service.query.get(service_id)
+        assert user_db.state == "inactive"
+        assert svc_db.active is False
+
+    def test_deactivate_user_rolls_back_on_error(self, client, notify_db_session, mocker):
+        """If an exception occurs during the transaction, no DB changes should be committed."""
+        user = create_user(name="Rollback Test", email="rollback@test.com")
+        user.state = "active"
+        service = create_service(user=user)
+
+        # Patch notification functions so they don't execute during the test
+        mocker.patch("app.user.rest.send_notification_to_service_users")
+        mocker.patch("app.user.rest.send_notification_to_single_user")
+
+        # Cause the deactivation helper to raise inside the transaction
+        mocker.patch("app.user.rest.dao_deactivate_user", side_effect=Exception("boom"))
+
+        # ensure any setup changes are persisted so the app transaction runs cleanly
+        notify_db_session.session.flush()
+        response = client.post(url_for("user.deactivate_user", user_id=user.id), headers=[create_authorization_header()])
+
+        # Should return 500 due to the unexpected exception
+        assert response.status_code == 500
+
+        # Ensure DB changes were rolled back
+        user_db = User.query.get(user.id)
+        svc_db = Service.query.get(service.id)
+        assert user_db.state == "active"
+        assert svc_db.active is True
+
+    @freeze_time("2025-10-21 12:00:00")
+    def test_resume_service(self, client, notify_db_session):
+        user = create_user()
+        service = create_service(user=user)
+
+        # Suspend the service via REST endpoint
+        resp = client.post(
+            url_for("service.suspend_service", service_id=service.id, user_id=user.id),
+            headers=[create_authorization_header()],
+        )
+        assert resp.status_code == 204
+
+        svc = Service.query.get(service.id)
+        assert svc.active is False
+        assert svc.suspended_at is not None
+        assert svc.suspended_by_id == user.id
+
+        # Resume the service via REST endpoint
+        resp = client.post(
+            url_for("service.resume_service", service_id=service.id),
+            headers=[create_authorization_header()],
+        )
+        assert resp.status_code == 204
+
+        svc = Service.query.get(service.id)
+        assert svc.active is True
+        assert svc.suspended_at is None
+        assert svc.suspended_by_id is None

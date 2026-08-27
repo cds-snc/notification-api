@@ -27,6 +27,7 @@ from app import (
     email_priority,
     metrics_logger,
     notify_celery,
+    redis_store,
     signer_notification,
     sms_bulk,
     sms_normal,
@@ -43,6 +44,7 @@ from app.dao.api_key_dao import update_last_used_api_key
 from app.dao.fact_notification_status_dao import (
     fetch_notification_status_totals_for_service_by_fiscal_year,
 )
+from app.dao.files_dao import dao_get_ready_files_by_template_id
 from app.dao.inbound_sms_dao import dao_get_inbound_sms_by_id
 from app.dao.jobs_dao import dao_get_in_progress_jobs, dao_get_job_by_id, dao_update_job
 from app.dao.notifications_dao import (
@@ -110,6 +112,40 @@ def update_in_progress_jobs():
             dao_update_job(job)
 
 
+def _cache_template_files_for_job(job_id: UUID, template_id: UUID) -> None:
+    """
+    Pre-cache template file attachments in Redis for a bulk job.
+    This ensures files are downloaded once per job, not once per notification.
+    Even if empty, caching prevents repeated DB queries for templates without files.
+    """
+    try:
+        cache_key = f"template_files:{job_id}"
+
+        # Fetch ready files from database
+        ready_files = dao_get_ready_files_by_template_id(template_id)
+
+        # Build file metadata (empty list if no files)
+        file_metadata = []
+        for file in ready_files:
+            file_metadata.append(
+                {
+                    "name": file.name,
+                    "document_id": str(file.document_id),
+                    "mime_type": file.mime_type,
+                    "service_id": str(file.service_id),
+                    "file_id": str(file.id),
+                }
+            )
+
+        # Cache in Redis for 24 hours (even if empty - prevents repeated DB queries)
+        redis_store.set(cache_key, json.dumps(file_metadata), ex=86400)
+        current_app.logger.info(f"Cached {len(file_metadata)} template files for job {job_id}")
+
+    except Exception as e:
+        current_app.logger.warning(f"Failed to pre-cache template files for job {job_id}: {e}")
+        # Don't fail the job - caching is optional, files will be fetched on demand
+
+
 @notify_celery.task(name="process-job")
 @statsd(namespace="tasks")
 def process_job(job_id):
@@ -142,6 +178,10 @@ def process_job(job_id):
     template.process_type = db_template.process_type
 
     current_app.logger.info("Starting job {} processing {} notifications".format(job_id, job.notification_count))
+
+    # Pre-cache template file attachments for email jobs
+    if db_template.template_type == EMAIL_TYPE:
+        _cache_template_files_for_job(job_id, job.template_id)
 
     csv = get_recipient_csv(job, template)
 
@@ -185,6 +225,7 @@ def process_rows(rows: List, template: Template, job: Job, service: Service):
         signed_row = SignedNotification(
             signer_notification.sign(
                 {
+                    "id": create_uuid(),
                     "api_key": job.api_key_id and str(job.api_key_id),  # type: ignore
                     "key_type": job.api_key.key_type if job.api_key else KEY_TYPE_NORMAL,
                     "template": str(template.id),
@@ -229,7 +270,7 @@ def __sending_limits_for_job_exceeded(service, job: Job, job_id):
         send_exceeds_annual_limit = (total_post_send + total_sent_this_fiscal) > service.sms_annual_limit
         send_exceeds_daily_limit = total_post_send > service.sms_daily_limit
 
-        if send_exceeds_annual_limit and current_app.config["FF_ANNUAL_LIMIT"]:
+        if send_exceeds_annual_limit:
             error_message = f"SMS annual limit of {service.sms_annual_limit} would be exceeded if job {job_id} is sent. Job size: {job.notification_count} Total SMS sent this fiscal + job size: {total_post_send + total_sent_this_fiscal} Over by: {total_post_send + total_sent_this_fiscal - service.sms_annual_limit}"
         elif send_exceeds_daily_limit:
             error_message = f"SMS daily limit of {service.sms_daily_limit} would be exceeded if job {job_id} is sent. Job size: {job.notification_count} Total SMS sent today + job size: {total_post_send} Over by: {total_post_send - service.sms_daily_limit}"
@@ -241,7 +282,7 @@ def __sending_limits_for_job_exceeded(service, job: Job, job_id):
         send_exceeds_annual_limit = (total_post_send + total_sent_this_fiscal) > service.email_annual_limit
         send_exceeds_daily_limit = total_post_send > service.message_limit
 
-        if send_exceeds_annual_limit and current_app.config["FF_ANNUAL_LIMIT"]:
+        if send_exceeds_annual_limit:
             error_message = f"Email annual limit of {service.email_annual_limit} would be exceeded if job {job_id} is sent. Job size: {job.notification_count} Total email sent this fiscal + job size: {total_post_send + total_sent_this_fiscal} Over limit by: {total_post_send + total_sent_this_fiscal - service.email_annual_limit}"
         elif send_exceeds_daily_limit:
             error_message = f"Email daily limit of {service.email_annual_limit} would be exceeded if job {job_id} is sent. Job size: {job.notification_count} Total email sent today + job size: {total_post_send + total_sent_this_fiscal} Over limit by: {total_post_send + total_sent_this_fiscal - service.email_annual_limit}"
@@ -321,7 +362,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
     try:
         # If the data is not present in the encrypted data then fallback on whats needed for process_job.
         saved_notifications = persist_notifications(verified_notifications)
-        current_app.logger.debug(
+        current_app.logger.info(
             f"Saved following notifications into db: {notification_id_queue.keys()} associated with receipt {receipt}"
         )
         if receipt:
@@ -436,7 +477,7 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
     try:
         # If the data is not present in the encrypted data then fallback on whats needed for process_job
         saved_notifications = persist_notifications(verified_notifications)
-        current_app.logger.debug(
+        current_app.logger.info(
             f"Saved following notifications into db: {notification_id_queue.keys()} associated with receipt {receipt}"
         )
         if receipt:
@@ -885,7 +926,7 @@ def seed_bounce_rate_in_redis(service_id: str, interval: int = 24):
 
 @notify_celery.task(name="generate-report")
 @statsd(namespace="tasks")
-def generate_report(report_id: str, notification_statuses=[]):
+def generate_report(report_id: str, notification_statuses=None):
     current_app.logger.info(f"Generating report for Report ID {report_id}")
     try:
         report = get_report_by_id(report_id)
@@ -904,7 +945,7 @@ def generate_report(report_id: str, notification_statuses=[]):
             service_id=report.service_id,
             notification_type=report.report_type,
             language=report.language,
-            notification_statuses=notification_statuses,
+            notification_statuses=list(notification_statuses) if notification_statuses is not None else None,
             job_id=report.job_id,
             days_limit=LIMIT_DAYS,
             s3_bucket=current_app.config["REPORTS_BUCKET_NAME"],
@@ -928,7 +969,8 @@ def generate_report(report_id: str, notification_statuses=[]):
         update_report(report)
         # send an email to the requesting user
         try:
-            send_requested_report_ready(report)
+            if not report.api_key_id:
+                send_requested_report_ready(report)
         except Exception:
             current_app.logger.exception("Failed to send email to user for Report ID {}".format(report.id))
         current_app.logger.info(f"Report ID {str(report.id)} has been generated")

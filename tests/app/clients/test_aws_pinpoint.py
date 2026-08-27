@@ -33,6 +33,7 @@ def test_send_sms_sends_to_default_pool(notify_api, mocker, sample_template, tem
         MessageType="TRANSACTIONAL",
         ConfigurationSetName="config_set_name",
         DryRun=False,
+        TimeToLive=259200,
     )
 
 
@@ -62,6 +63,7 @@ def test_send_sms_sends_notify_sms_to_shortcode_pool(notify_api, mocker, sample_
         MessageType="TRANSACTIONAL",
         ConfigurationSetName="config_set_name",
         DryRun=False,
+        TimeToLive=259200,
     )
 
 
@@ -154,6 +156,7 @@ def test_respects_sending_vehicle_if_FF_enabled(notify_api, mocker, sample_templ
         MessageType="TRANSACTIONAL",
         ConfigurationSetName="config_set_name",
         DryRun=False,
+        TimeToLive=259200,
     )
 
 
@@ -181,6 +184,7 @@ def test_send_sms_sends_international_without_pool_id(notify_api, mocker, sample
         MessageBody=content,
         MessageType="TRANSACTIONAL",
         ConfigurationSetName="config_set_name",
+        TimeToLive=259200,
     )
 
 
@@ -211,4 +215,79 @@ def test_send_sms_uses_dryrun(notify_api, mocker, sample_template, template_id):
         MessageType="TRANSACTIONAL",
         ConfigurationSetName="config_set_name",
         DryRun=True,
+        TimeToLive=259200,
     )
+
+
+@pytest.mark.serial
+def test_send_sms_uses_dedicated_number_with_long_code_sender(notify_api, mocker):
+    # Mock AWS clients
+    dedicated_mock = mocker.patch.object(aws_pinpoint_client, "_dedicated_client", create=True)
+    default_mock = mocker.patch.object(aws_pinpoint_client, "_client", create=True)
+    mocker.patch.object(aws_pinpoint_client, "statsd_client", create=True)
+
+    sender = "+19025551234"  # Long code format
+    to = "6135555555"
+    content = "foo"
+    reference = "ref"
+
+    with set_config_values(
+        notify_api,
+        {
+            "AWS_PINPOINT_SC_POOL_ID": "sc_pool_id",
+            "AWS_PINPOINT_DEFAULT_POOL_ID": "default_pool_id",
+            "AWS_PINPOINT_CONFIGURATION_SET_NAME": "config_set_name",
+        },
+    ):
+        aws_pinpoint_client.send_sms(
+            to=to,
+            content=content,
+            reference=reference,
+            sender=sender,
+        )
+
+    # Dedicated client used
+    dedicated_mock.send_text_message.assert_called_once_with(
+        DestinationPhoneNumber=f"+1{to}",
+        OriginationIdentity=sender,
+        MessageBody=content,
+        MessageType="TRANSACTIONAL",
+        ConfigurationSetName="config_set_name",
+        DryRun=False,
+        TimeToLive=259200,
+    )
+
+    # Default client NOT used
+    default_mock.send_text_message.assert_not_called()
+
+
+@pytest.mark.serial
+def test_send_sms_to_us_number_uses_US_toll_free_number(notify_api, mocker):
+    dedicated_mock = mocker.patch.object(aws_pinpoint_client, "_dedicated_client", create=True)
+    default_mock = mocker.patch.object(aws_pinpoint_client, "_client", create=True)
+    mocker.patch.object(aws_pinpoint_client, "statsd_client", create=True)
+
+    to = "7185555555"  # New York City Area Code
+    content = reference = "foo"
+    us_toll_free_number = "+18449521252"
+
+    with set_config_values(
+        notify_api,
+        {
+            "AWS_US_TOLL_FREE_NUMBER": us_toll_free_number,
+            "AWS_PINPOINT_CONFIGURATION_SET_NAME": "config_set_name",
+        },
+    ):
+        aws_pinpoint_client.send_sms(to, content, reference)
+
+    dedicated_mock.send_text_message.assert_called_once_with(
+        DestinationPhoneNumber=f"+1{to}",
+        OriginationIdentity=us_toll_free_number,
+        MessageBody=content,
+        MessageType="TRANSACTIONAL",
+        ConfigurationSetName="config_set_name",
+        TimeToLive=259200,
+    )
+
+    # Default client NOT used
+    default_mock.send_text_message.assert_not_called()

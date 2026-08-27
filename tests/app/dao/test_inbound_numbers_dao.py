@@ -116,3 +116,24 @@ def test_dao_add_inbound_number(notify_db_session):
     assert len(res) == 1
     assert res[0].number == inbound_number
     assert res[0].provider == "pinpoint"
+
+
+def test_dao_get_inbound_numbers_eagerly_loads_service(notify_db_session):
+    """Regression test: service must be joinedloaded to avoid N+1 queries on GET /inbound-number."""
+    from sqlalchemy.orm.exc import DetachedInstanceError
+
+    service = create_service(service_name="inbound eager load test")
+    create_inbound_number(number="16135550100", provider="sns", service_id=service.id)
+
+    numbers = dao_get_inbound_numbers()
+    assert any(n.service_id == service.id for n in numbers)
+
+    # Detach all objects. Accessing a lazily-loaded relationship on a
+    # detached instance raises DetachedInstanceError.
+    notify_db_session.session.expunge_all()
+
+    number = next(n for n in numbers if n.service_id == service.id)
+    try:
+        _ = number.service
+    except DetachedInstanceError:
+        pytest.fail("service was not eagerly loaded by dao_get_inbound_numbers()")

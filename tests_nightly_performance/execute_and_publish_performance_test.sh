@@ -16,8 +16,11 @@ mkdir -p "$perf_test_results_folder"
 cd tests_nightly_performance || exit 1
 
 # Test 1 - Hammer the api
+# Uses blast_api_legacy.py (no LoadTestShape) so that locust.conf's run-time = 10m
+# is respected.  blast_api.py defines a LoadTestShape which causes Locust to ignore
+# run-time entirely, making the test run indefinitely when no --error-threshold is hit.
 locust --config locust.conf \
-       --locustfile src/blast_api.py \
+       --locustfile src/blast_api_legacy.py \
        --users 3000 \
        --html "$perf_test_results_folder/index.html" --csv "$perf_test_results_folder/api_test"
 
@@ -39,13 +42,13 @@ fi
 sleep 1800
 
 # Test 3 - Max out sms send rate
-# This configuration should send 4K sms / minute for 10 minutes for 40K sms total.
+# This configuration should send 8K sms / minute for 10 minutes for 80K sms total.
 # We run this test on Tuesday through Friday (just after midnight UTC) only.
 
 if [ "$(date +%u)" -ge 2 ] && [ "$(date +%u)" -le 5 ]; then
     locust --config locust.conf \
        --locustfile src/sms_send_rate.py \
-       --users 2 \
+       --users 4 \
        --csv "$perf_test_results_folder/sms_send_rate_test"
 fi
 

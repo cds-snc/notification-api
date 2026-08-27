@@ -78,14 +78,14 @@ def grant_test_db(writer_uri, uri_db_reader):
     postgres_db = sqlalchemy.create_engine(writer_uri, echo=False, isolation_level="AUTOCOMMIT", client_encoding="utf8")
 
     statements = [
-        f"CREATE ROLE {db_reader} LOGIN PASSWORD '{db_reader_password}';",
+        f"DO $$ BEGIN CREATE ROLE {db_reader} LOGIN PASSWORD '{db_reader_password}'; EXCEPTION WHEN duplicate_object OR unique_violation THEN ALTER ROLE {db_reader} WITH LOGIN PASSWORD '{db_reader_password}'; END $$;",
         f"GRANT USAGE ON SCHEMA {db_schema} TO {db_reader};",
         f"GRANT SELECT ON ALL TABLES IN SCHEMA {db_schema} TO {db_reader};",
     ]
     for statement in statements:
         try:
             postgres_db.execute(sqlalchemy.sql.text(statement)).close()
-        except sqlalchemy.exc.ProgrammingError:
+        except (sqlalchemy.exc.ProgrammingError, sqlalchemy.exc.IntegrityError):
             pass
     postgres_db.dispose()
 
@@ -127,8 +127,15 @@ def notify_db(notify_api, worker_id):
 @pytest.fixture(scope="function")
 def notify_db_session(notify_db):
     yield notify_db
-
+    print([tbl.name for tbl in notify_db.metadata.sorted_tables])
     notify_db.session.remove()
+    # Ensure any service history rows referencing users are removed first
+    # so Postgres doesn't block deleting users during teardown.
+    try:
+        notify_db.engine.execute(sqlalchemy.sql.text("DELETE FROM services_history")).close()
+    except Exception:
+        # If we cant remove the services history, just ignore and continue
+        pass
     for tbl in reversed(notify_db.metadata.sorted_tables):
         if tbl.name not in [
             "provider_details",
@@ -220,3 +227,25 @@ class Matcher:
 
     def __repr__(self):
         return "<Matcher: {}>".format(self.description)
+
+
+@pytest.fixture
+def billing_rates(notify_db_session):
+    """Insert minimal Rate and LetterRate rows for billing-related tests.
+
+    This fixture is opt-in (not autouse). Tests that need existing rates can
+    include `billing_rates` as an argument.
+    """
+    from datetime import datetime
+
+    from tests.app.db import create_letter_rate, create_rate
+
+    # Minimal SMS rates for long_code and short_code
+    create_rate(start_date=datetime(2016, 1, 1), value=0.162, notification_type="sms", sms_sending_vehicle="long_code")
+    create_rate(start_date=datetime(2016, 1, 1), value=0.30, notification_type="sms", sms_sending_vehicle="short_code")
+
+    # A default email rate (zero) and a letter rate used by some tests
+    create_rate(start_date=datetime(2016, 1, 1), value=0, notification_type="email")
+    create_letter_rate(start_date=datetime(2016, 1, 1), rate=0.33, post_class="second")
+
+    yield

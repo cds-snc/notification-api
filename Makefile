@@ -11,6 +11,10 @@ GIT_COMMIT ?= $(shell git rev-parse HEAD)
 help:
 	@cat $(MAKEFILE_LIST) | grep -E '^[a-zA-Z_-]+:.*?## .*$$' | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
+.PHONY: generate-openapi
+generate-openapi: ## Generate EN and FR OpenAPI YAML files from the Jinja2 template and translations CSV
+	poetry run python scripts/generate_openapi.py
+
 .PHONY: generate-version-file
 generate-version-file: ## Generates the app version file
 	@printf "__commit_sha__ = \"${GIT_COMMIT}\"\n__time__ = \"${DATE}\"\n" > ${APP_VERSION_FILE}
@@ -69,6 +73,18 @@ run-celery-local-filtered: ## Run the celery workers with all queues but filter 
 .PHONY: run-celery-purge
 run-celery-purge: ## Purge the celery queues
 	poetry run ./scripts/run_celery_purge.sh
+
+.PHONY: run-billing-for-day
+run-billing-for-day: ## Run the nightly billing task for a given day (usage: make run-billing-for-day DAY=2026-02-27)
+ifndef DAY
+	$(error DAY is required. Usage: make run-billing-for-day DAY=2026-02-27)
+endif
+	poetry run python -c "\
+from application import create_app; from flask import Flask; \
+app = Flask('billing'); create_app(app); \
+app.app_context().push(); \
+from app.celery.reporting_tasks import create_nightly_billing_for_day; \
+create_nightly_billing_for_day('$(DAY)')"
 
 .PHONY: run-db
 run-db: ## psql to access dev database

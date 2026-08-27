@@ -1,7 +1,7 @@
 import datetime
 import itertools
 import uuid
-from enum import Enum
+from enum import Enum, StrEnum
 from typing import Any, Iterable, Literal
 
 from flask import current_app, url_for
@@ -25,10 +25,11 @@ from notifications_utils.timezones import (
     convert_utc_to_local_timezone,
 )
 from sqlalchemy import CheckConstraint, Index, UniqueConstraint
-from sqlalchemy.dialects.postgresql import JSON, JSONB, UUID
+from sqlalchemy.dialects.postgresql import ARRAY, JSON, JSONB, UUID
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.orm import validates
 
 from app import (
     DATETIME_FORMAT,
@@ -60,17 +61,35 @@ TEMPLATE_PROCESS_TYPE = [NORMAL, PRIORITY, BULK]
 
 SMS_AUTH_TYPE = "sms_auth"
 EMAIL_AUTH_TYPE = "email_auth"
-USER_AUTH_TYPE = [SMS_AUTH_TYPE, EMAIL_AUTH_TYPE]
+SECURITY_KEY_AUTH_TYPE = "security_key_auth"
+USER_AUTH_TYPE = [SMS_AUTH_TYPE, EMAIL_AUTH_TYPE, SECURITY_KEY_AUTH_TYPE]
 
 DELIVERY_STATUS_CALLBACK_TYPE = "delivery_status"
 COMPLAINT_CALLBACK_TYPE = "complaint"
 SERVICE_CALLBACK_TYPES = [DELIVERY_STATUS_CALLBACK_TYPE, COMPLAINT_CALLBACK_TYPE]
+DEFAULT_SMS_DAILY_LIMIT = 1500  # Must match DEFAULT_LIVE_SMS_DAILY_LIMIT in notification-admin/app/config.py
 DEFAULT_SMS_ANNUAL_LIMIT = 100000
 DEFAULT_EMAIL_ANNUAL_LIMIT = 20000000
 
 NOTIFY_USER_ID = "00000000-0000-0000-0000-000000000000"
 
 sms_sending_vehicles = db.Enum(*[vehicle.value for vehicle in SmsSendingVehicles], name="sms_sending_vehicles")
+
+FILE_TYPE_ATTACH = "attach"
+FILE_TYPE_LINK = "link"
+FILE_TYPE_TEMPLATE_ATTACH = "template_attach"
+FILE_TYPES = [FILE_TYPE_ATTACH, FILE_TYPE_LINK, FILE_TYPE_TEMPLATE_ATTACH]
+
+FILE_STATUS_PENDING_VIRUS_SCAN = "pending_virus_scan"
+FILE_STATUS_UPLOADED = "uploaded"
+FILE_STATUS_VIRUS_SCAN_FAILED = "virus_scan_failed"
+FILE_STATUS_DELETED = "deleted"
+FILE_STATUSES = [
+    FILE_STATUS_PENDING_VIRUS_SCAN,
+    FILE_STATUS_UPLOADED,
+    FILE_STATUS_VIRUS_SCAN_FAILED,
+    FILE_STATUS_DELETED,
+]
 
 
 EMAIL_STATUS_FORMATTED = {
@@ -137,6 +156,7 @@ class User(BaseModel):
         nullable=False,
         default=datetime.datetime.utcnow,
     )
+    default_editor_is_rte = db.Column(db.Boolean, nullable=False, default=True)
     updated_at = db.Column(
         db.DateTime,
         index=False,
@@ -166,8 +186,9 @@ class User(BaseModel):
         default=EMAIL_AUTH_TYPE,
     )
     blocked = db.Column(db.Boolean, nullable=False, default=False)
-    additional_information = db.Column(JSONB(none_as_null=True), nullable=True, default={})
+    additional_information = db.Column(JSONB(none_as_null=True), nullable=True, default=dict)
     password_expired = db.Column(db.Boolean, nullable=False, default=False)
+    verified_phonenumber = db.Column(db.Boolean, nullable=True, default=False)
 
     # either email auth or a mobile number must be provided
     CheckConstraint("auth_type = 'email_auth' or mobile_number is not null")
@@ -224,6 +245,8 @@ class User(BaseModel):
             "blocked": self.blocked,
             "additional_information": self.additional_information,
             "password_expired": self.password_expired,
+            "verified_phonenumber": self.verified_phonenumber,
+            "default_editor_is_rte": self.default_editor_is_rte,
         }
 
     def serialize_for_users_list(self) -> dict:
@@ -608,6 +631,8 @@ class Service(BaseModel, Versioned):
     organisation = db.relationship("Organisation", backref="services")
     email_annual_limit = db.Column(db.BigInteger, nullable=False, default=DEFAULT_EMAIL_ANNUAL_LIMIT)
     sms_annual_limit = db.Column(db.BigInteger, nullable=False, default=DEFAULT_SMS_ANNUAL_LIMIT)
+    suspended_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=True)
+    suspended_at = db.Column(db.DateTime, nullable=True)
 
     email_branding = db.relationship(
         "EmailBranding",
@@ -650,7 +675,7 @@ class Service(BaseModel, Versioned):
         fields.pop("letter_logo_filename", None)
         fields.pop("letter_contact_block", None)
         fields.pop("email_branding", None)
-        fields["sms_daily_limit"] = fields.get("sms_daily_limit", 100)
+        fields["sms_daily_limit"] = fields.get("sms_daily_limit", DEFAULT_SMS_DAILY_LIMIT)
         fields["email_annual_limit"] = fields.get("email_annual_limit", DEFAULT_EMAIL_ANNUAL_LIMIT)
         fields["sms_annual_limit"] = fields.get("sms_annual_limit", DEFAULT_SMS_ANNUAL_LIMIT)
 
@@ -985,8 +1010,13 @@ class ApiKey(BaseModel, Versioned):
     )
     created_by = db.relationship("User")
     created_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), index=True, nullable=False)
-    compromised_key_info = db.Column(JSONB(none_as_null=True), nullable=True, default={})
+    compromised_key_info = db.Column(JSONB(none_as_null=True), nullable=True, default=dict)
     last_used_timestamp = db.Column(db.DateTime, index=False, unique=False, nullable=True, default=None)
+    permissions = db.Column(
+        ARRAY(db.String(255)),
+        nullable=True,
+        default=list,
+    )
 
     __table_args__ = (
         Index(
@@ -1009,11 +1039,52 @@ class ApiKey(BaseModel, Versioned):
         if secret:
             self._secret = signer_api_key.sign(str(secret))
 
+    @validates("permissions")
+    def validate_permissions_value(self, _key, value):
+        """Ensure only known permission names are persisted on the api_keys row.
+
+        Acts as a safety net for any internal code path that bypasses REST-layer
+        validation. The authoritative list is API_KEY_PERMISSION_TYPES.
+        """
+        if value is None:
+            return []
+        invalid = [v for v in value if v not in API_KEY_PERMISSION_TYPES]
+        if invalid:
+            # Cast to str for display so non-string values (e.g. None) don't blow
+            # up sorting with a TypeError.
+            invalid_display = sorted({str(v) for v in invalid})
+            raise ValueError(f"Invalid api key permission(s): {invalid_display}")
+        # Deduplicate while preserving order
+        seen: set[str] = set()
+        deduped = []
+        for v in value:
+            if v not in seen:
+                seen.add(v)
+                deduped.append(v)
+        return deduped
+
+    def has_permission(self, permission: str) -> bool:
+        return permission in (self.permissions or [])
+
 
 ApiKeyType = Literal["normal", "team", "test"]
 KEY_TYPE_NORMAL: Literal["normal"] = "normal"
 KEY_TYPE_TEAM: Literal["team"] = "team"
 KEY_TYPE_TEST: Literal["test"] = "test"
+
+
+class ApiKeyPermission(StrEnum):
+    """Permissions that can be granted to an API key (independent of key_type).
+
+    Add new values here when extending API key capabilities. The corresponding
+    string is what gets stored in the ApiKey.permissions array column.
+    """
+
+    MANAGE_TEMPLATES = "manage_templates"
+    MANAGE_REPORTS = "manage_reports"
+
+
+API_KEY_PERMISSION_TYPES: frozenset[str] = frozenset(p.value for p in ApiKeyPermission)
 
 
 class KeyTypes(BaseModel):
@@ -1155,6 +1226,7 @@ class TemplateBase(BaseModel):
     subject = db.Column(db.Text)
     postage = db.Column(db.String, nullable=True)
     text_direction_rtl = db.Column(db.Boolean, nullable=False, default=False)
+    use_custom_unsubscribe_url = db.Column(db.Boolean, nullable=False, default=False)
     CheckConstraint(
         """
         CASE WHEN template_type = 'letter' THEN
@@ -1373,6 +1445,34 @@ class TemplateRedacted(BaseModel):
     )
 
 
+class Files(BaseModel):
+    __tablename__ = "files"
+
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    template_id = db.Column(UUID(as_uuid=True), db.ForeignKey("templates.id"), index=True, nullable=False)
+    service_id = db.Column(UUID(as_uuid=True), db.ForeignKey("services.id"), index=True, nullable=False)
+    document_id = db.Column(UUID(as_uuid=True), nullable=False)
+    type = db.Column(db.Enum(*FILE_TYPES, name="notify_file_type_enum"), nullable=False)
+    name = db.Column(db.Text, nullable=False)
+    mime_type = db.Column(db.Text, nullable=True)
+    file_size = db.Column(db.Integer, nullable=True)
+    status = db.Column(db.Enum(*FILE_STATUSES, name="notify_file_status_enum"), nullable=False)
+    archived = db.Column(db.Boolean, nullable=False, default=False)
+    created_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), index=True, nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    template = db.relationship("Template")
+    service = db.relationship("Service")
+    created_by = db.relationship("User", foreign_keys=[created_by_id], lazy="select")
+
+    @property
+    def file_size_mib(self):
+        if self.file_size is None:
+            return None
+        return self.file_size / (1024 * 1024)
+
+
 class TemplateHistory(TemplateBase):
     __tablename__ = "templates_history"
 
@@ -1517,7 +1617,7 @@ class Job(BaseModel):
     template_version = db.Column(db.Integer, nullable=False)
     created_at = db.Column(
         db.DateTime,
-        index=False,
+        index=True,
         unique=False,
         nullable=False,
         default=datetime.datetime.utcnow,
@@ -1534,7 +1634,7 @@ class Job(BaseModel):
     notifications_delivered = db.Column(db.Integer, nullable=False, default=0)
     notifications_failed = db.Column(db.Integer, nullable=False, default=0)
 
-    processing_started = db.Column(db.DateTime, index=False, unique=False, nullable=True)
+    processing_started = db.Column(db.DateTime, index=True, unique=False, nullable=True)
     processing_finished = db.Column(db.DateTime, index=False, unique=False, nullable=True)
     created_by = db.relationship("User")
     created_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), index=True, nullable=True)
@@ -2203,7 +2303,7 @@ class InvitedUser(BaseModel):
         nullable=False,
         default=EMAIL_AUTH_TYPE,
     )
-    folder_permissions = db.Column(JSONB(none_as_null=True), nullable=False, default=[])
+    folder_permissions = db.Column(JSONB(none_as_null=True), nullable=False, default=list)
 
     # would like to have used properties for this but haven't found a way to make them
     # play nice with marshmallow yet
@@ -2331,11 +2431,13 @@ class Rate(BaseModel):
     valid_from = db.Column(db.DateTime, nullable=False)
     rate = db.Column(db.Float(asdecimal=False), nullable=False)
     notification_type = db.Column(notification_types, index=True, nullable=False)
+    sms_sending_vehicle = db.Column(sms_sending_vehicles, nullable=False, default="long_code")
 
     def __str__(self):
         the_string = "{}".format(self.rate)
         the_string += " {}".format(self.notification_type)
         the_string += " {}".format(self.valid_from)
+        the_string += " {}".format(self.sms_sending_vehicle)
         return the_string
 
 
@@ -2480,6 +2582,8 @@ class FactBilling(BaseModel):
     international = db.Column(db.Boolean, nullable=False, primary_key=True)
     rate = db.Column(db.Numeric(), nullable=False, primary_key=True)
     postage = db.Column(db.String, nullable=False, primary_key=True)
+    sms_sending_vehicle = db.Column(sms_sending_vehicles, nullable=False, primary_key=True)
+    billing_total = db.Column(db.Numeric(16, 8), nullable=True)
     billable_units = db.Column(db.Integer(), nullable=True)
     notifications_sent = db.Column(db.Integer(), nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
@@ -2528,6 +2632,22 @@ class FactNotificationStatus(BaseModel):
     billable_units = db.Column(db.Integer(), nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)
+
+
+class MonthlyNotificationStatsSummary(BaseModel):
+    """
+    Summary table for ft_notification_status
+    Pre-aggregates delivered/sent notifications by month, service, and notification type.
+    Supports incremental updates
+    """
+
+    __tablename__ = "monthly_notification_stats_summary"
+
+    month = db.Column(db.Text, primary_key=True, nullable=False)
+    service_id = db.Column(UUID(as_uuid=True), primary_key=True, nullable=False)
+    notification_type = db.Column(db.Text, primary_key=True, nullable=False)
+    notification_count = db.Column(db.Integer, nullable=False)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
 
 
 class Complaint(BaseModel):
@@ -2653,7 +2773,7 @@ class LoginEvent(BaseModel):
         nullable=False,
     )
     user = db.relationship(User, backref=db.backref("login_events"))
-    data = db.Column(JSONB(none_as_null=True), nullable=False, default={})
+    data = db.Column(JSONB(none_as_null=True), nullable=False, default=dict)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)
 
@@ -2735,6 +2855,10 @@ class Report(BaseModel):
         UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=True
     )  # only set if report is requested by a user
     requesting_user = db.relationship("User")
+    api_key_id = db.Column(
+        UUID(as_uuid=True), db.ForeignKey("api_keys.id"), index=True, nullable=True
+    )  # only set if report is requested via the API
+    api_key = db.relationship("ApiKey")
     service_id = db.Column(
         UUID(as_uuid=True),
         db.ForeignKey("services.id"),
@@ -2757,4 +2881,5 @@ class Report(BaseModel):
             "completed_at": self.completed_at.strftime(DATETIME_FORMAT) if self.completed_at else None,
             "expires_at": self.expires_at.strftime(DATETIME_FORMAT) if self.expires_at else None,
             "url": self.url,
+            "api_key_id": str(self.api_key_id) if self.api_key_id else None,
         }

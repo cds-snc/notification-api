@@ -1,7 +1,8 @@
 import functools
 import itertools
+import time as time_module
 import uuid
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 
 import click
@@ -9,9 +10,12 @@ from click_datetime import Datetime as click_dt
 from flask import cli as flask_cli
 from flask import current_app, json
 from notifications_utils.statsd_decorators import statsd
+from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 
 from app import db
+from app.celery.reporting_tasks import create_nightly_billing_for_day
+from app.config import QueueNames
 from app.dao.annual_billing_dao import dao_create_or_update_annual_billing_for_year
 from app.dao.organisation_dao import (
     dao_add_service_to_organisation,
@@ -25,6 +29,7 @@ from app.models import (
     PROVIDERS,
     Domain,
     EmailBranding,
+    FactBilling,
     LetterBranding,
     Organisation,
     Service,
@@ -318,3 +323,68 @@ def associate_services_to_organisations():
             dao_add_service_to_organisation(service=service, organisation_id=organisation.id)
 
     print("finished associating services to organisations")
+
+
+@bulk_db_command(name="rebuild-ft-billing-utc")
+@click.option(
+    "--start-date",
+    required=False,
+    default=None,
+    type=click.DateTime(formats=["%Y-%m-%d"]),
+    help="First date to rebuild (UTC, inclusive). Defaults to the earliest bst_date in ft_billing.",
+)
+@click.option(
+    "--end-date",
+    required=False,
+    default=None,
+    type=click.DateTime(formats=["%Y-%m-%d"]),
+    help="Last date to rebuild (UTC, inclusive). Defaults to the latest bst_date in ft_billing.",
+)
+@click.option(
+    "--task-delay",
+    required=False,
+    default=0,
+    type=float,
+    help="Seconds to wait between enqueuing each day's task (default: 0). Use to throttle DB load.",
+)
+def rebuild_ft_billing_utc(start_date, end_date, task_delay):
+    """
+    Re-enqueue create-nightly-billing-for-day for every date in ft_billing so that
+    historical rows are regenerated with UTC midnight boundaries instead of Eastern
+    midnight.
+
+    Each task performs a narrow date-range query against notification_history
+    (filtered by created_at and service_id, both indexed) so no single long-running
+    SQL query is issued.  The upsert in update_fact_billing overwrites existing rows.
+    """
+
+    # Resolve date range from ft_billing if not supplied
+    row = db.session.query(func.min(FactBilling.bst_date), func.max(FactBilling.bst_date)).one()
+    db_min, db_max = row[0], row[1]
+
+    if db_min is None:
+        current_app.logger.info("ft_billing is empty — nothing to rebuild.")
+        return
+
+    first_day: date = start_date.date() if start_date else db_min
+    last_day: date = end_date.date() if end_date else db_max
+
+    if first_day > last_day:
+        raise click.BadParameter("--start-date must be on or before --end-date")
+
+    total_days = (last_day - first_day).days + 1
+    current_app.logger.info("rebuild-ft-billing-utc: enqueuing {} day(s) from {} to {}".format(total_days, first_day, last_day))
+
+    enqueued = 0
+    cursor = first_day
+    while cursor <= last_day:
+        create_nightly_billing_for_day.apply_async(
+            kwargs={"process_day": cursor.isoformat()},
+            queue=QueueNames.REPORTING,
+        )
+        enqueued += 1
+        if task_delay > 0:
+            time_module.sleep(task_delay)
+        cursor += timedelta(days=1)
+
+    current_app.logger.info("rebuild-ft-billing-utc: enqueued {} tasks.".format(enqueued))

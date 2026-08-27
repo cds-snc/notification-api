@@ -287,6 +287,7 @@ def _template_has_not_changed(current_data, updated_template):
             "postage",
             "template_category_id",
             "text_direction_rtl",
+            "use_custom_unsubscribe_url",
         )
     )
 

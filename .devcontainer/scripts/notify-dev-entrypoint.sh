@@ -9,6 +9,14 @@ set -ex
 
 git config --global --add safe.directory /workspace
 
+# Configure SSH commit signing using the forwarded SSH agent key
+if ssh-add -L &>/dev/null; then
+  SSH_PUB_KEY=$(ssh-add -L | head -n 1)
+  git config --global gpg.format ssh
+  git config --global user.signingkey "key::${SSH_PUB_KEY}"
+  git config --global commit.gpgsign true
+fi
+
 # Define aliases
 echo -e "\n\n# User's Aliases" >> ~/.zshrc
 echo -e "alias fd=fdfind" >> ~/.zshrc
@@ -39,9 +47,29 @@ echo -e "source /usr/share/doc/fzf/examples/completion.zsh" >> ~/.zshrc
 
 cd /workspace
 
+ENV_FILE=".env"
+ENV_EXAMPLE_FILE=".env.example"
+
+# Check if .env exists
+if [ ! -f "$ENV_FILE" ]; then
+  echo "$ENV_FILE does not exist."
+
+  # Check if .env.example exists
+  if [ -f "$ENV_EXAMPLE_FILE" ]; then
+    echo -e "Creating $ENV_FILE from $ENV_EXAMPLE_FILE."
+    {
+      echo "# TODO: Populate this .env file with contents from \"[CDS Platform - Notify Local] api .env\" in 1Password"
+      cat "$ENV_EXAMPLE_FILE"
+    } > "$ENV_FILE"
+  else
+    echo "Warning: $ENV_EXAMPLE_FILE does not exist. Creating empty $ENV_FILE."
+    echo "# TODO: Populate this .env file with contents from \"[CDS Platform - Notify Local] api .env\" in 1Password" > "$ENV_FILE"
+  fi
+fi
+
 # Poetry autocomplete
 echo -e "fpath+=/.zfunc" >> ~/.zshrc
-echo -e "autoload -Uz compinit && compinit"
+echo -e "autoload -Uz compinit && compinit" >> ~/.zshrc
 
 pip install poetry=="${POETRY_VERSION}" poetry-plugin-sort
 export PATH=$PATH:/home/vscode/.local/bin/
@@ -52,7 +80,7 @@ poetry --version
 poetry config virtualenvs.create false
 
 # Initialize poetry autocompletions
-mkdir ~/.zfunc
+mkdir -p ~/.zfunc
 touch ~/.zfunc/_poetry
 poetry completions zsh > ~/.zfunc/_poetry
 
@@ -65,14 +93,28 @@ echo "source ${POETRY_VENV_PATH}/bin/activate" >> ~/.zshrc
 
 make generate-version-file
 
-# Install dependencies
-poetry install
+# Install dependencies for this repo (no installable package artifact in this project)
+poetry install --no-root
 
 # Install pre-commit hooks
 poetry run pre-commit install
 
 # Upgrade schema of the notification_api database.
-poetry run flask db upgrade
+# During first container startup, postgres can be briefly unavailable.
+db_upgrade_attempts=5
+db_upgrade_delay_seconds=5
+for attempt in $(seq 1 "$db_upgrade_attempts"); do
+  if poetry run flask db upgrade; then
+    break
+  fi
+
+  if [ "$attempt" -lt "$db_upgrade_attempts" ]; then
+    echo "flask db upgrade failed (attempt ${attempt}/${db_upgrade_attempts}). Retrying in ${db_upgrade_delay_seconds}s..."
+    sleep "$db_upgrade_delay_seconds"
+  else
+    echo "WARNING: flask db upgrade failed after ${db_upgrade_attempts} attempts. Run 'poetry run flask db upgrade' once the database is ready."
+  fi
+done
 
 # Set up git blame to ignore certain revisions e.g. sweeping code formatting changes.
 git config blame.ignoreRevsFile .git-blame-ignore-revs

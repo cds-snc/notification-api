@@ -98,7 +98,7 @@ get_notifications_request = {
             },
         },
         "template_type": {"type": "array", "items": {"enum": TEMPLATE_TYPES}},
-        "include_jobs": {"enum": ["true", "True"]},
+        "include_jobs": {"enum": ["true", "True", "false", "False"]},
         "older_than": uuid,
     },
     "additionalProperties": False,
@@ -125,6 +125,27 @@ get_notifications_response = {
     "definitions": {"notification": get_notification_response},
 }
 
+get_bulk_job_request = {
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "description": "schema for path parameters when getting a bulk job",
+    "type": "object",
+    "properties": {
+        "job_id": uuid,
+    },
+    "required": ["job_id"],
+    "additionalProperties": False,
+}
+
+get_bulk_jobs_request = {
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "description": "schema for query parameters allowed when getting bulk jobs",
+    "type": "object",
+    "properties": {
+        "older_than": uuid,
+    },
+    "additionalProperties": False,
+}
+
 post_sms_request = {
     "$schema": "http://json-schema.org/draft-04/schema#",
     "description": "POST sms notification schema",
@@ -137,7 +158,7 @@ post_sms_request = {
         "personalisation": personalisation,
         "scheduled_for": {
             "type": ["string", "null"],
-            "format": "datetime_within_next_day",
+            "format": "datetime_schedule_job",
         },
         "sms_sender_id": uuid,
     },
@@ -183,7 +204,7 @@ post_email_request = {
         "personalisation": personalisation,
         "scheduled_for": {
             "type": ["string", "null"],
-            "format": "datetime_within_next_day",
+            "format": "datetime_schedule_job",
         },
         "email_reply_to_id": uuid,
     },

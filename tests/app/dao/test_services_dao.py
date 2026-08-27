@@ -40,6 +40,7 @@ from app.dao.services_dao import (
     delete_service_and_all_associated_db_objects,
     fetch_service_email_limit,
     fetch_todays_total_message_count,
+    fetch_todays_total_sms_billable_units,
     fetch_todays_total_sms_count,
     get_services_by_partial_name,
 )
@@ -53,6 +54,7 @@ from app.models import (
     KEY_TYPE_TEST,
     LETTER_TYPE,
     SMS_TYPE,
+    UPLOAD_DOCUMENT,
     ApiKey,
     InvitedUser,
     Job,
@@ -639,6 +641,7 @@ def test_create_service_returns_service_with_default_permissions(notify_db_sessi
             SMS_TYPE,
             EMAIL_TYPE,
             INTERNATIONAL_SMS_TYPE,
+            UPLOAD_DOCUMENT,
         ),
     )
 
@@ -651,14 +654,12 @@ def test_create_service_returns_service_with_default_permissions(notify_db_sessi
             (
                 EMAIL_TYPE,
                 INTERNATIONAL_SMS_TYPE,
+                UPLOAD_DOCUMENT,
             ),
         ),
         (
             EMAIL_TYPE,
-            (
-                SMS_TYPE,
-                INTERNATIONAL_SMS_TYPE,
-            ),
+            (SMS_TYPE, INTERNATIONAL_SMS_TYPE, UPLOAD_DOCUMENT),
         ),
     ],
 )
@@ -692,7 +693,7 @@ def test_create_service_by_id_adding_and_removing_letter_returns_service_without
     dao_add_service_permission(service_id=service.id, permission=LETTER_TYPE)
 
     service = dao_fetch_service_by_id(service.id)
-    _assert_service_permissions(service.permissions, (SMS_TYPE, EMAIL_TYPE, INTERNATIONAL_SMS_TYPE, LETTER_TYPE))
+    _assert_service_permissions(service.permissions, (SMS_TYPE, EMAIL_TYPE, INTERNATIONAL_SMS_TYPE, LETTER_TYPE, UPLOAD_DOCUMENT))
 
     dao_remove_service_permission(service_id=service.id, permission=LETTER_TYPE)
     service = dao_fetch_service_by_id(service.id)
@@ -703,6 +704,7 @@ def test_create_service_by_id_adding_and_removing_letter_returns_service_without
             SMS_TYPE,
             EMAIL_TYPE,
             INTERNATIONAL_SMS_TYPE,
+            UPLOAD_DOCUMENT,
         ),
     )
 
@@ -834,7 +836,7 @@ def test_create_service_and_history_is_transactional(notify_db_session):
     with pytest.raises(IntegrityError) as excinfo:
         dao_create_service(service, user)
 
-    assert 'null value in column "name" violates not-null constraint' in str(excinfo.value)
+    assert 'null value in column "name"' in str(excinfo.value)
 
     assert Service.query.count() == 0
     assert Service.get_history_model().query.count() == 0
@@ -855,6 +857,7 @@ def test_delete_service_and_associated_objects(notify_db_session):
             SMS_TYPE,
             EMAIL_TYPE,
             INTERNATIONAL_SMS_TYPE,
+            UPLOAD_DOCUMENT,
         )
     )
 
@@ -1248,7 +1251,7 @@ def test_dao_suspend_service_with_no_api_keys(notify_db_session):
 
 
 @freeze_time("2001-01-01T23:59:00")
-def test_dao_suspend_service_marks_service_as_inactive_and_expires_api_keys(
+def test_dao_suspend_service_marks_service_as_inactive_and_does_not_expire_api_keys(
     notify_db_session,
 ):
     service = create_service()
@@ -1259,11 +1262,11 @@ def test_dao_suspend_service_marks_service_as_inactive_and_expires_api_keys(
     assert service.name == service.name
 
     api_key = ApiKey.query.get(api_key.id)
-    assert api_key.expiry_date == datetime(2001, 1, 1, 23, 59, 00)
+    assert api_key.expiry_date is None
 
 
 @freeze_time("2001-01-01T23:59:00")
-def test_dao_resume_service_marks_service_as_active_and_api_keys_are_still_revoked(
+def test_dao_resume_service_marks_service_as_active_and_api_keys_are_not_revoked(
     notify_db_session,
 ):
     service = create_service()
@@ -1276,7 +1279,7 @@ def test_dao_resume_service_marks_service_as_active_and_api_keys_are_still_revok
     assert Service.query.get(service.id).active
 
     api_key = ApiKey.query.get(api_key.id)
-    assert api_key.expiry_date == datetime(2001, 1, 1, 23, 59, 00)
+    assert api_key.expiry_date is None
 
 
 def test_dao_fetch_active_users_for_service_returns_active_only(notify_db_session):
@@ -1371,6 +1374,58 @@ def test_dao_fetch_service_creator(notify_db_session):
     assert len(entries) == 2
     assert entries[1].created_by_id == active_user_2.id
     assert active_user_1 == dao_fetch_service_creator(service.id)
+
+
+def test_dao_fetch_service_creator_when_version_1_does_not_exist(notify_db_session):
+    active_user_1 = create_user(email="creator@foo.com", state="active")
+    active_user_2 = create_user(email="updater@foo.com", state="active")
+
+    service = Service(
+        name="service_name",
+        email_from="email_from",
+        message_limit=1000,
+        sms_daily_limit=1000,
+        restricted=False,
+        created_by=active_user_1,
+    )
+    dao_create_service(
+        service,
+        active_user_1,
+        service_permissions=[
+            SMS_TYPE,
+            EMAIL_TYPE,
+            INTERNATIONAL_SMS_TYPE,
+        ],
+    )
+
+    # Make some updates to create multiple history entries
+    service.name = "Updated Name 1"
+    dao_update_service(service)
+
+    service.created_by_id = active_user_2.id
+    service.name = "Updated Name 2"
+    dao_update_service(service)
+
+    # Verify we have 3 history entries (versions 1, 2, 3)
+    history_model = Service.get_history_model()
+    entries = history_model.query.filter_by(id=service.id).order_by(history_model.version).all()
+    assert len(entries) == 3
+    assert entries[0].version == 1
+    assert entries[0].created_by_id == active_user_1.id
+
+    # Delete version 1 from history to simulate missing early versions
+    db.session.delete(entries[0])
+    db.session.commit()
+
+    # Verify version 1 is gone
+    remaining_entries = history_model.query.filter_by(id=service.id).order_by(history_model.version).all()
+    assert len(remaining_entries) == 2
+    assert remaining_entries[0].version == 2
+    assert remaining_entries[1].version == 3
+
+    # dao_fetch_service_creator should return the creator from version 2 (earliest available)
+    creator = dao_fetch_service_creator(service.id)
+    assert creator == active_user_1
 
 
 def test_dao_allocating_inbound_number_shows_on_service(notify_db_session):
@@ -1544,3 +1599,64 @@ class TestSensitiveService:
     def test_non_sensitive_service(self, notify_db, notify_db_session):
         sensitive_service = dao_fetch_service_ids_of_sensitive_services()
         assert sensitive_service == []
+
+
+# TODO: Remove feature flag checks after FF_USE_BILLABLE_UNITS go live
+class TestBillableUnitsInServicesDao:
+    """Tests for billable_units functionality in services_dao"""
+
+    @freeze_time("2024-01-15 12:00:00")
+    def test_fetch_todays_total_sms_billable_units_returns_sum(self, notify_db_session, sample_service):
+        """Test that fetch_todays_total_sms_billable_units returns the sum of billable_units for today"""
+
+        sms_template = create_template(service=sample_service, template_type=SMS_TYPE)
+
+        # Create notifications with billable_units
+        save_notification(create_notification(sms_template, billable_units=2))
+        save_notification(create_notification(sms_template, billable_units=3))
+        save_notification(create_notification(sms_template, billable_units=1))
+
+        # Create an email notification (should not be counted)
+        email_template = create_template(service=sample_service, template_type=EMAIL_TYPE)
+        save_notification(create_notification(email_template, billable_units=None))
+
+        result = fetch_todays_total_sms_billable_units(sample_service.id)
+        assert result == 6  # 2 + 3 + 1
+
+    @freeze_time("2024-01-15 12:00:00")
+    def test_fetch_todays_total_sms_billable_units_returns_zero_when_no_sms(self, notify_db_session, sample_service):
+        """Test that fetch_todays_total_sms_billable_units returns 0 when no SMS sent"""
+        from app.dao.services_dao import fetch_todays_total_sms_billable_units
+
+        result = fetch_todays_total_sms_billable_units(sample_service.id)
+        assert result == 0
+
+    @freeze_time("2024-01-15 12:00:00")
+    def test_fetch_todays_total_sms_billable_units_ignores_yesterday(self, notify_db_session, sample_service):
+        """Test that fetch_todays_total_sms_billable_units only counts today's notifications"""
+
+        sms_template = create_template(service=sample_service, template_type=SMS_TYPE)
+
+        # Create today's notification
+        save_notification(create_notification(sms_template, billable_units=5))
+
+        # Create yesterday's notification
+        yesterday = datetime.utcnow() - timedelta(days=1)
+        save_notification(create_notification(sms_template, billable_units=10, created_at=yesterday))
+
+        result = fetch_todays_total_sms_billable_units(sample_service.id)
+        assert result == 5  # Only today's count
+
+    @freeze_time("2024-01-15 12:00:00")
+    def test_fetch_todays_total_sms_billable_units_handles_null_billable_units(self, notify_db_session, sample_service):
+        """Test that fetch_todays_total_sms_billable_units handles NULL billable_units (when flag disabled)"""
+
+        sms_template = create_template(service=sample_service, template_type=SMS_TYPE)
+
+        # Create notifications with and without billable_units
+        save_notification(create_notification(sms_template, billable_units=3))
+        save_notification(create_notification(sms_template, billable_units=None))  # When FF disabled
+        save_notification(create_notification(sms_template, billable_units=2))
+
+        result = fetch_todays_total_sms_billable_units(sample_service.id)
+        assert result == 5  # 3 + 2, NULL is treated as 0

@@ -20,7 +20,7 @@ class ApiUser(HttpUser):
         self.client.post(
             "/v2/notifications/sms",
             json=json_data_sms(Config.SMS_TO, Config.BULK_SMS_TEMPLATE, self.environment.parsed_options.ref),
-            headers=api_headers(Config.API_KEY),
+            headers=api_headers(Config.API_KEY, Config.WAF_SECRET),
         )
 
     @task(15)
@@ -29,7 +29,7 @@ class ApiUser(HttpUser):
         self.client.post(
             "/v2/notifications/sms",
             json=json_data_sms(Config.SMS_TO, Config.NORMAL_SMS_TEMPLATE, self.environment.parsed_options.ref),
-            headers=api_headers(Config.API_KEY),
+            headers=api_headers(Config.API_KEY, Config.WAF_SECRET),
         )
 
     @task(5)
@@ -38,5 +38,5 @@ class ApiUser(HttpUser):
         self.client.post(
             "/v2/notifications/sms",
             json=json_data_sms(Config.SMS_TO, Config.PRIORITY_SMS_TEMPLATE, self.environment.parsed_options.ref),
-            headers=api_headers(Config.API_KEY),
+            headers=api_headers(Config.API_KEY, Config.WAF_SECRET),
         )

@@ -4,8 +4,10 @@ from itertools import islice
 from flask import current_app
 from notifications_utils.statsd_decorators import statsd
 from notifications_utils.timezones import convert_utc_to_local_timezone
+from sqlalchemy import func
+from sqlalchemy.dialects.postgresql import insert
 
-from app import annual_limit_client, notify_celery
+from app import annual_limit_client, db, notify_celery
 from app.config import QueueNames
 from app.cronitor import cronitor
 from app.dao.annual_limits_data_dao import (
@@ -21,7 +23,7 @@ from app.dao.fact_notification_status_dao import (
     update_fact_notification_status,
 )
 from app.dao.users_dao import get_services_for_all_users
-from app.models import Service
+from app.models import FactNotificationStatus, MonthlyNotificationStatsSummary, Service
 from app.user.rest import send_annual_usage_data
 
 
@@ -32,7 +34,7 @@ def create_nightly_billing(day_start=None):
     # day_start is a datetime.date() object. e.g.
     # up to 4 days of data counting back from day_start is consolidated
     if day_start is None:
-        day_start = convert_utc_to_local_timezone(datetime.utcnow()).date() - timedelta(days=1)
+        day_start = datetime.utcnow().date() - timedelta(days=1)
     else:
         # When calling the task its a string in the format of "YYYY-MM-DD"
         day_start = datetime.strptime(day_start, "%Y-%m-%d").date()
@@ -124,9 +126,7 @@ def create_nightly_notification_status_for_day(process_day):
                     len(transit_data), process_day, chunk
                 )
             )
-            # TODO: FF_ANNUAL_LIMIT removal
-            if current_app.config["FF_ANNUAL_LIMIT"]:
-                annual_limit_client.reset_all_notification_counts(chunk)
+            annual_limit_client.reset_all_notification_counts(chunk)
 
         except Exception as e:
             current_app.logger.error(
@@ -134,6 +134,99 @@ def create_nightly_notification_status_for_day(process_day):
                     process_day, chunk, e
                 )
             )
+
+
+@notify_celery.task(name="create-monthly-notification-stats-summary")
+@statsd(namespace="tasks")
+def create_monthly_notification_stats_summary():
+    """
+    Refresh the monthly_notification_stats table for the current and previous month.
+    Uses PostgreSQL upsert (INSERT ... ON CONFLICT) for efficient updates.
+    Only processes last 2 months since historical data rarely changes.
+
+    ***IMPORTANT***
+    This function assumes it is run after the nightly notification status.
+    IT DOESN'T HAVE ALL THE DATA FROM ft_notification_status
+    We do NOT store all notifications, only non-test key notifications and notifications
+    that have been delivered and sent.
+
+    function we are optimizing for:
+    def fetch_delivered_notification_stats_by_month(filter_heartbeats=None):
+    query = (
+        db.session.query(
+            func.date_trunc("month", FactNotificationStatus.bst_date).cast(db.Text).label("month"),
+            FactNotificationStatus.notification_type,
+            func.sum(FactNotificationStatus.notification_count).label("count"),
+        )
+        .filter(
+            FactNotificationStatus.key_type != KEY_TYPE_TEST,
+            FactNotificationStatus.notification_status.in_([NOTIFICATION_DELIVERED, NOTIFICATION_SENT]),
+            FactNotificationStatus.bst_date >= "2019-11-01",  # GC Notify start date
+        )
+        .group_by(
+            func.date_trunc("month", FactNotificationStatus.bst_date),
+            FactNotificationStatus.notification_type,
+        )
+        .order_by(
+            func.date_trunc("month", FactNotificationStatus.bst_date).desc(),
+            FactNotificationStatus.notification_type,
+        )
+    )
+    """
+    current_app.logger.info("create-monthly-notification-stats-summary STARTED")
+    start_time = datetime.now(timezone.utc)
+
+    # Calculate the first day of current month and previous month
+    today = convert_utc_to_local_timezone(datetime.utcnow()).date()
+    current_month_start = today.replace(day=1)
+    previous_month_start = (current_month_start - timedelta(days=1)).replace(day=1)
+
+    try:
+        # Single efficient query with upsert logic
+        # This aggregates data for last 2 months and upserts in one statement
+        table = MonthlyNotificationStatsSummary.__table__
+
+        stmt = insert(table).from_select(
+            ["month", "service_id", "notification_type", "notification_count", "updated_at"],
+            db.session.query(
+                func.date_trunc("month", FactNotificationStatus.bst_date).cast(db.Text).label("month"),
+                FactNotificationStatus.service_id,
+                FactNotificationStatus.notification_type,
+                func.sum(FactNotificationStatus.notification_count).label("notification_count"),
+                func.now().label("updated_at"),
+            )
+            .filter(
+                FactNotificationStatus.key_type != "test",
+                FactNotificationStatus.notification_status.in_(["delivered", "sent"]),
+                FactNotificationStatus.bst_date >= previous_month_start,
+            )
+            .group_by(
+                func.date_trunc("month", FactNotificationStatus.bst_date),
+                FactNotificationStatus.service_id,
+                FactNotificationStatus.notification_type,
+            ),
+        )
+
+        stmt = stmt.on_conflict_do_update(
+            index_elements=["month", "service_id", "notification_type"],
+            set_={"notification_count": stmt.excluded.notification_count, "updated_at": stmt.excluded.updated_at},
+        )
+
+        result = db.session.execute(stmt)
+        db.session.commit()
+
+        end_time = datetime.now(timezone.utc)
+        duration = (end_time - start_time).total_seconds()
+
+        current_app.logger.info(
+            "create-monthly-notification-stats-summary COMPLETED: {} rows affected in {:.2f} seconds for months: {}, {}".format(
+                result.rowcount, duration, previous_month_start.strftime("%Y-%m"), current_month_start.strftime("%Y-%m")
+            )
+        )
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error("create-monthly-notification-stats-summary FAILED: {}".format(e))
 
 
 @notify_celery.task(name="insert-quarter-data-for-annual-limits")
@@ -218,21 +311,21 @@ def _create_quarterly_email_markdown_list(service_info, service_ids, cummulative
         markdown_list_en += f"## {service_name} \n"
         markdown_list_fr += f"## {service_name} \n"
 
-        email_percentage = round(float(email_count / email_annual_limit), 4) * 100 if email_count else 0
+        email_percentage = round(float(email_count / email_annual_limit) * 100, 2) if email_count else 0
         email_count_en = _format_number(email_count)
         email_annual_limit_en = _format_number(email_annual_limit)
         email_count_fr = _format_number(email_count, use_space=True)
         email_annual_limit_fr = _format_number(email_annual_limit, use_space=True)
-        markdown_list_en += f"Emails: you've sent {email_count_en} out of {email_annual_limit_en} ({email_percentage}%)\n"
-        markdown_list_fr += f"Courriels: {email_count_fr} envoyés sur {email_annual_limit_fr} ({email_percentage}%)\n"
+        markdown_list_en += f"Emails: you've sent {email_count_en} out of {email_annual_limit_en} ({email_percentage:.2f}%)\n"
+        markdown_list_fr += f"Courriels: {email_count_fr} envoyés sur {email_annual_limit_fr} ({email_percentage:.2f}%)\n"
 
-        sms_percentage = round(float(sms_count / sms_annual_limit), 4) * 100 if sms_count else 0
+        sms_percentage = round(float(sms_count / sms_annual_limit) * 100, 2) if sms_count else 0
         sms_count_en = _format_number(sms_count)
         sms_annual_limit_en = _format_number(sms_annual_limit)
         sms_count_fr = _format_number(sms_count, use_space=True)
         sms_annual_limit_fr = _format_number(sms_annual_limit, use_space=True)
-        markdown_list_en += f"Text messages: you've sent {sms_count_en} out of {sms_annual_limit_en} ({sms_percentage}%)\n"
-        markdown_list_fr += f"Messages texte : {sms_count_fr} envoyés sur {sms_annual_limit_fr} ({sms_percentage}%)\n"
+        markdown_list_en += f"Text messages: you've sent {sms_count_en} out of {sms_annual_limit_en} ({sms_percentage:.2f}%)\n"
+        markdown_list_fr += f"Messages texte : {sms_count_fr} envoyés sur {sms_annual_limit_fr} ({sms_percentage:.2f}%)\n"
 
         markdown_list_en += "\n"
         markdown_list_fr += "\n"
@@ -267,8 +360,9 @@ def send_quarter_email(process_date=None):
             cummulative_data = fetch_quarter_cummulative_stats(quarters_list, all_service_ids)
             cummulative_data_dict = {str(c_data_id): c_data for c_data_id, c_data in cummulative_data}
             for user_id, _, service_ids in chunk:
+                sorted_service_ids = sorted(service_ids, key=lambda service_id: service_info[service_id][0])
                 markdown_list_en, markdown_list_fr = _create_quarterly_email_markdown_list(
-                    service_info, service_ids, cummulative_data_dict
+                    service_info, sorted_service_ids, cummulative_data_dict
                 )
                 send_annual_usage_data(user_id, start_year, end_year, markdown_list_en, markdown_list_fr)
                 current_app.logger.info("send_quarter_email task completed for user {} ".format(user_id))

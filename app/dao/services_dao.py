@@ -16,6 +16,7 @@ from app.dao.date_util import get_current_financial_year, get_midnight
 from app.dao.email_branding_dao import dao_get_email_branding_by_name
 from app.dao.letter_branding_dao import dao_get_letter_branding_by_name
 from app.dao.organisation_dao import dao_get_organisation_by_email_address
+from app.dao.permissions_dao import permission_dao
 from app.dao.service_sms_sender_dao import insert_service_sms_sender
 from app.dao.service_user_dao import dao_get_service_user
 from app.dao.template_folder_dao import dao_get_valid_template_folders_by_id
@@ -28,6 +29,7 @@ from app.models import (
     NHS_ORGANISATION_TYPES,
     NON_CROWN_ORGANISATION_TYPES,
     SMS_TYPE,
+    UPLOAD_DOCUMENT,
     AnnualBilling,
     ApiKey,
     FactBilling,
@@ -60,6 +62,7 @@ DEFAULT_SERVICE_PERMISSIONS = [
     SMS_TYPE,
     EMAIL_TYPE,
     INTERNATIONAL_SMS_TYPE,
+    UPLOAD_DOCUMENT,
 ]
 
 
@@ -234,12 +237,41 @@ def dao_fetch_all_services_by_user(user_id, only_active=False):
 
 
 @transactional
+def dao_archive_service(service_id, user_id=None):
+    """
+    Archive a service and commit the change.
+
+    This is a convenience wrapper that calls the non-transactional core
+    implementation and then commits (via the `@transactional` decorator).
+
+    Use this when you want the DAO to manage its own transaction.
+    Do NOT call this function from inside an outer `with db.session.begin():`
+    block because the inner commit will end the outer transaction and break
+    atomicity.
+    """
+
+    return dao_archive_service_no_transaction(service_id, user_id)
+
+
 @version_class(
     VersionOptions(ApiKey, must_write_history=False),
     VersionOptions(Service),
     VersionOptions(Template, history_class=TemplateHistory, must_write_history=False),
 )
-def dao_archive_service(service_id):
+def dao_archive_service_no_transaction(service_id, user_id=None):
+    """
+    Core archive implementation that DOES NOT commit the session.
+
+    Intended usage:
+      - Call this function from within a caller-managed transaction, e.g.
+        `with db.session.begin(): dao_archive_service_no_transaction(...)`.
+      - This keeps multiple related DB mutations atomic and allows the caller
+        to commit or roll back as a single unit.
+
+    Note: callers that want the old behaviour (function commits itself) should
+    call `dao_archive_service(...)` instead.
+    """
+
     # have to eager load templates and api keys so that we don't flush when we loop through them
     # to ensure that db.session still contains the models when it comes to creating history objects
     service = (
@@ -251,11 +283,15 @@ def dao_archive_service(service_id):
         .filter(Service.id == service_id)
         .one()
     )
+    original_service_name = service.name
 
     time = datetime.utcnow().strftime("%Y-%m-%d_%H:%M:%S")
     service.active = False
     service.name = "_archived_" + time + "_" + service.name
     service.email_from = "_archived_" + time + "_" + service.email_from
+    service.suspended_at = datetime.now(tz=pytz.UTC)
+    if user_id is not None:
+        service.suspended_by_id = user_id
 
     for template in service.templates:
         if not template.archived:
@@ -264,6 +300,8 @@ def dao_archive_service(service_id):
     for api_key in service.api_keys:
         if not api_key.expiry_date:
             api_key.expiry_date = datetime.utcnow()
+
+    return original_service_name
 
 
 def dao_fetch_service_by_id_and_user(service_id, user_id):
@@ -293,8 +331,6 @@ def dao_create_service(
         organisation = get_organisation_by_id(organisation_id)
     else:
         organisation = dao_get_organisation_by_email_address(user.email_address)
-
-    from app.dao.permissions_dao import permission_dao
 
     service.users.append(user)
     permission_dao.add_default_service_permissions_for_user(user, service)
@@ -344,8 +380,6 @@ def dao_add_user_to_service(service, user, permissions=None, folder_permissions=
     folder_permissions = folder_permissions or []
 
     try:
-        from app.dao.permissions_dao import permission_dao
-
         service.users.append(user)
         permission_dao.set_user_service_permission(user, service, permissions, _commit=False)
         db.session.add(service)
@@ -462,6 +496,22 @@ def fetch_todays_total_sms_count(service_id):
     return 0 if result is None or result.total_sms_notifications is None else result.total_sms_notifications
 
 
+def fetch_todays_total_sms_billable_units(service_id):
+    """Fetch total SMS billable units for today for a service."""
+    midnight = get_midnight(datetime.now(tz=pytz.utc))
+    result = (
+        db.session.query(func.coalesce(func.sum(Notification.billable_units), 0).label("total_sms_billable_units"))
+        .filter(
+            Notification.service_id == service_id,
+            Notification.key_type != KEY_TYPE_TEST,
+            Notification.created_at > midnight,
+            Notification.notification_type == "sms",
+        )
+        .first()
+    )
+    return 0 if result is None or result.total_sms_billable_units is None else result.total_sms_billable_units
+
+
 def fetch_service_email_limit(service_id: uuid.UUID) -> int:
     return Service.query.get(service_id).message_limit
 
@@ -552,11 +602,40 @@ def dao_fetch_todays_stats_for_all_services(include_from_test_key=True, only_act
 
 
 @transactional
+def dao_suspend_service(service_id, user_id=None):
+    """
+    Suspend a service and commit the change.
+
+    This is a convenience wrapper that calls the non-transactional core
+    implementation and then commits (via the `@transactional` decorator).
+
+    Use this when you want the DAO to manage its own transaction.
+    Do NOT call this function from inside an outer `with db.session.begin():`
+    block because the inner commit will end the outer transaction and break
+    atomicity.
+    """
+
+    dao_suspend_service_no_transaction(service_id, user_id)
+
+
 @version_class(
     VersionOptions(ApiKey, must_write_history=False),
     VersionOptions(Service),
 )
-def dao_suspend_service(service_id):
+def dao_suspend_service_no_transaction(service_id, user_id=None):
+    """
+    Core suspend implementation that DOES NOT commit the session.
+
+    Intended usage:
+      - Call this function from within a caller-managed transaction, e.g.
+        `with db.session.begin(): dao_suspend_service_no_transaction(...)`.
+      - This keeps multiple related DB mutations atomic and allows the caller
+        to commit or roll back as a single unit.
+
+    Note: callers that want the old behaviour (function commits itself) should
+    call `dao_suspend_service(...)` instead.
+    """
+
     # have to eager load api keys so that we don't flush when we loop through them
     # to ensure that db.session still contains the models when it comes to creating history objects
     service = (
@@ -567,11 +646,11 @@ def dao_suspend_service(service_id):
         .one()
     )
 
-    for api_key in service.api_keys:
-        if not api_key.expiry_date:
-            api_key.expiry_date = datetime.utcnow()
-
     service.active = False
+    service.suspended_at = datetime.now(tz=pytz.UTC)
+    # only set suspended_by_id when a user_id is provided
+    if user_id is not None:
+        service.suspended_by_id = user_id
 
 
 @transactional
@@ -579,6 +658,8 @@ def dao_suspend_service(service_id):
 def dao_resume_service(service_id):
     service = Service.query.get(service_id)
     service.active = True
+    service.suspended_at = None
+    service.suspended_by_id = None
 
 
 def dao_fetch_active_users_for_service(service_id):
@@ -589,9 +670,13 @@ def dao_fetch_active_users_for_service(service_id):
 
 def dao_fetch_service_creator(service_id: uuid.UUID) -> User:
     service_history = Service.get_history_model()
+
+    # Find the earliest version for this service
+    earliest_version = db.session.query(func.min(service_history.version)).filter(service_history.id == service_id).scalar()
+
     query = (
         User.query.join(service_history, User.id == service_history.created_by_id)
-        .filter(service_history.id == service_id, service_history.version == 1)
+        .filter(service_history.id == service_id, service_history.version == earliest_version)
         .one()
     )
     return query

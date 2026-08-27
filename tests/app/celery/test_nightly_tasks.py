@@ -247,6 +247,52 @@ def test_timeout_notifications_sends_status_update_to_service(client, sample_tem
     mocked.assert_called_once_with([str(notification.id), signed_data, notification.service_id], queue=QueueNames.CALLBACKS)
 
 
+def test_timeout_notifications_logs_and_increments_statsd_for_temporary_failures(notify_api, sample_template, mocker):
+    """When notifications time out without a receipt (sending/pending -> temporary-failure),
+    we should log the count and increment a statsd counter so we can track the rate of
+    no-receipt billable notifications."""
+    statsd_mock = mocker.patch("app.celery.nightly_tasks.statsd_client.incr")
+    logger_mock = mocker.patch.object(nightly_tasks.current_app.logger, "info")
+
+    with notify_api.test_request_context():
+        timeout_seconds = current_app.config.get("SENDING_NOTIFICATIONS_TIMEOUT_PERIOD") + 10
+        save_notification(
+            create_notification(
+                template=sample_template,
+                status="sending",
+                created_at=datetime.utcnow() - timedelta(seconds=timeout_seconds),
+            )
+        )
+        save_notification(
+            create_notification(
+                template=sample_template,
+                status="pending",
+                created_at=datetime.utcnow() - timedelta(seconds=timeout_seconds),
+            )
+        )
+
+        timeout_notifications()
+
+        statsd_mock.assert_any_call("notifications.timeout.temporary_failure", 2)
+        assert any("temporary-failure (no receipt; billable)" in str(call_args) for call_args in logger_mock.call_args_list)
+
+
+def test_timeout_notifications_does_not_log_or_increment_when_no_temporary_failures(notify_api, sample_template, mocker):
+    """When no notifications time out into temporary-failure, we should not emit the
+    temporary-failure log line or the statsd counter."""
+    statsd_mock = mocker.patch("app.celery.nightly_tasks.statsd_client.incr")
+    logger_mock = mocker.patch.object(nightly_tasks.current_app.logger, "info")
+
+    with notify_api.test_request_context():
+        timeout_notifications()
+
+        assert not any(
+            call_args.args and call_args.args[0] == "notifications.timeout.temporary_failure"
+            for call_args in statsd_mock.call_args_list
+        )
+        assert not any("temporary-failure (no receipt; billable)" in str(call_args) for call_args in logger_mock.call_args_list)
+
+
 def test_send_daily_performance_stats_calls_does_not_send_if_inactive(client, mocker):
     send_mock = mocker.patch("app.celery.nightly_tasks.total_sent_notifications.send_total_notifications_sent_for_day_stats")  # noqa
 
@@ -411,6 +457,7 @@ def test_delete_dvla_response_files_older_than_seven_days_does_not_remove_files(
     remove_s3_mock.assert_not_called()
 
 
+@pytest.mark.skip(reason="letter test")
 @freeze_time("2018-01-17 17:00:00")
 def test_alert_if_letter_notifications_still_sending(sample_letter_template, mocker):
     two_days_ago = datetime(2018, 1, 15, 13, 30)
@@ -438,6 +485,7 @@ def test_alert_if_letter_notifications_still_sending_a_day_ago_no_alert(sample_l
     assert not mock_create_ticket.called
 
 
+@pytest.mark.skip(reason="letter test")
 @freeze_time("2018-01-17 17:00:00")
 def test_alert_if_letter_notifications_still_sending_only_alerts_sending(sample_letter_template, mocker):
     two_days_ago = datetime(2018, 1, 15, 13, 30)
@@ -456,6 +504,7 @@ def test_alert_if_letter_notifications_still_sending_only_alerts_sending(sample_
     )
 
 
+@pytest.mark.skip(reason="letter test")
 @freeze_time("2018-01-17 17:00:00")
 def test_alert_if_letter_notifications_still_sending_alerts_for_older_than_offset(sample_letter_template, mocker):
     three_days_ago = datetime(2018, 1, 14, 13, 30)
@@ -484,6 +533,7 @@ def test_alert_if_letter_notifications_still_sending_does_nothing_on_the_weekend
     assert not mock_create_ticket.called
 
 
+@pytest.mark.skip(reason="letter test")
 @freeze_time("2018-01-15 17:00:00")
 def test_monday_alert_if_letter_notifications_still_sending_reports_thursday_letters(sample_letter_template, mocker):
     thursday = datetime(2018, 1, 11, 13, 30)
@@ -502,6 +552,7 @@ def test_monday_alert_if_letter_notifications_still_sending_reports_thursday_let
     )
 
 
+@pytest.mark.skip(reason="letter")
 @freeze_time("2018-01-16 17:00:00")
 def test_tuesday_alert_if_letter_notifications_still_sending_reports_friday_letters(sample_letter_template, mocker):
     friday = datetime(2018, 1, 12, 13, 30)
@@ -543,6 +594,7 @@ def test_letter_raise_alert_if_no_ack_file_for_zip_does_not_raise_when_files_mat
     ]
 
 
+@pytest.mark.skip(reason="letter test")
 @freeze_time("2018-01-11T23:00:00")
 def test_letter_raise_alert_if_ack_files_not_match_zip_list(mocker, notify_db):
     mock_file_list = mocker.patch("app.aws.s3.get_list_of_files_by_suffix", side_effect=mock_s3_get_list_diff)

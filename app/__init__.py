@@ -23,6 +23,8 @@ from werkzeug.local import LocalProxy
 from app.aws.metrics_logger import MetricsLogger
 from app.celery.celery import NotifyCelery
 from app.clients import Clients
+from app.clients.airtable.airtable_client import AirtableClient
+from app.clients.airtable.models import GrowthNewsletterSubscriber, LatestNewsletterTemplate, NewsletterSubscriber
 from app.clients.document_download import DocumentDownloadClient
 from app.clients.email.aws_ses import AwsSesClient
 from app.clients.performance_platform.performance_platform_client import (
@@ -31,10 +33,12 @@ from app.clients.performance_platform.performance_platform_client import (
 from app.clients.salesforce.salesforce_client import SalesforceClient
 from app.clients.sms.aws_pinpoint import AwsPinpointClient
 from app.clients.sms.aws_sns import AwsSnsClient
-from app.dbsetup import RoutingSQLAlchemy
+from app.dbsetup import RoutingSQLAlchemy, enable_sqlalchemy_debug_logging
 from app.encryption import CryptoSigner
 from app.json_provider import NotifyJSONProvider
+from app.otel_request_metrics import init_otel_request_metrics
 from app.queue import RedisQueue
+from app.rate_limiter import initialize_rate_limiter
 
 DATETIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 DATE_FORMAT = "%Y-%m-%d"
@@ -58,7 +62,7 @@ signer_inbound_sms = CryptoSigner()
 zendesk_client = ZendeskClient()
 statsd_client = StatsdClient()
 flask_redis = FlaskRedis()
-flask_redis_publish = FlaskRedis(config_prefix="REDIS_PUBLISH")
+flask_cache_ops = FlaskRedis(config_prefix="CACHE_OPS")
 redis_store = RedisClient()
 bounce_rate_client = RedisBounceRate(redis_store)
 annual_limit_client = RedisAnnualLimit(redis_store)
@@ -69,6 +73,7 @@ sms_queue = RedisQueue("sms")
 performance_platform_client = PerformancePlatformClient()
 document_download_client = DocumentDownloadClient()
 salesforce_client = SalesforceClient()
+airtable_client = AirtableClient()
 
 clients = Clients()
 
@@ -105,15 +110,28 @@ def create_app(application, config=None):
     application.json = NotifyJSONProvider(application)
     request_helper.init_app(application)
     db.init_app(application)
+    enable_sqlalchemy_debug_logging(application, db)
     migrate.init_app(application, db=db)
     marshmallow.init_app(application)
     zendesk_client.init_app(application)
     statsd_client.init_app(application)
     logging.init_app(application, statsd_client)
+    # Ugly temporary hack to get the rate limiter debug logging to work in staging.
+    # This should be removed when we have a better way of configuring logging levels
+    # for specific loggers.
+    if application.config.get("NOTIFY_ENVIRONMENT") == "staging":
+        import logging as stdlib_logging
+
+        stdlib_logging.getLogger("app.rate_limiter").setLevel(stdlib_logging.DEBUG)
+    if application.config.get("OTEL_REQUEST_METRICS_ENABLED", False):
+        init_otel_request_metrics(application)
     aws_sns_client.init_app(application, statsd_client=statsd_client)
     aws_pinpoint_client.init_app(application, statsd_client=statsd_client)
     aws_ses_client.init_app(application.config["AWS_REGION"], statsd_client=statsd_client)
     notify_celery.init_app(application)
+    NewsletterSubscriber.init_app(application)
+    GrowthNewsletterSubscriber.init_app(application)
+    LatestNewsletterTemplate.init_app(application)
 
     signer_notification.init_app(application, secret_key=application.config["SECRET_KEY"], salt="notification")
     signer_personalisation.init_app(application, secret_key=application.config["SECRET_KEY"], salt="personalisation")
@@ -125,46 +143,60 @@ def create_app(application, config=None):
 
     performance_platform_client.init_app(application)
     document_download_client.init_app(application)
+    airtable_client.init_app(application)
     clients.init_app(sms_clients=[aws_sns_client, aws_pinpoint_client], email_clients=[aws_ses_client])
 
     if application.config["FF_SALESFORCE_CONTACT"]:
         salesforce_client.init_app(application)
 
+    # Initialize the rate limiter for SMS delivery tasks, then wrap it in a
+    # BufferedRateLimiter to reduce network round-trips per Celery worker.
+    initialize_rate_limiter(application.config["CELERY_DELIVER_SMS_RATE_LIMIT_PER_MINUTE"], namespace="sms").buffered(
+        application.config["SMS_RATE_LIMITER_BATCH"]
+    )
+
     flask_redis.init_app(application)
-    flask_redis_publish.init_app(application)
+    flask_cache_ops.init_app(application)
     redis_store.init_app(application)
     bounce_rate_client.init_app(application)
 
-    sms_bulk_publish.init_app(flask_redis_publish, metrics_logger)
-    sms_normal_publish.init_app(flask_redis_publish, metrics_logger)
-    sms_priority_publish.init_app(flask_redis_publish, metrics_logger)
-    email_bulk_publish.init_app(flask_redis_publish, metrics_logger)
-    email_normal_publish.init_app(flask_redis_publish, metrics_logger)
-    email_priority_publish.init_app(flask_redis_publish, metrics_logger)
+    sms_bulk_publish.init_app(flask_cache_ops, metrics_logger)
+    sms_normal_publish.init_app(flask_cache_ops, metrics_logger)
+    sms_priority_publish.init_app(flask_cache_ops, metrics_logger)
+    email_bulk_publish.init_app(flask_cache_ops, metrics_logger)
+    email_normal_publish.init_app(flask_cache_ops, metrics_logger)
+    email_priority_publish.init_app(flask_cache_ops, metrics_logger)
 
-    sms_bulk.init_app(flask_redis, metrics_logger)
-    sms_normal.init_app(flask_redis, metrics_logger)
-    sms_priority.init_app(flask_redis, metrics_logger)
-    email_bulk.init_app(flask_redis, metrics_logger)
-    email_normal.init_app(flask_redis, metrics_logger)
-    email_priority.init_app(flask_redis, metrics_logger)
+    sms_bulk.init_app(flask_cache_ops, metrics_logger)
+    sms_normal.init_app(flask_cache_ops, metrics_logger)
+    sms_priority.init_app(flask_cache_ops, metrics_logger)
+    email_bulk.init_app(flask_cache_ops, metrics_logger)
+    email_normal.init_app(flask_cache_ops, metrics_logger)
+    email_priority.init_app(flask_cache_ops, metrics_logger)
 
-    register_blueprint(application)
-    register_v2_blueprints(application)
+    # Celery worker pods never serve HTTP and have no need for REST API blueprints
+    # or CLI commands. Skipping them avoids importing ~30 blueprint modules, their
+    # schemas, and view functions, which saves a significant amount of RAM per pod.
+    is_celery_worker = application.name == "celery"
+
+    if not is_celery_worker:
+        register_blueprint(application)
+        register_v2_blueprints(application)
 
     # Log the application configuration
     application.logger.info(f"Notify config: {config.get_safe_config()}")
 
-    # avoid circular imports by importing these files later
-    from app.commands.bulk_db import setup_bulk_db_commands
-    from app.commands.deprecated import setup_deprecated_commands
-    from app.commands.support import setup_support_commands
-    from app.commands.test_data import setup_test_data_commands
+    if not is_celery_worker:
+        # avoid circular imports by importing these files later
+        from app.commands.bulk_db import setup_bulk_db_commands
+        from app.commands.deprecated import setup_deprecated_commands
+        from app.commands.support import setup_support_commands
+        from app.commands.test_data import setup_test_data_commands
 
-    setup_support_commands(application)
-    setup_bulk_db_commands(application)
-    setup_test_data_commands(application)
-    setup_deprecated_commands(application)
+        setup_support_commands(application)
+        setup_bulk_db_commands(application)
+        setup_test_data_commands(application)
+        setup_deprecated_commands(application)
 
     return application
 
@@ -187,6 +219,7 @@ def register_blueprint(application):
         requires_cache_clear_auth,
         requires_cypress_auth,
         requires_no_auth,
+        requires_scan_verdict_auth,
         requires_sre_auth,
     )
     from app.billing.rest import billing_blueprint
@@ -195,15 +228,14 @@ def register_blueprint(application):
     from app.cypress.rest import cypress_blueprint
     from app.email_branding.rest import email_branding_blueprint
     from app.events.rest import events as events_blueprint
+    from app.files.rest import files_blueprint, scan_verdict_callback_blueprint
     from app.inbound_number.rest import inbound_number_blueprint
     from app.inbound_sms.rest import inbound_sms as inbound_sms_blueprint
     from app.invite.rest import invite as invite_blueprint
     from app.job.rest import job_blueprint
     from app.letter_branding.letter_branding_rest import letter_branding_blueprint
     from app.letters.rest import letter_job
-    from app.notifications.notifications_letter_callback import (
-        letter_callback_blueprint,
-    )
+    from app.newsletter.rest import newsletter_blueprint
     from app.notifications.rest import notifications as notifications_blueprint
     from app.organisation.invite_rest import organisation_invite_blueprint
     from app.organisation.rest import organisation_blueprint
@@ -232,6 +264,10 @@ def register_blueprint(application):
 
     register_notify_blueprint(application, notifications_blueprint, requires_auth)
 
+    register_notify_blueprint(application, files_blueprint, requires_admin_auth)
+
+    register_notify_blueprint(application, scan_verdict_callback_blueprint, requires_scan_verdict_auth)
+
     register_notify_blueprint(application, job_blueprint, requires_admin_auth)
 
     register_notify_blueprint(application, invite_blueprint, requires_admin_auth)
@@ -255,8 +291,6 @@ def register_blueprint(application):
     register_notify_blueprint(application, sre_tools_blueprint, requires_sre_auth, "/sre-tools")
 
     register_notify_blueprint(application, letter_job, requires_admin_auth)
-
-    register_notify_blueprint(application, letter_callback_blueprint, requires_no_auth)
 
     register_notify_blueprint(application, billing_blueprint, requires_admin_auth)
 
@@ -284,16 +318,34 @@ def register_blueprint(application):
 
     register_notify_blueprint(application, report_blueprint, requires_admin_auth)
 
+    register_notify_blueprint(application, newsletter_blueprint, requires_admin_auth)
+
 
 def register_v2_blueprints(application):
-    from app.authentication.auth import requires_auth
+    from app.authentication.auth import requires_auth, requires_no_auth
+    from app.v2.api_spec.get_api_spec import v2_api_spec_blueprint
     from app.v2.inbound_sms.get_inbound_sms import (
         v2_inbound_sms_blueprint as get_inbound_sms,
     )
+    from app.v2.manage_template import (  # noqa
+        delete_template,
+        get_template,
+        get_template_categories,
+        patch_template,
+        post_template,
+        v2_manage_template_blueprint,
+    )
     from app.v2.notifications import (  # noqa
+        get_bulk_jobs,
         get_notifications,
         post_notifications,
         v2_notification_blueprint,
+    )
+    from app.v2.reports import (  # noqa
+        get_report_content,
+        get_reports,
+        post_reports,
+        v2_reports_blueprint,
     )
     from app.v2.template import (  # noqa
         get_template,
@@ -308,7 +360,14 @@ def register_v2_blueprints(application):
 
     register_notify_blueprint(application, v2_template_blueprint, requires_auth)
 
+    register_notify_blueprint(application, v2_manage_template_blueprint, requires_auth)
+
     register_notify_blueprint(application, get_inbound_sms, requires_auth)
+
+    register_notify_blueprint(application, v2_api_spec_blueprint, requires_no_auth)
+
+    if application.config["FF_REPORT_API"]:
+        register_notify_blueprint(application, v2_reports_blueprint, requires_auth)
 
 
 def init_app(app):
@@ -323,9 +382,17 @@ def init_app(app):
 
     @app.after_request
     def after_request(response):
-        response.headers.add("Access-Control-Allow-Origin", "*")
+        ALLOWED_ORIGINS = {
+            "https://documentation.notification.canada.ca",
+            "https://documentation.staging.notification.cdssandbox.xyz",
+            "https://documentation.dev.notification.cdssandbox.xyz",
+            "https://cds-snc.github.io",
+        }
+        origin = request.headers.get("Origin")
+        if origin in ALLOWED_ORIGINS:
+            response.headers["Access-Control-Allow-Origin"] = origin
         response.headers.add("Access-Control-Allow-Headers", "Content-Type,Authorization")
-        response.headers.add("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE")
+        response.headers.add("Access-Control-Allow-Methods", "GET,PUT,POST,PATCH,DELETE")
         return response
 
     @app.errorhandler(Exception)

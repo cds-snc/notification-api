@@ -55,7 +55,7 @@ class Translate:
         return x
 
 
-def build_notifications_query(service_id, notification_type, language, notification_statuses=[], job_id=None, days_limit=7):
+def build_notifications_query(service_id, notification_type, language, notification_statuses=None, job_id=None, days_limit=7):
     """
     Builds and returns an SQLAlchemy query for notifications with the specified parameters.
 
@@ -107,7 +107,6 @@ def build_notifications_query(service_id, notification_type, language, notificat
         .outerjoin(j, j.id == n.job_id)
         .outerjoin(u, u.id == n.created_by_id)
         .filter(*query_filters)
-        .order_by(n.created_at.asc() if job_id else n.created_at.desc())
         .subquery()
     )
 
@@ -183,7 +182,10 @@ def build_notifications_query(service_id, notification_type, language, notificat
         ]
     )
 
-    return db.session.query(*query_columns)
+    # Add ordering to the outer query to guarantee CSV row order
+    return db.session.query(*query_columns).order_by(
+        inner_query.c.created_at.asc() if job_id else inner_query.c.created_at.desc()
+    )
 
 
 def compile_query_for_copy(query):
@@ -223,7 +225,7 @@ def stream_query_to_s3(copy_command, s3_bucket, s3_key):
 
 
 def generate_csv_from_notifications(
-    service_id, notification_type, language, notification_statuses=[], job_id=None, days_limit=7, s3_bucket=None, s3_key=None
+    service_id, notification_type, language, notification_statuses=None, job_id=None, days_limit=7, s3_bucket=None, s3_key=None
 ):
     """
     Generate CSV using SQLAlchemy for improved compatibility and type safety, and stream it directly to S3.
@@ -240,7 +242,7 @@ def generate_csv_from_notifications(
         service_id=service_id,
         notification_type=notification_type,
         language=language,
-        notification_statuses=notification_statuses,
+        notification_statuses=list(notification_statuses) if notification_statuses is not None else None,
         job_id=job_id,
         days_limit=days_limit,
     )

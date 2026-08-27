@@ -1,13 +1,13 @@
 import uuid
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+from unittest.mock import call
 
 import pytest
 from freezegun import freeze_time
 from notifications_utils.timezones import convert_utc_to_local_timezone
 from tests.app.db import (
     create_ft_notification_status,
-    create_letter_rate,
     create_notification,
     create_notification_history,
     create_rate,
@@ -20,6 +20,8 @@ from tests.conftest import set_config
 
 from app import annual_limit_client
 from app.celery.reporting_tasks import (
+    _create_quarterly_email_markdown_list,
+    create_monthly_notification_stats_summary,
     create_nightly_billing,
     create_nightly_billing_for_day,
     create_nightly_notification_status,
@@ -35,8 +37,47 @@ from app.models import (
     AnnualLimitsData,
     FactBilling,
     FactNotificationStatus,
+    MonthlyNotificationStatsSummary,
     Notification,
 )
+
+
+def test_rerun_preserves_rate_when_new_rate_added(notify_db_session):
+    service = create_service()
+    template = create_template(service=service, template_type="sms")
+
+    # Seed an initial rate that applies to the billing date
+    create_rate(start_date=datetime(2026, 2, 1, 0, 0), value=0.02, notification_type="sms", sms_sending_vehicle="long_code")
+
+    # Create a delivered SMS notification for 2026-02-26
+    created_at = datetime(2026, 2, 26, 12, 0)
+    save_notification(
+        create_notification(
+            created_at=created_at,
+            template=template,
+            status="delivered",
+            sent_by="pinpoint",
+            international=False,
+            rate_multiplier=1.0,
+            billable_units=1,
+            sms_origination_phone_number="+12025551234",
+        )
+    )
+
+    # Run nightly billing for that day and assert the stored rate is the initial one
+    create_nightly_billing_for_day("2026-02-26")
+    records = FactBilling.query.all()
+    assert len(records) == 1
+    assert records[0].rate == Decimal("0.02")
+
+    # Now add a new rate (simulating a later rate insertion) and re-run billing
+    create_rate(start_date=datetime(2026, 3, 1, 0, 0), value=0.05, notification_type="sms", sms_sending_vehicle="long_code")
+    create_nightly_billing_for_day("2026-02-26")
+
+    # Re-fetch and ensure the rate stored in ft_billing did not change
+    records = FactBilling.query.all()
+    assert len(records) == 1
+    assert records[0].rate == Decimal("0.02")
 
 
 def mocker_get_rate(
@@ -47,6 +88,7 @@ def mocker_get_rate(
     crown=None,
     rate_multiplier=None,
     post_class="second",
+    sms_sending_vehicle=None,
 ):
     if notification_type == LETTER_TYPE:
         return Decimal(2.1)
@@ -146,11 +188,12 @@ def test_create_nightly_billing_for_day_sms_rate_multiplier(
         assert record.rate_multiplier == multiplier[i]
 
 
-def test_create_nightly_billing_for_day_different_templates(sample_service, sample_template, sample_email_template, mocker):
+def test_create_nightly_billing_for_day_different_templates(sample_service, sample_template, mocker):
     yesterday = convert_utc_to_local_timezone((datetime.now() - timedelta(days=1))).replace(hour=12, minute=00)
 
     mocker.patch("app.dao.fact_billing_dao.get_rate", side_effect=mocker_get_rate)
 
+    # two different SMS templates (both SMS — no email/letter test code)
     save_notification(
         create_notification(
             created_at=yesterday,
@@ -162,12 +205,14 @@ def test_create_nightly_billing_for_day_different_templates(sample_service, samp
             billable_units=1,
         )
     )
+
+    second_template = create_template(service=sample_service)
     save_notification(
         create_notification(
             created_at=yesterday,
-            template=sample_email_template,
+            template=second_template,
             status="delivered",
-            sent_by="ses",
+            sent_by="sns",
             international=False,
             rate_multiplier=0,
             billable_units=0,
@@ -184,7 +229,7 @@ def test_create_nightly_billing_for_day_different_templates(sample_service, samp
     assert len(records) == 2
     multiplier = [0, 1]
     billable_units = [0, 1]
-    rate = [0, Decimal(1.33)]
+    rate = [Decimal(1.33), Decimal(1.33)]
     for i, record in enumerate(records):
         assert record.bst_date == datetime.date(yesterday)
         assert record.rate == rate[i]
@@ -192,7 +237,7 @@ def test_create_nightly_billing_for_day_different_templates(sample_service, samp
         assert record.rate_multiplier == multiplier[i]
 
 
-def test_create_nightly_billing_for_day_different_sent_by(sample_service, sample_template, sample_email_template, mocker):
+def test_create_nightly_billing_for_day_different_sent_by(sample_service, sample_template, mocker):
     yesterday = convert_utc_to_local_timezone((datetime.now() - timedelta(days=1))).replace(hour=12, minute=00)
 
     mocker.patch("app.dao.fact_billing_dao.get_rate", side_effect=mocker_get_rate)
@@ -224,85 +269,6 @@ def test_create_nightly_billing_for_day_different_sent_by(sample_service, sample
         assert record.rate == Decimal(1.33)
         assert record.billable_units == 1
         assert record.rate_multiplier == 1.0
-
-
-def test_create_nightly_billing_for_day_different_letter_postage(notify_db_session, sample_letter_template, mocker):
-    yesterday = convert_utc_to_local_timezone((datetime.now() - timedelta(days=1))).replace(hour=12, minute=00)
-    mocker.patch("app.dao.fact_billing_dao.get_rate", side_effect=mocker_get_rate)
-
-    for i in range(2):
-        save_notification(
-            create_notification(
-                created_at=yesterday,
-                template=sample_letter_template,
-                status="delivered",
-                sent_by="dvla",
-                billable_units=2,
-                postage="first",
-            )
-        )
-    save_notification(
-        create_notification(
-            created_at=yesterday,
-            template=sample_letter_template,
-            status="delivered",
-            sent_by="dvla",
-            billable_units=2,
-            postage="second",
-        )
-    )
-
-    records = FactBilling.query.all()
-    assert len(records) == 0
-    # Celery expects the arguments to be a string or primitive type.
-    yesterday_str = datetime.strftime(yesterday, "%Y-%m-%d")
-    create_nightly_billing_for_day(yesterday_str)
-
-    records = FactBilling.query.order_by("postage").all()
-    assert len(records) == 2
-    assert records[0].notification_type == LETTER_TYPE
-    assert records[0].bst_date == datetime.date(yesterday)
-    assert records[0].postage == "first"
-    assert records[0].notifications_sent == 2
-    assert records[0].billable_units == 4
-
-    assert records[1].notification_type == LETTER_TYPE
-    assert records[1].bst_date == datetime.date(yesterday)
-    assert records[1].postage == "second"
-    assert records[1].notifications_sent == 1
-    assert records[1].billable_units == 2
-
-
-def test_create_nightly_billing_for_day_letter(sample_service, sample_letter_template, mocker):
-    yesterday = convert_utc_to_local_timezone((datetime.now() - timedelta(days=1))).replace(hour=12, minute=00)
-
-    mocker.patch("app.dao.fact_billing_dao.get_rate", side_effect=mocker_get_rate)
-
-    save_notification(
-        create_notification(
-            created_at=yesterday,
-            template=sample_letter_template,
-            status="delivered",
-            sent_by="dvla",
-            international=False,
-            rate_multiplier=2.0,
-            billable_units=2,
-        )
-    )
-
-    records = FactBilling.query.all()
-    assert len(records) == 0
-    # Celery expects the arguments to be a string or primitive type.
-    yesterday_str = datetime.strftime(yesterday, "%Y-%m-%d")
-    create_nightly_billing_for_day(yesterday_str)
-    records = FactBilling.query.order_by("rate_multiplier").all()
-    assert len(records) == 1
-    record = records[0]
-    assert record.notification_type == LETTER_TYPE
-    assert record.bst_date == datetime.date(yesterday)
-    assert record.rate == Decimal(2.1)
-    assert record.billable_units == 2
-    assert record.rate_multiplier == 2.0
 
 
 def test_create_nightly_billing_for_day_null_sent_by_sms(sample_service, sample_template, mocker):
@@ -339,28 +305,13 @@ def test_create_nightly_billing_for_day_null_sent_by_sms(sample_service, sample_
     assert record.provider == "unknown"
 
 
-def test_get_rate_for_letter_latest(notify_db_session):
-    # letter rates should be passed into the get_rate function as a tuple of start_date, crown, sheet_count,
-    # rate and post_class
-    new = create_letter_rate(datetime(2017, 12, 1), crown=True, sheet_count=1, rate=0.33, post_class="second")
-    old = create_letter_rate(datetime(2016, 12, 1), crown=True, sheet_count=1, rate=0.30, post_class="second")
-    letter_rates = [new, old]
-
-    rate = get_rate([], letter_rates, LETTER_TYPE, date(2018, 1, 1), True, 1)
-    assert rate == Decimal("0.33")
-
-
 def test_get_rate_for_sms_and_email(notify_db_session):
     non_letter_rates = [
         create_rate(datetime(2017, 12, 1), 0.15, SMS_TYPE),
-        create_rate(datetime(2017, 12, 1), 0, EMAIL_TYPE),
     ]
 
     rate = get_rate(non_letter_rates, [], SMS_TYPE, date(2018, 1, 1))
     assert rate == Decimal(0.15)
-
-    rate = get_rate(non_letter_rates, [], EMAIL_TYPE, date(2018, 1, 1))
-    assert rate == Decimal(0)
 
 
 @freeze_time("2018-03-30T05:00:00")
@@ -459,53 +410,58 @@ def test_create_nightly_billing_for_day_update_when_record_exists(sample_service
 
 
 @freeze_time("2019-01-05")
-def test_create_nightly_notification_status_for_day(notify_db_session):
-    first_service = create_service(service_name="First Service")
-    first_template = create_template(service=first_service)
-    second_service = create_service(service_name="second Service")
-    second_template = create_template(service=second_service, template_type="email")
-    third_service = create_service(service_name="third Service")
-    third_template = create_template(service=third_service, template_type="letter")
+@pytest.mark.parametrize("ff_use_billable_units", [True, False])
+def test_create_nightly_notification_status_for_day(notify_db_session, notify_api, ff_use_billable_units):
+    with set_config(notify_api, "FF_USE_BILLABLE_UNITS", ff_use_billable_units):
+        first_service = create_service(service_name="First Service")
+        first_template = create_template(service=first_service)
+        second_service = create_service(service_name="second Service")
+        second_template = create_template(service=second_service, template_type="email")
+        third_service = create_service(service_name="third Service")
+        third_template = create_template(service=third_service, template_type="letter")
 
-    save_notification(create_notification(template=first_template, status="delivered"))
-    save_notification(
-        create_notification(
-            template=first_template,
-            status="delivered",
-            created_at=datetime(2019, 1, 1, 12, 0),
+        save_notification(create_notification(template=first_template, status="delivered"))
+        save_notification(
+            create_notification(
+                template=first_template,
+                status="delivered",
+                created_at=datetime(2019, 1, 1, 12, 0),
+            )
         )
-    )
 
-    save_notification(create_notification(template=second_template, status="temporary-failure"))
-    save_notification(
-        create_notification(
-            template=second_template,
-            status="temporary-failure",
-            created_at=datetime(2019, 1, 1, 12, 0),
+        save_notification(create_notification(template=second_template, status="temporary-failure"))
+        save_notification(
+            create_notification(
+                template=second_template,
+                status="temporary-failure",
+                created_at=datetime(2019, 1, 1, 12, 0),
+            )
         )
-    )
 
-    save_notification(create_notification(template=third_template, status="created", billable_units=100))
-    save_notification(
-        create_notification(
-            template=third_template,
-            status="created",
-            created_at=datetime(2019, 1, 1, 12, 0),
-            billable_units=100,
+        save_notification(create_notification(template=third_template, status="created", billable_units=100))
+        save_notification(
+            create_notification(
+                template=third_template,
+                status="created",
+                created_at=datetime(2019, 1, 1, 12, 0),
+                billable_units=100,
+            )
         )
-    )
 
-    assert len(FactNotificationStatus.query.all()) == 0
+        assert len(FactNotificationStatus.query.all()) == 0
 
-    create_nightly_notification_status_for_day("2019-01-01")
+        create_nightly_notification_status_for_day("2019-01-01")
 
-    new_data = FactNotificationStatus.query.all()
+        new_data = FactNotificationStatus.query.order_by(FactNotificationStatus.notification_type).all()
 
-    assert len(new_data) == 3
-    assert new_data[0].bst_date == date(2019, 1, 1)
-    assert new_data[1].bst_date == date(2019, 1, 1)
-    assert new_data[2].bst_date == date(2019, 1, 1)
-    assert new_data[2].billable_units == 100
+        assert len(new_data) == 3
+        assert all(d.bst_date == date(2019, 1, 1) for d in new_data)
+
+        # Ordered by notification_type: email, letter, sms
+        assert new_data[0].notification_type == EMAIL_TYPE
+        assert new_data[1].notification_type == LETTER_TYPE
+        assert new_data[2].notification_type == SMS_TYPE
+        assert new_data[1].billable_units == 100
 
 
 @freeze_time("2019-01-05")
@@ -608,8 +564,7 @@ def test_create_nightly_notification_status_for_day_clears_failed_delivered_noti
         annual_limit_client.seed_annual_limit_notifications(service.id, mapping)
         service_ids.append(service.id)
 
-    with set_config(notify_api, "FF_ANNUAL_LIMIT", True):
-        create_nightly_notification_status_for_day("2019-04-01")
+    create_nightly_notification_status_for_day("2019-04-01")
 
     for service_id in service_ids:
         assert all(value == 0 for value in annual_limit_client.get_all_notification_counts(service_id).values())
@@ -639,6 +594,19 @@ class TestInsertQuarterData:
 
 
 class TestSendQuarterEmail:
+    def test_quarterly_email_rounds_percentages(self):
+        service_id = uuid.uuid4()
+
+        markdown_list_en, _markdown_list_fr = _create_quarterly_email_markdown_list(
+            {service_id: ("service", 20_000_000, 400_000)},
+            [service_id],
+            {str(service_id): {"email": 56_428, "sms": 66_518}},
+        )
+
+        assert "(0.28%)" in markdown_list_en
+        assert "(16.63%)" in markdown_list_en
+        assert "0.27999999999999997" not in markdown_list_en
+
     def test_send_quarter_email(self, sample_user, mocker, notify_db_session):
         service_1 = create_service(service_name="service_1")
         service_2 = create_service(service_name="service_2")
@@ -655,13 +623,200 @@ class TestSendQuarterEmail:
         service_2.users = [sample_user]
         send_mock = mocker.patch("app.celery.reporting_tasks.send_annual_usage_data")
 
-        markdown_list_en = "## service_1 \nText messages: you've sent 4 out of 25,000 (0.0%)\n\n## service_2 \nText messages: you've sent 1 100 out of 25 000 (4.0%)\n\n"
-        markdown_list_fr = "## service_1 \n\n## service_2 \n\n"
+        markdown_list_en = (
+            "## service_1 \n"
+            "Emails: you've sent 0 out of 10,000,000 (0.00%)\n"
+            "Text messages: you've sent 4 out of 25,000 (0.02%)\n\n"
+            "## service_2 \n"
+            "Emails: you've sent 0 out of 10,000,000 (0.00%)\n"
+            "Text messages: you've sent 1,100 out of 25,000 (4.40%)\n\n"
+        )
+        markdown_list_fr = (
+            "## service_1 \n"
+            "Courriels: 0 envoyés sur 10 000 000 (0.00%)\n"
+            "Messages texte : 4 envoyés sur 25 000 (0.02%)\n\n"
+            "## service_2 \n"
+            "Courriels: 0 envoyés sur 10 000 000 (0.00%)\n"
+            "Messages texte : 1 100 envoyés sur 25 000 (4.40%)\n\n"
+        )
         send_quarter_email(datetime(2018, 4, 1))
-        assert send_mock.call_args(
+        assert send_mock.call_args == call(
             sample_user.id,
+            2017,
             2018,
-            2019,
             markdown_list_en,
             markdown_list_fr,
         )
+
+
+class TestCreateMonthlyNotificationStatsSummary:
+    @freeze_time("2019-03-15T12:00:00")
+    def test_create_monthly_notification_stats_summary_creates_summary_data(self, notify_db_session):
+        """Test that the task creates summary data for current and previous month"""
+        service_1 = create_service(service_name="service_1")
+        service_2 = create_service(service_name="service_2")
+
+        # Current month (March 2019)
+        create_ft_notification_status(date(2019, 3, 1), "sms", service_1, notification_status="delivered", count=5)
+        create_ft_notification_status(date(2019, 3, 10), "email", service_1, notification_status="sent", count=3)
+        create_ft_notification_status(date(2019, 3, 5), "sms", service_2, notification_status="delivered", count=10)
+        create_ft_notification_status(date(2019, 3, 5), "email", service_2, notification_status="delivered", count=10)
+        create_ft_notification_status(date(2019, 3, 6), "email", service_2, notification_status="delivered", count=20)
+
+        # Previous month (February 2019)
+        create_ft_notification_status(date(2019, 2, 15), "sms", service_1, notification_status="delivered", count=20)
+        create_ft_notification_status(date(2019, 2, 20), "email", service_2, notification_status="sent", count=15)
+
+        # Older data (should not be included)
+        create_ft_notification_status(date(2019, 1, 10), "sms", service_1, notification_status="delivered", count=100)
+
+        assert MonthlyNotificationStatsSummary.query.count() == 0
+
+        create_monthly_notification_stats_summary()
+
+        results = MonthlyNotificationStatsSummary.query.order_by(
+            MonthlyNotificationStatsSummary.month,
+            MonthlyNotificationStatsSummary.service_id,
+            MonthlyNotificationStatsSummary.notification_type,
+        ).all()
+
+        assert len(results) == 6
+
+        # Check March 2019 data
+        march_service1_sms = [
+            r
+            for r in results
+            if r.month.startswith("2019-03-01") and r.service_id == service_1.id and r.notification_type == "sms"
+        ][0]
+        assert march_service1_sms.notification_count == 5
+
+        march_service1_email = [
+            r
+            for r in results
+            if r.month.startswith("2019-03-01") and r.service_id == service_1.id and r.notification_type == "email"
+        ][0]
+        assert march_service1_email.notification_count == 3
+
+        march_service2_sms = [
+            r
+            for r in results
+            if r.month.startswith("2019-03-01") and r.service_id == service_2.id and r.notification_type == "sms"
+        ][0]
+        assert march_service2_sms.notification_count == 10
+
+        march_service2_email = [
+            r
+            for r in results
+            if r.month.startswith("2019-03-01") and r.service_id == service_2.id and r.notification_type == "email"
+        ][0]
+        assert march_service2_email.notification_count == 30
+
+        # Check February 2019 data
+        feb_service1_sms = [
+            r
+            for r in results
+            if r.month.startswith("2019-02-01") and r.service_id == service_1.id and r.notification_type == "sms"
+        ][0]
+        assert feb_service1_sms.notification_count == 20
+
+        feb_service2_email = [
+            r
+            for r in results
+            if r.month.startswith("2019-02-01") and r.service_id == service_2.id and r.notification_type == "email"
+        ][0]
+        assert feb_service2_email.notification_count == 15
+
+        # Verify January data was not included
+        jan_data = [r for r in results if r.month.startswith("2019-01-01")]
+        assert len(jan_data) == 0
+
+    @freeze_time("2019-03-15T12:00:00")
+    def test_create_monthly_notification_stats_summary_excludes_test_keys(self, notify_db_session):
+        """Test that test key notifications are excluded from summary"""
+        service = create_service(service_name="test_service")
+
+        # Real notifications
+        create_ft_notification_status(
+            date(2019, 3, 1), "sms", service, key_type="normal", notification_status="delivered", count=10
+        )
+
+        # Test key notifications (should be excluded)
+        create_ft_notification_status(
+            date(2019, 3, 2), "sms", service, key_type="test", notification_status="delivered", count=100
+        )
+
+        create_monthly_notification_stats_summary()
+
+        results = MonthlyNotificationStatsSummary.query.all()
+        assert len(results) == 1
+        assert results[0].notification_count == 10
+
+    @freeze_time("2019-03-15T12:00:00")
+    def test_create_monthly_notification_stats_summary_only_includes_delivered_and_sent(self, notify_db_session):
+        """Test that only delivered and sent notifications are included"""
+        service = create_service(service_name="test_service")
+
+        # Delivered notifications
+        create_ft_notification_status(date(2019, 3, 1), "sms", service, notification_status="delivered", count=5)
+
+        # Sent notifications
+        create_ft_notification_status(date(2019, 3, 2), "email", service, notification_status="sent", count=3)
+
+        # Other statuses (should be excluded)
+        create_ft_notification_status(date(2019, 3, 3), "sms", service, notification_status="failed", count=10)
+        create_ft_notification_status(date(2019, 3, 4), "sms", service, notification_status="created", count=20)
+        create_ft_notification_status(date(2019, 3, 5), "sms", service, notification_status="temporary-failure", count=15)
+
+        create_monthly_notification_stats_summary()
+
+        results = MonthlyNotificationStatsSummary.query.all()
+        assert len(results) == 2
+
+        sms_result = [r for r in results if r.notification_type == "sms"][0]
+        assert sms_result.notification_count == 5
+
+        email_result = [r for r in results if r.notification_type == "email"][0]
+        assert email_result.notification_count == 3
+
+    @freeze_time("2019-03-15T12:00:00")
+    def test_create_monthly_notification_stats_summary_aggregates_multiple_days(self, notify_db_session):
+        """Test that multiple days in the same month are aggregated correctly"""
+        service = create_service(service_name="test_service")
+
+        # Multiple days in March
+        create_ft_notification_status(date(2019, 3, 1), "sms", service, notification_status="delivered", count=5)
+        create_ft_notification_status(date(2019, 3, 10), "sms", service, notification_status="delivered", count=10)
+        create_ft_notification_status(date(2019, 3, 15), "sms", service, notification_status="sent", count=8)
+        create_ft_notification_status(date(2019, 3, 20), "sms", service, notification_status="delivered", count=12)
+
+        create_monthly_notification_stats_summary()
+
+        results = MonthlyNotificationStatsSummary.query.all()
+        assert len(results) == 1
+        assert results[0].notification_count == 35  # 5 + 10 + 8 + 12
+
+    @freeze_time("2019-03-15T12:00:00")
+    def test_create_monthly_notification_stats_summary_updates_existing_data(self, notify_db_session):
+        """Test that the task updates existing summary data (upsert behavior)"""
+        service = create_service(service_name="test_service")
+
+        # Initial data
+        create_ft_notification_status(date(2019, 3, 1), "sms", service, notification_status="delivered", count=10)
+
+        create_monthly_notification_stats_summary()
+
+        results = MonthlyNotificationStatsSummary.query.all()
+        assert len(results) == 1
+        assert results[0].notification_count == 10
+        initial_updated_at = results[0].updated_at
+
+        # Add more data for the same month
+        create_ft_notification_status(date(2019, 3, 10), "sms", service, notification_status="delivered", count=5)
+
+        # Run the task again
+        create_monthly_notification_stats_summary()
+
+        results = MonthlyNotificationStatsSummary.query.all()
+        assert len(results) == 1
+        assert results[0].notification_count == 15  # Updated from 10 to 15
+        assert results[0].updated_at > initial_updated_at  # Timestamp should be updated

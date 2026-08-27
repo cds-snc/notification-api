@@ -14,6 +14,7 @@ from app.authentication.auth import (
     requires_admin_auth,
     requires_auth,
     requires_cache_clear_auth,
+    requires_scan_verdict_auth,
 )
 from app.dao.api_key_dao import (
     expire_api_key,
@@ -182,12 +183,41 @@ def test_should_not_allow_expired_api_key(client, sample_api_key):
     assert error_message["message"] == {"token": ["Invalid token: API key revoked"]}
 
 
-def test_should_not_allow_invalid_secret(client, sample_api_key):
+def test_should_not_allow_invalid_secret(client, sample_api_key, mocker):
+    mock_logger = mocker.patch("app.authentication.auth.current_app.logger.warning")
     token = create_jwt_token(secret="not-so-secret", client_id=str(sample_api_key.service_id))
     response = client.get("/notifications", headers={"Authorization": "Bearer {}".format(token)})
     assert response.status_code == 403
     data = json.loads(response.get_data())
     assert data["message"] == {"token": ["Invalid token: signature, api token not found"]}
+    mock_logger.assert_called_once()
+    assert mock_logger.call_args.args == (
+        "Rejected JWT with invalid signature for service %s, client %s",
+        sample_api_key.service_id,
+        "Werkzeug/3.1.6",
+    )
+
+
+def test_should_reject_token_with_unsupported_algorithm(client, sample_api_key, mocker):
+    mock_logger = mocker.patch("app.authentication.auth.current_app.logger.warning")
+    token = jwt.encode(
+        payload={"iss": str(sample_api_key.service_id), "iat": int(time.time())},
+        key=get_unsigned_secret(sample_api_key.id),
+        algorithm="HS512",
+        headers={"typ": "JWT"},
+    )
+
+    response = client.get("/notifications", headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 403
+    data = json.loads(response.get_data())
+    assert data["message"] == {"token": ["Invalid token: signature, api token not found"]}
+    mock_logger.assert_called_once()
+    assert mock_logger.call_args.args == (
+        "Rejected JWT with unsupported algorithm for service %s, client %s",
+        sample_api_key.service_id,
+        "Werkzeug/3.1.6",
+    )
 
 
 @pytest.mark.parametrize("scheme", ["bearer", "Bearer"])
@@ -356,7 +386,7 @@ def test_should_return_403_when_token_is_expired(
     sample_api_key,
     mocker,
 ):
-    mock_logger = mocker.patch("app.authentication.auth.current_app.logger.info")
+    mock_logger = mocker.patch("app.authentication.auth.current_app.logger.warning")
     with freeze_time("2001-01-01T12:00:00"):
         token = __create_token(sample_api_key.service_id)
     with freeze_time("2001-01-01T12:00:40"):
@@ -368,7 +398,13 @@ def test_should_return_403_when_token_is_expired(
     assert exc.value.service_id == sample_api_key.service_id
     assert exc.value.api_key_id == sample_api_key.id
 
-    mock_logger.assert_called_with("JWT: iat value was 978350400 while server clock is 978350440")
+    mock_logger.assert_called_with(
+        "Rejected expired JWT for service %s, client %s: iat value was %s while server clock is %s",
+        sample_api_key.service_id,
+        None,
+        978350400,
+        978350440,
+    )
 
 
 def __create_token(service_id):
@@ -435,3 +471,96 @@ def test_proxy_key_on_admin_auth_endpoint(notify_api, check_proxy_header, header
                 ],
             )
         assert response.status_code == expected_status
+
+
+class TestSwagger:
+    def test_auth_should_allow_options_request(self, client):
+        request.method = "OPTIONS"
+        request.headers = {}
+
+        # This should not raise an exception since OPTIONS requests bypass authentication
+        requires_auth()
+
+        # Reset request method for other tests
+        request.method = "GET"
+
+    def test_options_request_to_protected_route_should_pass(self, client):
+        """Test that OPTIONS requests can pass through to routes protected by requires_auth."""
+        # Using the v2 notifications endpoint which is protected by requires_auth
+        response = client.options("/v2/notifications")
+
+        # OPTIONS requests should return a successful response
+        assert response.status_code == 200
+        # The preflight response should include Access-Control-Allow headers
+        assert "Access-Control-Allow-Headers" in response.headers
+        assert "Content-Type" in response.headers["Access-Control-Allow-Headers"]
+        assert "Authorization" in response.headers["Access-Control-Allow-Headers"]
+        assert "Access-Control-Allow-Methods" in response.headers
+
+    def test_get_request_to_protected_route_should_require_auth(self, client):
+        """Test that GET requests to the same endpoint still require authentication."""
+        # Using the v2 notifications endpoint which is protected by requires_auth
+        response = client.get("/v2/notifications")
+
+        # GET requests without authentication should be rejected
+        assert response.status_code == 401
+        # Should return an error as JSON
+        error_data = json.loads(response.get_data(as_text=True))
+        # assert error_data['result'] == 'error'
+        assert "authentication token must be provided" in error_data["errors"][0]["message"]
+
+
+class TestScanVerdictAuth:
+    def test_requires_scan_verdict_auth_fails_without_token(self, client):
+        """Test that scan verdict auth fails when X-Scan-Callback-Token header is missing."""
+        request.headers = {}
+        with pytest.raises(AuthError) as exc:
+            requires_scan_verdict_auth()
+        assert exc.value.short_message == "Unauthorized, scan verdict callback token required"
+        assert exc.value.code == 401
+
+    def test_requires_scan_verdict_auth_fails_with_missing_config(self, client):
+        """Test that scan verdict auth fails when SCAN_VERDICT_CALLBACK_TOKEN is not configured."""
+        with set_config(client.application, "SCAN_VERDICT_CALLBACK_TOKEN", ""):
+            request.headers = {"X-Scan-Callback-Token": "some-token"}
+            with pytest.raises(AuthError) as exc:
+                requires_scan_verdict_auth()
+            assert exc.value.short_message == "Unauthorized, scan verdict auth unavailable"
+            assert exc.value.code == 401
+
+    def test_requires_scan_verdict_auth_fails_with_invalid_token(self, client):
+        """Test that scan verdict auth fails when provided token doesn't match expected token."""
+        with set_config(client.application, "SCAN_VERDICT_CALLBACK_TOKEN", "expected-token-value"):
+            request.headers = {"X-Scan-Callback-Token": "wrong-token-value"}
+            with pytest.raises(AuthError) as exc:
+                requires_scan_verdict_auth()
+            assert exc.value.short_message == "Unauthorized, invalid scan verdict callback token"
+            assert exc.value.code == 403
+
+    def test_requires_scan_verdict_auth_succeeds_with_valid_token(self, client):
+        """Test that scan verdict auth succeeds with valid token and sets g.service_id."""
+        scan_verdict_token = "valid-scan-verdict-callback-token"
+        scan_verdict_user_name = "scan-verdict-user"
+        with set_config_values(
+            client.application,
+            {
+                "SCAN_VERDICT_CALLBACK_TOKEN": scan_verdict_token,
+                "SCAN_VERDICT_CALLBACK_USER_NAME": scan_verdict_user_name,
+            },
+        ):
+            request.headers = {"X-Scan-Callback-Token": scan_verdict_token}
+            # This should not raise an exception
+            requires_scan_verdict_auth()
+            # Verify that g.service_id was set correctly
+            assert g.service_id == scan_verdict_user_name
+
+    def test_requires_scan_verdict_auth_token_comparison_is_constant_time(self, client):
+        """Test that token comparison uses constant-time comparison (hmac.compare_digest)."""
+        scan_verdict_token = "super-secret-callback-token"
+        with set_config(client.application, "SCAN_VERDICT_CALLBACK_TOKEN", scan_verdict_token):
+            # Test with a token that differs only in the last character
+            request.headers = {"X-Scan-Callback-Token": "super-secret-callback-toke" + chr(ord("n") + 1)}
+            with pytest.raises(AuthError) as exc:
+                requires_scan_verdict_auth()
+            # Should fail with invalid token, not expose timing information
+            assert exc.value.code == 403

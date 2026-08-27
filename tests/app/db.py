@@ -30,6 +30,7 @@ from app.dao.template_categories_dao import dao_create_template_category
 from app.dao.templates_dao import dao_create_template, dao_update_template
 from app.dao.users_dao import save_model_user
 from app.models import (
+    DEFAULT_SMS_DAILY_LIMIT,
     EMAIL_TYPE,
     KEY_TYPE_NORMAL,
     LETTER_TYPE,
@@ -49,6 +50,7 @@ from app.models import (
     Job,
     LetterBranding,
     LetterRate,
+    MonthlyNotificationStatsSummary,
     Notification,
     NotificationHistory,
     Organisation,
@@ -111,7 +113,7 @@ def create_service(
     email_from=None,
     prefix_sms=True,
     message_limit=1000,
-    sms_daily_limit=1000,
+    sms_daily_limit=DEFAULT_SMS_DAILY_LIMIT,
     email_annual_limit=10000000,
     sms_annual_limit=25000,
     organisation_type="central",
@@ -267,6 +269,7 @@ def create_notification(
     created_by_id=None,
     postage=None,
     queue_name=None,
+    sms_origination_phone_number=None,
 ):
     """
     Creates in memory Notification Model
@@ -325,6 +328,7 @@ def create_notification(
         "created_by_id": created_by_id,
         "postage": postage,
         "queue_name": queue_name,
+        "sms_origination_phone_number": sms_origination_phone_number,
     }
     return Notification(**data)
 
@@ -552,12 +556,13 @@ def create_email_branding(
     return email_branding
 
 
-def create_rate(start_date, value, notification_type):
+def create_rate(start_date, value, notification_type, sms_sending_vehicle="long_code"):
     rate = Rate(
         id=uuid.uuid4(),
         valid_from=start_date,
         rate=value,
         notification_type=notification_type,
+        sms_sending_vehicle=sms_sending_vehicle,
     )
     db.session.add(rate)
     db.session.commit()
@@ -743,6 +748,7 @@ def create_ft_billing(
     billable_unit=1,
     notifications_sent=1,
     postage="none",
+    sms_sending_vehicle="long_code",
 ):
     if not service:
         service = create_service()
@@ -761,6 +767,7 @@ def create_ft_billing(
         billable_units=billable_unit,
         notifications_sent=notifications_sent,
         postage=postage,
+        sms_sending_vehicle=sms_sending_vehicle,
     )
     db.session.add(data)
     db.session.commit()
@@ -801,6 +808,42 @@ def create_ft_notification_status(
         notification_status=notification_status,
         notification_count=count,
         billable_units=billable_units,
+    )
+    db.session.add(data)
+    db.session.commit()
+    return data
+
+
+def create_monthly_notification_stats_summary(
+    month,
+    service,
+    notification_type="sms",
+    count=1,
+):
+    """
+    Create a monthly notification stats summary record.
+    Month can be either:
+    - A date object (e.g., date(2019, 12, 1)) - will be converted to "YYYY-MM-01 00:00:00+00"
+    - A string (e.g., "2019-12-01") - will be converted to "YYYY-MM-01 00:00:00+00"
+    """
+    # Handle both date objects and strings
+    if isinstance(month, str):
+        # If it's already a string, ensure it has the right format
+        if " " not in month:
+            # String like "2019-12-01" -> "2019-12-01 00:00:00+00"
+            month_str = f"{month} 00:00:00+00"
+        else:
+            # Already has timestamp, use as-is
+            month_str = month
+    else:
+        # Convert date object to string format "YYYY-MM-01 00:00:00+00"
+        month_str = month.strftime("%Y-%m-01 00:00:00+00")
+
+    data = MonthlyNotificationStatsSummary(
+        month=month_str,
+        service_id=service.id,
+        notification_type=notification_type,
+        notification_count=count,
     )
     db.session.add(data)
     db.session.commit()

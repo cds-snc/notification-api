@@ -23,22 +23,28 @@ def create_secret_code():
     return "".join(map(str, [SystemRandom().randrange(10) for i in range(5)]))
 
 
-def save_user_attribute(usr: User, update_dict={}):
-    if "blocked" in update_dict and update_dict["blocked"]:
-        update_dict.update({"current_session_id": "00000000-0000-0000-0000-000000000000"})
+def save_user_attribute(usr: User, update_dict=None):
+    if update_dict is None:
+        return
 
-    db.session.query(User).filter_by(id=usr.id).update(update_dict)
+    updates = dict(update_dict)
+
+    if updates.get("blocked"):
+        updates["current_session_id"] = "00000000-0000-0000-0000-000000000000"
+
+    db.session.query(User).filter_by(id=usr.id).update(updates)
     db.session.commit()
 
 
-def save_model_user(usr: User, update_dict={}, pwd=None):
+def save_model_user(usr: User, update_dict=None, pwd=None):
     if pwd:
         usr.password = pwd
         usr.password_changed_at = datetime.utcnow()
 
-    if update_dict:
-        _remove_values_for_keys_if_present(update_dict, ["id", "password_changed_at"])
-        db.session.query(User).filter_by(id=usr.id).update(update_dict)
+    if update_dict is not None:
+        updates = dict(update_dict)
+        _remove_values_for_keys_if_present(updates, ["id", "password_changed_at"])
+        db.session.query(User).filter_by(id=usr.id).update(updates)
     else:
         db.session.add(usr)
     db.session.commit()
@@ -110,7 +116,7 @@ def get_user_by_id(user_id=None) -> User:
     return User.query.filter_by().all()
 
 
-def get_user_by_email(email):
+def get_user_by_email(email) -> User:
     return User.query.filter(func.lower(User.email_address) == func.lower(email)).one()
 
 
@@ -222,3 +228,33 @@ def get_services_for_all_users():
     )
 
     return result
+
+
+def dao_deactivate_user(user_id):
+    """
+    Deactivates a user by updating their state and removing associated permissions.
+    """
+    user = get_user_by_id(user_id)
+
+    if user.state == "inactive":
+        raise InvalidRequest("User is already inactive", status_code=400)
+
+    # Remove user permissions and associations
+    permission_dao.remove_user_service_permissions_for_all_services(user)
+
+    service_users = dao_get_service_users_by_user_id(user.id)
+    for service_user in service_users:
+        db.session.delete(service_user)
+
+    user.organisations = []
+
+    user.auth_type = EMAIL_AUTH_TYPE
+    user.mobile_number = None
+    user.password = str(uuid.uuid4())
+    # Changing the current_session_id signs the user out
+    user.current_session_id = "00000000-0000-0000-0000-000000000000"
+    user.state = "inactive"
+
+    db.session.add(user)
+
+    return user

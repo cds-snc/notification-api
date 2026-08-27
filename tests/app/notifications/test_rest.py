@@ -12,6 +12,7 @@ from app.models import KEY_TYPE_NORMAL, KEY_TYPE_TEAM, KEY_TYPE_TEST, ApiKey
 from tests import create_authorization_header
 from tests.app.conftest import create_sample_notification
 from tests.app.db import create_api_key, create_notification, save_notification
+from tests.conftest import set_config
 
 
 @pytest.mark.parametrize("type", ("email", "sms", "letter"))
@@ -583,3 +584,138 @@ def test_get_notification_selects_correct_template_for_personalisation(client, n
 def _create_auth_header_from_key(api_key):
     token = create_jwt_token(secret=api_key.secret, client_id=str(api_key.service_id))
     return [("Authorization", "Bearer {}".format(token))]
+
+
+# TODO: Remove feature flag checks after FF_USE_BILLABLE_UNITS go live
+class TestBillableUnitsInV1SendNotification:
+    """Tests for FF_USE_BILLABLE_UNITS in V1 send_notification (app/notifications/rest.py)"""
+
+    def test_sms_uses_billable_units_for_limit_checks_when_flag_enabled(self, client, sample_template, mocker, notify_api):
+        """When FF_USE_BILLABLE_UNITS is enabled, check_sms_annual_limit and check_sms_daily_limit
+        should be called with number_of_sms_fragments value instead of 1."""
+        with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
+            sample_template.content = "a" * 200  # Long message -> 2 fragments
+            mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
+            mocker.patch(
+                "app.notifications.validators.get_annual_limit_notifications_v2",
+                return_value={
+                    "total_email_fiscal_year_to_yesterday": 0,
+                    "total_sms_fiscal_year_to_yesterday": 0,
+                },
+            )
+            mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=0)
+            mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
+            mock_check_annual = mocker.patch("app.notifications.rest.check_sms_annual_limit")
+            mock_check_daily = mocker.patch("app.notifications.rest.check_sms_daily_limit")
+
+            data = {"to": "6502532222", "template": str(sample_template.id)}
+            auth_header = create_authorization_header(service_id=sample_template.service_id)
+
+            response = client.post(
+                path="/notifications/sms",
+                data=json.dumps(data),
+                headers=[("Content-Type", "application/json"), auth_header],
+            )
+            assert response.status_code == 201
+
+            # With a 200-char message (2 fragments), should be called with billable_units=2
+            mock_check_annual.assert_called_once()
+            mock_check_daily.assert_called_once()
+            assert mock_check_annual.call_args[0][1] == 2
+            assert mock_check_daily.call_args[0][1] == 2
+
+    def test_sms_uses_count_of_1_for_limit_checks_when_flag_disabled(self, client, sample_template, mocker, notify_api):
+        """When FF_USE_BILLABLE_UNITS is disabled, check_sms_annual_limit and check_sms_daily_limit
+        should be called with 1 regardless of message length."""
+        with set_config(notify_api, "FF_USE_BILLABLE_UNITS", False):
+            sample_template.content = "a" * 200  # Long message -> 2 fragments
+            mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
+            mocker.patch(
+                "app.notifications.validators.get_annual_limit_notifications_v2",
+                return_value={
+                    "total_email_fiscal_year_to_yesterday": 0,
+                    "total_sms_fiscal_year_to_yesterday": 0,
+                },
+            )
+            mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=0)
+            mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
+            mock_check_annual = mocker.patch("app.notifications.rest.check_sms_annual_limit")
+            mock_check_daily = mocker.patch("app.notifications.rest.check_sms_daily_limit")
+
+            data = {"to": "6502532222", "template": str(sample_template.id)}
+            auth_header = create_authorization_header(service_id=sample_template.service_id)
+
+            response = client.post(
+                path="/notifications/sms",
+                data=json.dumps(data),
+                headers=[("Content-Type", "application/json"), auth_header],
+            )
+            assert response.status_code == 201
+
+            # With flag disabled, should be called with 1 despite long message
+            mock_check_annual.assert_called_once()
+            mock_check_daily.assert_called_once()
+            assert mock_check_annual.call_args[0][1] == 1
+            assert mock_check_daily.call_args[0][1] == 1
+
+    def test_sms_test_key_skips_limit_checks(self, client, sample_template, mocker, notify_api):
+        """When using a test API key, SMS limit checks should be skipped entirely."""
+        with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
+            sample_template.content = "a" * 200
+            mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
+            mocker.patch(
+                "app.notifications.validators.get_annual_limit_notifications_v2",
+                return_value={
+                    "total_email_fiscal_year_to_yesterday": 0,
+                    "total_sms_fiscal_year_to_yesterday": 0,
+                },
+            )
+            mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=0)
+            mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
+            mock_check_annual = mocker.patch("app.notifications.rest.check_sms_annual_limit")
+            mock_check_daily = mocker.patch("app.notifications.rest.check_sms_daily_limit")
+
+            data = {"to": "6502532222", "template": str(sample_template.id)}
+            auth_header = create_authorization_header(service_id=sample_template.service_id, key_type=KEY_TYPE_TEST)
+
+            response = client.post(
+                path="/notifications/sms",
+                data=json.dumps(data),
+                headers=[("Content-Type", "application/json"), auth_header],
+            )
+            assert response.status_code == 201
+
+            # Test key should skip SMS limit checks
+            mock_check_annual.assert_not_called()
+            mock_check_daily.assert_not_called()
+
+    def test_sms_simulated_recipient_skips_limit_checks(self, client, sample_template, mocker, notify_api):
+        """When sending to a simulated recipient, SMS limit checks should be skipped."""
+        with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
+            sample_template.content = "a" * 200
+            mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
+            mocker.patch(
+                "app.notifications.validators.get_annual_limit_notifications_v2",
+                return_value={
+                    "total_email_fiscal_year_to_yesterday": 0,
+                    "total_sms_fiscal_year_to_yesterday": 0,
+                },
+            )
+            mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=0)
+            mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
+            mock_check_annual = mocker.patch("app.notifications.rest.check_sms_annual_limit")
+            mock_check_daily = mocker.patch("app.notifications.rest.check_sms_daily_limit")
+
+            data = {"to": "6132532222", "template": str(sample_template.id)}
+            auth_header = create_authorization_header(service_id=sample_template.service_id)
+
+            response = client.post(
+                path="/notifications/sms",
+                data=json.dumps(data),
+                headers=[("Content-Type", "application/json"), auth_header],
+            )
+            assert response.status_code == 201
+
+            # Simulated recipient should skip SMS limit checks
+            mock_check_annual.assert_not_called()
+            mock_check_daily.assert_not_called()

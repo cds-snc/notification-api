@@ -1,0 +1,28 @@
+name: Test docker builds on pull request
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: Build k8s image
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+
+      - name: Build k8s image
+        run: |
+          docker buildx build \
+            --build-arg GIT_SHA=${GITHUB_SHA::7} \
+            -f ci/Dockerfile \
+            .

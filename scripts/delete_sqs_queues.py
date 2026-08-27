@@ -4,7 +4,7 @@ Script to manage SQS queues. Can list or delete queues.
 
 Uses boto, so relies on correctly set up AWS access keys and tokens.
 
-In principle use this script to dump details of all queues in a gievn environment, and then
+In principle use this script to dump details of all queues in a given environment, and then
 manipulate the resultant CSV file so that it contains the queues you want to delete.
 
 Very hands on. Starter for a more automagic process.

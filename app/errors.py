@@ -44,10 +44,19 @@ class InvalidRequest(Exception):
 class CannotRemoveUserError(InvalidRequest):
     message = "Cannot remove user from team"
 
-    def __init__(self, fields=[], message=None, status_code=400):
+    def __init__(self, fields=None, message=None, status_code=400):
         # Call parent class __init__ with message and status_code
         super().__init__(message=message if message else self.message, status_code=status_code)
-        self.fields = fields
+        self.fields = list(fields) if fields is not None else []
+
+
+class UserAlreadyInServiceError(InvalidRequest):
+    message = "This user is already in the service"
+
+    def __init__(self, fields=None, message=None, status_code=409):
+        # Call parent class __init__ with message and status_code
+        super().__init__(message=message if message else self.message, status_code=status_code)
+        self.fields = list(fields) if fields is not None else []
 
 
 class DuplicateEntityError(InvalidRequest):
@@ -61,12 +70,12 @@ class DuplicateEntityError(InvalidRequest):
 
     entity: str = "Entity"
 
-    def __init__(self, fields=[], entity=None, status_code=400):
+    def __init__(self, fields=None, entity=None, status_code=400):
         self.entity = entity if entity else self.entity
-        self.fields = fields
+        self.fields = list(fields) if fields is not None else []
         message = "{} already exists, {}"
 
-        num_fields = len(fields)
+        num_fields = len(self.fields)
         if num_fields > 0:
             formatted_fields = ""
             if num_fields == 1:

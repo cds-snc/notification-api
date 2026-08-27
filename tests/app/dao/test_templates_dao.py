@@ -4,10 +4,11 @@ from uuid import UUID
 
 import pytest
 from freezegun import freeze_time
+from sqlalchemy import event
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm.exc import NoResultFound
 
-from app import redis_store
+from app import db, redis_store
 from app.dao.templates_dao import (
     dao_create_template,
     dao_get_all_templates_for_service,
@@ -17,10 +18,11 @@ from app.dao.templates_dao import (
     dao_redact_template,
     dao_update_template,
     dao_update_template_category,
+    dao_update_template_process_type,
     dao_update_template_reply_to,
 )
 from app.models import Template, TemplateHistory, TemplateRedacted
-from app.schemas import template_schema
+from app.schemas import reduced_template_schema, template_schema
 from tests.app.db import create_letter_contact, create_template
 
 
@@ -232,6 +234,39 @@ def test_get_all_templates_for_service(service_factory):
     assert len(dao_get_all_templates_for_service(service_2.id)) == 2
 
 
+def test_get_all_templates_for_service_eager_loads_redaction_for_serialization(sample_service):
+    service_id = sample_service.id
+
+    for i in range(5):
+        create_template(
+            service=sample_service,
+            template_name=f"Sample Template {i}",
+            template_type="sms",
+            content=f"Template content {i}",
+        )
+
+    db.session.remove()
+
+    matching_statements = []
+
+    # Make sure that individual lazy queries are not called after serializing the templates.
+    def before_cursor_execute(_conn, _cursor, statement, _parameters, _context, _executemany):
+        normalized_statement = " ".join(statement.split())
+        if "FROM template_redacted" in normalized_statement and "WHERE template_redacted.template_id =" in normalized_statement:
+            matching_statements.append(normalized_statement)
+
+    writer_engine = db.get_engine(bind="writer")
+    event.listen(writer_engine, "before_cursor_execute", before_cursor_execute)
+    try:
+        templates = dao_get_all_templates_for_service(service_id)
+        # Trigger serialization and potential lazy loading if there are any remaining
+        reduced_template_schema.dump(templates, many=True)
+    finally:
+        event.remove(writer_engine, "before_cursor_execute", before_cursor_execute)
+
+    assert matching_statements == []
+
+
 def test_get_all_templates_for_service_is_alphabetised(sample_service):
     create_template(
         template_name="Sample Template 1",
@@ -382,7 +417,7 @@ def test_create_template_creates_a_history_record_with_current_data(sample_servi
     assert template_from_db.created_by.id == template_history.created_by_id
 
 
-def test_update_template_creates_a_history_record_with_current_data(sample_service, sample_user):
+def test_update_template_creates_a_history_record_with_current_data(sample_service, sample_user, sample_template_category):
     assert Template.query.count() == 0
     assert TemplateHistory.query.count() == 0
     data = {
@@ -414,6 +449,12 @@ def test_update_template_creates_a_history_record_with_current_data(sample_servi
 
     assert TemplateHistory.query.filter_by(name="Sample Template").one().version == 1
     assert TemplateHistory.query.filter_by(name="new name").one().version == 2
+
+    created.template_category_id = sample_template_category.id
+    dao_update_template(created)
+
+    history = TemplateHistory.query.filter_by(id=created.id, version=3).one()
+    assert history.template_category_id == sample_template_category.id
 
 
 def test_get_template_history_version(sample_user, sample_service, sample_template):
@@ -502,7 +543,7 @@ def test_dao_update_template_category(sample_template, sample_template_category)
     assert updated_template.version == 2
 
     history = TemplateHistory.query.filter_by(id=sample_template.id, version=updated_template.version).one()
-    assert not history.template_category_id
+    assert history.template_category_id == sample_template_category.id
     assert history.updated_at == updated_template.updated_at
 
 
@@ -534,3 +575,213 @@ class TestProcessType:
         assert template.template_category_id == sample_template_category.id
         assert template.process_type == sample_template_category.email_process_type
         assert template.process_type_column is None
+
+
+class TestTemplateHistoryManualUpdatePaths:
+    def test_reply_to_update_preserves_template_category_id_in_history(
+        self,
+        sample_service,
+        sample_user,
+        sample_template_category,
+    ):
+        letter_contact = create_letter_contact(sample_service, "Edinburgh, ED1 1AA")
+        template = Template(
+            **{
+                "name": "Sample Template",
+                "template_type": "letter",
+                "content": "Template content",
+                "service": sample_service,
+                "created_by": sample_user,
+                "postage": "second",
+                "template_category_id": sample_template_category.id,
+            }
+        )
+        dao_create_template(template)
+
+        dao_update_template_reply_to(template_id=template.id, reply_to=letter_contact.id)
+
+        updated = Template.query.get(template.id)
+        history = TemplateHistory.query.filter_by(id=template.id, version=updated.version).one()
+        assert history.template_category_id == sample_template_category.id
+
+    def test_reply_to_update_preserves_template_flags_in_history(
+        self,
+        sample_service,
+        sample_user,
+        sample_template_category,
+    ):
+        letter_contact = create_letter_contact(sample_service, "Edinburgh, ED1 1AA")
+        template = Template(
+            **{
+                "name": "Sample Template",
+                "template_type": "letter",
+                "content": "Template content",
+                "service": sample_service,
+                "created_by": sample_user,
+                "postage": "second",
+                "template_category_id": sample_template_category.id,
+                "hidden": True,
+                "text_direction_rtl": True,
+                "use_custom_unsubscribe_url": True,
+            }
+        )
+        dao_create_template(template)
+
+        dao_update_template_reply_to(template_id=template.id, reply_to=letter_contact.id)
+
+        updated = Template.query.get(template.id)
+        history = TemplateHistory.query.filter_by(id=template.id, version=updated.version).one()
+        assert history.hidden is True
+        assert history.text_direction_rtl is True
+        assert history.use_custom_unsubscribe_url is True
+
+    def test_process_type_update_increments_version_and_creates_matching_history(
+        self,
+        sample_service,
+        sample_template_category,
+    ):
+        template = create_template(
+            service=sample_service,
+            template_type="sms",
+            template_category=sample_template_category,
+            process_type="normal",
+        )
+
+        original_version = template.version
+        dao_update_template_process_type(template.id, "priority")
+
+        updated = Template.query.get(template.id)
+        assert updated.version == original_version + 1
+        assert updated.updated_at is not None
+        assert updated.process_type_column == "priority"
+
+        history = TemplateHistory.query.filter_by(id=template.id, version=updated.version).one()
+        assert history.process_type_column == "priority"
+        assert history.process_type == "priority"
+        assert history.template_category_id == sample_template_category.id
+        assert history.updated_at == updated.updated_at
+
+    def test_process_type_update_preserves_template_flags_in_history(
+        self,
+        sample_service,
+        sample_template_category,
+    ):
+        template = create_template(
+            service=sample_service,
+            template_type="sms",
+            template_category=sample_template_category,
+            process_type="normal",
+            text_direction_rtl=True,
+        )
+        template.hidden = True
+        template.use_custom_unsubscribe_url = True
+        dao_update_template(template)
+
+        dao_update_template_process_type(template.id, "priority")
+
+        updated = Template.query.get(template.id)
+        history = TemplateHistory.query.filter_by(id=template.id, version=updated.version).one()
+        assert history.hidden is True
+        assert history.text_direction_rtl is True
+        assert history.use_custom_unsubscribe_url is True
+
+    def test_process_type_update_to_none_stores_null_override_and_keeps_category(
+        self,
+        sample_service,
+        sample_template_category,
+    ):
+        template = create_template(
+            service=sample_service,
+            template_type="sms",
+            template_category=sample_template_category,
+            process_type="bulk",
+        )
+
+        dao_update_template_process_type(template.id, None)
+
+        updated = Template.query.get(template.id)
+        assert updated.version == 2
+        assert updated.updated_at is not None
+        assert updated.process_type_column is None
+        assert updated.process_type == sample_template_category.sms_process_type
+
+        history = TemplateHistory.query.filter_by(id=template.id, version=updated.version).one()
+        assert history.process_type_column is None
+        assert history.process_type == sample_template_category.sms_process_type
+        assert history.template_category_id == sample_template_category.id
+        assert history.updated_at == updated.updated_at
+
+    def test_category_update_preserves_template_flags_in_history(
+        self,
+        sample_service,
+        sample_template_category,
+        sample_template_category_bulk,
+    ):
+        template = create_template(
+            service=sample_service,
+            template_type="email",
+            template_category=sample_template_category,
+            process_type=None,
+            text_direction_rtl=True,
+        )
+        template.hidden = True
+        template.use_custom_unsubscribe_url = True
+        dao_update_template(template)
+
+        dao_update_template_category(template.id, sample_template_category_bulk.id)
+
+        updated = Template.query.get(template.id)
+        history = TemplateHistory.query.filter_by(id=template.id, version=updated.version).one()
+        assert history.hidden is True
+        assert history.text_direction_rtl is True
+        assert history.use_custom_unsubscribe_url is True
+
+
+class TestTemplateHistoryRegressionCoverage:
+    def test_update_template_category_id_wins_over_loaded_stale_relationship(
+        self,
+        sample_service,
+        sample_template_category,
+        sample_template_category_bulk,
+    ):
+        create_template(
+            service=sample_service,
+            template_type="email",
+            template_category=sample_template_category,
+            process_type=None,
+        )
+
+        # dao_get_all_templates_for_service eager-loads template_category, which reproduces
+        # the stale-relationship scenario if only template_category_id is changed.
+        loaded_template = dao_get_all_templates_for_service(sample_service.id)[0]
+        assert loaded_template.template_category_id == sample_template_category.id
+        assert loaded_template.template_category.id == sample_template_category.id
+
+        loaded_template.template_category_id = sample_template_category_bulk.id
+        dao_update_template(loaded_template)
+
+        history = TemplateHistory.query.filter_by(id=loaded_template.id, version=2).one()
+        assert history.template_category_id == sample_template_category_bulk.id
+
+    def test_create_template_history_records_category_id_when_set_via_relationship(
+        self,
+        sample_service,
+        sample_user,
+        sample_template_category,
+    ):
+        template = Template(
+            **{
+                "name": "Sample Template",
+                "template_type": "email",
+                "subject": "subject",
+                "content": "Template content",
+                "service": sample_service,
+                "created_by": sample_user,
+                "template_category": sample_template_category,
+            }
+        )
+
+        dao_create_template(template)
+
+        history = TemplateHistory.query.filter_by(id=template.id, version=1).one()
+        assert history.template_category_id == sample_template_category.id

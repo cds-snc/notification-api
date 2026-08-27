@@ -3,32 +3,38 @@ from __future__ import print_function
 
 import os
 
-import newrelic.agent  # See https://bit.ly/2xBVKBH
-from apig_wsgi import make_lambda_handler
-from aws_xray_sdk.core import patch_all, xray_recorder
-from aws_xray_sdk.ext.flask.middleware import XRayMiddleware
 from dotenv import load_dotenv
+from environs import Env
 from flask import Flask
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app import create_app
-from app.aws.xray.context import NotifyContext
-
-# Patch all supported libraries for X-Ray
-# Used to trace requests and responses through the stack
-patch_all()
 
 load_dotenv()
+
+env = Env()
+
+ff_enable_otel = env.bool("FF_ENABLE_OTEL", default=False)
+
+if not ff_enable_otel:
+    from aws_xray_sdk.core import patch_all, xray_recorder
+    from aws_xray_sdk.ext.flask.middleware import XRayMiddleware
+
+    from app.aws.xray.context import NotifyContext
+
+    # Patch all supported libraries for X-Ray
+    # Used to trace requests and responses through the stack
+    patch_all()
 
 application = Flask("api")
 application.wsgi_app = ProxyFix(application.wsgi_app)  # type: ignore
 
 app = create_app(application)
 
-xray_recorder.configure(service="Notify-API", context=NotifyContext())
-XRayMiddleware(app, xray_recorder)
-
-apig_wsgi_handler = make_lambda_handler(app, binary_support=True)
+if not ff_enable_otel:
+    # Configure X-Ray after app creation
+    xray_recorder.configure(service="Notify-API", context=NotifyContext())
+    XRayMiddleware(app, xray_recorder)
 
 if os.environ.get("USE_LOCAL_JINJA_TEMPLATES") == "True":
     print("")
@@ -39,9 +45,3 @@ if os.environ.get("USE_LOCAL_JINJA_TEMPLATES") == "True":
     print("")
     print("========================================================")
     print("")
-
-
-def handler(event, context):
-    newrelic.agent.initialize(environment=app.config["NOTIFY_ENVIRONMENT"])  # noqa: E402
-    newrelic.agent.register_application(timeout=20.0)
-    return apig_wsgi_handler(event, context)

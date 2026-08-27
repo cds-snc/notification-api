@@ -1,24 +1,15 @@
 import time
 from contextlib import contextmanager
-from os import getenv
 from unittest import mock
-from urllib.parse import urlparse
 from uuid import uuid4
 
 import pytest
 from flask import Flask
-from pytest_mock_resources import RedisConfig, create_redis_fixture
+from pytest_mock_resources import create_redis_fixture
 
 from app import create_app, flask_redis, metrics_logger
 from app.config import Config, Test
 from app.queue import Buffer, MockQueue, RedisQueue, generate_element
-
-
-@pytest.fixture(scope="session")
-def pmr_redis_config():
-    parsed_uri = urlparse(getenv("REDIS_URL"))
-    return RedisConfig(image="redis:6.2", host=parsed_uri.hostname, port="6380", ci_port="6380")
-
 
 redis = create_redis_fixture(scope="function")
 REDIS_ELEMENTS_COUNT = 123
@@ -313,6 +304,32 @@ class TestRedisQueue:
 
         self.delete_all_list(redis)
 
+    def test_scripts_registry_is_isolated_per_instance(self):
+        queue_one = RedisQueue("sms")
+        queue_two = RedisQueue("sms")
+
+        script_one_move = object()
+        script_one_expire = object()
+        script_two_move = object()
+        script_two_expire = object()
+
+        redis_client_one = mock.Mock()
+        redis_client_one.register_script.side_effect = [script_one_move, script_one_expire]
+        redis_client_two = mock.Mock()
+        redis_client_two.register_script.side_effect = [script_two_move, script_two_expire]
+
+        queue_one.init_app(redis_client_one, metrics_logger)
+        queue_two.init_app(redis_client_two, metrics_logger)
+
+        queue_one_scripts = queue_one._scripts
+        queue_two_scripts = queue_two._scripts
+
+        assert queue_one_scripts is not queue_two_scripts
+        assert queue_one_scripts[RedisQueue.LUA_MOVE_TO_INFLIGHT] is script_one_move
+        assert queue_one_scripts[RedisQueue.LUA_EXPIRE_INFLIGHTS] is script_one_expire
+        assert queue_two_scripts[RedisQueue.LUA_MOVE_TO_INFLIGHT] is script_two_move
+        assert queue_two_scripts[RedisQueue.LUA_EXPIRE_INFLIGHTS] is script_two_expire
+
 
 @pytest.mark.usefixtures("notify_api")
 class TestMockQueue:
@@ -429,6 +446,7 @@ class TestRedisQueueMetricUsage:
             redis_queue.acknowledge(receipt)
             assert pbsip_mock.assert_called_with(mock.ANY, mock.ANY, 1) is None
 
+    @pytest.mark.serial
     def test_put_batch_saving_expiry_metric(self, redis, redis_queue, mocker):
         with self.given_inbox_with_many_indexes(redis, redis_queue):
             pbsem_mock = mocker.patch("app.queue.put_batch_saving_expiry_metric")
@@ -437,6 +455,14 @@ class TestRedisQueueMetricUsage:
             redis_queue.poll(10)
             redis_queue.poll(10)
             redis_queue.poll(10)
-            time.sleep(2)
-            redis_queue.expire_inflights()
-            assert pbsem_mock.assert_called_with(mock.ANY, mock.ANY, 3) is None
+            # Expiry uses Redis idletime (`idle > expire_after`) with second-level granularity,
+            # so inflights may expire across more than one pass depending on timing.
+            total_expired = 0
+            for _ in range(5):
+                redis_queue.expire_inflights()
+                total_expired = sum(call.args[2] for call in pbsem_mock.call_args_list)
+                if total_expired >= 3:
+                    break
+                time.sleep(1)
+
+            assert total_expired == 3

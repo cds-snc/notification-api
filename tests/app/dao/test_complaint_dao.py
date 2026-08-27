@@ -1,6 +1,8 @@
 import uuid
 from datetime import datetime, timedelta
 
+import pytest
+
 from app.dao.complaint_dao import (
     fetch_complaints_by_service,
     fetch_count_of_complaints,
@@ -138,6 +140,28 @@ def test_fetch_count_of_complaints(sample_email_notification):
 
     count_of_complaints = fetch_count_of_complaints(start_date=datetime(2018, 6, 7), end_date=datetime(2018, 6, 7))
     assert count_of_complaints == 2
+
+
+def test_fetch_paginated_complaints_eagerly_loads_service(notify_db_session, sample_email_notification):
+    """Regression test: service must be joinedloaded to avoid N+1 queries on GET /complaint."""
+    from sqlalchemy.orm.exc import DetachedInstanceError
+
+    create_complaint(
+        service=sample_email_notification.service,
+        notification=sample_email_notification,
+    )
+
+    items = fetch_paginated_complaints(page=1).items
+    assert len(items) == 1
+
+    # Detach all objects. Accessing a lazily-loaded relationship on a
+    # detached instance raises DetachedInstanceError.
+    notify_db_session.session.expunge_all()
+
+    try:
+        _ = items[0].service
+    except DetachedInstanceError:
+        pytest.fail("service was not eagerly loaded by fetch_paginated_complaints()")
 
 
 def test_fetch_count_of_complaints_returns_zero(notify_db):

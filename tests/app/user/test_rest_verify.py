@@ -1,6 +1,7 @@
 import json
 import uuid
 from datetime import datetime, timedelta
+from unittest.mock import ANY
 
 import pytest
 from flask import current_app, url_for
@@ -204,7 +205,7 @@ def test_send_user_sms_code(client, sample_user, sms_code_template, mocker, rese
     assert notification.reply_to_text == notify_service.get_default_sms_sender()
 
     app.celery.provider_tasks.deliver_sms.apply_async.assert_called_once_with(
-        ([str(notification.id)]), queue="notify-internal-tasks"
+        ([str(notification.id)]), queue="notify-internal-tasks", MessageGroupId=ANY
     )
 
 
@@ -229,7 +230,7 @@ def test_send_user_code_for_sms_with_optional_to_field(client, sample_user, sms_
     notification = Notification.query.first()
     assert notification.to == to_number
     app.celery.provider_tasks.deliver_sms.apply_async.assert_called_once_with(
-        ([str(notification.id)]), queue="notify-internal-tasks"
+        ([str(notification.id)]), queue="notify-internal-tasks", MessageGroupId=ANY
     )
 
 
@@ -310,7 +311,7 @@ def test_send_new_user_email_verification(client, sample_user, mocker, email_ver
     assert resp.status_code == 204
     notification = Notification.query.first()
     assert VerifyCode.query.count() == 0
-    mocked.assert_called_once_with(([str(notification.id)]), queue="notify-internal-tasks")
+    mocked.assert_called_once_with(([str(notification.id)]), queue="notify-internal-tasks", MessageGroupId=ANY)
     assert notification.reply_to_text == notify_service.get_default_reply_to_email_address()
 
 
@@ -409,7 +410,7 @@ def test_send_user_email_code(
     assert mocked.call_count == 1
     assert noti.personalisation["name"] == "Test User"
     assert noti.personalisation["verify_code"] == "11111"
-    deliver_email.assert_called_once_with([str(noti.id)], queue="notify-internal-tasks")
+    deliver_email.assert_called_once_with([str(noti.id)], queue="notify-internal-tasks", MessageGroupId=ANY)
 
 
 def test_send_user_email_code_with_urlencoded_next_param(admin_request, mocker, sample_user, email_2fa_code_template):
@@ -478,3 +479,153 @@ def test_user_verify_email_code_fails_if_code_already_used(admin_request, sample
     assert verify_code.code_used
     assert sample_user.logged_in_at is None
     assert sample_user.current_session_id is None
+
+
+class TestE2EUserVerification:
+    @pytest.mark.parametrize(
+        "env,host,email,should_accept",
+        [
+            ("development", "localhost:3000", "cypress-service-user@cds-snc.ca", True),
+            ("development", "dev.local", "cypress-service-user@cds-snc.ca", True),
+            ("production", "localhost:3000", "cypress-service-user@cds-snc.ca", False),
+            ("development", "notification.canada.ca", "cypress-service-user@cds-snc.ca", False),
+            ("development", "localhost:3000", "otheruser@cds-snc.ca", False),
+            ("development", "localhost:3000", "cypress_test@otherdomain.com", False),
+        ],
+    )
+    def test_verify_2fa_code_accepts_any_code_for_test_user(self, client, env, host, email, should_accept, mocker, cypress_user):
+        # Set the user email for this test case
+        cypress_user.email_address = email
+        # Patch get_user_by_id to return cypress_user
+        mocker.patch("app.service.rest.get_user_by_id", return_value=cypress_user)
+        # Patch save_model_user to avoid SQLAlchemy errors
+        mocker.patch("app.dao.users_dao.save_model_user", autospec=True)
+        with set_config_values(current_app, {"CYPRESS_EMAIL_PREFIX": "cypress-", "NOTIFY_ENVIRONMENT": env}):
+            data = {"code_type": "email", "code": "any-code"}
+            auth_header = create_authorization_header()
+            headers = [
+                ("Content-Type", "application/json"),
+                ("Host", host),
+                auth_header,
+            ]
+            resp = client.post(
+                url_for("user.verify_2fa_code", user_id=cypress_user.id),
+                data=json.dumps(data),
+                headers=headers,
+            )
+
+            if should_accept:
+                assert resp.status_code == 204
+            else:
+                assert resp.status_code == 404
+
+    @pytest.mark.parametrize(
+        "env,host,email,should_accept",
+        [
+            ("development", "localhost:3000", "cypress-service-user@cds-snc.ca", True),
+            ("development", "dev.local", "cypress-service-user@cds-snc.ca", True),
+            ("production", "localhost:3000", "cypress-service-user@cds-snc.ca", False),
+            ("development", "notification.canada.ca", "cypress-service-user@cds-snc.ca", False),
+            ("development", "localhost:3000", "otheruser@cds-snc.ca", False),
+            ("development", "localhost:3000", "cypress_test@otherdomain.com", False),
+        ],
+    )
+    def test_verify_user_code_accepts_any_code_for_test_user(self, client, env, host, email, should_accept, mocker, cypress_user):
+        # Set the user email for this test case
+        cypress_user.email_address = email
+        # Patch get_user_by_id to return cypress_user
+        mocker.patch("app.service.rest.get_user_by_id", return_value=cypress_user)
+        # Patch save_model_user to avoid SQLAlchemy errors
+        mocker.patch("app.dao.users_dao.save_model_user", autospec=True)
+        with set_config_values(current_app, {"CYPRESS_EMAIL_PREFIX": "cypress-", "NOTIFY_ENVIRONMENT": env}):
+            data = {"code_type": "email", "code": "any-code"}
+            auth_header = create_authorization_header()
+            headers = [
+                ("Content-Type", "application/json"),
+                ("Host", host),
+                auth_header,
+            ]
+            resp = client.post(
+                url_for("user.verify_user_code", user_id=cypress_user.id),
+                data=json.dumps(data),
+                headers=headers,
+            )
+
+            if should_accept:
+                assert resp.status_code == 204
+            else:
+                assert resp.status_code == 404
+
+
+class TestVerify2FACode:
+    @freeze_time("2016-01-01T12:00:00")
+    def test_verify_2fa_code_success(self, client, sample_sms_code):
+        sample_sms_code.user.logged_in_at = datetime.utcnow() - timedelta(days=1)
+        assert not sample_sms_code.code_used
+        data = json.dumps({"code_type": sample_sms_code.code_type, "code": sample_sms_code.txt_code})
+        auth_header = create_authorization_header()
+        resp = client.post(
+            url_for("user.verify_2fa_code", user_id=sample_sms_code.user.id),
+            data=data,
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+        assert resp.status_code == 204
+        assert sample_sms_code.code_used
+
+    def test_verify_2fa_code_missing_code(self, client, sample_sms_code):
+        assert not sample_sms_code.code_used
+        data = json.dumps({"code_type": sample_sms_code.code_type})
+        auth_header = create_authorization_header()
+        resp = client.post(
+            url_for("user.verify_2fa_code", user_id=sample_sms_code.user.id),
+            data=data,
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+        assert resp.status_code == 400
+        assert not sample_sms_code.code_used
+        # failed_login_count should not increment
+        assert sample_sms_code.user.failed_login_count == 0
+
+    def test_verify_2fa_code_bad_code(self, client, sample_sms_code):
+        assert not sample_sms_code.code_used
+        data = json.dumps({"code_type": sample_sms_code.code_type, "code": "wrongcode"})
+        auth_header = create_authorization_header()
+        resp = client.post(
+            url_for("user.verify_2fa_code", user_id=sample_sms_code.user.id),
+            data=data,
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+        assert resp.status_code == 404
+        assert not sample_sms_code.code_used
+        assert sample_sms_code.user.failed_login_count == 0
+
+    def test_verify_2fa_code_expired(self, client, sample_sms_code):
+        assert not sample_sms_code.code_used
+        sample_sms_code.expiry_datetime = datetime.utcnow() - timedelta(hours=1)
+        db.session.add(sample_sms_code)
+        db.session.commit()
+        data = json.dumps({"code_type": sample_sms_code.code_type, "code": sample_sms_code.txt_code})
+        auth_header = create_authorization_header()
+        resp = client.post(
+            url_for("user.verify_2fa_code", user_id=sample_sms_code.user.id),
+            data=data,
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+        assert resp.status_code == 400
+        assert not sample_sms_code.code_used
+        assert sample_sms_code.user.failed_login_count == 0
+
+    def test_verify_2fa_code_already_used(self, client, sample_sms_code):
+        sample_sms_code.code_used = True
+        db.session.add(sample_sms_code)
+        db.session.commit()
+        data = json.dumps({"code_type": sample_sms_code.code_type, "code": sample_sms_code.txt_code})
+        auth_header = create_authorization_header()
+        resp = client.post(
+            url_for("user.verify_2fa_code", user_id=sample_sms_code.user.id),
+            data=data,
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+        assert resp.status_code == 400
+        assert sample_sms_code.code_used
+        assert sample_sms_code.user.failed_login_count == 0
