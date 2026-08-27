@@ -150,19 +150,11 @@ def invalidate_service_cache_keys(service_id):
     """
     normalized_service_id = str(service_id)
 
-    try:
-        from app.dao.services_dao import dao_fetch_service_by_id_cached
-
-        dao_fetch_service_by_id_cached.invalidate(normalized_service_id)  # type: ignore[attr-defined]
-        dao_fetch_service_by_id_cached.invalidate(normalized_service_id, True)  # type: ignore[attr-defined]
-    except Exception:
-        pass
-
     # Prefix invalidation is best-effort and requires Redis backend access.
     try:
         invalidate_group_keys("service", normalized_service_id)
     except Exception:
-        pass
+        pass  #  Failures are swallowed because request/transaction paths should not fail due to cache backend issues.
 
 
 dogpile_region = make_region(
