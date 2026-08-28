@@ -638,6 +638,93 @@ class TestTryToSendNotificationsToQueue:
         send_mock.assert_called_once_with(saved_notifications[0], False, QueueNames.SEND_EMAIL_LOW)
 
 
+@pytest.mark.usefixtures("notify_db_session")
+class TestMixedPriorityBatchRouting:
+    """End-to-end regression tests for the mixed-priority routing bug at the caller sites
+    (``save_emails`` and ``save_smss``).
+
+    The unit tests in ``TestTryToSendNotificationsToQueue`` only exercise the shared helper — but
+    ``save_smss`` uses its own inline loop and does not go through the helper, so a fix applied to
+    ``try_to_send_notifications_to_queue`` does not automatically cover the SMS path. These tests
+    hit the full ``save_emails`` / ``save_smss`` code path so any future refactor is caught.
+    """
+
+    def _run_batch(self, save_fn, sample_service, notification_type, mocker):
+        """Persist and send a batch of three notifications with priority/normal/bulk templates.
+
+        Returns a dict mapping notification id (str) → the queue that ``deliver_*.apply_async``
+        was called with.
+        """
+        priority_template = create_template(service=sample_service, template_type=notification_type, process_type="priority")
+        normal_template = create_template(service=sample_service, template_type=notification_type, process_type="normal")
+        bulk_template = create_template(service=sample_service, template_type=notification_type, process_type="bulk")
+
+        to = {"email": ["p@test.com", "n@test.com", "b@test.com"], "sms": ["+16135550001", "+16135550002", "+16135550003"]}[
+            notification_type
+        ]
+
+        # Order matters: priority FIRST, bulk LAST. If the loop leaks the stale template,
+        # every notification would end up on the bulk queue.
+        p_id, n_id, b_id = str(uuid.uuid4()), str(uuid.uuid4()), str(uuid.uuid4())
+        n_priority = _notification_json(priority_template, to=to[0])
+        n_priority["id"] = p_id
+        n_normal = _notification_json(normal_template, to=to[1])
+        n_normal["id"] = n_id
+        n_bulk = _notification_json(bulk_template, to=to[2])
+        n_bulk["id"] = b_id
+
+        deliver_task = "deliver_email" if notification_type == "email" else "deliver_sms"
+        deliver_mock = mocker.patch(f"app.celery.provider_tasks.{deliver_task}.apply_async")
+
+        save_fn(
+            str(sample_service.id),
+            [
+                signer_notification.sign(n_priority),
+                signer_notification.sign(n_normal),
+                signer_notification.sign(n_bulk),
+            ],
+            None,
+        )
+
+        # deliver_*.apply_async is called as: apply_async([notification_id_str], queue=..., MessageGroupId=...)
+        queue_by_id = {c[0][0][0]: c[1]["queue"] for c in deliver_mock.call_args_list}
+        return queue_by_id, p_id, n_id, b_id
+
+    def test_save_emails_routes_each_notification_by_own_priority_in_mixed_batch(self, sample_service, mocker):
+        """save_emails goes through ``try_to_send_notifications_to_queue`` → each notification routes
+        to its own priority queue, even when the last template in the batch is bulk.
+        """
+        queue_by_id, p_id, n_id, b_id = self._run_batch(save_emails, sample_service, "email", mocker)
+
+        assert (
+            queue_by_id[p_id] == QueueNames.SEND_EMAIL_HIGH
+        ), f"Priority email routed to {queue_by_id[p_id]}, expected SEND_EMAIL_HIGH (stale-template bug?)"
+        assert queue_by_id[n_id] == QueueNames.SEND_EMAIL_MEDIUM
+        assert queue_by_id[b_id] == QueueNames.SEND_EMAIL_LOW
+
+    @pytest.mark.xfail(
+        strict=True,
+        reason=(
+            "save_smss uses an inline loop instead of try_to_send_notifications_to_queue, so it still "
+            "has the stale-template routing bug: every notification in a mixed-priority batch is routed "
+            "to the last template's queue. This xfail is a placeholder — once save_smss is refactored "
+            "to call try_to_send_notifications_to_queue, this test will pass and the marker must be removed."
+        ),
+    )
+    def test_save_smss_routes_each_notification_by_own_priority_in_mixed_batch(self, sample_service, mocker):
+        """SMS mirror of the email test above. Currently fails because save_smss does not go through
+        try_to_send_notifications_to_queue — the priority notification is routed to send-sms-low
+        (the last template's queue), not send-sms-high.
+        """
+        queue_by_id, p_id, n_id, b_id = self._run_batch(save_smss, sample_service, "sms", mocker)
+
+        assert (
+            queue_by_id[p_id] == QueueNames.SEND_SMS_HIGH
+        ), f"Priority SMS routed to {queue_by_id[p_id]}, expected SEND_SMS_HIGH (stale-template bug)"
+        assert queue_by_id[n_id] == QueueNames.SEND_SMS_MEDIUM
+        assert queue_by_id[b_id] == QueueNames.SEND_SMS_LOW
+
+
 class TestUpdateJob:
     def test_update_job(self, sample_template, sample_job, mocker):
         latest = save_notification(create_notification(job=sample_job, updated_at=datetime.utcnow()))
