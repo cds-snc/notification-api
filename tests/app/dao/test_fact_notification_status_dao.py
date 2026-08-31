@@ -60,7 +60,6 @@ from tests.app.db import (
     create_template,
     save_notification,
 )
-from tests.conftest import set_config
 
 
 @freeze_time("2019-06-18T12:00:00")
@@ -910,58 +909,9 @@ class TestFetchDeliveredNotificationStatsbyMonth:
         assert results[3].month.startswith("2019-12-01")
         assert results[3].notification_type == "email"
         assert results[3].count == 3
-
         assert results[4].month.startswith("2019-12-01")
         assert results[4].notification_type == "sms"
         assert results[4].count == 6
-
-    @freeze_time("2020-11-02 14:00")
-    def test_fetch_delivered_notification_stats_by_month_filter_heartbeats(self, notify_api, sample_service):
-        # Not counted: before GC Notify started (2019-10)
-        create_monthly_notification_stats_summary(
-            month="2019-10-01",
-            service=sample_service,
-            notification_type="email",
-            count=3,
-        )
-
-        # December 2019 - email
-        create_monthly_notification_stats_summary(
-            month="2019-12-01",
-            service=sample_service,
-            notification_type="email",
-            count=3,
-        )
-
-        # December 2019 - sms
-        create_monthly_notification_stats_summary(
-            month="2019-12-01",
-            service=sample_service,
-            notification_type="sms",
-            count=6,
-        )
-
-        # January 2020 - sms
-        create_monthly_notification_stats_summary(
-            month="2020-01-01",
-            service=sample_service,
-            notification_type="sms",
-            count=4,
-        )
-
-        # March 2020 - email
-        create_monthly_notification_stats_summary(
-            month="2020-03-01",
-            service=sample_service,
-            notification_type="email",
-            count=5,
-        )
-
-        # When filtering heartbeats and sample_service is configured as NOTIFY_SERVICE_ID,
-        # all its records should be filtered out
-        with set_config(notify_api, "NOTIFY_SERVICE_ID", sample_service.id):
-            results = fetch_delivered_notification_stats_by_month(filter_heartbeats=True)
-            assert len(results) == 0
 
     def test_fetch_delivered_notification_stats_by_month_empty(self):
         assert fetch_delivered_notification_stats_by_month() == []

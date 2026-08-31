@@ -151,7 +151,7 @@ def create_monthly_notification_stats_summary():
     that have been delivered and sent.
 
     function we are optimizing for:
-    def fetch_delivered_notification_stats_by_month(filter_heartbeats=None):
+    def fetch_delivered_notification_stats_by_month():
     query = (
         db.session.query(
             func.date_trunc("month", FactNotificationStatus.bst_date).cast(db.Text).label("month"),
