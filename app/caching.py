@@ -156,7 +156,7 @@ def invalidate_service_cache_keys(service_id):
     except Exception:
         pass  #  Failures are swallowed because request/transaction paths should not fail due to cache backend issues.
 
-
+      
 dogpile_region = make_region(
     function_key_generator=cache_key_generator,
     serializer=_json_cache_serializer,
