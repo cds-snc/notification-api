@@ -156,9 +156,9 @@ def create_app(application, config=None):
     redis_store.init_app(application)
     bounce_rate_client.init_app(application)
     init_dogpile_cache(application)
-    from app.cache.service_cache_events import register_service_cache_orm_events
+    from app.cache.cache_events import register_cache_orm_events
 
-    register_service_cache_orm_events()
+    register_cache_orm_events()
 
     sms_bulk_publish.init_app(flask_cache_ops, metrics_logger)
     sms_normal_publish.init_app(flask_cache_ops, metrics_logger)
