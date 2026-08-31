@@ -75,6 +75,7 @@ from app.dao.services_dao import (
     dao_fetch_all_services_by_user,
     dao_fetch_live_services_data,
     dao_fetch_service_by_id,
+    dao_fetch_service_by_id_cached,
     dao_fetch_service_ids_of_sensitive_services,
     dao_fetch_todays_stats_for_all_services,
     dao_fetch_todays_stats_for_service,
@@ -221,9 +222,13 @@ def get_service_by_id(service_id):
     if request.args.get("detailed") == "True":
         data = get_detailed_service(service_id, today_only=request.args.get("today_only") == "True")
     else:
-        fetched = dao_fetch_service_by_id(service_id)
+        if current_app.config.get("FF_USE_DOGPILE_CACHING", False) is True:
+            fetched = dao_fetch_service_by_id_cached(service_id)
+            data = fetched
+        else:
+            fetched = dao_fetch_service_by_id(service_id)
+            data = service_schema.dump(fetched)
 
-        data = service_schema.dump(fetched)
     return jsonify(data=data)
 
 

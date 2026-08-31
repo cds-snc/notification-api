@@ -184,6 +184,7 @@ class Config(object):
     FF_REPORT_API = env.bool("FF_REPORT_API", False)
     FF_SMS_RATELIMIT = env.bool("FF_SMS_RATELIMIT", False)
     FF_USE_BILLABLE_UNITS = env.bool("FF_USE_BILLABLE_UNITS", False)
+    FF_USE_DOGPILE_CACHING = env.bool("FF_USE_DOGPILE_CACHING", False)
 
     # URL of admin app
     ADMIN_BASE_URL = os.getenv("ADMIN_BASE_URL", "http://localhost:6012")
@@ -224,6 +225,10 @@ class Config(object):
     REDIS_ENABLED = env.bool("REDIS_ENABLED", False)
     EXPIRE_CACHE_TEN_MINUTES = 600
     EXPIRE_CACHE_EIGHT_DAYS = 8 * 24 * 60 * 60
+
+    # Dogpile caching
+    DOGPILE_CACHE_EXPIRATION = 600
+    DOGPILE_CACHE_BACKEND = "dogpile.cache.redis"
 
     # Performance platform
     PERFORMANCE_PLATFORM_ENABLED = False

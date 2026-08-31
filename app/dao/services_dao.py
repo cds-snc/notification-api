@@ -11,6 +11,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.expression import and_, asc, case, func
 
 from app import db, redis_store
+from app.caching import dogpile_region
 from app.dao.dao_utils import VersionOptions, transactional, version_class
 from app.dao.date_util import get_current_financial_year, get_midnight
 from app.dao.email_branding_dao import dao_get_email_branding_by_name
@@ -50,6 +51,7 @@ from app.models import (
     User,
     VerifyCode,
 )
+from app.schemas import service_schema
 from app.service.utils import add_pt_data_retention, get_organisation_by_id
 from app.utils import (
     email_address_is_nhs,
@@ -194,6 +196,18 @@ def dao_fetch_live_services_data():
         else:
             results.append(row._asdict())
     return results
+
+
+@dogpile_region.cache_on_arguments(namespace="service")
+def dao_fetch_service_by_id_cached(service_id: str, only_active=False) -> dict:
+    """Dogpile cached version of fetching a service by id"""
+    query = Service.query.filter_by(id=service_id).options(joinedload("users"))
+    if only_active:
+        query = query.filter(Service.active)
+
+    service = service_schema.dump(query.one())
+
+    return service
 
 
 def dao_fetch_service_by_id(service_id, only_active=False, use_cache=False) -> Service:
