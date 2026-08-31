@@ -702,19 +702,9 @@ class TestMixedPriorityBatchRouting:
         assert queue_by_id[n_id] == QueueNames.SEND_EMAIL_MEDIUM
         assert queue_by_id[b_id] == QueueNames.SEND_EMAIL_LOW
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "save_smss uses an inline loop instead of try_to_send_notifications_to_queue, so it still "
-            "has the stale-template routing bug: every notification in a mixed-priority batch is routed "
-            "to the last template's queue. This xfail is a placeholder — once save_smss is refactored "
-            "to call try_to_send_notifications_to_queue, this test will pass and the marker must be removed."
-        ),
-    )
     def test_save_smss_routes_each_notification_by_own_priority_in_mixed_batch(self, sample_service, mocker):
-        """SMS mirror of the email test above. Currently fails because save_smss does not go through
-        try_to_send_notifications_to_queue — the priority notification is routed to send-sms-low
-        (the last template's queue), not send-sms-high.
+        """SMS mirror of the email test. Previously failed because save_smss used its own inline loop
+        instead of try_to_send_notifications_to_queue.
         """
         queue_by_id, p_id, n_id, b_id = self._run_batch(save_smss, sample_service, "sms", mocker)
 
