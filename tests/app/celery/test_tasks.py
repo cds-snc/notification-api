@@ -1438,7 +1438,7 @@ class TestSaveSmss:
 
         mocked_deliver_sms.assert_called_once_with(
             [str(persisted_notification.id)],
-            queue="send-throttled-sms-tasks" if sender_id else QueueNames.SEND_SMS_MEDIUM,
+            queue="send-throttled-sms-tasks" if sender_id else "sms_queue",
             MessageGroupId=ANY,
         )
         if sender_id:
