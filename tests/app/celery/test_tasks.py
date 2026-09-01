@@ -543,9 +543,7 @@ class TestTryToSendNotificationsToQueue:
         # signed payload from post_notifications does not include a "queue" key.
         notification_id_queue = {priority_id: None, normal_id: None, bulk_id: None}
 
-        service = MagicMock(research_mode=False)
-
-        try_to_send_notifications_to_queue(notification_id_queue, service, saved_notifications)
+        try_to_send_notifications_to_queue(notification_id_queue, saved_notifications)
 
         assert send_mock.call_count == 3
         assert send_mock.call_args_list[0] == call(saved_notifications[0], False, QueueNames.SEND_EMAIL_HIGH)
@@ -560,9 +558,8 @@ class TestTryToSendNotificationsToQueue:
         # Notification's own queue_name says HIGH, but the CSV bulk-redirect override says LOW.
         saved_notifications = [self._make_notification(notification_id, QueueNames.SEND_EMAIL_HIGH)]
         notification_id_queue = {notification_id: QueueNames.SEND_EMAIL_LOW}
-        service = MagicMock(research_mode=False)
 
-        try_to_send_notifications_to_queue(notification_id_queue, service, saved_notifications)
+        try_to_send_notifications_to_queue(notification_id_queue, saved_notifications)
 
         send_mock.assert_called_once_with(saved_notifications[0], False, QueueNames.SEND_EMAIL_LOW)
 
@@ -583,9 +580,8 @@ class TestTryToSendNotificationsToQueue:
             self._make_notification(normal_id, QueueNames.SEND_EMAIL_MEDIUM),
         ]
         notification_id_queue = {n.id: None for n in saved_notifications}
-        service = MagicMock(research_mode=False)
 
-        try_to_send_notifications_to_queue(notification_id_queue, service, saved_notifications)
+        try_to_send_notifications_to_queue(notification_id_queue, saved_notifications)
 
         # The priority notification (index 3) must go to send-email-high, not send-email-medium.
         priority_call = send_mock.call_args_list[3]
@@ -601,25 +597,15 @@ class TestTryToSendNotificationsToQueue:
         saved_notifications = [self._make_notification(raw_id, QueueNames.SEND_EMAIL_HIGH)]
         # Map keyed by string (matches what save_emails/save_smss build).
         notification_id_queue = {str(raw_id): QueueNames.SEND_EMAIL_LOW}
-        service = MagicMock(research_mode=False)
 
-        try_to_send_notifications_to_queue(notification_id_queue, service, saved_notifications)
+        try_to_send_notifications_to_queue(notification_id_queue, saved_notifications)
 
         # Even though notification.id is a UUID object here, the str() cast in the lookup finds it.
         send_mock.assert_called_once_with(saved_notifications[0], False, QueueNames.SEND_EMAIL_LOW)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason=(
-            "stale service bug: try_to_send_notifications_to_queue uses the last service from the batch loop, "
-            "so if that service is research_mode=True, live-service notifications in the same batch are "
-            "incorrectly routed to research-mode-tasks. Fix: derive research_mode per-notification from "
-            "notification.queue_name instead of from the stale service parameter."
-        ),
-    )
     def test_live_service_notifications_not_routed_to_research_mode_when_stale_service_is_research(self, notify_api, mocker):
-        """Regression for the stale-service bug: a live-service notification must not be sent to
-        research-mode-tasks just because the last service in the batch has research_mode=True.
+        """Regression: research_mode is now derived per-notification from queue_name, not from the
+        stale service variable — so live-service notifications are never silently swallowed.
         """
         send_mock = mocker.patch("app.celery.tasks.send_notification_to_queue")
 
@@ -632,11 +618,8 @@ class TestTryToSendNotificationsToQueue:
         notification_id_queue = {live_id: None, research_id: None}
 
         # Stale service from the last loop iteration — happens to be the research-mode one.
-        stale_research_service = MagicMock(research_mode=True)
 
-        try_to_send_notifications_to_queue(
-            notification_id_queue, stale_research_service, [live_notification, research_notification]
-        )
+        try_to_send_notifications_to_queue(notification_id_queue, [live_notification, research_notification])
 
         # live_notification must be called with research_mode=False (its own correct value).
         # Currently fails because research_mode=True is passed for all notifications.

@@ -383,7 +383,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
         handle_batch_error_and_forward(self, signed_and_verified, SMS_TYPE, e, receipt, template)
 
     if saved_notifications:
-        try_to_send_notifications_to_queue(notification_id_queue, service, saved_notifications)
+        try_to_send_notifications_to_queue(notification_id_queue, saved_notifications)
 
 
 @notify_celery.task(bind=True, name="save-emails", max_retries=5, default_retry_delay=300)
@@ -465,10 +465,6 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
             f"Saved following notifications into db: {notification_id_queue.keys()} associated with receipt {receipt}"
         )
         if receipt:
-            # todo: fix this potential bug
-            # template is whatever it was set to last in the for loop above
-            # at this point in the code we have a list of notifications (saved_notifications)
-            # which could use multiple templates
             acknowledge_receipt(EMAIL_TYPE, process_type, receipt)
             current_app.logger.debug(
                 f"Batch saving: receipt_id {receipt} removed from buffer queue for notification_id {notification_id} for process_type {process_type}"
@@ -485,17 +481,12 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
         handle_batch_error_and_forward(self, signed_and_verified, EMAIL_TYPE, e, receipt, template)
 
     if saved_notifications:
-        try_to_send_notifications_to_queue(notification_id_queue, service, saved_notifications)
+        try_to_send_notifications_to_queue(notification_id_queue, saved_notifications)
 
 
-def try_to_send_notifications_to_queue(notification_id_queue, service, saved_notifications):
+def try_to_send_notifications_to_queue(notification_id_queue, saved_notifications):
     """Route each saved notification to its delivery queue. Works for both SMS and email batches."""
     current_app.logger.debug(f"Sending following notifications to provider queue: {notification_id_queue.keys()}")
-    # todo: fix this potential bug
-    # service is whatever it was set to last in the for loop above.
-    # at this point in the code we have a list of notifications (saved_notifications)
-    # which could be from multiple services
-    research_mode = service.research_mode  # type: ignore
     for notification_obj in saved_notifications:
         try:
             # TODO: remove notification_id_queue once persist_notifications knows about the CSV bulk-redirect
@@ -509,6 +500,9 @@ def try_to_send_notifications_to_queue(notification_id_queue, service, saved_not
                 # per-notification correct value from persist_notifications
                 or notification_obj.queue_name
             )
+            # research_mode is derived per-notification: queue_name is already set correctly by
+            # persist_notifications → choose_queue.
+            research_mode = notification_obj.queue_name == QueueNames.RESEARCH_MODE
             send_notification_to_queue(
                 notification_obj,
                 research_mode,
