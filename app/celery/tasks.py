@@ -545,6 +545,9 @@ def handle_batch_error_and_forward(
         notification_id = notification["notification_id"]
         notifications_in_job.append(notification_id)
         service = notification["service"]
+        # Fetch per-notification (cached) so process_type is always set before acknowledge_receipt.
+        template = dao_get_template_by_id(notification.get("template_id"), notification.get("template_version"), use_cache=True)
+        process_type = template.process_type
         # Sometimes, SQS plays the same message twice. We should be able to catch an IntegrityError, but it seems
         # SQLAlchemy is throwing a FlushError. So we check if the notification id already exists then do not
         # send to the retry queue.
@@ -557,10 +560,6 @@ def handle_batch_error_and_forward(
             current_app.logger.info(forward_msg)
             save_fn = save_emails if notification_type == EMAIL_TYPE else save_smss
 
-            template = dao_get_template_by_id(
-                notification.get("template_id"), notification.get("template_version"), use_cache=True
-            )
-            process_type = template.process_type
             retry_msg = "{task} notification for job {job} row number {row} and notification id {notif} and max_retries are {max_retry}".format(
                 task=task.__name__,
                 job=notification.get("job", None),
