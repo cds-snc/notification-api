@@ -622,7 +622,6 @@ class TestTryToSendNotificationsToQueue:
         try_to_send_notifications_to_queue(notification_id_queue, [live_notification, research_notification])
 
         # live_notification must be called with research_mode=False (its own correct value).
-        # Currently fails because research_mode=True is passed for all notifications.
         live_call = send_mock.call_args_list[0]
         assert live_call == call(live_notification, False, QueueNames.SEND_EMAIL_HIGH)
 
