@@ -1,0 +1,37 @@
+from flask import jsonify
+
+from app import authenticated_service
+from app.dao import notifications_dao
+from app.schema_validation import validate
+from app.v2.errors import BadRequestError
+from app.v2.notifications import v2_notification_blueprint
+from app.v2.notifications.notification_schemas import notification_by_id
+
+
+@v2_notification_blueprint.route("/<notification_id>", methods=["DELETE"])
+def delete_notification_by_id(notification_id):
+    _data = {"notification_id": notification_id}
+    validate(_data, notification_by_id)
+
+    # Read from the writer bind: this is a prelude to a delete, so a stale reader-replica
+    # row must not cause an incorrect 404 or a stale scheduled_notification.pending check.
+    notification = notifications_dao.get_notification_with_personalisation(
+        authenticated_service.id, notification_id, key_type=None
+    )
+
+    if notification is None:
+        return jsonify(result="error", message="Notification not found in database"), 404
+
+    scheduled_notification = notification.scheduled_notification
+    if scheduled_notification is None:
+        raise BadRequestError(message="Notification is not scheduled and cannot be deleted")
+
+    if not scheduled_notification.pending:
+        raise BadRequestError(message="Notification has already been sent and cannot be deleted")
+
+    deleted_count = notifications_dao.dao_delete_scheduled_notification_by_id(notification_id)
+    if not deleted_count:
+        # Another worker processed the notification between the pending check above and the delete.
+        raise BadRequestError(message="Notification has already been sent and cannot be deleted")
+
+    return jsonify(result="success"), 200
