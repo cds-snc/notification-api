@@ -75,6 +75,7 @@ from app.dao.services_dao import (
     dao_fetch_all_services_by_user,
     dao_fetch_live_services_data,
     dao_fetch_service_by_id,
+    dao_fetch_service_by_id_cached,
     dao_fetch_service_ids_of_sensitive_services,
     dao_fetch_todays_stats_for_all_services,
     dao_fetch_todays_stats_for_service,
@@ -207,15 +208,13 @@ def find_services_by_name():
 
 @service_blueprint.route("/live-services-data", methods=["GET"])
 def get_live_services_data():
-    filter_heartbeats = request.args.get("filter_heartbeats", None) == "True"
-    data = dao_fetch_live_services_data(filter_heartbeats=filter_heartbeats)
+    data = dao_fetch_live_services_data()
     return jsonify(data=data)
 
 
 @service_blueprint.route("/delivered-notifications-stats-by-month-data", methods=["GET"])
 def get_delivered_notification_stats_by_month_data():
-    filter_heartbeats = request.args.get("filter_heartbeats", None) == "True"
-    return jsonify(data=fetch_delivered_notification_stats_by_month(filter_heartbeats=filter_heartbeats))
+    return jsonify(data=fetch_delivered_notification_stats_by_month())
 
 
 @service_blueprint.route("/<uuid:service_id>", methods=["GET"])
@@ -223,9 +222,13 @@ def get_service_by_id(service_id):
     if request.args.get("detailed") == "True":
         data = get_detailed_service(service_id, today_only=request.args.get("today_only") == "True")
     else:
-        fetched = dao_fetch_service_by_id(service_id)
+        if current_app.config.get("FF_USE_DOGPILE_CACHING", False) is True:
+            fetched = dao_fetch_service_by_id_cached(service_id)
+            data = fetched
+        else:
+            fetched = dao_fetch_service_by_id(service_id)
+            data = service_schema.dump(fetched)
 
-        data = service_schema.dump(fetched)
     return jsonify(data=data)
 
 
