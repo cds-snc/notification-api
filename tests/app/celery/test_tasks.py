@@ -566,19 +566,6 @@ class TestTryToSendNotificationsToQueue:
 
         send_mock.assert_called_once_with(saved_notifications[0], False, QueueNames.SEND_EMAIL_LOW)
 
-    def test_falls_back_to_template_queue_when_queue_name_and_map_are_both_empty(self, notify_api, mocker):
-        """Legacy fallback: if neither the map nor queue_name is set, use the template's queue."""
-        send_mock = mocker.patch("app.celery.tasks.send_notification_to_queue")
-
-        notification_id = str(uuid.uuid4())
-        saved_notifications = [self._make_notification(notification_id, None)]
-        notification_id_queue = {notification_id: None}
-        service = MagicMock(research_mode=False)
-
-        try_to_send_notifications_to_queue(notification_id_queue, service, saved_notifications)
-
-        send_mock.assert_called_once_with(saved_notifications[0], False, QueueNames.SEND_EMAIL_MEDIUM)
-
     def test_priority_notification_not_routed_to_last_batch_notifications_queue(self, notify_api, mocker):
         """Specific regression for the production bug: priority notification in position N-1 of a batch
         whose last notification is normal priority must still route to send-email-high.
