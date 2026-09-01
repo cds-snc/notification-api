@@ -13,7 +13,11 @@ def delete_notification_by_id(notification_id):
     _data = {"notification_id": notification_id}
     validate(_data, notification_by_id)
 
-    notification = notifications_dao.get_notification_by_id(notification_id, authenticated_service.id)
+    # Read from the writer bind: this is a prelude to a delete, so a stale reader-replica
+    # row must not cause an incorrect 404 or a stale scheduled_notification.pending check.
+    notification = notifications_dao.get_notification_with_personalisation(
+        authenticated_service.id, notification_id, key_type=None
+    )
 
     if notification is None:
         return jsonify(result="error", message="Notification not found in database"), 404
@@ -25,6 +29,9 @@ def delete_notification_by_id(notification_id):
     if not scheduled_notification.pending:
         raise BadRequestError(message="Notification has already been sent and cannot be deleted")
 
-    notifications_dao.dao_delete_scheduled_notification_by_id(notification_id)
+    deleted_count = notifications_dao.dao_delete_scheduled_notification_by_id(notification_id)
+    if not deleted_count:
+        # Another worker processed the notification between the pending check above and the delete.
+        raise BadRequestError(message="Notification has already been sent and cannot be deleted")
 
     return jsonify(result="success"), 200

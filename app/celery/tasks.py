@@ -90,7 +90,7 @@ from app.notifications.process_notifications import (
 from app.report.utils import generate_csv_from_notifications, send_requested_report_ready
 from app.sms_fragment_utils import fetch_todays_requested_sms_count
 from app.types import VerifiedNotification
-from app.utils import get_csv_max_rows, get_delivery_queue_for_template, get_fiscal_year
+from app.utils import get_csv_max_rows, get_fiscal_year
 from app.v2.errors import (
     LiveServiceTooManyRequestsError,
     LiveServiceTooManySMSRequestsError,
@@ -306,7 +306,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
     can delete the inflight notifications.
     """
     verified_notifications: List[VerifiedNotification] = []
-    notification_id_queue: Dict = {}
+    notification_id_queue: Dict[str, Optional[str]] = {}
     saved_notifications: List[Notification] = []
     for signed_notification in signed_notifications:
         try:
@@ -382,24 +382,8 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
         signed_and_verified = list(zip(signed_notifications, verified_notifications))
         handle_batch_error_and_forward(self, signed_and_verified, SMS_TYPE, e, receipt, template)
 
-    current_app.logger.debug(f"Sending following sms notifications to AWS: {notification_id_queue.keys()}")
-    for notification_obj in saved_notifications:
-        try:
-            queue = notification_id_queue.get(notification_obj.id) or get_delivery_queue_for_template(template)
-            send_notification_to_queue(
-                notification_obj,
-                service.research_mode,
-                queue=queue,
-            )
-            current_app.logger.debug(
-                "SMS {} created at {} for job {}".format(
-                    notification_obj.id,
-                    notification_obj.created_at,
-                    notification_obj.job,
-                )
-            )
-        except (LiveServiceTooManySMSRequestsError, TrialServiceTooManySMSRequestsError) as e:
-            current_app.logger.info(f"{e.message}: SMS {notification_obj.id} not created")
+    if saved_notifications:
+        try_to_send_notifications_to_queue(notification_id_queue, service, saved_notifications)
 
 
 @notify_celery.task(bind=True, name="save-emails", max_retries=5, default_retry_delay=300)
@@ -412,7 +396,7 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
     can delete the inflight notifications.
     """
     verified_notifications: List[VerifiedNotification] = []
-    notification_id_queue: Dict = {}
+    notification_id_queue: Dict[str, Optional[str]] = {}
     saved_notifications: List[Notification] = []
 
     # temporarily cache services so we don't get them more than once each batch
@@ -501,15 +485,12 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
         handle_batch_error_and_forward(self, signed_and_verified, EMAIL_TYPE, e, receipt, template)
 
     if saved_notifications:
-        try_to_send_notifications_to_queue(notification_id_queue, service, saved_notifications, template)
+        try_to_send_notifications_to_queue(notification_id_queue, service, saved_notifications)
 
 
-def try_to_send_notifications_to_queue(notification_id_queue, service, saved_notifications, template):
-    """
-    Loop through saved_notifications, check if the service has hit their daily rate limit,
-    and if not, call send_notification_to_queue on notification
-    """
-    current_app.logger.debug(f"Sending following email notifications to AWS: {notification_id_queue.keys()}")
+def try_to_send_notifications_to_queue(notification_id_queue, service, saved_notifications):
+    """Route each saved notification to its delivery queue. Works for both SMS and email batches."""
+    current_app.logger.debug(f"Sending following notifications to provider queue: {notification_id_queue.keys()}")
     # todo: fix this potential bug
     # service is whatever it was set to last in the for loop above.
     # at this point in the code we have a list of notifications (saved_notifications)
@@ -517,7 +498,17 @@ def try_to_send_notifications_to_queue(notification_id_queue, service, saved_not
     research_mode = service.research_mode  # type: ignore
     for notification_obj in saved_notifications:
         try:
-            queue = notification_id_queue.get(notification_obj.id) or get_delivery_queue_for_template(template)
+            # TODO: remove notification_id_queue once persist_notifications knows about the CSV bulk-redirect
+            # rule (choose_sending_queue). Until then, the map carries the only signal for that override.
+            # Map keys are strings; notification_obj.id is a string in-session (persist_notifications does
+            # not refresh the SQLAlchemy object) but could be a uuid.UUID after a DB refresh — the str()
+            # cast makes the lookup robust either way.
+            queue = (
+                # CSV bulk-redirect override (only useful for CSV jobs)
+                notification_id_queue.get(str(notification_obj.id))
+                # per-notification correct value from persist_notifications
+                or notification_obj.queue_name
+            )
             send_notification_to_queue(
                 notification_obj,
                 research_mode,
@@ -525,14 +516,20 @@ def try_to_send_notifications_to_queue(notification_id_queue, service, saved_not
             )
 
             current_app.logger.debug(
-                "Email {} created at {} for job {}".format(
+                "{} {} created at {} for job {}".format(
+                    notification_obj.notification_type,
                     notification_obj.id,
                     notification_obj.created_at,
                     notification_obj.job,
                 )
             )
-        except (LiveServiceTooManyRequestsError, TrialServiceTooManyRequestsError) as e:
-            current_app.logger.info(f"{e.message}: Email {notification_obj.id} not created")
+        except (
+            LiveServiceTooManyRequestsError,
+            TrialServiceTooManyRequestsError,
+            LiveServiceTooManySMSRequestsError,
+            TrialServiceTooManySMSRequestsError,
+        ) as e:
+            current_app.logger.info(f"{e.message}: {notification_obj.notification_type} {notification_obj.id} not created")
 
 
 def handle_batch_error_and_forward(
@@ -823,7 +820,7 @@ def send_notify_no_reply(self, data):
             current_app.logger.error(
                 f"""
                 Retry: send_notify_no_reply has retried the max number of
-                 times for sender {payload['sender']}"""
+                 times for sender {payload["sender"]}"""
             )
 
 
