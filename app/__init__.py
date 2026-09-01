@@ -21,6 +21,7 @@ from werkzeug.exceptions import HTTPException as WerkzeugHTTPException
 from werkzeug.local import LocalProxy
 
 from app.aws.metrics_logger import MetricsLogger
+from app.caching import init_dogpile_cache
 from app.celery.celery import NotifyCelery
 from app.clients import Clients
 from app.clients.airtable.airtable_client import AirtableClient
@@ -30,7 +31,6 @@ from app.clients.email.aws_ses import AwsSesClient
 from app.clients.performance_platform.performance_platform_client import (
     PerformancePlatformClient,
 )
-from app.clients.salesforce.salesforce_client import SalesforceClient
 from app.clients.sms.aws_pinpoint import AwsPinpointClient
 from app.clients.sms.aws_sns import AwsSnsClient
 from app.dbsetup import RoutingSQLAlchemy, enable_sqlalchemy_debug_logging
@@ -72,7 +72,6 @@ email_queue = RedisQueue("email")
 sms_queue = RedisQueue("sms")
 performance_platform_client = PerformancePlatformClient()
 document_download_client = DocumentDownloadClient()
-salesforce_client = SalesforceClient()
 airtable_client = AirtableClient()
 
 clients = Clients()
@@ -146,9 +145,6 @@ def create_app(application, config=None):
     airtable_client.init_app(application)
     clients.init_app(sms_clients=[aws_sns_client, aws_pinpoint_client], email_clients=[aws_ses_client])
 
-    if application.config["FF_SALESFORCE_CONTACT"]:
-        salesforce_client.init_app(application)
-
     # Initialize the rate limiter for SMS delivery tasks, then wrap it in a
     # BufferedRateLimiter to reduce network round-trips per Celery worker.
     initialize_rate_limiter(application.config["CELERY_DELIVER_SMS_RATE_LIMIT_PER_MINUTE"], namespace="sms").buffered(
@@ -159,6 +155,7 @@ def create_app(application, config=None):
     flask_cache_ops.init_app(application)
     redis_store.init_app(application)
     bounce_rate_client.init_app(application)
+    init_dogpile_cache(application)
 
     sms_bulk_publish.init_app(flask_cache_ops, metrics_logger)
     sms_normal_publish.init_app(flask_cache_ops, metrics_logger)

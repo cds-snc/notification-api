@@ -182,9 +182,9 @@ class Config(object):
     FF_PT_SERVICE_SKIP_FRESHDESK = env.bool("FF_PT_SERVICE_SKIP_FRESHDESK", False)
     # Enables the /v2/reports API endpoints. Off by default so the feature stays hidden in production until launch.
     FF_REPORT_API = env.bool("FF_REPORT_API", False)
-    FF_SALESFORCE_CONTACT = env.bool("FF_SALESFORCE_CONTACT", False)
     FF_SMS_RATELIMIT = env.bool("FF_SMS_RATELIMIT", False)
     FF_USE_BILLABLE_UNITS = env.bool("FF_USE_BILLABLE_UNITS", False)
+    FF_USE_DOGPILE_CACHING = env.bool("FF_USE_DOGPILE_CACHING", False)
 
     # URL of admin app
     ADMIN_BASE_URL = os.getenv("ADMIN_BASE_URL", "http://localhost:6012")
@@ -226,6 +226,10 @@ class Config(object):
     EXPIRE_CACHE_TEN_MINUTES = 600
     EXPIRE_CACHE_EIGHT_DAYS = 8 * 24 * 60 * 60
 
+    # Dogpile caching
+    DOGPILE_CACHE_EXPIRATION = 600
+    DOGPILE_CACHE_BACKEND = "dogpile.cache.redis"
+
     # Performance platform
     PERFORMANCE_PLATFORM_ENABLED = False
     PERFORMANCE_PLATFORM_URL = "https://www.performance.service.gov.uk/data/govuk-notify/"
@@ -246,16 +250,7 @@ class Config(object):
         "AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME", "PROD - Current newsletter templates"
     )
 
-    # Salesforce
-    SALESFORCE_DOMAIN = os.getenv("SALESFORCE_DOMAIN")
-    SALESFORCE_CLIENT_ID = os.getenv("SALESFORCE_CLIENT_ID", "Notify")
-    SALESFORCE_ENGAGEMENT_PRODUCT_ID = os.getenv("SALESFORCE_ENGAGEMENT_PRODUCT_ID")
-    SALESFORCE_ENGAGEMENT_RECORD_TYPE = os.getenv("SALESFORCE_ENGAGEMENT_RECORD_TYPE")
-    SALESFORCE_ENGAGEMENT_STANDARD_PRICEBOOK_ID = os.getenv("SALESFORCE_ENGAGEMENT_STANDARD_PRICEBOOK_ID")
-    SALESFORCE_GENERIC_ACCOUNT_ID = os.getenv("SALESFORCE_GENERIC_ACCOUNT_ID")
-    SALESFORCE_USERNAME = os.getenv("SALESFORCE_USERNAME")
-    SALESFORCE_PASSWORD = os.getenv("SALESFORCE_PASSWORD")
-    SALESFORCE_SECURITY_TOKEN = os.getenv("SALESFORCE_SECURITY_TOKEN")
+    # Organisations
     GC_ORGANISATIONS_BUCKET_NAME = os.getenv("GC_ORGANISATIONS_BUCKET_NAME")
     GC_ORGANISATIONS_FILENAME = os.getenv("GC_ORGANISATIONS_FILENAME", "all.json")
 
@@ -330,7 +325,6 @@ class Config(object):
 
     # Notify's notifications templates
     NOTIFY_SERVICE_ID = "d6aa2c68-a2d9-4437-ab19-3ae8eb202553"
-    HEARTBEAT_SERVICE_ID = "30b2fb9c-f8ad-49ad-818a-ed123fc00758"
     NEWSLETTER_SERVICE_ID = "143806ca-3068-4f5d-9c6d-276b4151a395"
     NOTIFY_USER_ID = "6af522d0-2915-4e52-83a3-3690455a5fe6"
     INVITATION_EMAIL_TEMPLATE_ID = "4f46df42-f795-4cc4-83bb-65ca312f49cc"
@@ -727,8 +721,6 @@ class Config(object):
             "AWS_SES_SECRET_KEY",
             "ROUTE_SECRET_KEY_1",
             "ROUTE_SECRET_KEY_2",
-            "SALESFORCE_PASSWORD",
-            "SALESFORCE_SECURITY_TOKEN",
             "TEMPLATE_PREVIEW_API_KEY",
             "DOCUMENT_DOWNLOAD_API_KEY",
             "SRE_CLIENT_SECRET",
