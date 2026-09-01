@@ -386,6 +386,9 @@ def init_app(app):
             "https://documentation.dev.notification.cdssandbox.xyz",
             "https://cds-snc.github.io",
         }
+        # allow the locally-run documentation site to hit this API for manual testing
+        if app.config.get("NOTIFY_ENVIRONMENT") == "development":
+            ALLOWED_ORIGINS.update({"http://localhost:8081", "http://0.0.0.0:8081"})
         origin = request.headers.get("Origin")
         if origin in ALLOWED_ORIGINS:
             response.headers["Access-Control-Allow-Origin"] = origin
