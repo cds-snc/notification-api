@@ -90,7 +90,7 @@ from app.notifications.process_notifications import (
 from app.report.utils import generate_csv_from_notifications, send_requested_report_ready
 from app.sms_fragment_utils import fetch_todays_requested_sms_count
 from app.types import VerifiedNotification
-from app.utils import get_csv_max_rows, get_delivery_queue_for_template, get_fiscal_year
+from app.utils import get_csv_max_rows, get_fiscal_year
 from app.v2.errors import (
     LiveServiceTooManyRequestsError,
     LiveServiceTooManySMSRequestsError,
@@ -383,7 +383,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
         handle_batch_error_and_forward(self, signed_and_verified, SMS_TYPE, e, receipt, template)
 
     if saved_notifications:
-        try_to_send_notifications_to_queue(notification_id_queue, service, saved_notifications, template)
+        try_to_send_notifications_to_queue(notification_id_queue, service, saved_notifications)
 
 
 @notify_celery.task(bind=True, name="save-emails", max_retries=5, default_retry_delay=300)
@@ -485,10 +485,10 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
         handle_batch_error_and_forward(self, signed_and_verified, EMAIL_TYPE, e, receipt, template)
 
     if saved_notifications:
-        try_to_send_notifications_to_queue(notification_id_queue, service, saved_notifications, template)
+        try_to_send_notifications_to_queue(notification_id_queue, service, saved_notifications)
 
 
-def try_to_send_notifications_to_queue(notification_id_queue, service, saved_notifications, template):
+def try_to_send_notifications_to_queue(notification_id_queue, service, saved_notifications):
     """Route each saved notification to its delivery queue. Works for both SMS and email batches."""
     current_app.logger.debug(f"Sending following notifications to provider queue: {notification_id_queue.keys()}")
     # todo: fix this potential bug
@@ -508,8 +508,6 @@ def try_to_send_notifications_to_queue(notification_id_queue, service, saved_not
                 notification_id_queue.get(str(notification_obj.id))
                 # per-notification correct value from persist_notifications
                 or notification_obj.queue_name
-                # legacy fallback (safe to keep, but essentially unreachable)
-                or get_delivery_queue_for_template(template)
             )
             send_notification_to_queue(
                 notification_obj,
