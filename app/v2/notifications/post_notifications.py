@@ -539,6 +539,25 @@ def process_document_uploads(personalisation_data, service: Service, simulated, 
         else:
             try:
                 personalisation_data[key] = document_download_client.upload_document(service.id, personalisation_data[key])
+                uploaded_document = personalisation_data[key]["document"]
+                current_app.logger.info(
+                    "File upload accepted: service_id=%s template_id=%s filename=%s file_extension=%s "
+                    "mime_type=%s sending_method=%s",
+                    service.id,
+                    template_id,
+                    uploaded_document.get("filename"),
+                    uploaded_document.get("file_extension"),
+                    uploaded_document.get("mime_type"),
+                    uploaded_document.get("sending_method"),
+                    extra={
+                        "service_id": str(service.id),
+                        "template_id": str(template_id),
+                        "file_name": uploaded_document.get("filename"),
+                        "file_extension": uploaded_document.get("file_extension"),
+                        "mime_type": uploaded_document.get("mime_type"),
+                        "sending_method": uploaded_document.get("sending_method"),
+                    },
+                )
             except DocumentDownloadError as e:
                 raise BadRequestError(message=e.message, status_code=e.status_code)
 
