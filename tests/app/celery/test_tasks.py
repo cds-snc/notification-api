@@ -1673,7 +1673,7 @@ class TestSaveErrorHandling:
         signed_notifications = [1]
         verified_notifications = [n1]
         signed_and_verified = list(zip(signed_notifications, verified_notifications))
-        handle_batch_error_and_forward(save_smss, signed_and_verified, SMS_TYPE, expected_exception, receipt_id, sample_template)
+        handle_batch_error_and_forward(save_smss, signed_and_verified, SMS_TYPE, expected_exception, receipt_id)
         retry_func.assert_called_with(exc=expected_exception, queue="retry-tasks")
 
     def test_handler_send_3notifications(self, sample_template, mocker):
@@ -1699,7 +1699,7 @@ class TestSaveErrorHandling:
         signed_notifications = [1, 2, 3]
         verified_notifications = [n1, n2, n3]
         signed_and_verified = list(zip(signed_notifications, verified_notifications))
-        handle_batch_error_and_forward(save_smss, signed_and_verified, SMS_TYPE, expected_exception, receipt_id, sample_template)
+        handle_batch_error_and_forward(save_smss, signed_and_verified, SMS_TYPE, expected_exception, receipt_id)
 
         assert save_func.call_count == 3
         assert save_func.call_args_list == [

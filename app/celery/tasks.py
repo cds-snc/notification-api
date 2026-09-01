@@ -380,7 +380,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
 
     except SQLAlchemyError as e:
         signed_and_verified = list(zip(signed_notifications, verified_notifications))
-        handle_batch_error_and_forward(self, signed_and_verified, SMS_TYPE, e, receipt, template)
+        handle_batch_error_and_forward(self, signed_and_verified, SMS_TYPE, e, receipt)
 
     if saved_notifications:
         try_to_send_notifications_to_queue(notification_id_queue, saved_notifications)
@@ -478,7 +478,7 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
             )
     except SQLAlchemyError as e:
         signed_and_verified = list(zip(signed_notifications, verified_notifications))
-        handle_batch_error_and_forward(self, signed_and_verified, EMAIL_TYPE, e, receipt, template)
+        handle_batch_error_and_forward(self, signed_and_verified, EMAIL_TYPE, e, receipt)
 
     if saved_notifications:
         try_to_send_notifications_to_queue(notification_id_queue, saved_notifications)
@@ -532,13 +532,13 @@ def handle_batch_error_and_forward(
     notification_type: Optional[str],
     exception,
     receipt: Optional[UUID] = None,
-    template: Any = None,
 ):
     if receipt:
         current_app.logger.warning(f"Batch saving: could not persist notifications with receipt {receipt}: {str(exception)}")
     else:
         current_app.logger.warning(f"Batch saving: could not persist notifications: {str(exception)}")
-    process_type = template.process_type if template else None
+    # process_type is resolved per-notification below; initialising to None avoids a stale outer value.
+    process_type = None
 
     notifications_in_job: List[str] = []
     for signed, notification in signed_and_verified:
