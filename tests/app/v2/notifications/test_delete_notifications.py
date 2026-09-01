@@ -1,6 +1,7 @@
 import pytest
 from flask import json
 
+from app.dao.notifications_dao import dao_delete_scheduled_notification_by_id
 from app.models import Notification, ScheduledNotification
 from tests import create_authorization_header
 from tests.app.db import (
@@ -70,6 +71,47 @@ def test_delete_scheduled_notification_that_has_already_been_sent_returns_400(cl
     ]
 
     assert Notification.query.get(notification.id) is not None
+
+
+def test_delete_scheduled_notification_race_condition_returns_400(client, sample_template, mocker):
+    notification = save_scheduled_notification(
+        create_notification(template=sample_template),
+        scheduled_for="2099-05-12 15:15",
+    )
+
+    # Simulate another worker marking the notification as processed between the
+    # pending check in the endpoint and the delete call.
+    mocker.patch(
+        "app.v2.notifications.delete_notifications.notifications_dao.dao_delete_scheduled_notification_by_id",
+        return_value=0,
+    )
+
+    auth_header = create_authorization_header(service_id=notification.service_id)
+    response = client.delete(
+        path="/v2/notifications/{}".format(notification.id),
+        headers=[("Content-Type", "application/json"), auth_header],
+    )
+
+    assert response.status_code == 400
+    json_response = json.loads(response.get_data(as_text=True))
+    assert json_response["errors"] == [
+        {"error": "BadRequestError", "message": "Notification has already been sent and cannot be deleted"}
+    ]
+
+    assert Notification.query.get(notification.id) is not None
+
+
+def test_dao_delete_scheduled_notification_by_id_does_not_delete_when_not_pending(client, sample_template):
+    notification = save_scheduled_notification(
+        create_notification(template=sample_template, status="sending"),
+        scheduled_for="2017-05-12 15:15",
+    )
+
+    deleted_count = dao_delete_scheduled_notification_by_id(notification.id)
+
+    assert deleted_count == 0
+    assert Notification.query.get(notification.id) is not None
+    assert ScheduledNotification.query.filter_by(notification_id=notification.id).first() is not None
 
 
 def test_delete_notification_nonexistent_id_returns_404(client, sample_notification):

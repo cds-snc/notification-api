@@ -29,6 +29,9 @@ def delete_notification_by_id(notification_id):
     if not scheduled_notification.pending:
         raise BadRequestError(message="Notification has already been sent and cannot be deleted")
 
-    notifications_dao.dao_delete_scheduled_notification_by_id(notification_id)
+    deleted_count = notifications_dao.dao_delete_scheduled_notification_by_id(notification_id)
+    if not deleted_count:
+        # Another worker processed the notification between the pending check above and the delete.
+        raise BadRequestError(message="Notification has already been sent and cannot be deleted")
 
     return jsonify(result="success"), 200
