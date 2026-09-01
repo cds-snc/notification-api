@@ -667,9 +667,9 @@ class TestMixedPriorityBatchRouting:
         """
         queue_by_id, p_id, n_id, b_id = self._run_batch(save_emails, sample_service, "email", mocker)
 
-        assert queue_by_id[p_id] == QueueNames.SEND_EMAIL_HIGH, (
-            f"Priority email routed to {queue_by_id[p_id]}, expected SEND_EMAIL_HIGH (stale-template bug?)"
-        )
+        assert (
+            queue_by_id[p_id] == QueueNames.SEND_EMAIL_HIGH
+        ), f"Priority email routed to {queue_by_id[p_id]}, expected SEND_EMAIL_HIGH (stale-template bug?)"
         assert queue_by_id[n_id] == QueueNames.SEND_EMAIL_MEDIUM
         assert queue_by_id[b_id] == QueueNames.SEND_EMAIL_LOW
 
@@ -679,9 +679,9 @@ class TestMixedPriorityBatchRouting:
         """
         queue_by_id, p_id, n_id, b_id = self._run_batch(save_smss, sample_service, "sms", mocker)
 
-        assert queue_by_id[p_id] == QueueNames.SEND_SMS_HIGH, (
-            f"Priority SMS routed to {queue_by_id[p_id]}, expected SEND_SMS_HIGH (stale-template bug)"
-        )
+        assert (
+            queue_by_id[p_id] == QueueNames.SEND_SMS_HIGH
+        ), f"Priority SMS routed to {queue_by_id[p_id]}, expected SEND_SMS_HIGH (stale-template bug)"
         assert queue_by_id[n_id] == QueueNames.SEND_SMS_MEDIUM
         assert queue_by_id[b_id] == QueueNames.SEND_SMS_LOW
 
