@@ -13,7 +13,7 @@ def delete_notification_by_id(notification_id):
     _data = {"notification_id": notification_id}
     validate(_data, notification_by_id)
 
-    notification = notifications_dao.get_notification_by_id(notification_id, authenticated_service.id)
+    notification = notifications_dao.get_notification_with_personalisation(authenticated_service.id, notification_id, key_type=None)
 
     if notification is None:
         return jsonify(result="error", message="Notification not found in database"), 404
