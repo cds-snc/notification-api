@@ -1257,8 +1257,8 @@ paths:
 
   /v2/notifications/bulk:
     get:
-      summary: Get list of bulk jobs
-      description: Retrieve a paginated list of bulk jobs and their statuses
+      summary: Obtenir la liste des tâches de lot
+      description: Récupérer une liste paginée de tâches de lot et leurs statuts
       operationId: getBulkNotificationJobs
       tags:
         - Notifications
@@ -1821,8 +1821,8 @@ paths:
 
   /v2/notifications/bulk/{job_id}:
     get:
-      summary: Get bulk job by ID
-      description: Retrieve a bulk job and its current status
+      summary: Obtenir une tâche de lot par identifiant
+      description: Récupérer une tâche de lot et son statut actuel
       operationId: getBulkNotificationJobById
       tags:
         - Notifications
