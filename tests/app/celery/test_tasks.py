@@ -608,6 +608,45 @@ class TestTryToSendNotificationsToQueue:
         # Even though notification.id is a UUID object here, the str() cast in the lookup finds it.
         send_mock.assert_called_once_with(saved_notifications[0], False, QueueNames.SEND_EMAIL_LOW)
 
+    @pytest.mark.xfail(
+        strict=True,
+        reason=(
+            "stale service bug: try_to_send_notifications_to_queue uses the last service from the batch loop, "
+            "so if that service is research_mode=True, live-service notifications in the same batch are "
+            "incorrectly routed to research-mode-tasks. Fix: derive research_mode per-notification from "
+            "notification.queue_name instead of from the stale service parameter."
+        ),
+    )
+    def test_live_service_notifications_not_routed_to_research_mode_when_stale_service_is_research(self, notify_api, mocker):
+        """Regression for the stale-service bug: a live-service notification must not be sent to
+        research-mode-tasks just because the last service in the batch has research_mode=True.
+        """
+        send_mock = mocker.patch("app.celery.tasks.send_notification_to_queue")
+
+        live_id = str(uuid.uuid4())
+        research_id = str(uuid.uuid4())
+
+        live_notification = self._make_notification(live_id, QueueNames.SEND_EMAIL_HIGH)
+        research_notification = self._make_notification(research_id, QueueNames.RESEARCH_MODE)
+
+        notification_id_queue = {live_id: None, research_id: None}
+
+        # Stale service from the last loop iteration — happens to be the research-mode one.
+        stale_research_service = MagicMock(research_mode=True)
+
+        try_to_send_notifications_to_queue(
+            notification_id_queue, stale_research_service, [live_notification, research_notification]
+        )
+
+        # live_notification must be called with research_mode=False (its own correct value).
+        # Currently fails because research_mode=True is passed for all notifications.
+        live_call = send_mock.call_args_list[0]
+        assert live_call == call(live_notification, False, QueueNames.SEND_EMAIL_HIGH)
+
+        # research_notification legitimately goes to research mode.
+        research_call = send_mock.call_args_list[1]
+        assert research_call == call(research_notification, True, QueueNames.RESEARCH_MODE)
+
 
 @pytest.mark.usefixtures("notify_db_session")
 class TestMixedPriorityBatchRouting:
