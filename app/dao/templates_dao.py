@@ -9,6 +9,7 @@ from sqlalchemy import asc, desc
 from sqlalchemy.orm import attributes, joinedload
 
 from app import db, redis_store
+from app.caching import dogpile_region
 from app.dao.dao_utils import VersionOptions, transactional, version_class
 from app.dao.users_dao import get_user_by_id
 from app.models import (
@@ -19,6 +20,7 @@ from app.models import (
     TemplateHistory,
     TemplateRedacted,
 )
+from app.schemas import template_schema
 
 
 def _create_template_history_row(template):
@@ -152,6 +154,13 @@ def dao_update_template_category(template_id, category_id):
 
     db.session.add(_create_template_history_row(template))
     return template
+
+
+@dogpile_region.cache_on_arguments(namespace="template")
+def dao_get_template_by_id_cached(template_id, service_id) -> dict:
+    """Return a JSON-safe cached representation of a service's template."""
+    template = dao_get_template_by_id_and_service_id(template_id=template_id, service_id=service_id)
+    return template_schema.dump(template)
 
 
 @transactional

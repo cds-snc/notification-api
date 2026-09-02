@@ -7,6 +7,7 @@ from dogpile.cache import make_region
 GROUP_BY_FUNCTION = {
     "dao_fetch_service_by_id_cached": ("service", "service_id"),
     "dao_get_user_by_id_cached": ("user", "user_id"),
+    "dao_get_template_by_id_cached": ("template", "template_id"),
 }
 
 

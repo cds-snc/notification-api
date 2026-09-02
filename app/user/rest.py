@@ -36,6 +36,7 @@ from app.dao.users_dao import (
     create_user_code,
     dao_archive_user,
     dao_deactivate_user,
+    dao_get_user_by_id_cached,
     get_user_and_accounts,
     get_user_by_email,
     get_user_by_id,
@@ -604,6 +605,9 @@ def send_new_template_category_request(user_id):
 @user_blueprint.route("/<uuid:user_id>", methods=["GET"])
 @user_blueprint.route("", methods=["GET"])
 def get_user(user_id=None):
+    if user_id and current_app.config.get("FF_USE_DOGPILE_CACHING", False) is True:
+        return jsonify(data=dao_get_user_by_id_cached(user_id))
+
     users = get_user_by_id(user_id=user_id)
     result = [x.serialize() for x in users] if isinstance(users, list) else users.serialize()
     return jsonify(data=result)

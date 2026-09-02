@@ -7,6 +7,7 @@ backend does in production.
 """
 
 import time
+from uuid import UUID
 
 from dogpile.cache import make_region
 from dogpile.cache.api import NO_VALUE
@@ -254,6 +255,19 @@ class TestCacheKeyGenerator:
         assert key.startswith("service:d4e5f6a7-1234-5678-9abc-def012345678:dao_fetch_service_by_id_cached:")
         assert "only_active=False" in key
         assert "service_id=" not in key
+
+    def test_template_key_groups_by_template_id_and_fingerprints_service_id(self):
+        def dao_get_template_by_id_cached(template_id, service_id):
+            pass
+
+        gen = cache_key_generator("template", dao_get_template_by_id_cached)
+        key = gen(
+            UUID("d4e5f6a7-1234-5678-9abc-def012345678"),
+            UUID("a1b2c3d4-1234-5678-9abc-def012345678"),
+        )
+
+        assert key.startswith("template:d4e5f6a7-1234-5678-9abc-def012345678:dao_get_template_by_id_cached:")
+        assert "service_id=a1b2c3d4-1234-5678-9abc-def012345678" in key
 
     def test_same_args_produce_same_key(self):
         def my_func(service_id):
