@@ -81,6 +81,18 @@ def test_get_user(admin_request, sample_service, sample_organisation):
     assert sorted(fetched["permissions"][str(sample_service.id)]) == sorted(expected_permissions)
 
 
+def test_get_user_with_dogpile_cache_returns_cached_payload(notify_api, admin_request, sample_service, mocker):
+    sample_user = sample_service.users[0]
+    cached_data = {"id": str(sample_user.id), "name": sample_user.name}
+
+    with set_config(notify_api, "FF_USE_DOGPILE_CACHING", True):
+        mocked_cached_fetch = mocker.patch("app.user.rest.dao_get_user_by_id_cached", return_value=cached_data)
+        json_resp = admin_request.get("user.get_user", user_id=sample_user.id)
+
+    mocked_cached_fetch.assert_called_once_with(sample_user.id)
+    assert json_resp["data"] == cached_data
+
+
 def test_get_user_doesnt_return_inactive_services_and_orgs(admin_request, sample_service, sample_organisation):
     """
     Tests GET endpoint '/<user_id>' to retrieve a single service.
