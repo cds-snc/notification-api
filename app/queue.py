@@ -203,7 +203,7 @@ class RedisQueue(Queue):
 
     def __move_to_inflight(self, in_flight_key: str, count: int) -> list[str]:
         move_script = self.__get_script(self.LUA_MOVE_TO_INFLIGHT)
-        results = move_script(args=[self._inbox, in_flight_key, min(count, self.MAX_POLL_COUNT), self.MAX_POLL_BYTES])
+        results = move_script(args=[self._inbox, in_flight_key, max(0, min(count, self.MAX_POLL_COUNT)), self.MAX_POLL_BYTES])
         decoded = [result.decode("utf-8") for result in results]
         return decoded
 
@@ -219,23 +219,30 @@ class RedisQueue(Queue):
             local destination   = ARGV[2]
             local count         = tonumber(ARGV[3])
             local max_bytes     = tonumber(ARGV[4])
-            local current       = 0
             local total_bytes   = 0
             local all           = {}
+            local elements      = {}
+            local accepted_count = 0
 
-            while current < count and redis.call("LLEN", source) > 0 do
-                local element = redis.call("LINDEX", source, 0)
+            if count > 0 then
+                elements = redis.call("LRANGE", source, 0, count - 1)
+            end
+
+            for i=1,#elements do
+                local element = elements[i]
                 local element_bytes = string.len(element)
-
                 if total_bytes + element_bytes > max_bytes then
                     break
                 end
 
-                redis.call("LPUSH", destination, element)
-                redis.call("LTRIM", source, 1, -1)
                 all[#all+1] = element
                 total_bytes = total_bytes + element_bytes
-                current = current + 1
+                accepted_count = i
+            end
+
+            if accepted_count > 0 then
+                redis.call("LPUSH", destination, unpack(elements, 1, accepted_count))
+                redis.call("LTRIM", source, accepted_count, -1)
             end
 
             return all
