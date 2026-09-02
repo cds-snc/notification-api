@@ -1148,8 +1148,8 @@ paths:
 
   /v2/notifications/bulk:
     get:
-      summary: Get list of bulk jobs
-      description: Retrieve a paginated list of bulk jobs and their statuses
+      summary: Obtenir la liste des tâches de lot
+      description: Récupérer une liste paginée de tâches de lot et leurs statuts
       operationId: getBulkNotificationJobs
       tags:
         - Notifications
@@ -1712,8 +1712,8 @@ paths:
 
   /v2/notifications/bulk/{job_id}:
     get:
-      summary: Get bulk job by ID
-      description: Retrieve a bulk job and its current status
+      summary: Obtenir une tâche de lot par identifiant
+      description: Récupérer une tâche de lot et son statut actuel
       operationId: getBulkNotificationJobById
       tags:
         - Notifications
@@ -1755,73 +1755,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
-        '500':
-          description: Erreur interne du serveur
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-      security:
-        - apiKey: []
-    delete:
-      summary: Annuler une tâche de notification en masse planifiée
-      description: Annuler une tâche de notification en masse qui est planifiée mais dont l'envoi n'a pas encore commencé
-      operationId: cancelBulkNotificationJob
-      tags:
-        - Notifications
-      parameters:
-        - name: job_id
-          in: path
-          description: Unique identifier for the bulk job
-          required: true
-          schema:
-            $ref: '#/components/schemas/UUID'
-      responses:
-        '200':
-          description: Tâche de notification en masse annulée avec succès
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PostBulkResponse'
-        '400':
-          description: Bad request - invalid job ID format
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidationErrorResponse'
-        '401':
-          description: Non autorisé
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidationErrorResponse'
-              example:
-                status_code: 401
-                errors:
-                  - error: "AuthError"
-                    message: "Non autorisé, le jeton d'authentification doit être fourni"
-        '404':
-          description: Bulk job not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidationErrorResponse'
-              example:
-                status_code: 404
-                errors:
-                  - error: "JobNotFoundError"
-                    message: "Job not found in database"
-        '409':
-          description: La tâche ne peut pas être annulée, car elle est déjà en cours d'envoi, a déjà été envoyée ou son heure planifiée est dépassée
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidationErrorResponse'
-              example:
-                status_code: 409
-                errors:
-                  - error: "JobCancellationNotAllowedError"
-                    message: "Job cannot be cancelled because it is already being sent or has already been sent"
         '500':
           description: Erreur interne du serveur
           content:
