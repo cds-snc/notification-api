@@ -175,10 +175,7 @@ class TestRedisQueue:
             real_count = min(max(count, 0), RedisQueue.MAX_POLL_COUNT, REDIS_ELEMENTS_COUNT)
             (receipt, elements) = redis_queue.poll(count)
             assert len(elements) == real_count
-            if real_count < REDIS_ELEMENTS_COUNT:
-                assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX)) > 0
-            else:
-                assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX)) == 0
+            assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX)) == REDIS_ELEMENTS_COUNT - real_count
             assert redis.llen(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX)) == real_count
             self.delete_all_list(redis)
 
@@ -189,10 +186,9 @@ class TestRedisQueue:
             real_count = min(max(count, 0), RedisQueue.MAX_POLL_COUNT, REDIS_ELEMENTS_COUNT)
             (receipt, elements) = redis_queue_with_process.poll(count)
             assert len(elements) == real_count
-            if real_count < REDIS_ELEMENTS_COUNT:
-                assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX, process_type=PROCESS_TYPE)) > 0
-            else:
-                assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX, process_type=PROCESS_TYPE)) == 0
+            assert (
+                redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX, process_type=PROCESS_TYPE)) == REDIS_ELEMENTS_COUNT - real_count
+            )
             assert redis.llen(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX, process_type=PROCESS_TYPE)) == real_count
             self.delete_all_list(redis)
 
