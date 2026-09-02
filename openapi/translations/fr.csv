@@ -88,7 +88,7 @@
 "Invalid template category value","Valeur de catégorie de modèle invalide"
 "Invalid template ID format","Format d’ID de modèle invalide"
 "January Appointment Reminders","Rappels de rendez-vous de janvier"
-"Job cannot be cancelled because it is already being sent, has already been sent, or its scheduled time has passed","La tâche ne peut pas être annulée, car elle est déjà en cours d'envoi, a déjà été envoyée ou son heure planifiée est dépassée"
+"Job cannot be cancelled because it has already been cancelled, is already being sent, has already been sent, or its scheduled time has passed","La tâche ne peut pas être annulée, car elle a déjà été annulée, est déjà en cours d'envoi, a déjà été envoyée ou son heure planifiée est dépassée"
 "january-reminders","rappels-janvier"
 "Message body template","Corps du message du modèle"
 "Missing manage templates permission","Permission de gestion des modèles manquante"

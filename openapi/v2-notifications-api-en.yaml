@@ -1812,16 +1812,26 @@ paths:
                   - error: "JobNotFoundError"
                     message: "Job not found in database"
         '409':
-          description: Job cannot be cancelled because it is already being sent, has already been sent, or its scheduled time has passed
+          description: Job cannot be cancelled because it has already been cancelled, is already being sent, has already been sent, or its scheduled time has passed
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
-              example:
-                status_code: 409
-                errors:
-                  - error: "JobCancellationNotAllowedError"
-                    message: "Job cannot be cancelled because it is already being sent or has already been sent"
+              examples:
+                job_already_cancelled:
+                  summary: Job already cancelled
+                  value:
+                    status_code: 409
+                    errors:
+                      - error: "JobAlreadyCancelledError"
+                        message: "Job has already been cancelled"
+                job_cancellation_not_allowed:
+                  summary: Job cannot be cancelled
+                  value:
+                    status_code: 409
+                    errors:
+                      - error: "JobCancellationNotAllowedError"
+                        message: "Job cannot be cancelled because it is already being sent or has already been sent"
         '500':
           description: Internal server error
           content:
