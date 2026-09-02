@@ -36,12 +36,41 @@ def test_cancel_bulk_job_returns_404_for_unknown_job(client, sample_service):
     }
 
 
-def test_cancel_bulk_job_returns_404_for_job_that_already_started(client, sample_template):
+def test_cancel_bulk_job_returns_409_for_job_that_already_started(client, sample_template):
     job = create_job(sample_template, job_status="in progress", processing_started=datetime.utcnow())
 
     response = client.delete(f"/v2/notifications/bulk/{job.id}", headers=_get_headers(sample_template.service_id))
 
-    assert response.status_code == 404
+    assert response.status_code == 409
+    assert response.get_json() == {
+        "status_code": 409,
+        "errors": [
+            {
+                "error": "JobCancellationNotAllowedError",
+                "message": "Job cannot be cancelled because it is already being sent or has already been sent",
+            }
+        ],
+    }
+
+
+def test_cancel_bulk_job_returns_409_for_job_that_already_finished(client, sample_template):
+    job = create_job(sample_template, job_status="finished")
+
+    response = client.delete(f"/v2/notifications/bulk/{job.id}", headers=_get_headers(sample_template.service_id))
+
+    assert response.status_code == 409
+
+
+def test_cancel_bulk_job_returns_409_for_scheduled_job_whose_time_has_passed(client, sample_template):
+    job = create_job(
+        sample_template,
+        job_status="scheduled",
+        scheduled_for=(datetime.utcnow() - timedelta(minutes=1)).isoformat(),
+    )
+
+    response = client.delete(f"/v2/notifications/bulk/{job.id}", headers=_get_headers(sample_template.service_id))
+
+    assert response.status_code == 409
 
 
 def test_cancel_bulk_job_returns_404_for_job_belonging_to_another_service(client, sample_template):
