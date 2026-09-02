@@ -13,7 +13,7 @@ from app.v2.notifications.notification_schemas import get_bulk_job_request
 
 
 @v2_notification_blueprint.route("/bulk/<job_id>", methods=["DELETE"])
-def delete_bulk_job(job_id):
+def cancel_bulk_job(job_id):
     validate({"job_id": job_id}, get_bulk_job_request)
 
     try:
