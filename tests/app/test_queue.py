@@ -317,9 +317,63 @@ class TestRedisQueue:
 
             receipt, elements = redis_queue.poll()
 
+            assert elements == [first, second]
+            assert redis.lrange(Buffer.INBOX.inbox_name(QNAME_SUFFIX), 0, -1) == [deferred.encode()]
+            assert redis.lrange(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX), 0, -1) == [
+                second.encode(),
+                first.encode(),
+            ]
+        finally:
+            self.delete_all_list(redis)
+
+    @pytest.mark.serial
+    def test_polling_stops_before_payload_byte_limit_when_next_entry_is_too_large(self, redis, redis_queue):
+        self.delete_all_list(redis)
+        first = "a" * (RedisQueue.MAX_POLL_BYTES // 2)
+        second = "b" * (RedisQueue.MAX_POLL_BYTES - len(first) + 1)
+        try:
+            redis_queue.publish(first)
+            redis_queue.publish(second)
+
+            receipt, elements = redis_queue.poll()
+
             assert elements == [first]
-            assert redis.lrange(Buffer.INBOX.inbox_name(QNAME_SUFFIX), 0, -1) == [second.encode(), deferred.encode()]
+            assert redis.lrange(Buffer.INBOX.inbox_name(QNAME_SUFFIX), 0, -1) == [second.encode()]
             assert redis.lrange(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX), 0, -1) == [first.encode()]
+        finally:
+            self.delete_all_list(redis)
+
+    @pytest.mark.serial
+    def test_polling_payload_limit_counts_utf8_bytes(self, redis, redis_queue):
+        self.delete_all_list(redis)
+        first = "a" * (RedisQueue.MAX_POLL_BYTES - len("🎅".encode("utf-8")))
+        second = "🎅"
+        try:
+            redis_queue.publish(first)
+            redis_queue.publish(second)
+
+            receipt, elements = redis_queue.poll()
+
+            assert elements == [first, second]
+            assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX)) == 0
+            assert redis.llen(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX)) == 2
+        finally:
+            self.delete_all_list(redis)
+
+    @pytest.mark.serial
+    @pytest.mark.xfail(reason="A single oversized entry currently blocks later inbox entries")
+    def test_oversized_entry_does_not_block_later_entries(self, redis, redis_queue):
+        # TODO: fix bug where an oversized notification lands in the inbox, so later polls cannot reach subsequent entries.
+        self.delete_all_list(redis)
+        oversized = "a" * (RedisQueue.MAX_POLL_BYTES + 1)
+        normal = "normal notification"
+        try:
+            redis_queue.publish(oversized)
+            redis_queue.publish(normal)
+
+            _, elements = redis_queue.poll()
+
+            assert elements == [normal]
         finally:
             self.delete_all_list(redis)
 
