@@ -514,8 +514,7 @@ def test_ensure_create_nightly_notification_status_for_day_copies_billable_units
 
     create_nightly_notification_status_for_day("2019-01-05")
 
-    # order_by is required since the underlying service/status query has no guaranteed row order
-    new_data = FactNotificationStatus.query.order_by(FactNotificationStatus.billable_units).all()
+    new_data = FactNotificationStatus.query.all()
 
     assert len(new_data) == 2
     assert new_data[0].billable_units == 5

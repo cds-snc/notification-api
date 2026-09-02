@@ -333,7 +333,6 @@ def register_v2_blueprints(application):
         v2_manage_template_blueprint,
     )
     from app.v2.notifications import (  # noqa
-        cancel_bulk_job,
         delete_notifications,
         get_bulk_jobs,
         get_notifications,
