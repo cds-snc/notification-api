@@ -231,7 +231,7 @@ class RedisQueue(Queue):
             for i=1,#elements do
                 local element = elements[i]
                 local element_bytes = string.len(element)
-                if total_bytes + element_bytes > max_bytes then
+                if accepted_count > 0 and total_bytes + element_bytes > max_bytes then
                     break
                 end
 

@@ -361,9 +361,7 @@ class TestRedisQueue:
             self.delete_all_list(redis)
 
     @pytest.mark.serial
-    @pytest.mark.xfail(reason="A single oversized entry currently blocks later inbox entries")
     def test_oversized_entry_does_not_block_later_entries(self, redis, redis_queue):
-        # TODO: fix bug where an oversized notification lands in the inbox, so later polls cannot reach subsequent entries.
         self.delete_all_list(redis)
         oversized = "a" * (RedisQueue.MAX_POLL_BYTES + 1)
         normal = "normal notification"
@@ -371,9 +369,14 @@ class TestRedisQueue:
             redis_queue.publish(oversized)
             redis_queue.publish(normal)
 
-            _, elements = redis_queue.poll()
+            receipt, elements = redis_queue.poll()
 
-            assert elements == [normal]
+            assert elements == [oversized]
+            assert redis.lrange(Buffer.INBOX.inbox_name(QNAME_SUFFIX), 0, -1) == [normal.encode()]
+            assert redis.lrange(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX), 0, -1) == [oversized.encode()]
+
+            _, next_elements = redis_queue.poll()
+            assert next_elements == [normal]
         finally:
             self.delete_all_list(redis)
 
