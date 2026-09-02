@@ -6,7 +6,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
 from app import db
-from app.caching import dogpile_region
+from app.caching import cache_on_arguments
 from app.dao.dao_utils import transactional
 from app.dao.permissions_dao import permission_dao
 from app.dao.service_user_dao import dao_get_service_users_by_user_id
@@ -120,7 +120,7 @@ def get_user_by_id(user_id=None) -> User:
     return User.query.filter_by().all()
 
 
-@dogpile_region.cache_on_arguments(namespace="user")
+@cache_on_arguments(namespace="user", group_by="user_id")
 def dao_get_user_by_id_cached(user_id) -> dict:
     """Return a JSON-safe cached representation of a single user."""
     return get_user_by_id(user_id=user_id).serialize()
