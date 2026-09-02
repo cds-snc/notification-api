@@ -73,6 +73,23 @@ def test_cancel_bulk_job_returns_409_for_scheduled_job_whose_time_has_passed(cli
     assert response.status_code == 409
 
 
+def test_cancel_bulk_job_returns_409_for_job_already_cancelled(client, sample_template):
+    job = create_job(sample_template, job_status="cancelled")
+
+    response = client.delete(f"/v2/notifications/bulk/{job.id}", headers=_get_headers(sample_template.service_id))
+
+    assert response.status_code == 409
+    assert response.get_json() == {
+        "status_code": 409,
+        "errors": [
+            {
+                "error": "JobAlreadyCancelledError",
+                "message": "Job has already been cancelled",
+            }
+        ],
+    }
+
+
 def test_cancel_bulk_job_returns_404_for_job_belonging_to_another_service(client, sample_template):
     other_service = create_service(service_name="Other service")
     other_template = create_template(service=other_service)

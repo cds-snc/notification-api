@@ -164,6 +164,14 @@ class JobCancellationNotAllowedError(InvalidRequest):
         super().__init__(message=self.__class__.message, status_code=self.__class__.status_code)
 
 
+class JobAlreadyCancelledError(InvalidRequest):
+    status_code = 409
+    message = "Job has already been cancelled"
+
+    def __init__(self):
+        super().__init__(message=self.__class__.message, status_code=self.__class__.status_code)
+
+
 class ReportRateLimitError(InvalidRequest):
     status_code = 429
 
