@@ -12,7 +12,13 @@ from uuid import UUID
 from dogpile.cache import make_region
 from dogpile.cache.api import NO_VALUE
 
-from app.caching import _json_cache_deserializer, _json_cache_serializer, cache_key_generator, init_dogpile_cache
+from app.caching import (
+    _json_cache_deserializer,
+    _json_cache_serializer,
+    cache_key_generator,
+    cache_on_arguments,
+    init_dogpile_cache,
+)
 
 
 def _make_memory_region(expiration_time=600):
@@ -249,6 +255,7 @@ class TestCacheKeyGenerator:
         def dao_fetch_service_by_id_cached(service_id, only_active=False):
             pass
 
+        dao_fetch_service_by_id_cached.__cache_group__ = ("service", "service_id")
         gen = cache_key_generator("service", dao_fetch_service_by_id_cached)
         key = gen("d4e5f6a7-1234-5678-9abc-def012345678", False)
 
@@ -260,6 +267,7 @@ class TestCacheKeyGenerator:
         def dao_get_template_by_id_cached(template_id, service_id):
             pass
 
+        dao_get_template_by_id_cached.__cache_group__ = ("template", "template_id")
         gen = cache_key_generator("template", dao_get_template_by_id_cached)
         key = gen(
             UUID("d4e5f6a7-1234-5678-9abc-def012345678"),
@@ -304,6 +312,30 @@ class TestCacheKeyGenerator:
         key_str = gen("aaaaaaaa-1111-2222-3333-444444444444")
         key_obj = gen(UUID("aaaaaaaa-1111-2222-3333-444444444444"))
         assert key_str == key_obj
+
+
+class TestCacheOnArguments:
+    def test_applies_dogpile_decorator_after_adding_group_metadata(self, mocker):
+        captured = {}
+
+        def dogpile_decorator(fn):
+            captured["cache_group"] = fn.__cache_group__
+            return fn
+
+        mocked_cache_on_arguments = mocker.patch(
+            "app.caching.dogpile_region.cache_on_arguments",
+            return_value=dogpile_decorator,
+        )
+
+        @cache_on_arguments(namespace="service", group_by="service_id")
+        def fetch_service(service_id):
+            return service_id
+
+        service_id = UUID("d4e5f6a7-1234-5678-9abc-def012345678")
+
+        assert fetch_service(service_id) == service_id
+        assert captured["cache_group"] == ("service", "service_id")
+        mocked_cache_on_arguments.assert_called_once_with(namespace="service")
 
 
 class TestJsonSerializer:
