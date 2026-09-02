@@ -1720,7 +1720,7 @@ paths:
       parameters:
         - name: job_id
           in: path
-          description: Unique identifier for the bulk job
+          description: Identifiant unique de la tâche de notification en masse
           required: true
           schema:
             $ref: '#/components/schemas/UUID'
@@ -1732,7 +1732,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/PostBulkResponse'
         '400':
-          description: Bad request - invalid job ID format
+          description: Mauvaise requête - format d’ID de tâche invalide
           content:
             application/json:
               schema:
@@ -1750,7 +1750,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
         '404':
-          description: Bulk job not found
+          description: Tâche de notification en masse non trouvée
           content:
             application/json:
               schema:
@@ -1772,7 +1772,7 @@ paths:
       parameters:
         - name: job_id
           in: path
-          description: Unique identifier for the bulk job
+          description: Identifiant unique de la tâche de notification en masse
           required: true
           schema:
             $ref: '#/components/schemas/UUID'
@@ -1784,7 +1784,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/PostBulkResponse'
         '400':
-          description: Bad request - invalid job ID format
+          description: Mauvaise requête - format d’ID de tâche invalide
           content:
             application/json:
               schema:
@@ -1801,7 +1801,7 @@ paths:
                   - error: "AuthError"
                     message: "Non autorisé, le jeton d'authentification doit être fourni"
         '404':
-          description: Bulk job not found
+          description: Tâche de notification en masse non trouvée
           content:
             application/json:
               schema:
