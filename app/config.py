@@ -618,7 +618,7 @@ class Config(object):
 
     CONTACT_FORM_EMAIL_ADDRESS = os.getenv("CONTACT_FORM_EMAIL_ADDRESS", "helpdesk@cds-snc.ca")
     SENSITIVE_SERVICE_EMAIL = os.getenv("SENSITIVE_SERVICE_EMAIL", "ESDC.Support.CDS-SNC.Soutien.EDSC@servicecanada.gc.ca")
-    FRESHDESK_SUPPORT_EMAIL_ID = os.getenv("FRESHDESK_SUPPORT_EMAIL_ID", "cds-snccaassistance+notification@cds-snc.freshdesk.com")
+    FRESHDESK_SUPPORT_EMAIL_ID = os.getenv("FRESHDESK_SUPPORT_EMAIL_ID", "assistance+notification@cds-snc.ca")
 
     FROM_NUMBER = "development"
 
