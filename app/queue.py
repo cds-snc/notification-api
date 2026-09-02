@@ -118,6 +118,8 @@ class RedisQueue(Queue):
 
     LUA_MOVE_TO_INFLIGHT = "move-in-inflight"
     LUA_EXPIRE_INFLIGHTS = "expire-inflights"
+    MAX_POLL_COUNT = 10
+    MAX_POLL_BYTES = 180 * 1024
 
     def __init__(self, suffix=None, expire_inflight_after_seconds=300, process_type=None) -> None:
         """
@@ -201,7 +203,7 @@ class RedisQueue(Queue):
 
     def __move_to_inflight(self, in_flight_key: str, count: int) -> list[str]:
         move_script = self.__get_script(self.LUA_MOVE_TO_INFLIGHT)
-        results = move_script(args=[self._inbox, in_flight_key, count])
+        results = move_script(args=[self._inbox, in_flight_key, min(count, self.MAX_POLL_COUNT), self.MAX_POLL_BYTES])
         decoded = [result.decode("utf-8") for result in results]
         return decoded
 
@@ -213,25 +215,27 @@ class RedisQueue(Queue):
         with self._scripts_lock:
             self._scripts[self.LUA_MOVE_TO_INFLIGHT] = self._redis_client.register_script(
                 """
-            local DEFAULT_CHUNK = 99
-
             local source        = ARGV[1]
             local destination   = ARGV[2]
-            local source_size   = tonumber(redis.call("LLEN", source))
-            local count         = math.min(source_size, tonumber(ARGV[3]))
-
-            local chunk_size    = math.min(math.max(0, count-1), DEFAULT_CHUNK)
+            local count         = tonumber(ARGV[3])
+            local max_bytes     = tonumber(ARGV[4])
             local current       = 0
+            local total_bytes   = 0
             local all           = {}
 
-            while current < count do
-                local elements = redis.call("LRANGE", source, 0, chunk_size)
-                redis.call("LPUSH", destination, unpack(elements))
-                redis.call("LTRIM", source, chunk_size+1, -1)
-                for i=1,#elements do all[#all+1] = elements[i] end
+            while current < count and redis.call("LLEN", source) > 0 do
+                local element = redis.call("LINDEX", source, 0)
+                local element_bytes = string.len(element)
 
-                current    = current + chunk_size+1
-                chunk_size = math.min((count-1) - current, DEFAULT_CHUNK)
+                if total_bytes + element_bytes > max_bytes then
+                    break
+                end
+
+                redis.call("LPUSH", destination, element)
+                redis.call("LTRIM", source, 1, -1)
+                all[#all+1] = element
+                total_bytes = total_bytes + element_bytes
+                current = current + 1
             end
 
             return all
