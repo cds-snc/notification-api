@@ -13,7 +13,7 @@ def test_cancel_bulk_job_cancels_scheduled_job(client, sample_template):
         sample_template,
         notification_count=5,
         job_status="scheduled",
-        scheduled_for=(datetime.utcnow() + timedelta(hours=1)).isoformat(),
+        scheduled_for=datetime.utcnow() + timedelta(hours=1),
     )
 
     response = client.delete(f"/v2/notifications/bulk/{job.id}", headers=_get_headers(sample_template.service_id))
@@ -65,7 +65,7 @@ def test_cancel_bulk_job_returns_409_for_scheduled_job_whose_time_has_passed(cli
     job = create_job(
         sample_template,
         job_status="scheduled",
-        scheduled_for=(datetime.utcnow() - timedelta(minutes=1)).isoformat(),
+        scheduled_for=datetime.utcnow() - timedelta(minutes=1),
     )
 
     response = client.delete(f"/v2/notifications/bulk/{job.id}", headers=_get_headers(sample_template.service_id))
