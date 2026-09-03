@@ -3,7 +3,9 @@ from unittest.mock import call
 from app import db
 from app.cache.cache_events import register_cache_orm_events
 from app.cache.cache_invalidation_registry import CACHE_INVALIDATION_REGISTRY
+from app.dao.permissions_dao import permission_dao
 from app.dao.service_permissions_dao import dao_add_service_permission, dao_remove_service_permission
+from app.dao.templates_dao import dao_update_template_process_type
 from app.dao.users_dao import save_model_user
 from app.models import (
     LETTER_TYPE,
@@ -102,6 +104,29 @@ def test_user_update_invalidates_user_cache(notify_db_session, mocker):
     mocked_invalidate.assert_called_once_with("user", str(user.id))
 
 
+def test_permission_removal_invalidates_user_cache(notify_db_session, sample_service, mocker):
+    register_cache_orm_events()
+    user = sample_service.users[0]
+    mocked_invalidate = mocker.patch("app.cache.cache_events.invalidate_group_keys")
+
+    permission_dao.remove_user_service_permissions(user=user, service=sample_service)
+    db.session.commit()
+
+    mocked_invalidate.assert_called_once_with("user", str(user.id))
+
+
+def test_permission_removal_rollback_discards_user_cache_invalidation(notify_db_session, sample_service, mocker):
+    register_cache_orm_events()
+    user = sample_service.users[0]
+    mocked_invalidate = mocker.patch("app.cache.cache_events.invalidate_group_keys")
+
+    permission_dao.remove_user_service_permissions(user=user, service=sample_service)
+    db.session.rollback()
+    db.session.commit()
+
+    mocked_invalidate.assert_not_called()
+
+
 def test_template_update_invalidates_template_cache(notify_db_session, mocker):
     register_cache_orm_events()
     service = create_service(service_name="template-cache-service", email_from="template-cache-service")
@@ -110,5 +135,16 @@ def test_template_update_invalidates_template_cache(notify_db_session, mocker):
 
     template.name = "Updated template name"
     db.session.commit()
+
+    mocked_invalidate.assert_called_once_with("template", str(template.id))
+
+
+def test_template_bulk_update_invalidates_template_cache(notify_db_session, mocker):
+    register_cache_orm_events()
+    service = create_service(service_name="template-bulk-cache-service", email_from="template-bulk-cache-service")
+    template = create_template(service=service)
+    mocked_invalidate = mocker.patch("app.cache.cache_events.invalidate_group_keys")
+
+    dao_update_template_process_type(template.id, "priority")
 
     mocked_invalidate.assert_called_once_with("template", str(template.id))
