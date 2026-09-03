@@ -1,4 +1,7 @@
+from sqlalchemy import delete
+
 from app import db
+from app.cache.cache_events import cache_invalidating_dml
 from app.dao import DAOClass
 from app.models import (
     MANAGE_API_KEYS,
@@ -34,19 +37,23 @@ class PermissionDAO(DAOClass):
             permission = Permission(permission=name, user=user, service=service)
             self.create_instance(permission, _commit=False)
 
+    def _delete_permissions(self, user, service=None):
+        statement = delete(self.Meta.model).where(self.Meta.model.user_id == user.id)
+        if service is not None:
+            statement = statement.where(self.Meta.model.service_id == service.id)
+
+        db.session.execute(cache_invalidating_dml(statement, user_id=user.id))
+
     def remove_user_service_permissions(self, user, service):
-        query = self.Meta.model.query.filter_by(user=user, service=service)
-        query.delete()
+        self._delete_permissions(user, service)
 
     def remove_user_service_permissions_for_all_services(self, user):
-        query = self.Meta.model.query.filter_by(user=user)
-        query.delete()
+        self._delete_permissions(user)
 
     def set_user_service_permission(self, user, service, permissions, _commit=False, replace=False):
         try:
             if replace:
-                query = self.Meta.model.query.filter_by(user=user, service=service)
-                query.delete()
+                self._delete_permissions(user, service)
             for p in permissions:
                 p.user = user
                 p.service = service
