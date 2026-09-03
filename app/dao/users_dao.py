@@ -2,10 +2,11 @@ import uuid
 from datetime import datetime, timedelta
 from random import SystemRandom
 
-from sqlalchemy import func
+from sqlalchemy import func, update
 from sqlalchemy.orm import joinedload
 
 from app import db
+from app.cache.cache_events import cache_invalidating_dml
 from app.caching import cache_on_arguments
 from app.dao.dao_utils import transactional
 from app.dao.permissions_dao import permission_dao
@@ -33,9 +34,8 @@ def save_user_attribute(usr: User, update_dict=None):
     if updates.get("blocked"):
         updates["current_session_id"] = "00000000-0000-0000-0000-000000000000"
 
-    for attribute, value in updates.items():
-        setattr(usr, attribute, value)
-    db.session.add(usr)
+    statement = update(User).where(User.id == usr.id).values(**updates)
+    db.session.execute(cache_invalidating_dml(statement, id=usr.id))
     db.session.commit()
 
 
@@ -47,10 +47,10 @@ def save_model_user(usr: User, update_dict=None, pwd=None):
     if update_dict is not None:
         updates = dict(update_dict)
         _remove_values_for_keys_if_present(updates, ["id", "password_changed_at"])
-        for attribute, value in updates.items():
-            setattr(usr, attribute, value)
-
-    db.session.add(usr)
+        statement = update(User).where(User.id == usr.id).values(**updates)
+        db.session.execute(cache_invalidating_dml(statement, id=usr.id))
+    else:
+        db.session.add(usr)
     db.session.commit()
 
 
