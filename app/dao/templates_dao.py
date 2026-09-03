@@ -5,11 +5,12 @@ from typing import Union
 
 from flask import current_app
 from notifications_utils.clients.redis import template_version_cache_key
-from sqlalchemy import asc, desc
+from sqlalchemy import asc, desc, update
 from sqlalchemy.orm import attributes, joinedload
 
 from app import db, redis_store
 from app.annotations import log_execution_time
+from app.cache.cache_events import cache_invalidating_dml
 from app.caching import cache_on_arguments
 from app.dao.dao_utils import VersionOptions, transactional, version_class
 from app.dao.users_dao import get_user_by_id
@@ -113,13 +114,18 @@ def dao_update_template(template):
 
 @transactional
 def dao_update_template_reply_to(template_id, reply_to):
-    Template.query.filter_by(id=template_id).update(
-        {
-            "service_letter_contact_id": reply_to,
-            "updated_at": datetime.utcnow(),
-            "version": Template.version + 1,
-        }
+    statement = (
+        update(Template)
+        .where(Template.id == template_id)
+        .values(
+            {
+                "service_letter_contact_id": reply_to,
+                "updated_at": datetime.utcnow(),
+                "version": Template.version + 1,
+            }
+        )
     )
+    db.session.execute(cache_invalidating_dml(statement, id=template_id))
     template = Template.query.filter_by(id=template_id).one()
 
     db.session.add(_create_template_history_row(template))
@@ -128,13 +134,18 @@ def dao_update_template_reply_to(template_id, reply_to):
 
 @transactional
 def dao_update_template_process_type(template_id, process_type):
-    Template.query.filter_by(id=template_id).update(
-        {
-            Template.process_type_column: process_type,
-            Template.updated_at: datetime.utcnow(),
-            Template.version: Template.version + 1,
-        }
+    statement = (
+        update(Template)
+        .where(Template.id == template_id)
+        .values(
+            {
+                Template.process_type_column: process_type,
+                Template.updated_at: datetime.utcnow(),
+                Template.version: Template.version + 1,
+            }
+        )
     )
+    db.session.execute(cache_invalidating_dml(statement, id=template_id))
     template = Template.query.filter_by(id=template_id).one()
 
     db.session.add(_create_template_history_row(template))
@@ -143,13 +154,18 @@ def dao_update_template_process_type(template_id, process_type):
 
 @transactional
 def dao_update_template_category(template_id, category_id):
-    Template.query.filter_by(id=template_id).update(
-        {
-            "template_category_id": category_id,
-            "updated_at": datetime.utcnow(),
-            "version": Template.version + 1,
-        }
+    statement = (
+        update(Template)
+        .where(Template.id == template_id)
+        .values(
+            {
+                "template_category_id": category_id,
+                "updated_at": datetime.utcnow(),
+                "version": Template.version + 1,
+            }
+        )
     )
+    db.session.execute(cache_invalidating_dml(statement, id=template_id))
 
     template = Template.query.filter_by(id=template_id).one()
 
