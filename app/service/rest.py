@@ -223,8 +223,7 @@ def get_service_by_id(service_id):
         data = get_detailed_service(service_id, today_only=request.args.get("today_only") == "True")
     else:
         if current_app.config.get("FF_USE_DOGPILE_CACHING", False) is True:
-            fetched = dao_fetch_service_by_id_cached(service_id)
-            data = fetched
+            data = dao_fetch_service_by_id_cached(service_id)
         else:
             fetched = dao_fetch_service_by_id(service_id)
             data = service_schema.dump(fetched)

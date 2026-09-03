@@ -35,7 +35,7 @@ from tests.app.db import (
     create_template_folder,
     save_notification,
 )
-from tests.conftest import set_config_values
+from tests.conftest import set_config, set_config_values
 
 
 @pytest.mark.parametrize(
@@ -914,6 +914,22 @@ def test_create_a_template_with_foreign_service_reply_to(admin_request, sample_u
     assert json_resp["message"] == "letter_contact_id {} does not exist in database for service id {}".format(
         str(letter_contact.id), str(service.id)
     )
+
+
+def test_get_template_with_dogpile_cache_returns_cached_payload(notify_api, admin_request, sample_service, mocker):
+    template = create_template(service=sample_service)
+    cached_data = {"id": str(template.id), "name": template.name}
+
+    with set_config(notify_api, "FF_USE_DOGPILE_CACHING", True):
+        mocked_cached_fetch = mocker.patch("app.template.rest.dao_get_template_by_id_cached", return_value=cached_data)
+        json_resp = admin_request.get(
+            "template.get_template_by_id_and_service_id",
+            service_id=sample_service.id,
+            template_id=template.id,
+        )
+
+    mocked_cached_fetch.assert_called_once_with(template.id, sample_service.id)
+    assert json_resp["data"] == cached_data
 
 
 @pytest.mark.parametrize(

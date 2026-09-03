@@ -261,6 +261,23 @@ def test_get_service_by_id(admin_request, sample_service):
     assert json_resp["data"]["letter_logo_filename"] is None
 
 
+def test_get_service_by_id_with_dogpile_cache_returns_cached_payload(notify_api, admin_request, sample_service, mocker):
+    cached_data = {
+        "id": str(sample_service.id),
+        "name": sample_service.name,
+        "letter_logo_filename": None,
+        "permissions": [EMAIL_TYPE, SMS_TYPE, INTERNATIONAL_SMS_TYPE, UPLOAD_DOCUMENT],
+    }
+
+    with set_config(notify_api, "FF_USE_DOGPILE_CACHING", True):
+        mocked_cached_fetch = mocker.patch("app.service.rest.dao_fetch_service_by_id_cached", return_value=cached_data)
+        json_resp = admin_request.get("service.get_service_by_id", service_id=sample_service.id)
+
+    mocked_cached_fetch.assert_called_once_with(sample_service.id)
+    assert json_resp["data"]["id"] == str(sample_service.id)
+    assert json_resp["data"]["name"] == sample_service.name
+
+
 @pytest.mark.parametrize("detailed", [True, False])
 def test_get_service_by_id_returns_organisation_type(admin_request, sample_service, detailed):
     json_resp = admin_request.get("service.get_service_by_id", service_id=sample_service.id, detailed=detailed)

@@ -6,6 +6,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
 from app import db
+from app.caching import cache_on_arguments
 from app.dao.dao_utils import transactional
 from app.dao.permissions_dao import permission_dao
 from app.dao.service_user_dao import dao_get_service_users_by_user_id
@@ -32,7 +33,9 @@ def save_user_attribute(usr: User, update_dict=None):
     if updates.get("blocked"):
         updates["current_session_id"] = "00000000-0000-0000-0000-000000000000"
 
-    db.session.query(User).filter_by(id=usr.id).update(updates)
+    for attribute, value in updates.items():
+        setattr(usr, attribute, value)
+    db.session.add(usr)
     db.session.commit()
 
 
@@ -44,9 +47,10 @@ def save_model_user(usr: User, update_dict=None, pwd=None):
     if update_dict is not None:
         updates = dict(update_dict)
         _remove_values_for_keys_if_present(updates, ["id", "password_changed_at"])
-        db.session.query(User).filter_by(id=usr.id).update(updates)
-    else:
-        db.session.add(usr)
+        for attribute, value in updates.items():
+            setattr(usr, attribute, value)
+
+    db.session.add(usr)
     db.session.commit()
 
 
@@ -114,6 +118,12 @@ def get_user_by_id(user_id=None) -> User:
     if user_id:
         return User.query.filter_by(id=user_id).one()
     return User.query.filter_by().all()
+
+
+@cache_on_arguments(namespace="user", group_by="user_id")
+def dao_get_user_by_id_cached(user_id) -> dict:
+    """Return a JSON-safe cached representation of a single user."""
+    return get_user_by_id(user_id=user_id).serialize()
 
 
 def get_user_by_email(email) -> User:
