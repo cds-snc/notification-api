@@ -114,8 +114,9 @@ def persist_notification(
     template = dao_get_template_by_id(template_id, template_version, use_cache=True)
     # TODO: Remove this logging statement once debugging is complete. It is useful for understanding how templates are routed to queues.
     current_app.logger.info(
-        "persist_notification: Routing template %s version %s: process_type_column=%r, "
+        "persist_notification: Routing notification %s template %s version %s: process_type_column=%r, "
         "effective_process_type=%r, category_id=%s, category_email_process_type=%r, category_sms_process_type=%r",
+        notification.id,
         template.id,
         template.version,
         template.process_type_column,
@@ -417,8 +418,9 @@ def persist_notifications(notifications: List[VerifiedNotification]) -> List[Not
         service = dao_fetch_service_by_id(service_id, use_cache=True)
         # TODO: Remove this logging statement once debugging is complete. It is useful for understanding how templates are routed to queues.
         current_app.logger.info(
-            "persist_notifications: Routing template %s version %s: process_type_column=%r, "
+            "persist_notifications: Routing notification %s template %s version %s: process_type_column=%r, "
             "effective_process_type=%r, category_id=%s, category_email_process_type=%r, category_sms_process_type=%r",
+            notification_obj.id,
             template.id,
             template.version,
             template.process_type_column,
