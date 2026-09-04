@@ -11,6 +11,7 @@ from app.dao.jobs_dao import (
     dao_create_job,
     dao_get_future_scheduled_job_by_id_and_service_id,
     dao_get_job_by_service_id_and_job_id,
+    dao_get_job_by_service_id_and_job_id_for_update,
     dao_get_job_statistics_for_jobs,
     dao_get_jobs_by_service_id,
     dao_get_jobs_older_than_data_retention,
@@ -167,6 +168,15 @@ def test_create_sample_job(sample_template):
 def test_get_job_by_id(sample_job):
     job_from_db = dao_get_job_by_service_id_and_job_id(sample_job.service.id, sample_job.id)
     assert sample_job == job_from_db
+
+
+def test_get_job_by_service_id_and_job_id_for_update(sample_job):
+    job_from_db = dao_get_job_by_service_id_and_job_id_for_update(sample_job.service.id, sample_job.id)
+    assert sample_job == job_from_db
+
+
+def test_get_job_by_service_id_and_job_id_for_update_returns_none_for_unknown_job(sample_service):
+    assert dao_get_job_by_service_id_and_job_id_for_update(sample_service.id, uuid.uuid4()) is None
 
 
 def test_get_jobs_for_service(sample_template):
