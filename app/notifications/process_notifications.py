@@ -12,7 +12,7 @@ from notifications_utils.recipients import (
     validate_and_format_phone_number,
 )
 
-from app import redis_store
+from app import models, redis_store
 from app.celery import provider_tasks
 from app.celery.letters_pdf_tasks import create_letters_pdf
 from app.config import QueueNames
@@ -268,19 +268,24 @@ def choose_queue(notification: Notification, research_mode: bool, priority_queue
         return QueueNames.SEND_THROTTLED_SMS
 
     override_queue: Optional[str] = priority_queue
-    if notification.notification_type == SMS_TYPE:
-        if not priority_queue:
-            override_queue = QueueNames.SEND_SMS_MEDIUM
-    elif notification.notification_type == EMAIL_TYPE:
-        if not priority_queue:
-            override_queue = QueueNames.SEND_EMAIL_MEDIUM
-    elif notification.notification_type == LETTER_TYPE:
-        if not priority_queue:
-            override_queue = QueueNames.CREATE_LETTERS_PDF
+    if not priority_queue:
+        current_app.logger.info(
+            f"Notification {notification.id} has no priority queue; determining queue based on notification type and attributes."
+        )
 
-    if override_queue is None:
+        match notification.notification_type:
+            case models.SMS_TYPE:
+                override_queue = QueueNames.SEND_SMS_MEDIUM
+            case models.EMAIL_TYPE:
+                override_queue = QueueNames.SEND_EMAIL_MEDIUM
+            case models.LETTER_TYPE:
+                override_queue = QueueNames.CREATE_LETTERS_PDF
+            case _:
+                raise ValueError(f"Could not determine queue for notification type {notification.notification_type!r}")
+
+        return override_queue
+    else:
         raise ValueError(f"Could not determine queue for notification type {notification.notification_type!r}")
-    return override_queue
 
 
 def choose_deliver_task(notification):
