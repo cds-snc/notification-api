@@ -543,9 +543,7 @@ class TestTryToSendNotificationsToQueue:
         # signed payload from post_notifications does not include a "queue" key.
         notification_id_queue = {priority_id: None, normal_id: None, bulk_id: None}
 
-        service = MagicMock(research_mode=False)
-
-        try_to_send_notifications_to_queue(notification_id_queue, service, saved_notifications)
+        try_to_send_notifications_to_queue(notification_id_queue, saved_notifications)
 
         assert send_mock.call_count == 3
         assert send_mock.call_args_list[0] == call(saved_notifications[0], False, QueueNames.SEND_EMAIL_HIGH)
@@ -560,9 +558,8 @@ class TestTryToSendNotificationsToQueue:
         # Notification's own queue_name says HIGH, but the CSV bulk-redirect override says LOW.
         saved_notifications = [self._make_notification(notification_id, QueueNames.SEND_EMAIL_HIGH)]
         notification_id_queue = {notification_id: QueueNames.SEND_EMAIL_LOW}
-        service = MagicMock(research_mode=False)
 
-        try_to_send_notifications_to_queue(notification_id_queue, service, saved_notifications)
+        try_to_send_notifications_to_queue(notification_id_queue, saved_notifications)
 
         send_mock.assert_called_once_with(saved_notifications[0], False, QueueNames.SEND_EMAIL_LOW)
 
@@ -583,9 +580,8 @@ class TestTryToSendNotificationsToQueue:
             self._make_notification(normal_id, QueueNames.SEND_EMAIL_MEDIUM),
         ]
         notification_id_queue = {n.id: None for n in saved_notifications}
-        service = MagicMock(research_mode=False)
 
-        try_to_send_notifications_to_queue(notification_id_queue, service, saved_notifications)
+        try_to_send_notifications_to_queue(notification_id_queue, saved_notifications)
 
         # The priority notification (index 3) must go to send-email-high, not send-email-medium.
         priority_call = send_mock.call_args_list[3]
@@ -601,12 +597,37 @@ class TestTryToSendNotificationsToQueue:
         saved_notifications = [self._make_notification(raw_id, QueueNames.SEND_EMAIL_HIGH)]
         # Map keyed by string (matches what save_emails/save_smss build).
         notification_id_queue = {str(raw_id): QueueNames.SEND_EMAIL_LOW}
-        service = MagicMock(research_mode=False)
 
-        try_to_send_notifications_to_queue(notification_id_queue, service, saved_notifications)
+        try_to_send_notifications_to_queue(notification_id_queue, saved_notifications)
 
         # Even though notification.id is a UUID object here, the str() cast in the lookup finds it.
         send_mock.assert_called_once_with(saved_notifications[0], False, QueueNames.SEND_EMAIL_LOW)
+
+    def test_live_service_notifications_not_routed_to_research_mode_when_stale_service_is_research(self, notify_api, mocker):
+        """Regression: research_mode is now derived per-notification from queue_name, not from the
+        stale service variable — so live-service notifications are never silently swallowed.
+        """
+        send_mock = mocker.patch("app.celery.tasks.send_notification_to_queue")
+
+        live_id = str(uuid.uuid4())
+        research_id = str(uuid.uuid4())
+
+        live_notification = self._make_notification(live_id, QueueNames.SEND_EMAIL_HIGH)
+        research_notification = self._make_notification(research_id, QueueNames.RESEARCH_MODE)
+
+        notification_id_queue = {live_id: None, research_id: None}
+
+        # Stale service from the last loop iteration — happens to be the research-mode one.
+
+        try_to_send_notifications_to_queue(notification_id_queue, [live_notification, research_notification])
+
+        # live_notification must be called with research_mode=False (its own correct value).
+        live_call = send_mock.call_args_list[0]
+        assert live_call == call(live_notification, False, QueueNames.SEND_EMAIL_HIGH)
+
+        # research_notification legitimately goes to research mode.
+        research_call = send_mock.call_args_list[1]
+        assert research_call == call(research_notification, True, QueueNames.RESEARCH_MODE)
 
 
 @pytest.mark.usefixtures("notify_db_session")
@@ -1651,7 +1672,7 @@ class TestSaveErrorHandling:
         signed_notifications = [1]
         verified_notifications = [n1]
         signed_and_verified = list(zip(signed_notifications, verified_notifications))
-        handle_batch_error_and_forward(save_smss, signed_and_verified, SMS_TYPE, expected_exception, receipt_id, sample_template)
+        handle_batch_error_and_forward(save_smss, signed_and_verified, SMS_TYPE, expected_exception, receipt_id)
         retry_func.assert_called_with(exc=expected_exception, queue="retry-tasks")
 
     def test_handler_send_3notifications(self, sample_template, mocker):
@@ -1677,7 +1698,7 @@ class TestSaveErrorHandling:
         signed_notifications = [1, 2, 3]
         verified_notifications = [n1, n2, n3]
         signed_and_verified = list(zip(signed_notifications, verified_notifications))
-        handle_batch_error_and_forward(save_smss, signed_and_verified, SMS_TYPE, expected_exception, receipt_id, sample_template)
+        handle_batch_error_and_forward(save_smss, signed_and_verified, SMS_TYPE, expected_exception, receipt_id)
 
         assert save_func.call_count == 3
         assert save_func.call_args_list == [
