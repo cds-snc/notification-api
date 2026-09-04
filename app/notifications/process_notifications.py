@@ -283,7 +283,7 @@ def choose_queue(notification: Notification, research_mode: bool, priority_queue
     if priority_queue:
         return priority_queue
     else:
-        override_queue: str
+        override_queue: Optional[str] = None
         match notification.notification_type:
             case models.SMS_TYPE:
                 override_queue = QueueNames.SEND_SMS_MEDIUM
