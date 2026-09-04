@@ -1105,7 +1105,7 @@ class TestSchedulingSends:
     ):
         service = create_service(
             service_name=str(uuid.uuid4()),
-            service_permissions=[EMAIL_TYPE, SMS_TYPE, SCHEDULE_NOTIFICATIONS],
+            service_permissions=[EMAIL_TYPE, SMS_TYPE],
         )
         template = create_template(service=service, template_type=notification_type)
         data = {
@@ -1135,7 +1135,41 @@ class TestSchedulingSends:
         ],
     )
     @freeze_time("2017-05-14 14:00:00")
-    def test_post_notification_raises_bad_request_if_service_not_invited_to_schedule(
+    def test_post_notification_with_scheduled_for_in_full_iso8601_format(
+        self, client, notify_db_session, notification_type, key_send_to, send_to, mock_annual_limits
+    ):
+        # regression test: real API clients send full ISO 8601 (with 'T' separator and seconds), not "%Y-%m-%d %H:%M"
+        service = create_service(
+            service_name=str(uuid.uuid4()),
+            service_permissions=[EMAIL_TYPE, SMS_TYPE],
+        )
+        template = create_template(service=service, template_type=notification_type)
+        data = {
+            key_send_to: send_to,
+            "template_id": str(template.id),
+            "scheduled_for": "2017-05-14T14:15:00",
+        }
+        auth_header = create_authorization_header(service_id=service.id)
+
+        response = client.post(
+            "/v2/notifications/{}".format(notification_type),
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+        assert response.status_code == 201
+        resp_json = json.loads(response.get_data(as_text=True))
+        scheduled_notification = ScheduledNotification.query.filter_by(notification_id=resp_json["id"]).all()
+        assert len(scheduled_notification) == 1
+
+    @pytest.mark.parametrize(
+        "notification_type, key_send_to, send_to",
+        [
+            ("sms", "phone_number", "6502532222"),
+            ("email", "email_address", "sample@email.com"),
+        ],
+    )
+    @freeze_time("2017-05-14 14:00:00")
+    def test_post_notification_allows_scheduling_without_schedule_notifications_permission(
         self,
         client,
         sample_template,
@@ -1143,6 +1177,7 @@ class TestSchedulingSends:
         notification_type,
         key_send_to,
         send_to,
+        mock_annual_limits,
     ):
         data = {
             key_send_to: send_to,
@@ -1156,14 +1191,9 @@ class TestSchedulingSends:
             data=json.dumps(data),
             headers=[("Content-Type", "application/json"), auth_header],
         )
-        assert response.status_code == 400
-        error_json = json.loads(response.get_data(as_text=True))
-        assert error_json["errors"] == [
-            {
-                "error": "BadRequestError",
-                "message": "Cannot schedule notifications (this feature is invite-only)",
-            }
-        ]
+        assert response.status_code == 201
+        resp_json = json.loads(response.get_data(as_text=True))
+        assert resp_json["scheduled_for"] == "2017-05-14 14:15"
 
 
 class TestSendingDocuments:
@@ -1184,9 +1214,17 @@ class TestSendingDocuments:
         template = create_template(service=service, template_type="email", content=content)
 
         statsd_mock = mocker.patch("app.v2.notifications.post_notifications.statsd_client")
+        logger_mock = mocker.patch("app.v2.notifications.post_notifications.current_app.logger.info")
         mock_publish = mocker.patch("app.email_normal_publish.publish")
         document_download_mock = mocker.patch("app.v2.notifications.post_notifications.document_download_client.upload_document")
-        document_response = document_download_response({"sending_method": sending_method, "mime_type": "text/plain"})
+        document_response = document_download_response(
+            {
+                "filename": filename,
+                "file_extension": "txt",
+                "sending_method": sending_method,
+                "mime_type": "text/plain",
+            }
+        )
         document_download_mock.return_value = document_response
         decoded_file = base64.b64decode(file_data)
 
@@ -1215,6 +1253,27 @@ class TestSendingDocuments:
         document_download_mock.assert_called_once_with(
             service.id,
             {"file": decoded_file, "filename": filename, "sending_method": sending_method},
+        )
+        assert (
+            call(
+                "File upload accepted: service_id=%s template_id=%s filename=%s file_extension=%s "
+                "mime_type=%s sending_method=%s",
+                service.id,
+                template.id,
+                filename,
+                "txt",
+                "text/plain",
+                sending_method,
+                extra={
+                    "service_id": str(service.id),
+                    "template_id": str(template.id),
+                    "file_name": filename,
+                    "file_extension": "txt",
+                    "mime_type": "text/plain",
+                    "sending_method": sending_method,
+                },
+            )
+            in logger_mock.call_args_list
         )
 
         mock_publish_args = mock_publish.call_args.args[0]

@@ -1,3 +1,4 @@
+import logging
 import time
 
 from environs import Env
@@ -7,29 +8,48 @@ from app.celery.error_registry import classify_error
 from celery import Celery, Task, signals
 from celery.signals import worker_process_shutdown
 
+# Fallback logger for Celery signal handlers that fire outside of any Flask app
+# context (e.g. task_retry fires after NotifyTask.__call__'s app_context exits).
+_signal_logger = logging.getLogger(__name__)
+
+
+def _get_logger():
+    """Return current_app.logger when an app context is active, otherwise fall
+    back to the module-level logger so signal handlers work with both prefork
+    (permanent app context) and thread/gevent pools (no context in signals)."""
+    try:
+        return current_app.logger
+    except RuntimeError:
+        return _signal_logger
+
 
 @worker_process_shutdown.connect  # type: ignore
 def worker_process_shutdown(sender, signal, pid, exitcode, **kwargs):
-    current_app.logger.info("worker shutdown: PID: {} Exitcode: {}".format(pid, exitcode))
+    _get_logger().info("worker shutdown: PID: {} Exitcode: {}".format(pid, exitcode))
 
 
 def make_task(app):
     class NotifyTask(Task):
         abstract = True
-        start = None
 
         @property
         def message_group_id(self):
             return self.request.get("notify_message_group_id")
 
+        def before_start(self, task_id, args, kwargs):
+            self.request._notify_start_time = time.monotonic()
+
         def on_success(self, retval, task_id, args, kwargs):
-            elapsed_time = time.time() - self.start
+            start_time = getattr(self.request, "_notify_start_time", None)
+            if start_time is None:
+                return
+
+            elapsed_time = time.monotonic() - start_time
             app.logger.info("{task_name} took {time}s".format(task_name=self.name, time="{0:.4f}".format(elapsed_time)))
 
         def __call__(self, *args, **kwargs):
             # ensure task has flask context to access config, logger, etc
             with app.app_context():
-                self.start = time.time()
                 return super().__call__(*args, **kwargs)
 
     return NotifyTask
@@ -41,19 +61,11 @@ class NotifyCelery(Celery):
         message_group_id = options.pop("MessageGroupId", None)
         if message_group_id:
             message_group_id = str(message_group_id)
-            # Always store in Celery task headers so tasks can read it via self.message_group_id
-            # (used by deliver_sms_rate_limited to re-queue with the same group).
+            # Store in Celery task headers so tasks can read it via self.message_group_id.
+            # SQS message property forwarding was removed with the fair-queue revert; this
+            # header is kept as a future-use artifact for when fair queues are reintroduced
+            # per service_id on the existing priority queues.
             options["headers"]["notify_message_group_id"] = message_group_id
-            # Only forward to kombu as a message property (so SQS receives it) when the
-            # fair-queue feature flag is enabled. This prevents any SQS behaviour change
-            # in production until the flag is turned on.
-
-            # Also set as kombu message property so the SQS transport includes
-            # MessageGroupId in the message for FIFO queues. This is required
-            # for the fair-queue feature to work.
-            if current_app.config.get("FF_SMS_RATELIMIT"):
-                options["properties"] = options.get("properties") or {}
-                options["properties"]["MessageGroupId"] = message_group_id
         return super().send_task(name, args, kwargs, **options)
 
     def init_app(self, app):
@@ -108,7 +120,7 @@ def classify_celery_task_retry(sender=None, reason=None, request=None, einfo=Non
     category, root_exc = classify_error(exception)
     root_exception_type = type(root_exc).__name__ if root_exc else "None"
 
-    current_app.logger.warning(
+    _get_logger().warning(
         "%s task_name=%s task_id=%s root_exception=%s exception=%s",
         category.value,
         task_name,
@@ -125,7 +137,7 @@ def classify_celery_task_failure(sender=None, task_id=None, exception=None, **kw
     category, root_exc = classify_error(exception)
     root_exception_type = type(root_exc).__name__ if root_exc else "None"
 
-    current_app.logger.warning(
+    _get_logger().warning(
         "%s task_name=%s task_id=%s root_exception=%s exception=%s",
         category.value,
         task_name,
@@ -142,7 +154,7 @@ def classify_celery_task_internal_error(sender=None, task_id=None, exception=Non
     category, root_exc = classify_error(exception)
     root_exception_type = type(root_exc).__name__ if root_exc else "None"
 
-    current_app.logger.warning(
+    _get_logger().warning(
         "%s task_name=%s task_id=%s root_exception=%s exception=%s",
         category.value,
         task_name,
@@ -163,7 +175,7 @@ def classify_celery_task_unknown(sender=None, name=None, message=None, **kwargs)
     if message is not None:
         task_id = (getattr(message, "headers", None) or {}).get("id") or "unknown"
 
-    current_app.logger.warning(
+    _get_logger().warning(
         "%s task_name=%s task_id=%s root_exception=%s",
         category.value,
         name or "unknown",

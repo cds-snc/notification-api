@@ -4,8 +4,11 @@ from io import StringIO
 from typing import Iterator, List, Optional
 
 
-def api_headers(api_key: str):
-    return {"Authorization": f"ApiKey-v1 {api_key[-36:]}"}
+def api_headers(api_key: str, waf_secret: Optional[str] = None):
+    headers = {"Authorization": f"ApiKey-v1 {api_key}"}
+    if waf_secret:
+        headers["waf-secret"] = waf_secret
+    return headers
 
 
 def json_data(email_address: str, template_id: str, ref: str, personalisation: Optional[dict] = {}):

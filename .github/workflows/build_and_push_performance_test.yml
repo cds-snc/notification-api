@@ -1,5 +1,5 @@
 
-name: Build and Push Performance Testing Container to ECR, deploy to lambda
+name: Build and Push Performance Testing Container to ECR
 
 on:
   workflow_dispatch:

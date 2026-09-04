@@ -37,6 +37,7 @@ from app import (
 )
 from app.celery import provider_tasks, tasks
 from app.celery.tasks import (
+    _cache_template_files_for_job,
     acknowledge_receipt,
     choose_database_queue,
     generate_report,
@@ -52,6 +53,7 @@ from app.celery.tasks import (
     seed_bounce_rate_in_redis,
     send_inbound_sms_to_service,
     send_notify_no_reply,
+    try_to_send_notifications_to_queue,
     update_in_progress_jobs,
 )
 from app.config import QueueNames
@@ -195,6 +197,29 @@ class TestBatchSaving:
         assert persisted_notification[1].template_version == template.version
         assert persisted_notification[0].status == "created"
         assert persisted_notification[0].notification_type == "email"
+
+    def test_save_emails_is_idempotent_when_same_message_delivered_twice(self, notify_db_session, mocker):
+        # Simulates SQS delivering the same batch twice (or two workers picking up
+        # the same message). Because process_rows now assigns a stable notification
+        # id that is carried in the signed payload, the second delivery must not
+        # create a duplicate notification row or send the email a second time.
+        service = create_service()
+        template = create_template(service=service, template_type="email")
+
+        notification = _notification_json(template, to="dup@test.com")
+        notification["id"] = str(uuid.uuid4())
+        signed = signer_notification.sign(notification)
+
+        deliver_mock = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
+
+        # First delivery persists and sends.
+        save_emails(str(template.service_id), [signed], None)
+        # Second (duplicate) delivery must be a no-op.
+        save_emails(str(template.service_id), [signed], None)
+
+        assert Notification.query.count() == 1
+        assert Notification.query.one().id == uuid.UUID(notification["id"])
+        assert deliver_mock.call_count == 1
 
     def test_should_save_smss(self, sample_template_with_placeholders, mocker):
         notification1 = _notification_json(
@@ -487,6 +512,199 @@ class TestBatchSaving:
         assert persisted_notification[0]._personalisation == signer_personalisation.sign({"name": "Jo"})
         assert persisted_notification[0].notification_type == SMS_TYPE
         assert pbsbp_mock.assert_called_with(mock.ANY, 1, notification_type="sms", priority="normal") is None
+
+
+class TestTryToSendNotificationsToQueue:
+    """Regression tests for the mixed-priority routing bug where a stale ``template`` loop
+    variable caused every notification in a batch to inherit the last notification's queue.
+    """
+
+    def _make_notification(self, notification_id, queue_name):
+        notification = MagicMock(spec=Notification)
+        notification.id = notification_id
+        notification.queue_name = queue_name
+        notification.created_at = datetime.utcnow()
+        notification.job = None
+        return notification
+
+    def test_uses_each_notifications_own_queue_name_in_mixed_priority_batch(self, notify_api, mocker):
+        """Batch of priority + normal + bulk notifications must each route to their own queue."""
+        send_mock = mocker.patch("app.celery.tasks.send_notification_to_queue")
+
+        # In save_emails/save_smss, notification.id stays as a string in-session because
+        # persist_notifications does not refresh the SQLAlchemy object. Map keys are strings.
+        priority_id, normal_id, bulk_id = str(uuid.uuid4()), str(uuid.uuid4()), str(uuid.uuid4())
+        saved_notifications = [
+            self._make_notification(priority_id, QueueNames.SEND_EMAIL_HIGH),
+            self._make_notification(normal_id, QueueNames.SEND_EMAIL_MEDIUM),
+            self._make_notification(bulk_id, QueueNames.SEND_EMAIL_LOW),
+        ]
+        # API-buffered flow: notification_id_queue is populated with None values because the
+        # signed payload from post_notifications does not include a "queue" key.
+        notification_id_queue = {priority_id: None, normal_id: None, bulk_id: None}
+
+        try_to_send_notifications_to_queue(notification_id_queue, saved_notifications)
+
+        assert send_mock.call_count == 3
+        assert send_mock.call_args_list[0] == call(saved_notifications[0], False, QueueNames.SEND_EMAIL_HIGH)
+        assert send_mock.call_args_list[1] == call(saved_notifications[1], False, QueueNames.SEND_EMAIL_MEDIUM)
+        assert send_mock.call_args_list[2] == call(saved_notifications[2], False, QueueNames.SEND_EMAIL_LOW)
+
+    def test_notification_id_queue_override_wins_over_queue_name(self, notify_api, mocker):
+        """CSV bulk-redirect flow: when the map has an explicit queue, it takes precedence."""
+        send_mock = mocker.patch("app.celery.tasks.send_notification_to_queue")
+
+        notification_id = str(uuid.uuid4())
+        # Notification's own queue_name says HIGH, but the CSV bulk-redirect override says LOW.
+        saved_notifications = [self._make_notification(notification_id, QueueNames.SEND_EMAIL_HIGH)]
+        notification_id_queue = {notification_id: QueueNames.SEND_EMAIL_LOW}
+
+        try_to_send_notifications_to_queue(notification_id_queue, saved_notifications)
+
+        send_mock.assert_called_once_with(saved_notifications[0], False, QueueNames.SEND_EMAIL_LOW)
+
+    def test_priority_notification_not_routed_to_last_batch_notifications_queue(self, notify_api, mocker):
+        """Specific regression for the production bug: priority notification in position N-1 of a batch
+        whose last notification is normal priority must still route to send-email-high.
+        """
+        send_mock = mocker.patch("app.celery.tasks.send_notification_to_queue")
+
+        priority_id = str(uuid.uuid4())
+        normal_id = str(uuid.uuid4())
+        # priority notification is 4th, then a normal one (mirrors the 5-item batch in the bug report)
+        saved_notifications = [
+            self._make_notification(str(uuid.uuid4()), QueueNames.SEND_EMAIL_MEDIUM),
+            self._make_notification(str(uuid.uuid4()), QueueNames.SEND_EMAIL_MEDIUM),
+            self._make_notification(str(uuid.uuid4()), QueueNames.SEND_EMAIL_MEDIUM),
+            self._make_notification(priority_id, QueueNames.SEND_EMAIL_HIGH),
+            self._make_notification(normal_id, QueueNames.SEND_EMAIL_MEDIUM),
+        ]
+        notification_id_queue = {n.id: None for n in saved_notifications}
+
+        try_to_send_notifications_to_queue(notification_id_queue, saved_notifications)
+
+        # The priority notification (index 3) must go to send-email-high, not send-email-medium.
+        priority_call = send_mock.call_args_list[3]
+        assert priority_call == call(saved_notifications[3], False, QueueNames.SEND_EMAIL_HIGH)
+
+    def test_lookup_is_robust_to_notification_id_being_a_uuid_or_string(self, notify_api, mocker):
+        """Defensive str() cast: the lookup must work whether notification.id is a str (current
+        in-session behavior) or a uuid.UUID (if a future refactor refreshes the SQLAlchemy object).
+        """
+        send_mock = mocker.patch("app.celery.tasks.send_notification_to_queue")
+
+        raw_id = uuid.uuid4()
+        saved_notifications = [self._make_notification(raw_id, QueueNames.SEND_EMAIL_HIGH)]
+        # Map keyed by string (matches what save_emails/save_smss build).
+        notification_id_queue = {str(raw_id): QueueNames.SEND_EMAIL_LOW}
+
+        try_to_send_notifications_to_queue(notification_id_queue, saved_notifications)
+
+        # Even though notification.id is a UUID object here, the str() cast in the lookup finds it.
+        send_mock.assert_called_once_with(saved_notifications[0], False, QueueNames.SEND_EMAIL_LOW)
+
+    def test_live_service_notifications_not_routed_to_research_mode_when_stale_service_is_research(self, notify_api, mocker):
+        """Regression: research_mode is now derived per-notification from queue_name, not from the
+        stale service variable — so live-service notifications are never silently swallowed.
+        """
+        send_mock = mocker.patch("app.celery.tasks.send_notification_to_queue")
+
+        live_id = str(uuid.uuid4())
+        research_id = str(uuid.uuid4())
+
+        live_notification = self._make_notification(live_id, QueueNames.SEND_EMAIL_HIGH)
+        research_notification = self._make_notification(research_id, QueueNames.RESEARCH_MODE)
+
+        notification_id_queue = {live_id: None, research_id: None}
+
+        # Stale service from the last loop iteration — happens to be the research-mode one.
+
+        try_to_send_notifications_to_queue(notification_id_queue, [live_notification, research_notification])
+
+        # live_notification must be called with research_mode=False (its own correct value).
+        live_call = send_mock.call_args_list[0]
+        assert live_call == call(live_notification, False, QueueNames.SEND_EMAIL_HIGH)
+
+        # research_notification legitimately goes to research mode.
+        research_call = send_mock.call_args_list[1]
+        assert research_call == call(research_notification, True, QueueNames.RESEARCH_MODE)
+
+
+@pytest.mark.usefixtures("notify_db_session")
+class TestMixedPriorityBatchRouting:
+    """End-to-end regression tests for the mixed-priority routing bug at the caller sites
+    (``save_emails`` and ``save_smss``).
+
+    The unit tests in ``TestTryToSendNotificationsToQueue`` only exercise the shared helper — but
+    ``save_smss`` uses its own inline loop and does not go through the helper, so a fix applied to
+    ``try_to_send_notifications_to_queue`` does not automatically cover the SMS path. These tests
+    hit the full ``save_emails`` / ``save_smss`` code path so any future refactor is caught.
+    """
+
+    def _run_batch(self, save_fn, sample_service, notification_type, mocker):
+        """Persist and send a batch of three notifications with priority/normal/bulk templates.
+
+        Returns a dict mapping notification id (str) → the queue that ``deliver_*.apply_async``
+        was called with.
+        """
+        priority_template = create_template(service=sample_service, template_type=notification_type, process_type="priority")
+        normal_template = create_template(service=sample_service, template_type=notification_type, process_type="normal")
+        bulk_template = create_template(service=sample_service, template_type=notification_type, process_type="bulk")
+
+        to = {"email": ["p@test.com", "n@test.com", "b@test.com"], "sms": ["+16135550001", "+16135550002", "+16135550003"]}[
+            notification_type
+        ]
+
+        # Order matters: priority FIRST, bulk LAST. If the loop leaks the stale template,
+        # every notification would end up on the bulk queue.
+        p_id, n_id, b_id = str(uuid.uuid4()), str(uuid.uuid4()), str(uuid.uuid4())
+        n_priority = _notification_json(priority_template, to=to[0])
+        n_priority["id"] = p_id
+        n_normal = _notification_json(normal_template, to=to[1])
+        n_normal["id"] = n_id
+        n_bulk = _notification_json(bulk_template, to=to[2])
+        n_bulk["id"] = b_id
+
+        deliver_task = "deliver_email" if notification_type == "email" else "deliver_sms"
+        deliver_mock = mocker.patch(f"app.celery.provider_tasks.{deliver_task}.apply_async")
+
+        save_fn(
+            str(sample_service.id),
+            [
+                signer_notification.sign(n_priority),
+                signer_notification.sign(n_normal),
+                signer_notification.sign(n_bulk),
+            ],
+            None,
+        )
+
+        # deliver_*.apply_async is called as: apply_async([notification_id_str], queue=..., MessageGroupId=...)
+        queue_by_id = {c[0][0][0]: c[1]["queue"] for c in deliver_mock.call_args_list}
+        return queue_by_id, p_id, n_id, b_id
+
+    def test_save_emails_routes_each_notification_by_own_priority_in_mixed_batch(self, sample_service, mocker):
+        """save_emails goes through ``try_to_send_notifications_to_queue`` → each notification routes
+        to its own priority queue, even when the last template in the batch is bulk.
+        """
+        queue_by_id, p_id, n_id, b_id = self._run_batch(save_emails, sample_service, "email", mocker)
+
+        assert (
+            queue_by_id[p_id] == QueueNames.SEND_EMAIL_HIGH
+        ), f"Priority email routed to {queue_by_id[p_id]}, expected SEND_EMAIL_HIGH (stale-template bug?)"
+        assert queue_by_id[n_id] == QueueNames.SEND_EMAIL_MEDIUM
+        assert queue_by_id[b_id] == QueueNames.SEND_EMAIL_LOW
+
+    def test_save_smss_routes_each_notification_by_own_priority_in_mixed_batch(self, sample_service, mocker):
+        """SMS mirror of the email test. Previously failed because save_smss used its own inline loop
+        instead of try_to_send_notifications_to_queue.
+        """
+        queue_by_id, p_id, n_id, b_id = self._run_batch(save_smss, sample_service, "sms", mocker)
+
+        assert (
+            queue_by_id[p_id] == QueueNames.SEND_SMS_HIGH
+        ), f"Priority SMS routed to {queue_by_id[p_id]}, expected SEND_SMS_HIGH (stale-template bug)"
+        assert queue_by_id[n_id] == QueueNames.SEND_SMS_MEDIUM
+        assert queue_by_id[b_id] == QueueNames.SEND_SMS_LOW
 
 
 class TestUpdateJob:
@@ -922,6 +1140,7 @@ class TestProcessRows:
         )
         signer_mock.assert_called_once_with(
             {
+                "id": "noti_uuid",
                 "api_key": None if api_key_id is None else str(api_key_id),
                 "key_type": job.api_key.key_type,
                 "template": "template_id",
@@ -1108,6 +1327,7 @@ class TestProcessRows:
         )
         signer_mock.assert_called_once_with(
             {
+                "id": "noti_uuid",
                 "api_key": None if api_key_id is None else str(api_key_id),
                 "key_type": KEY_TYPE_NORMAL,
                 "template": "template_id",
@@ -1210,7 +1430,7 @@ class TestSaveSmss:
 
         mocked_deliver_sms.assert_called_once_with(
             [str(persisted_notification.id)],
-            queue="send-throttled-sms-tasks" if sender_id else QueueNames.SEND_SMS_MEDIUM,
+            queue="send-throttled-sms-tasks" if sender_id else "sms_queue",
             MessageGroupId=ANY,
         )
         if sender_id:
@@ -1452,7 +1672,7 @@ class TestSaveErrorHandling:
         signed_notifications = [1]
         verified_notifications = [n1]
         signed_and_verified = list(zip(signed_notifications, verified_notifications))
-        handle_batch_error_and_forward(save_smss, signed_and_verified, SMS_TYPE, expected_exception, receipt_id, sample_template)
+        handle_batch_error_and_forward(save_smss, signed_and_verified, SMS_TYPE, expected_exception, receipt_id)
         retry_func.assert_called_with(exc=expected_exception, queue="retry-tasks")
 
     def test_handler_send_3notifications(self, sample_template, mocker):
@@ -1478,7 +1698,7 @@ class TestSaveErrorHandling:
         signed_notifications = [1, 2, 3]
         verified_notifications = [n1, n2, n3]
         signed_and_verified = list(zip(signed_notifications, verified_notifications))
-        handle_batch_error_and_forward(save_smss, signed_and_verified, SMS_TYPE, expected_exception, receipt_id, sample_template)
+        handle_batch_error_and_forward(save_smss, signed_and_verified, SMS_TYPE, expected_exception, receipt_id)
 
         assert save_func.call_count == 3
         assert save_func.call_args_list == [
@@ -1598,7 +1818,7 @@ class TestSaveEmails:
         assert persisted_notification._personalisation == signer_personalisation.sign({"name": "Jo"})
         assert persisted_notification.notification_type == "email"
         mocked_deliver_email.assert_called_once_with(
-            [str(persisted_notification.id)], queue=QueueNames.SEND_EMAIL_MEDIUM, MessageGroupId=ANY
+            [str(persisted_notification.id)], queue="email_normal_queue", MessageGroupId=ANY
         )
         if sender_id:
             mocked_get_sender_id.assert_called_once_with(persisted_notification.service_id, sender_id)
@@ -2353,6 +2573,7 @@ class TestGenerateReport:
 
         # Get the updated report from DB
         updated_report = Report.query.get(sample_report.id)
+        assert updated_report.api_key_id is None
         assert updated_report.status == ReportStatus.READY.value
         assert updated_report.url == expected_url
         assert updated_report.generated_at.date() == datetime(2022, 1, 1).date()
@@ -2369,3 +2590,76 @@ class TestGenerateReport:
         # Assert report is marked as error
         # Should have called update_report twice (once to mark as generating, once as error)
         assert update_report_mock.call_count == 2
+
+
+class TestCacheTemplateFilesForJob:
+    """Test _cache_template_files_for_job function."""
+
+    def test_caches_empty_list_when_no_template_files(self, sample_email_template, mocker):
+        """Test that empty list is cached when template has no files (prevents repeated DB queries)."""
+        job_id = uuid.uuid4()
+        redis_mock = mocker.patch("app.celery.tasks.redis_store")
+
+        _cache_template_files_for_job(job_id, sample_email_template.id)
+
+        # Should have cached empty list
+        redis_mock.set.assert_called_once()
+        call_args = redis_mock.set.call_args
+        cache_key = call_args[0][0]
+        cached_value = call_args[0][1]
+
+        assert cache_key == f"template_files:{job_id}"
+        assert cached_value == json.dumps([])
+        assert call_args[1]["ex"] == 86400  # 24 hours TTL
+
+    def test_caches_file_metadata_with_correct_ttl(
+        self, notify_db, notify_db_session, sample_service_full_permissions, sample_email_template, mocker
+    ):
+        """Test that file metadata is cached with correct TTL."""
+        from app.dao.files_dao import dao_create_file
+        from app.models import FILE_STATUS_UPLOADED, FILE_TYPE_TEMPLATE_ATTACH, Files
+
+        # Create a template file
+        file = Files(
+            template_id=sample_email_template.id,
+            service_id=sample_service_full_permissions.id,
+            document_id=uuid.uuid4(),
+            type=FILE_TYPE_TEMPLATE_ATTACH,
+            name="test_file.pdf",
+            status=FILE_STATUS_UPLOADED,
+            mime_type="application/pdf",
+        )
+        dao_create_file(file)
+
+        job_id = uuid.uuid4()
+        redis_mock = mocker.patch("app.celery.tasks.redis_store")
+
+        _cache_template_files_for_job(job_id, sample_email_template.id)
+
+        # Should have cached file metadata
+        redis_mock.set.assert_called_once()
+        call_args = redis_mock.set.call_args
+        cache_key = call_args[0][0]
+        cached_value = json.loads(call_args[0][1])
+
+        assert cache_key == f"template_files:{job_id}"
+        assert len(cached_value) == 1
+        assert cached_value[0]["name"] == "test_file.pdf"
+        assert cached_value[0]["mime_type"] == "application/pdf"
+        assert "document_id" in cached_value[0]
+        assert "service_id" in cached_value[0]
+        assert call_args[1]["ex"] == 86400  # 24 hours TTL
+
+    def test_handles_redis_failure_gracefully(self, sample_email_template, mocker):
+        """Test that Redis failures don't fail the job (caching is optional)."""
+        job_id = uuid.uuid4()
+        redis_mock = mocker.patch("app.celery.tasks.redis_store")
+        redis_mock.set.side_effect = Exception("Redis connection failed")
+        logger_mock = mocker.patch("app.celery.tasks.current_app.logger")
+
+        # Should not raise exception
+        _cache_template_files_for_job(job_id, sample_email_template.id)
+
+        # Should have logged warning
+        logger_mock.warning.assert_called_once()
+        assert "Failed to pre-cache template files" in logger_mock.warning.call_args[0][0]

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# runs the celery beat process. This runs the periodic tasks
+# runs the celery beat process. This runs the scheduler.
 
 set -e
 

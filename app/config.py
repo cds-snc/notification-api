@@ -83,10 +83,6 @@ class QueueNames(object):
     # we have a limit to send per second and hence, needs to be throttled.
     SEND_THROTTLED_SMS = "send-throttled-sms-tasks"
 
-    # Fair queue for sending SMS, used to rate limit sending SMS from Notify to
-    # our SMS provider to avoid hitting downstream rate limits.
-    SEND_SMS_FAIR = "send-sms-fair"
-
     # Queues for sending all emails.
     SEND_EMAIL_HIGH = "send-email-high"
     SEND_EMAIL_MEDIUM = "send-email-medium"
@@ -97,6 +93,11 @@ class QueueNames(object):
     RESEARCH_MODE = "research-mode-tasks"
     REPORTING = "reporting-tasks"
     GENERATE_REPORTS = "generate-reports"
+
+    # Long-running nightly tasks (delete notifications, etc.) — isolated so that
+    # a dedicated worker deployment can use a higher terminationGracePeriodSeconds
+    # without affecting the short-lived periodic-tasks workers.
+    NIGHTLY = "nightly-tasks"
 
     # Queue for scheduled notifications.
     JOBS = "job-tasks"
@@ -135,6 +136,7 @@ class QueueNames(object):
         return [
             QueueNames.PRIORITY,
             QueueNames.PERIODIC,
+            QueueNames.NIGHTLY,
             QueueNames.BULK,
             QueueNames.PRIORITY_DATABASE,
             QueueNames.NORMAL_DATABASE,
@@ -143,7 +145,6 @@ class QueueNames(object):
             QueueNames.SEND_SMS_MEDIUM,
             QueueNames.SEND_SMS_LOW,
             QueueNames.SEND_THROTTLED_SMS,
-            QueueNames.SEND_SMS_FAIR,
             QueueNames.SEND_EMAIL_HIGH,
             QueueNames.SEND_EMAIL_MEDIUM,
             QueueNames.SEND_EMAIL_LOW,
@@ -167,6 +168,24 @@ class TaskNames(object):
 
 
 class Config(object):
+    #################
+    # Feature flags #
+    #################
+    # Feature flags are defined first so these can be reused in configuration sections below.
+    FF_BENCHMARK_ENDPOINT = env.bool("FF_BENCHMARK_ENDPOINT", False)
+    # Timestamp in epoch milliseconds to seed the bounce rate. We will seed data for (24, the below config) included.
+    FF_BOUNCE_RATE_SEED_EPOCH_MS = os.getenv("FF_BOUNCE_RATE_SEED_EPOCH_MS", False)
+    # Feature flag to enable custom retry policies such as lowering retry period for certain priority lanes.
+    FF_CELERY_CUSTOM_TASK_PARAMS = env.bool("FF_CELERY_CUSTOM_TASK_PARAMS", True)
+    FF_CLOUDWATCH_METRICS_ENABLED = env.bool("FF_CLOUDWATCH_METRICS_ENABLED", False)
+    FF_IMPROVE_CELERY_WORKER_ISOLATION = env.bool("FF_IMPROVE_CELERY_WORKER_ISOLATION", False)
+    FF_PT_SERVICE_SKIP_FRESHDESK = env.bool("FF_PT_SERVICE_SKIP_FRESHDESK", False)
+    # Enables the /v2/reports API endpoints. Off by default so the feature stays hidden in production until launch.
+    FF_REPORT_API = env.bool("FF_REPORT_API", False)
+    FF_SMS_RATELIMIT = env.bool("FF_SMS_RATELIMIT", False)
+    FF_USE_BILLABLE_UNITS = env.bool("FF_USE_BILLABLE_UNITS", False)
+    FF_USE_DOGPILE_CACHING = env.bool("FF_USE_DOGPILE_CACHING", False)
+
     # URL of admin app
     ADMIN_BASE_URL = os.getenv("ADMIN_BASE_URL", "http://localhost:6012")
 
@@ -207,6 +226,10 @@ class Config(object):
     EXPIRE_CACHE_TEN_MINUTES = 600
     EXPIRE_CACHE_EIGHT_DAYS = 8 * 24 * 60 * 60
 
+    # Dogpile caching
+    DOGPILE_CACHE_EXPIRATION = 600
+    DOGPILE_CACHE_BACKEND = "dogpile.cache.redis"
+
     # Performance platform
     PERFORMANCE_PLATFORM_ENABLED = False
     PERFORMANCE_PLATFORM_URL = "https://www.performance.service.gov.uk/data/govuk-notify/"
@@ -221,20 +244,13 @@ class Config(object):
     AIRTABLE_API_KEY = os.getenv("AIRTABLE_API_KEY")
     AIRTABLE_NEWSLETTER_BASE_ID = os.getenv("AIRTABLE_NEWSLETTER_BASE_ID", "appCP2c4xvXxQOfhN")
     AIRTABLE_NEWSLETTER_TABLE_NAME = os.getenv("AIRTABLE_NEWSLETTER_TABLE_NAME", "PROD - Mailing List")
+    AIRTABLE_CDS_PLATFORM_BASE_ID = os.getenv("AIRTABLE_CDS_PLATFORM_BASE_ID", "appqflckiY4UkLqUT")
+    AIRTABLE_CDS_PLATFORM_TABLE_NAME = os.getenv("AIRTABLE_CDS_PLATFORM_TABLE_NAME", "Mailing list")
     AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME = os.getenv(
         "AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME", "PROD - Current newsletter templates"
     )
 
-    # Salesforce
-    SALESFORCE_DOMAIN = os.getenv("SALESFORCE_DOMAIN")
-    SALESFORCE_CLIENT_ID = os.getenv("SALESFORCE_CLIENT_ID", "Notify")
-    SALESFORCE_ENGAGEMENT_PRODUCT_ID = os.getenv("SALESFORCE_ENGAGEMENT_PRODUCT_ID")
-    SALESFORCE_ENGAGEMENT_RECORD_TYPE = os.getenv("SALESFORCE_ENGAGEMENT_RECORD_TYPE")
-    SALESFORCE_ENGAGEMENT_STANDARD_PRICEBOOK_ID = os.getenv("SALESFORCE_ENGAGEMENT_STANDARD_PRICEBOOK_ID")
-    SALESFORCE_GENERIC_ACCOUNT_ID = os.getenv("SALESFORCE_GENERIC_ACCOUNT_ID")
-    SALESFORCE_USERNAME = os.getenv("SALESFORCE_USERNAME")
-    SALESFORCE_PASSWORD = os.getenv("SALESFORCE_PASSWORD")
-    SALESFORCE_SECURITY_TOKEN = os.getenv("SALESFORCE_SECURITY_TOKEN")
+    # Organisations
     GC_ORGANISATIONS_BUCKET_NAME = os.getenv("GC_ORGANISATIONS_BUCKET_NAME")
     GC_ORGANISATIONS_FILENAME = os.getenv("GC_ORGANISATIONS_FILENAME", "all.json")
 
@@ -309,7 +325,6 @@ class Config(object):
 
     # Notify's notifications templates
     NOTIFY_SERVICE_ID = "d6aa2c68-a2d9-4437-ab19-3ae8eb202553"
-    HEARTBEAT_SERVICE_ID = "30b2fb9c-f8ad-49ad-818a-ed123fc00758"
     NEWSLETTER_SERVICE_ID = "143806ca-3068-4f5d-9c6d-276b4151a395"
     NOTIFY_USER_ID = "6af522d0-2915-4e52-83a3-3690455a5fe6"
     INVITATION_EMAIL_TEMPLATE_ID = "4f46df42-f795-4cc4-83bb-65ca312f49cc"
@@ -351,6 +366,15 @@ class Config(object):
     )
     USER_DEACTIVATED_TEMPLATE_ID = "d0fe2b8c-ddcf-4f9b-8bb7-d79006e7cfa7"  # Sent when a user deactivates their own account
     SERVICE_DEACTIVATED_TEMPLATE_ID = "71263145-8606-43b0-9f42-08a2c227523a"  # Sent when a user deactivates a service
+    SERVICE_BOUNCE_RATE_SUSPENDED_TEMPLATE_ID = (
+        "6963bb3c-a717-46a0-9591-68588193696a"  # Sent when a service is suspended for exceeding bounce-rate limits
+    )
+    SERVICE_SUSPENDED_WARNING_TEMPLATE_ID = (
+        "5e5952b4-a156-44bc-9cc2-059a3c9a7eb3"  # Sent to warn a service about potential suspension due to high bounce rate
+    )
+    SERVICE_CALLBACK_SUSPENDED_TEMPLATE_ID = (
+        "669f28bc-5b15-4b9f-a2d8-90b3641da226"  # Sent when a service's callbacks are suspended because they're not working
+    )
 
     # Newsletter templates
     NEWSLETTER_CONFIRMATION_EMAIL_TEMPLATE_ID_EN = "c8ee07a2-7cf4-4a32-9cc2-6763b5bc47a6"
@@ -404,6 +428,8 @@ class Config(object):
         "app.celery.reporting_tasks",
         "app.celery.nightly_tasks",
         "app.celery.process_pinpoint_receipts_tasks",
+        "app.celery.bounce_rate_tasks",
+        "app.celery.service_callback_suspension_tasks",
     )
     CELERYBEAT_SCHEDULE = {
         # app/celery/scheduled_tasks.py
@@ -491,22 +517,22 @@ class Config(object):
         "delete-sms-notifications": {
             "task": "delete-sms-notifications",
             "schedule": crontab(hour=9, minute=15),  # 4:15 EST in UTC,  after 'create-nightly-notification-status'
-            "options": {"queue": QueueNames.PERIODIC},
+            "options": {"queue": QueueNames.NIGHTLY if FF_IMPROVE_CELERY_WORKER_ISOLATION else QueueNames.PERIODIC},
         },
         "delete-email-notifications": {
             "task": "delete-email-notifications",
             "schedule": crontab(hour=9, minute=30),  # 4:30 EST in UTC, after 'create-nightly-notification-status'
-            "options": {"queue": QueueNames.PERIODIC},
+            "options": {"queue": QueueNames.NIGHTLY if FF_IMPROVE_CELERY_WORKER_ISOLATION else QueueNames.PERIODIC},
         },
         "delete-letter-notifications": {
             "task": "delete-letter-notifications",
             "schedule": crontab(hour=9, minute=45),  # 4:45 EST in UTC, after 'create-nightly-notification-status'
-            "options": {"queue": QueueNames.PERIODIC},
+            "options": {"queue": QueueNames.NIGHTLY if FF_IMPROVE_CELERY_WORKER_ISOLATION else QueueNames.PERIODIC},
         },
         "delete-inbound-sms": {
             "task": "delete-inbound-sms",
             "schedule": crontab(hour=6, minute=40),  # 1:40 EST in UTC
-            "options": {"queue": QueueNames.PERIODIC},
+            "options": {"queue": QueueNames.NIGHTLY if FF_IMPROVE_CELERY_WORKER_ISOLATION else QueueNames.PERIODIC},
         },
         "send-daily-performance-platform-stats": {
             "task": "send-daily-performance-platform-stats",
@@ -583,12 +609,16 @@ class Config(object):
     CELERY_QUEUES: List[Any] = []
     CELERY_DELIVER_SMS_RATE_LIMIT = os.getenv("CELERY_DELIVER_SMS_RATE_LIMIT", "1/s")
     CELERY_DELIVER_SMS_RATE_LIMIT_PER_MINUTE = env.int("CELERY_DELIVER_SMS_RATE_LIMIT_PER_MINUTE", 6_000)
-    # SMS rate limiter backend: "memory" for in-process (Phase 1), "redis" for distributed (Phase 2, multi-worker)
-    SMS_RATE_LIMITER_BACKEND = os.getenv("SMS_RATE_LIMITER_BACKEND", "memory")
+    # SMS rate limiter backend class name. Must match a key in an implementation class in the rate_limiter module.
+    # Options: "InMemoryRateLimiter", "RedisSlidingWindowLogRateLimiter", "RedisTokenBucketRateLimiter"
+    SMS_RATE_LIMITER_BACKEND = os.getenv("SMS_RATE_LIMITER_BACKEND", "InMemoryRateLimiter")
+    # Number of tokens to pre-fetch from the underlying rate limiter per Redis call (BufferedRateLimiter batch size).
+    SMS_RATE_LIMITER_BATCH = env.int("SMS_RATE_LIMITER_BATCH", 100)
     AWS_SEND_SMS_BOTO_CALL_LATENCY = os.getenv("AWS_SEND_SMS_BOTO_CALL_LATENCY", 0.06)  # average delay in production
 
     CONTACT_FORM_EMAIL_ADDRESS = os.getenv("CONTACT_FORM_EMAIL_ADDRESS", "helpdesk@cds-snc.ca")
     SENSITIVE_SERVICE_EMAIL = os.getenv("SENSITIVE_SERVICE_EMAIL", "ESDC.Support.CDS-SNC.Soutien.EDSC@servicecanada.gc.ca")
+    FRESHDESK_SUPPORT_EMAIL_ID = os.getenv("FRESHDESK_SUPPORT_EMAIL_ID", "assistance+notification@cds-snc.ca")
 
     FROM_NUMBER = "development"
 
@@ -597,6 +627,11 @@ class Config(object):
     STATSD_ENABLED = bool(STATSD_HOST)
 
     SENDING_NOTIFICATIONS_TIMEOUT_PERIOD = 259_200  # 3 days
+
+    # Callback retry policy: exponential backoff with jitter.
+    CALLBACK_RETRY_BACKOFF_BASE_SECONDS = env.int("CALLBACK_RETRY_BACKOFF_BASE_SECONDS", 300)
+    CALLBACK_RETRY_BACKOFF_MAX_SECONDS = env.int("CALLBACK_RETRY_BACKOFF_MAX_SECONDS", 300)
+    CALLBACK_RETRY_JITTER_FACTOR = float(os.getenv("CALLBACK_RETRY_JITTER_FACTOR", 0.2))
 
     SIMULATED_EMAIL_ADDRESSES = (
         "simulate-delivered@notification.canada.ca",
@@ -650,22 +685,9 @@ class Config(object):
     CLOUDWATCH_AGENT_ENDPOINT = os.getenv("CLOUDWATCH_AGENT_ENDPOINT", f"tcp://{STATSD_HOST}:{CLOUDWATCH_AGENT_EMF_PORT}")
 
     # Bounce Rate parameters
-    BR_VOLUME_MINIMUM = 1000
+    BR_VOLUME_MINIMUM = int(os.getenv("BR_VOLUME_MINIMUM", 1000))
     BR_WARNING_PERCENTAGE = 0.05
     BR_CRITICAL_PERCENTAGE = 0.1
-
-    # Feature flags for bounce rate
-    FF_ANNUAL_LIMIT = env.bool("FF_ANNUAL_LIMIT", False)
-    FF_BENCHMARK_ENDPOINT = env.bool("FF_BENCHMARK_ENDPOINT", False)
-    # Timestamp in epoch milliseconds to seed the bounce rate. We will seed data for (24, the below config) included.
-    FF_BOUNCE_RATE_SEED_EPOCH_MS = os.getenv("FF_BOUNCE_RATE_SEED_EPOCH_MS", False)
-    # Feature flag to enable custom retry policies such as lowering retry period for certain priority lanes.
-    FF_CELERY_CUSTOM_TASK_PARAMS = env.bool("FF_CELERY_CUSTOM_TASK_PARAMS", True)
-    FF_CLOUDWATCH_METRICS_ENABLED = env.bool("FF_CLOUDWATCH_METRICS_ENABLED", False)
-    FF_PT_SERVICE_SKIP_FRESHDESK = env.bool("FF_PT_SERVICE_SKIP_FRESHDESK", False)
-    FF_SALESFORCE_CONTACT = env.bool("FF_SALESFORCE_CONTACT", False)
-    FF_SMS_RATELIMIT = env.bool("FF_SMS_RATELIMIT", False)
-    FF_USE_BILLABLE_UNITS = env.bool("FF_USE_BILLABLE_UNITS", False)
 
     WAF_SECRET = os.getenv("WAF_SECRET")
 
@@ -678,6 +700,10 @@ class Config(object):
     CYPRESS_AUTH_USER_NAME = "CYPRESS_AUTH_USER"
     CYPRESS_AUTH_CLIENT_SECRET = os.getenv("CYPRESS_AUTH_CLIENT_SECRET")
     CYPRESS_EMAIL_PREFIX = "notify-ui-tests"
+    # scan files callback auth
+    SCAN_VERDICT_CALLBACK_TOKEN = os.getenv("SCAN_VERDICT_CALLBACK_TOKEN")
+    SCAN_VERDICT_CALLBACK_USER_NAME = "scan-verdict-callback"
+    TEST_OLD_BOUNCE_RATE = env.bool("TEST_OLD_BOUNCE_RATE", False)
 
     @classmethod
     def get_sensitive_config(cls) -> list[str]:
@@ -695,8 +721,6 @@ class Config(object):
             "AWS_SES_SECRET_KEY",
             "ROUTE_SECRET_KEY_1",
             "ROUTE_SECRET_KEY_2",
-            "SALESFORCE_PASSWORD",
-            "SALESFORCE_SECURITY_TOKEN",
             "TEMPLATE_PREVIEW_API_KEY",
             "DOCUMENT_DOWNLOAD_API_KEY",
             "SRE_CLIENT_SECRET",
@@ -750,6 +774,7 @@ class Development(Config):
     API_RATE_LIMIT_ENABLED = True
 
     AIRTABLE_NEWSLETTER_TABLE_NAME = os.getenv("AIRTABLE_NEWSLETTER_TABLE_NAME", "DEV - Mailing List")
+    AIRTABLE_CDS_PLATFORM_TABLE_NAME = os.getenv("AIRTABLE_CDS_PLATFORM_TABLE_NAME", "Mailing list (test)")
     AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME = os.getenv(
         "AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME", "DEV - Current newsletter templates"
     )
@@ -789,10 +814,12 @@ class Test(Development):
     FAILED_LOGIN_LIMIT = 0
     GC_ORGANISATIONS_BUCKET_NAME = "test-gc-organisations"
     FF_USE_BILLABLE_UNITS = True
+    FF_REPORT_API = True
 
 
 class Production(Config):
     AIRTABLE_NEWSLETTER_TABLE_NAME = os.getenv("AIRTABLE_NEWSLETTER_TABLE_NAME", "PROD - Mailing List")
+    AIRTABLE_CDS_PLATFORM_TABLE_NAME = os.getenv("AIRTABLE_CDS_PLATFORM_TABLE_NAME", "Mailing list")
     AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME = os.getenv(
         "AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME", "PROD - Current newsletter templates"
     )
@@ -824,6 +851,7 @@ class Staging(Production):
     FRESH_DESK_ENABLED = env.bool("FRESH_DESK_ENABLED", False)
     NOTIFY_ENVIRONMENT = "staging"
     AIRTABLE_NEWSLETTER_TABLE_NAME = os.getenv("AIRTABLE_NEWSLETTER_TABLE_NAME", "STAGING - Mailing List")
+    AIRTABLE_CDS_PLATFORM_TABLE_NAME = os.getenv("AIRTABLE_CDS_PLATFORM_TABLE_NAME", "Mailing list (test)")
     AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME = os.getenv(
         "AIRTABLE_CURRENT_NEWSLETTER_TEMPLATES_TABLE_NAME", "STAGING - Current newsletter templates"
     )

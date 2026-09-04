@@ -34,7 +34,7 @@ def process_sns_results(self, response):
         notification_status = determine_status(sns_status, provider_response)
         if not notification_status:
             current_app.logger.warning(f"unhandled provider response for reference {reference}, received '{provider_response}'")
-            notification_status = NOTIFICATION_TECHNICAL_FAILURE  # revert to tech failure by default
+            notification_status = NOTIFICATION_PERMANENT_FAILURE  # revert to permanent failure by default
 
         try:
             notification = notifications_dao.dao_get_notification_by_reference(reference)

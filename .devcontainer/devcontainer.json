@@ -50,11 +50,12 @@
 			"moby": true
 		},
 		"kubectl-helm-minikube": {
+			"version": "v1.35.1",
 			"helm": "latest",
 			"minikube": "none"
 		},
 		"ghcr.io/devcontainers/features/node:1": {}
 	},
-	"postCreateCommand": "notify-dev-entrypoint.sh",
+	"postCreateCommand": "bash /workspace/.devcontainer/scripts/notify-dev-entrypoint.sh",
 	"remoteUser": "vscode"
 }

@@ -18,15 +18,15 @@ class Client(object):
 
 
 class Clients(object):
-    sms_clients: Dict[str, Any] = {}
-    email_clients: Dict[str, Any] = {}
+    def __init__(self) -> None:
+        self.sms_clients: Dict[str, Any] = {}
+        self.email_clients: Dict[str, Any] = {}
 
     def init_app(self, sms_clients, email_clients):
-        for client in sms_clients:
-            self.sms_clients[client.name] = client
-
-        for client in email_clients:
-            self.email_clients[client.name] = client
+        # Build new dicts and assign atomically so concurrent readers
+        # never encounter a partially populated registry.
+        self.sms_clients = {client.name: client for client in sms_clients}
+        self.email_clients = {client.name: client for client in email_clients}
 
     def get_sms_client(self, name):
         return self.sms_clients.get(name)

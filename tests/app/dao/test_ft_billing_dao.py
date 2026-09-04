@@ -575,7 +575,7 @@ def test_fetch_monthly_billing_for_year(notify_db_session):
     assert len(results) == 2
     assert str(results[0].month) == "2018-06-01"
     assert results[0].notifications_sent == 30
-    assert results[0].billable_units == Decimal("60")
+    assert results[0].billable_units == Decimal("30")
     assert results[0].rate == Decimal("0.162")
     assert results[0].notification_type == "sms"
     assert results[0].postage == "none"

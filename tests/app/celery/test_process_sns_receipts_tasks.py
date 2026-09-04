@@ -132,7 +132,7 @@ def test_process_sns_results_delivered(sample_template, notify_db, notify_db_ses
             False,
             True,
         ),
-        ("This is not a real response", NOTIFICATION_TECHNICAL_FAILURE, True, True),
+        ("This is not a real response", NOTIFICATION_PERMANENT_FAILURE, True, True),
     ],
 )
 def test_process_sns_results_failed(

@@ -87,14 +87,13 @@ def on_init(environment, **kwargs):
 
 @events.test_start.add_listener
 def configure_user_classes(environment, **kwargs):
-    """Zero out the weight of whichever user class isn't active so Locust
-    doesn't split spawns between NotifyApiUser and BulkBurstUser."""
+    """Remove whichever user class isn't active so Locust only dispatches to
+    the relevant class. Setting weight=0 causes a math domain error in
+    locust's _kl_generator (log2(0)), so we filter the list instead."""
     if environment.parsed_options.bulk_burst:
-        NotifyApiUser.weight = 0
-        BulkBurstUser.weight = 1
+        environment.user_classes = [BulkBurstUser]
     else:
-        NotifyApiUser.weight = 1
-        BulkBurstUser.weight = 0
+        environment.user_classes = [NotifyApiUser]
 
 
 @events.quitting.add_listener
@@ -481,6 +480,13 @@ class StepLoadShape(LoadTestShape):
         run_time = self.get_run_time()
         opts = self.runner.environment.parsed_options
         spawn_rate = opts.spawn_rate  # honours -r / locust.conf spawn-rate
+
+        # LoadTestShape normally causes Locust to ignore --run-time entirely.
+        # Re-implement the check here so callers can impose a hard time cap
+        # (e.g. TEST_MODE uses --run-time 2m to keep CI runs short).
+        if opts.run_time and run_time >= opts.run_time:
+            print(f"\n*** Run-time limit of {opts.run_time}s reached — stopping test ***")
+            return None
 
         # --- bulk-burst scenario ---
         if opts.bulk_burst:

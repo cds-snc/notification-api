@@ -75,7 +75,6 @@ from app.notifications.validators import (
     check_email_annual_limit,
     check_email_daily_limit,
     check_rate_limiting,
-    check_service_can_schedule_notification,
     check_service_email_reply_to_id,
     check_service_has_permission,
     check_service_sms_sender_id,
@@ -307,8 +306,6 @@ def post_notification(notification_type: NotificationType):
     check_service_has_permission(notification_type, authenticated_service.permissions)
 
     scheduled_for = form.get("scheduled_for", None)
-
-    check_service_can_schedule_notification(authenticated_service.permissions, scheduled_for)
 
     check_rate_limiting(authenticated_service, api_user)
 
@@ -542,6 +539,25 @@ def process_document_uploads(personalisation_data, service: Service, simulated, 
         else:
             try:
                 personalisation_data[key] = document_download_client.upload_document(service.id, personalisation_data[key])
+                uploaded_document = personalisation_data[key]["document"]
+                current_app.logger.info(
+                    "File upload accepted: service_id=%s template_id=%s filename=%s file_extension=%s "
+                    "mime_type=%s sending_method=%s",
+                    service.id,
+                    template_id,
+                    uploaded_document.get("filename"),
+                    uploaded_document.get("file_extension"),
+                    uploaded_document.get("mime_type"),
+                    uploaded_document.get("sending_method"),
+                    extra={
+                        "service_id": str(service.id),
+                        "template_id": str(template_id),
+                        "file_name": uploaded_document.get("filename"),
+                        "file_extension": uploaded_document.get("file_extension"),
+                        "mime_type": uploaded_document.get("mime_type"),
+                        "sending_method": uploaded_document.get("sending_method"),
+                    },
+                )
             except DocumentDownloadError as e:
                 raise BadRequestError(message=e.message, status_code=e.status_code)
 

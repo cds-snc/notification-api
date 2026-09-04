@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 import pytest
 from marshmallow import ValidationError
 from sqlalchemy import desc
@@ -151,3 +153,102 @@ def test_service_schema_returns_annual_limits(sample_service):
 
     assert data["sms_annual_limit"] == 100000
     assert data["email_annual_limit"] == 20000000
+
+
+def test_file_schema_load_accepts_valid_payload(sample_template):
+    from app.schemas import files_schema
+
+    payload = {
+        "template_id": str(sample_template.id),
+        "service_id": str(sample_template.service_id),
+        "document_id": str(uuid4()),
+        "type": "attach",
+        "name": "evidence.pdf",
+        "status": "uploaded",
+    }
+
+    loaded = files_schema.load(payload)
+
+    assert str(loaded.template_id) == payload["template_id"]
+    assert str(loaded.service_id) == payload["service_id"]
+    assert str(loaded.document_id) == payload["document_id"]
+    assert loaded.type == payload["type"]
+    assert loaded.name == payload["name"]
+    assert loaded.status == payload["status"]
+
+
+def test_file_schema_requires_template_service_and_document_ids(sample_template):
+    from app.schemas import files_schema
+
+    payload = {
+        "template_id": str(sample_template.id),
+        "service_id": str(sample_template.service_id),
+        "document_id": str(uuid4()),
+        "type": "attach",
+        "name": "evidence.pdf",
+        "status": "uploaded",
+    }
+
+    for required_field in ["template_id", "service_id", "document_id"]:
+        data = payload.copy()
+        data.pop(required_field)
+        errors = files_schema.validate(data)
+        assert required_field in errors
+
+
+def test_file_schema_rejects_invalid_type(sample_template):
+    from app.schemas import files_schema
+
+    payload = {
+        "template_id": str(sample_template.id),
+        "service_id": str(sample_template.service_id),
+        "document_id": str(uuid4()),
+        "type": "not-a-valid-type",
+        "name": "evidence.pdf",
+        "status": "uploaded",
+    }
+
+    with pytest.raises(ValidationError) as exc:
+        files_schema.load(payload)
+
+    assert "type" in exc.value.messages
+    assert exc.value.messages["type"][0].startswith("Must be one of:")
+
+
+def test_file_schema_rejects_invalid_status(sample_template):
+    from app.schemas import files_schema
+
+    payload = {
+        "template_id": str(sample_template.id),
+        "service_id": str(sample_template.service_id),
+        "document_id": str(uuid4()),
+        "type": "attach",
+        "name": "evidence.pdf",
+        "status": "not-a-valid-status",
+    }
+
+    with pytest.raises(ValidationError) as exc:
+        files_schema.load(payload)
+
+    assert "status" in exc.value.messages
+    assert exc.value.messages["status"][0].startswith("Must be one of:")
+
+
+def test_file_schema_allows_optional_mime_type_and_file_size(sample_template):
+    from app.schemas import files_schema
+
+    payload = {
+        "template_id": str(sample_template.id),
+        "service_id": str(sample_template.service_id),
+        "document_id": str(uuid4()),
+        "type": "link",
+        "name": "reference.txt",
+        "mime_type": None,
+        "file_size": None,
+        "status": "pending_virus_scan",
+    }
+
+    loaded = files_schema.load(payload)
+
+    assert loaded.mime_type is None
+    assert loaded.file_size is None

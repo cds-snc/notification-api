@@ -1,6 +1,7 @@
 import uuid
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+from unittest.mock import call
 
 import pytest
 from freezegun import freeze_time
@@ -19,6 +20,7 @@ from tests.conftest import set_config
 
 from app import annual_limit_client
 from app.celery.reporting_tasks import (
+    _create_quarterly_email_markdown_list,
     create_monthly_notification_stats_summary,
     create_nightly_billing,
     create_nightly_billing_for_day,
@@ -592,6 +594,19 @@ class TestInsertQuarterData:
 
 
 class TestSendQuarterEmail:
+    def test_quarterly_email_rounds_percentages(self):
+        service_id = uuid.uuid4()
+
+        markdown_list_en, _markdown_list_fr = _create_quarterly_email_markdown_list(
+            {service_id: ("service", 20_000_000, 400_000)},
+            [service_id],
+            {str(service_id): {"email": 56_428, "sms": 66_518}},
+        )
+
+        assert "(0.28%)" in markdown_list_en
+        assert "(16.63%)" in markdown_list_en
+        assert "0.27999999999999997" not in markdown_list_en
+
     def test_send_quarter_email(self, sample_user, mocker, notify_db_session):
         service_1 = create_service(service_name="service_1")
         service_2 = create_service(service_name="service_2")
@@ -608,13 +623,27 @@ class TestSendQuarterEmail:
         service_2.users = [sample_user]
         send_mock = mocker.patch("app.celery.reporting_tasks.send_annual_usage_data")
 
-        markdown_list_en = "## service_1 \nText messages: you've sent 4 out of 25,000 (0.0%)\n\n## service_2 \nText messages: you've sent 1 100 out of 25 000 (4.0%)\n\n"
-        markdown_list_fr = "## service_1 \n\n## service_2 \n\n"
+        markdown_list_en = (
+            "## service_1 \n"
+            "Emails: you've sent 0 out of 10,000,000 (0.00%)\n"
+            "Text messages: you've sent 4 out of 25,000 (0.02%)\n\n"
+            "## service_2 \n"
+            "Emails: you've sent 0 out of 10,000,000 (0.00%)\n"
+            "Text messages: you've sent 1,100 out of 25,000 (4.40%)\n\n"
+        )
+        markdown_list_fr = (
+            "## service_1 \n"
+            "Courriels: 0 envoyés sur 10 000 000 (0.00%)\n"
+            "Messages texte : 4 envoyés sur 25 000 (0.02%)\n\n"
+            "## service_2 \n"
+            "Courriels: 0 envoyés sur 10 000 000 (0.00%)\n"
+            "Messages texte : 1 100 envoyés sur 25 000 (4.40%)\n\n"
+        )
         send_quarter_email(datetime(2018, 4, 1))
-        assert send_mock.call_args(
+        assert send_mock.call_args == call(
             sample_user.id,
+            2017,
             2018,
-            2019,
             markdown_list_en,
             markdown_list_fr,
         )

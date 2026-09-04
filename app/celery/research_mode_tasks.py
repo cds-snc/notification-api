@@ -1,3 +1,4 @@
+import json
 import random
 from datetime import datetime, timedelta
 
@@ -81,7 +82,7 @@ def aws_pinpoint_callback(notification_id, to):
     using_test_temp_fail_number = to.strip().endswith(temp_fail)
 
     if using_test_perm_fail_number or using_test_temp_fail_number:
-        return pinpoint_failed_callback(
+        body = pinpoint_failed_callback(
             "Phone is currently unreachable/unavailable"
             if using_test_perm_fail_number
             else "Phone carrier is currently unreachable/unavailable",
@@ -90,7 +91,14 @@ def aws_pinpoint_callback(notification_id, to):
             timestamp=timestamp,
         )
     else:
-        return pinpoint_delivered_callback(notification_id, destination=to, timestamp=timestamp)
+        body = pinpoint_delivered_callback(notification_id, destination=to, timestamp=timestamp)
+
+    # Strip cost fields — research mode / test sends should not record cost data
+    message = json.loads(body["Message"])
+    message.pop("totalMessagePrice", None)
+    message.pop("totalCarrierFee", None)
+    body["Message"] = json.dumps(message)
+    return body
 
 
 @notify_celery.task(

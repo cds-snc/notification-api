@@ -460,6 +460,18 @@ class TemplateHistorySchema(BaseSchema):
         model = models.TemplateHistory
 
 
+class FilesSchema(BaseSchema):
+    template_id = field_for(models.Files, "template_id", required=True)
+    service_id = field_for(models.Files, "service_id", required=True)
+    document_id = field_for(models.Files, "document_id", required=True)
+    created_at = FlexibleDateTime()
+    updated_at = FlexibleDateTime()
+
+    class Meta(BaseSchema.Meta):
+        model = models.Files
+        exclude = ("template", "service")
+
+
 class ApiKeySchema(BaseSchema):
     created_by = field_for(models.ApiKey, "created_by", required=True)
     key_type = field_for(models.ApiKey, "key_type", required=True)
@@ -846,6 +858,7 @@ class ReportSchema(BaseSchema):
 
     id = fields.UUID()
     requesting_user_id = fields.UUID()
+    api_key_id = fields.UUID(required=False, allow_none=True)
     report_type = fields.String()
     service_id = fields.UUID()
     status = fields.String()
@@ -859,6 +872,15 @@ class ReportSchema(BaseSchema):
 
     requesting_user = fields.Nested(
         UserSchema,
+        only=[
+            "id",
+            "name",
+        ],
+        dump_only=True,
+    )
+
+    api_key = fields.Nested(
+        ApiKeySchema,
         only=[
             "id",
             "name",
@@ -920,3 +942,4 @@ provider_details_history_schema = ProviderDetailsHistorySchema()
 day_schema = DaySchema()
 unarchived_template_schema = UnarchivedTemplateSchema()
 report_schema = ReportSchema()
+files_schema = FilesSchema()

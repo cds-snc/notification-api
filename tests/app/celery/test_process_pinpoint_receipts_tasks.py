@@ -91,6 +91,12 @@ def test_process_pinpoint_results_succeeded(sample_template, notify_db, notify_d
     mock_callback_task.assert_not_called()
     assert updated_notification.status == NOTIFICATION_SENT
     assert updated_notification.provider_response is None
+    assert float(updated_notification.sms_total_message_price) == 0.00581
+    assert float(updated_notification.sms_total_carrier_fee) == 0.00767
+    assert updated_notification.sms_iso_country_code == "CA"
+    assert updated_notification.sms_carrier_name == "Bell Cellular Inc. / Aliant Telecom"
+    assert updated_notification.sms_message_encoding == "GSM"
+    assert updated_notification.sms_origination_phone_number == "+13655550100"
 
 
 def test_process_pinpoint_results_missing_sms_data(notify_api, sample_template, notify_db, notify_db_session, mocker):
@@ -202,7 +208,7 @@ def test_process_pinpoint_results_missing_sms_data(notify_api, sample_template, 
             False,
             True,
         ),
-        ("This is not a real response", NOTIFICATION_TECHNICAL_FAILURE, True, True),
+        ("This is not a real response", NOTIFICATION_PERMANENT_FAILURE, True, True),
     ],
 )
 def test_process_pinpoint_results_failed(
