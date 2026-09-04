@@ -62,14 +62,11 @@ from app.models import (
 )
 from app.notifications.process_letter_notifications import create_letter_notification
 from app.notifications.process_notifications import (
-    choose_queue,
     csv_has_simulated_and_non_simulated_recipients,
-    db_save_and_send_notification,
     number_of_sms_fragments,
     persist_notification,
     persist_scheduled_notification,
     simulated_recipient,
-    transform_notification,
 )
 from app.notifications.validators import (
     check_email_annual_limit,
@@ -90,7 +87,6 @@ from app.schema_validation import validate
 from app.schemas import job_schema
 from app.service.utils import safelisted_members
 from app.sms_fragment_utils import fetch_todays_requested_sms_count
-from app.utils import get_delivery_queue_for_template
 from app.v2.errors import BadRequestError
 from app.v2.notifications import v2_notification_blueprint
 from app.v2.notifications.create_response import (
@@ -478,46 +474,11 @@ def process_sms_or_email_notification(
         persist_scheduled_notification(notification.id, form["scheduled_for"])
     elif not simulated:
         triage_notification_to_queues(notification_type, signed_notification_data, template)
-
         current_app.logger.info(
             f"Batch saving: {notification_type}/{template.process_type} {notification['id']} sent to buffer queue."
         )
-    else:
-        notification = transform_notification(
-            template_id=template.id,
-            template_version=template.version,
-            recipient=form_send_to,
-            service=service,
-            personalisation=personalisation,
-            notification_type=notification_type,
-            api_key_id=api_key.id,
-            key_type=api_key.key_type,
-            client_reference=form.get("reference", None),
-            reply_to_text=reply_to_text,
-        )
-        if not simulated:
-            # TODO: Remove this logging statement once debugging is complete. It is useful for understanding how templates are routed to queues.
-            current_app.logger.info(
-                "process_sms_or_email_notification: Routing notification %s template %s version %s: process_type_column=%r, "
-                "effective_process_type=%r, category_id=%s, category_email_process_type=%r, category_sms_process_type=%r",
-                notification.id,
-                template.id,
-                template.version,
-                template.process_type_column,
-                template.process_type,
-                template.template_category_id,
-                template.template_category.email_process_type if template.template_category else None,
-                template.template_category.sms_process_type if template.template_category else None,
-            )
-            notification.queue_name = choose_queue(
-                notification=notification,
-                research_mode=service.research_mode,
-                priority_queue=get_delivery_queue_for_template(template),
-            )
-            db_save_and_send_notification(notification)
-
-        else:
-            current_app.logger.debug("POST simulated notification for id: {}".format(notification.id))
+    else:  # Simulated and not scheduled
+        current_app.logger.debug("POST simulated notification for id: {}".format(notification["id"]))
 
     if not isinstance(notification, Notification):
         notification["template_id"] = notification["template"]
