@@ -380,10 +380,10 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
 
     except SQLAlchemyError as e:
         signed_and_verified = list(zip(signed_notifications, verified_notifications))
-        handle_batch_error_and_forward(self, signed_and_verified, SMS_TYPE, e, receipt, template)
+        handle_batch_error_and_forward(self, signed_and_verified, SMS_TYPE, e, receipt)
 
     if saved_notifications:
-        try_to_send_notifications_to_queue(notification_id_queue, service, saved_notifications)
+        try_to_send_notifications_to_queue(notification_id_queue, saved_notifications)
 
 
 @notify_celery.task(bind=True, name="save-emails", max_retries=5, default_retry_delay=300)
@@ -465,10 +465,6 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
             f"Saved following notifications into db: {notification_id_queue.keys()} associated with receipt {receipt}"
         )
         if receipt:
-            # todo: fix this potential bug
-            # template is whatever it was set to last in the for loop above
-            # at this point in the code we have a list of notifications (saved_notifications)
-            # which could use multiple templates
             acknowledge_receipt(EMAIL_TYPE, process_type, receipt)
             current_app.logger.debug(
                 f"Batch saving: receipt_id {receipt} removed from buffer queue for notification_id {notification_id} for process_type {process_type}"
@@ -482,20 +478,15 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
             )
     except SQLAlchemyError as e:
         signed_and_verified = list(zip(signed_notifications, verified_notifications))
-        handle_batch_error_and_forward(self, signed_and_verified, EMAIL_TYPE, e, receipt, template)
+        handle_batch_error_and_forward(self, signed_and_verified, EMAIL_TYPE, e, receipt)
 
     if saved_notifications:
-        try_to_send_notifications_to_queue(notification_id_queue, service, saved_notifications)
+        try_to_send_notifications_to_queue(notification_id_queue, saved_notifications)
 
 
-def try_to_send_notifications_to_queue(notification_id_queue, service, saved_notifications):
+def try_to_send_notifications_to_queue(notification_id_queue, saved_notifications):
     """Route each saved notification to its delivery queue. Works for both SMS and email batches."""
     current_app.logger.debug(f"Sending following notifications to provider queue: {notification_id_queue.keys()}")
-    # todo: fix this potential bug
-    # service is whatever it was set to last in the for loop above.
-    # at this point in the code we have a list of notifications (saved_notifications)
-    # which could be from multiple services
-    research_mode = service.research_mode  # type: ignore
     for notification_obj in saved_notifications:
         try:
             # TODO: remove notification_id_queue once persist_notifications knows about the CSV bulk-redirect
@@ -509,6 +500,9 @@ def try_to_send_notifications_to_queue(notification_id_queue, service, saved_not
                 # per-notification correct value from persist_notifications
                 or notification_obj.queue_name
             )
+            # research_mode is derived per-notification: queue_name is already set correctly by
+            # persist_notifications → choose_queue.
+            research_mode = notification_obj.queue_name == QueueNames.RESEARCH_MODE
             send_notification_to_queue(
                 notification_obj,
                 research_mode,
@@ -538,19 +532,22 @@ def handle_batch_error_and_forward(
     notification_type: Optional[str],
     exception,
     receipt: Optional[UUID] = None,
-    template: Any = None,
 ):
     if receipt:
         current_app.logger.warning(f"Batch saving: could not persist notifications with receipt {receipt}: {str(exception)}")
     else:
         current_app.logger.warning(f"Batch saving: could not persist notifications: {str(exception)}")
-    process_type = template.process_type if template else None
+    # process_type is resolved per-notification below; initialising to None avoids a stale outer value.
+    process_type = None
 
     notifications_in_job: List[str] = []
     for signed, notification in signed_and_verified:
         notification_id = notification["notification_id"]
         notifications_in_job.append(notification_id)
         service = notification["service"]
+        # Fetch per-notification (cached) so process_type is always set before acknowledge_receipt.
+        template = dao_get_template_by_id(notification.get("template_id"), notification.get("template_version"), use_cache=True)
+        process_type = template.process_type
         # Sometimes, SQS plays the same message twice. We should be able to catch an IntegrityError, but it seems
         # SQLAlchemy is throwing a FlushError. So we check if the notification id already exists then do not
         # send to the retry queue.
@@ -563,10 +560,6 @@ def handle_batch_error_and_forward(
             current_app.logger.info(forward_msg)
             save_fn = save_emails if notification_type == EMAIL_TYPE else save_smss
 
-            template = dao_get_template_by_id(
-                notification.get("template_id"), notification.get("template_version"), use_cache=True
-            )
-            process_type = template.process_type
             retry_msg = "{task} notification for job {job} row number {row} and notification id {notif} and max_retries are {max_retry}".format(
                 task=task.__name__,
                 job=notification.get("job", None),
