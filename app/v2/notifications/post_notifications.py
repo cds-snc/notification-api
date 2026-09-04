@@ -496,6 +496,18 @@ def process_sms_or_email_notification(
             reply_to_text=reply_to_text,
         )
         if not simulated:
+            # TODO: Remove this logging statement once debugging is complete. It is useful for understanding how templates are routed to queues.
+            current_app.logger.info(
+                "process_sms_or_email_notification: Routing template %s version %s: process_type_column=%r, "
+                "effective_process_type=%r, category_id=%s, category_email_process_type=%r, category_sms_process_type=%r",
+                template.id,
+                template.version,
+                template.process_type_column,
+                template.process_type,
+                template.template_category_id,
+                template.template_category.email_process_type if template.template_category else None,
+                template.template_category.sms_process_type if template.template_category else None,
+            )
             notification.queue_name = choose_queue(
                 notification=notification,
                 research_mode=service.research_mode,
