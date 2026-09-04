@@ -3,9 +3,9 @@ from datetime import datetime
 from flask import jsonify
 
 from app import authenticated_service
-from app.dao.jobs_dao import dao_get_job_by_service_id_and_job_id, dao_update_job
+from app.dao.jobs_dao import dao_get_job_by_service_id_and_job_id_for_update, dao_update_job
 from app.email_limit_utils import decrement_todays_email_count
-from app.models import JOB_STATUS_CANCELLED, JOB_STATUS_SCHEDULED
+from app.models import EMAIL_TYPE, JOB_STATUS_CANCELLED, JOB_STATUS_SCHEDULED
 from app.schema_validation import validate
 from app.v2.errors import JobAlreadyCancelledError, JobCancellationNotAllowedError, JobNotFoundError
 from app.v2.notifications import v2_notification_blueprint
@@ -17,7 +17,9 @@ from app.v2.notifications.notification_schemas import get_bulk_job_request
 def cancel_bulk_job(job_id):
     validate({"job_id": job_id}, get_bulk_job_request)
 
-    job = dao_get_job_by_service_id_and_job_id(authenticated_service.id, job_id)
+    # Locks the row so a concurrent scheduler run (dao_set_scheduled_jobs_to_pending) can't
+    # move the job to pending between this read and the status update below.
+    job = dao_get_job_by_service_id_and_job_id_for_update(authenticated_service.id, job_id)
     if job is None:
         raise JobNotFoundError()
 
@@ -29,7 +31,9 @@ def cancel_bulk_job(job_id):
 
     job.job_status = JOB_STATUS_CANCELLED
     dao_update_job(job)
-    decrement_todays_email_count(authenticated_service.id, job.notification_count)
+
+    if job.template.template_type == EMAIL_TYPE:
+        decrement_todays_email_count(authenticated_service.id, job.notification_count)
 
     data = _serialize_jobs_with_statistics([job])[0]
     return jsonify(data=data), 200

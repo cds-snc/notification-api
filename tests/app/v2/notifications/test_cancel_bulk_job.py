@@ -23,6 +23,36 @@ def test_cancel_bulk_job_cancels_scheduled_job(client, sample_template):
     assert response.get_json()["data"]["job_status"] == "cancelled"
 
 
+def test_cancel_bulk_job_decrements_email_count_only_for_email_jobs(client, sample_template, mocker):
+    decrement_mock = mocker.patch("app.v2.notifications.cancel_bulk_job.decrement_todays_email_count")
+    job = create_job(
+        sample_template,  # defaults to an sms template
+        notification_count=5,
+        job_status="scheduled",
+        scheduled_for=datetime.utcnow() + timedelta(hours=1),
+    )
+
+    response = client.delete(f"/v2/notifications/bulk/{job.id}", headers=_get_headers(sample_template.service_id))
+
+    assert response.status_code == 200
+    decrement_mock.assert_not_called()
+
+
+def test_cancel_bulk_job_decrements_email_count_for_email_jobs(client, sample_email_template, mocker):
+    decrement_mock = mocker.patch("app.v2.notifications.cancel_bulk_job.decrement_todays_email_count")
+    job = create_job(
+        sample_email_template,
+        notification_count=5,
+        job_status="scheduled",
+        scheduled_for=datetime.utcnow() + timedelta(hours=1),
+    )
+
+    response = client.delete(f"/v2/notifications/bulk/{job.id}", headers=_get_headers(sample_email_template.service_id))
+
+    assert response.status_code == 200
+    decrement_mock.assert_called_once_with(sample_email_template.service_id, 5)
+
+
 def test_cancel_bulk_job_returns_404_for_unknown_job(client, sample_service):
     response = client.delete(
         "/v2/notifications/bulk/201b64f0-0a3a-404b-96d4-d4a0f0d0c3bd",
@@ -96,7 +126,7 @@ def test_cancel_bulk_job_returns_404_for_job_belonging_to_another_service(client
     job = create_job(
         other_template,
         job_status="scheduled",
-        scheduled_for=(datetime.utcnow() + timedelta(hours=1)).isoformat(),
+        scheduled_for=datetime.utcnow() + timedelta(hours=1),
     )
 
     response = client.delete(f"/v2/notifications/bulk/{job.id}", headers=_get_headers(sample_template.service_id))
