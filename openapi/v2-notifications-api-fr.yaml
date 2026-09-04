@@ -1148,8 +1148,8 @@ paths:
 
   /v2/notifications/bulk:
     get:
-      summary: Obtenir la liste des tâches de lot
-      description: Récupérer une liste paginée de tâches de lot et leurs statuts
+      summary: Get list of bulk jobs
+      description: Retrieve a paginated list of bulk jobs and their statuses
       operationId: getBulkNotificationJobs
       tags:
         - Notifications
@@ -1712,15 +1712,15 @@ paths:
 
   /v2/notifications/bulk/{job_id}:
     get:
-      summary: Obtenir une tâche de lot par identifiant
-      description: Récupérer une tâche de lot et son statut actuel
+      summary: Get bulk job by ID
+      description: Retrieve a bulk job and its current status
       operationId: getBulkNotificationJobById
       tags:
         - Notifications
       parameters:
         - name: job_id
           in: path
-          description: Unique identifier for the bulk job
+          description: Identifiant unique de la tâche de notification en masse
           required: true
           schema:
             $ref: '#/components/schemas/UUID'
@@ -1732,7 +1732,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/PostBulkResponse'
         '400':
-          description: Bad request - invalid job ID format
+          description: Mauvaise requête - format d’ID de tâche invalide
           content:
             application/json:
               schema:
@@ -1750,11 +1750,88 @@ paths:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
         '404':
-          description: Bulk job not found
+          description: Tâche de notification en masse non trouvée
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+        '500':
+          description: Erreur interne du serveur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+        - apiKey: []
+    delete:
+      summary: Annuler une tâche de notification en masse planifiée
+      description: Annuler une tâche de notification en masse qui est planifiée mais dont l'envoi n'a pas encore commencé
+      operationId: cancelBulkNotificationJob
+      tags:
+        - Notifications
+      parameters:
+        - name: job_id
+          in: path
+          description: Identifiant unique de la tâche de notification en masse
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '200':
+          description: Tâche de notification en masse annulée avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostBulkResponse'
+        '400':
+          description: Mauvaise requête - format d’ID de tâche invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: Non autorisé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 401
+                errors:
+                  - error: "AuthError"
+                    message: "Non autorisé, le jeton d'authentification doit être fourni"
+        '404':
+          description: Tâche de notification en masse non trouvée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 404
+                errors:
+                  - error: "JobNotFoundError"
+                    message: "Job not found in database"
+        '409':
+          description: La tâche ne peut pas être annulée, car elle a déjà été annulée, est déjà en cours d'envoi, a déjà été envoyée ou son heure planifiée est dépassée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                job_already_cancelled:
+                  summary: Job already cancelled
+                  value:
+                    status_code: 409
+                    errors:
+                      - error: "JobAlreadyCancelledError"
+                        message: "Job has already been cancelled"
+                job_cancellation_not_allowed:
+                  summary: Job cannot be cancelled
+                  value:
+                    status_code: 409
+                    errors:
+                      - error: "JobCancellationNotAllowedError"
+                        message: "Job cannot be cancelled because it is already being sent or has already been sent"
         '500':
           description: Erreur interne du serveur
           content:
