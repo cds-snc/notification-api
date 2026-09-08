@@ -564,6 +564,24 @@ def dao_delete_notifications_by_id(notification_id):
     db.session.query(Notification).filter(Notification.id == notification_id).delete(synchronize_session="fetch")
 
 
+@statsd(namespace="dao")
+@transactional
+def dao_delete_scheduled_notification_by_id(notification_id):
+    # Only deletes notifications that are still pending, atomically, so callers can rely on the
+    # returned count to detect a race where the notification was sent in the meantime, and so
+    # this method can't be misused to delete non-scheduled/already-sent notifications.
+    deleted_count = (
+        db.session.query(ScheduledNotification)
+        .filter(ScheduledNotification.notification_id == notification_id, ScheduledNotification.pending.is_(True))
+        .delete(synchronize_session="fetch")
+    )
+
+    if deleted_count:
+        db.session.query(Notification).filter(Notification.id == notification_id).delete(synchronize_session="fetch")
+
+    return deleted_count
+
+
 def _timeout_notifications(current_statuses, new_status, timeout_start, updated_at):
     notifications = Notification.query.filter(
         Notification.created_at < timeout_start,

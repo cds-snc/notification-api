@@ -21,6 +21,7 @@ from werkzeug.exceptions import HTTPException as WerkzeugHTTPException
 from werkzeug.local import LocalProxy
 
 from app.aws.metrics_logger import MetricsLogger
+from app.caching import init_dogpile_cache
 from app.celery.celery import NotifyCelery
 from app.clients import Clients
 from app.clients.airtable.airtable_client import AirtableClient
@@ -154,6 +155,7 @@ def create_app(application, config=None):
     flask_cache_ops.init_app(application)
     redis_store.init_app(application)
     bounce_rate_client.init_app(application)
+    init_dogpile_cache(application)
 
     sms_bulk_publish.init_app(flask_cache_ops, metrics_logger)
     sms_normal_publish.init_app(flask_cache_ops, metrics_logger)
@@ -331,6 +333,7 @@ def register_v2_blueprints(application):
         v2_manage_template_blueprint,
     )
     from app.v2.notifications import (  # noqa
+        delete_notifications,
         get_bulk_jobs,
         get_notifications,
         post_notifications,
@@ -383,6 +386,9 @@ def init_app(app):
             "https://documentation.dev.notification.cdssandbox.xyz",
             "https://cds-snc.github.io",
         }
+        # allow the locally-run documentation site to hit this API for manual testing
+        if app.config.get("NOTIFY_ENVIRONMENT") == "development":
+            ALLOWED_ORIGINS.update({"http://localhost:8081", "http://0.0.0.0:8081"})
         origin = request.headers.get("Origin")
         if origin in ALLOWED_ORIGINS:
             response.headers["Access-Control-Allow-Origin"] = origin
