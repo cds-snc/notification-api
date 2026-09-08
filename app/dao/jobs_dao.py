@@ -99,6 +99,15 @@ def dao_get_job_by_service_id_and_job_id(service_id, job_id):
     return Job.query.filter_by(service_id=service_id, id=job_id).first()
 
 
+def dao_get_job_by_service_id_and_job_id_for_update(service_id, job_id):
+    """
+    Locks the job row for the duration of the current transaction, so a concurrent
+    dao_set_scheduled_jobs_to_pending() run cannot move it to pending before this
+    transaction commits its own status change.
+    """
+    return Job.query.filter_by(service_id=service_id, id=job_id).with_for_update().first()
+
+
 def dao_get_jobs_by_service_id(service_id, limit_days=None, page=1, page_size=50, statuses=None):
     query_filter = [
         Job.service_id == service_id,
