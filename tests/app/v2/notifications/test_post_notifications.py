@@ -1620,7 +1620,7 @@ class TestSendingDocuments:
 
         assert response.status_code == 400
         resp_json = json.loads(response.get_data(as_text=True))
-        assert expected_message in resp_json["errors"][0]["message"]
+        assert resp_json["errors"][0]["message"] == expected_message
 
     def test_post_notification_with_document_upload_simulated(self, client, notify_db_session, mocker, mock_annual_limits):
         service = create_service(service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT])
