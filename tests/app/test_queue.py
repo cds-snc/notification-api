@@ -357,7 +357,7 @@ class TestRedisQueue:
             self.delete_all_list(redis)
 
     @pytest.mark.serial
-    def test_polling_allows_single_oversized_head_entry_and_does_not_block_later_entries(self, redis, redis_queue):
+    def test_polling_rejects_oversized_head_entry_before_moving_any_messages(self, redis, redis_queue):
         self.delete_all_list(redis)
         oversized = "a" * (RedisQueue.MAX_POLL_BYTES + 1)
         normal = "normal notification"
@@ -367,12 +367,12 @@ class TestRedisQueue:
 
             receipt, elements = redis_queue.poll()
 
-            assert elements == [oversized]
-            assert redis.lrange(Buffer.INBOX.inbox_name(QNAME_SUFFIX), 0, -1) == [normal.encode()]
-            assert redis.lrange(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX), 0, -1) == [oversized.encode()]
+            assert elements == []
+            assert redis.lrange(Buffer.INBOX.inbox_name(QNAME_SUFFIX), 0, -1) == [oversized.encode(), normal.encode()]
+            assert not redis.exists(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX))
 
             _, next_elements = redis_queue.poll()
-            assert next_elements == [normal]
+            assert next_elements == []
         finally:
             self.delete_all_list(redis)
 
