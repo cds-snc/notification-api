@@ -223,7 +223,8 @@ def test_get_notification_by_id_nonexistent_id(client, sample_notification):
     assert response.headers["Content-type"] == "application/json"
 
     json_response = json.loads(response.get_data(as_text=True))
-    assert json_response == {"message": "Notification not found in database", "result": "error"}
+    assert json_response["status_code"] == 404
+    assert json_response["errors"] == [{"error": "NotificationNotFoundError", "message": "Notification not found in database"}]
 
 
 @pytest.mark.parametrize("id", ["1234-badly-formatted-id-7890", "0"])

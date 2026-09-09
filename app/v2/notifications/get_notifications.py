@@ -12,7 +12,7 @@ from app.models import (
     NOTIFICATION_VIRUS_SCAN_FAILED,
 )
 from app.schema_validation import validate
-from app.v2.errors import BadRequestError, PDFNotReadyError
+from app.v2.errors import BadRequestError, NotificationNotFoundError, PDFNotReadyError
 from app.v2.notifications import v2_notification_blueprint
 from app.v2.notifications.notification_schemas import (
     get_notifications_request,
@@ -30,7 +30,7 @@ def get_notification_by_id(notification_id):
     if notification is not None:
         return jsonify(notification.serialize()), 200
     else:
-        return jsonify(result="error", message="Notification not found in database"), 404
+        raise NotificationNotFoundError()
 
 
 @v2_notification_blueprint.route("/<notification_id>/pdf", methods=["GET"])
