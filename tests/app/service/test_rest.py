@@ -69,6 +69,7 @@ from tests.app.db import (
     create_user,
     save_notification,
 )
+from tests.conftest import set_config
 
 
 def test_get_service_list(client, service_factory):
