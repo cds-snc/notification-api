@@ -9,7 +9,7 @@ from app.models import (
     ServiceUser,
     Template,
     TemplateRedacted,
-    User, Organisation,
+    User,
 )
 
 
