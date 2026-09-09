@@ -10,7 +10,7 @@ from sqlalchemy.orm import attributes, joinedload
 
 from app import db, redis_store
 from app.annotations import log_execution_time
-from app.cache.cache_events import cache_invalidating_dml
+from app.cache.cache_dml import cache_invalidating_dml
 from app.caching import cache_on_arguments
 from app.dao.dao_utils import VersionOptions, transactional, version_class
 from app.dao.users_dao import get_user_by_id
