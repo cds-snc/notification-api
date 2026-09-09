@@ -357,7 +357,8 @@ class TestRedisQueue:
             self.delete_all_list(redis)
 
     @pytest.mark.serial
-    def test_polling_moves_individually_oversized_middle_entry_to_oversized_queue(self, redis, redis_queue):
+    def test_polling_moves_individually_oversized_middle_entry_to_oversized_queue(self, redis, redis_queue, mocker):
+        oversized_item_metric = mocker.patch("app.queue.put_batch_saving_oversized_item_metric")
         self.delete_all_list(redis)
         before = "a" * (RedisQueue.MAX_POLL_BYTES // 8)
         oversized = "b" * (RedisQueue.MAX_POLL_BYTES + 1)
@@ -373,6 +374,7 @@ class TestRedisQueue:
             assert redis.lrange(Buffer.INBOX.inbox_name(QNAME_SUFFIX), 0, -1) == []
             assert redis.lrange(Buffer.OVERSIZED.inbox_name(QNAME_SUFFIX), 0, -1) == [oversized.encode()]
             assert redis.lrange(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX), 0, -1) == [after.encode(), before.encode()]
+            oversized_item_metric.assert_called_once_with(metrics_logger, redis_queue, 1)
         finally:
             self.delete_all_list(redis)
 
@@ -412,7 +414,8 @@ class TestRedisQueue:
             self.delete_all_list(redis)
 
     @pytest.mark.serial
-    def test_polling_moves_oversized_head_entry_to_oversized_queue_and_keeps_processing(self, redis, redis_queue):
+    def test_polling_moves_oversized_head_entry_to_oversized_queue_and_keeps_processing(self, redis, redis_queue, mocker):
+        oversized_item_metric = mocker.patch("app.queue.put_batch_saving_oversized_item_metric")
         self.delete_all_list(redis)
         oversized = "a" * (RedisQueue.MAX_POLL_BYTES + 1)
         normal = "normal notification"
@@ -426,6 +429,7 @@ class TestRedisQueue:
             assert redis.lrange(Buffer.INBOX.inbox_name(QNAME_SUFFIX), 0, -1) == []
             assert redis.lrange(Buffer.OVERSIZED.inbox_name(QNAME_SUFFIX), 0, -1) == [oversized.encode()]
             assert redis.lrange(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX), 0, -1) == [normal.encode()]
+            oversized_item_metric.assert_called_once_with(metrics_logger, redis_queue, 1)
         finally:
             self.delete_all_list(redis)
 

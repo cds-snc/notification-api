@@ -12,6 +12,7 @@ from app.aws.metrics import (
     put_batch_saving_inflight_metric,
     put_batch_saving_inflight_processed,
     put_batch_saving_metric,
+    put_batch_saving_oversized_item_metric,
 )
 from app.config import Config, Test
 
@@ -67,6 +68,14 @@ class TestBatchSavingMetricsFunctions:
         put_batch_saving_inflight_metric(metrics_logger_mock, redis_queue, 1)
         metrics_logger_mock.set_dimensions.assert_called_with({"created": "True", "notification_type": "foo", "priority": "bar"})
         metrics_logger_mock.put_metric.assert_called_with("batch_saving_inflight", 1, "Count")
+
+    def test_put_batch_saving_oversized_item_metric(self, mocker, metrics_logger_mock):
+        redis_queue = mocker.MagicMock()
+        redis_queue._suffix = "foo"
+        redis_queue._process_type = "bar"
+        put_batch_saving_oversized_item_metric(metrics_logger_mock, redis_queue, 1)
+        metrics_logger_mock.set_dimensions.assert_called_with({"notification_type": "foo", "priority": "bar"})
+        metrics_logger_mock.put_metric.assert_called_with("batch_saving_oversized_item", 1, "Count")
 
     def test_put_batch_saving_inflight_processed(self, mocker, metrics_logger_mock):
         redis_queue = mocker.MagicMock()

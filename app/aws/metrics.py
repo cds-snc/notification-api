@@ -32,6 +32,27 @@ def put_batch_saving_metric(metrics_logger: MetricsLogger, queue: RedisQueue, co
     return
 
 
+def put_batch_saving_oversized_item_metric(metrics_logger: MetricsLogger, queue: RedisQueue, count: int):
+    """
+    Metric to calculate how many items are moved to an oversized item queue.
+
+    Args:
+        count (int): count of items moved to an oversized item queue.
+        metrics (MetricsLogger): Submit metric to cloudwatch
+    """
+    if metrics_logger.metrics_config.disable_metric_extraction:
+        return
+    try:
+        metrics_logger.set_namespace("NotificationCanadaCa")
+        metrics_logger.put_metric("batch_saving_oversized_item", count, "Count")
+        metrics_logger.set_dimensions({"notification_type": queue._suffix, "priority": queue._process_type})
+        metrics_logger.flush()
+    except ClientError as e:
+        message = "Error sending CloudWatch Metric: {}".format(e)
+        current_app.logger.warning(message)
+    return
+
+
 def put_batch_saving_inflight_metric(metrics_logger: MetricsLogger, queue: RedisQueue, count: int):
     """
     Metric to calculate how many inflight lists have been created

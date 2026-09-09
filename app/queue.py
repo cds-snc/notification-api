@@ -14,6 +14,7 @@ from app.aws.metrics import (
     put_batch_saving_inflight_metric,
     put_batch_saving_inflight_processed,
     put_batch_saving_metric,
+    put_batch_saving_oversized_item_metric,
 )
 from app.aws.metrics_logger import MetricsLogger
 
@@ -155,7 +156,10 @@ class RedisQueue(Queue):
     def poll(self, count=10) -> tuple[UUID, list[str]]:
         receipt = uuid4()
         in_flight_key = Buffer.IN_FLIGHT.inflight_name(receipt, self._suffix, self._process_type)
-        results = self.__move_to_inflight(in_flight_key, count)
+        results, oversized_count = self.__move_to_inflight(in_flight_key, count)
+        if oversized_count:
+            current_app.logger.warning(f"Moved {oversized_count} oversized item(s) to {self._oversized_queue}")
+            put_batch_saving_oversized_item_metric(self.__metrics_logger, self, oversized_count)
         if results:
             current_app.logger.info(f"Inflight created: {in_flight_key}")
             put_batch_saving_inflight_metric(self.__metrics_logger, self, 1)
@@ -203,7 +207,7 @@ class RedisQueue(Queue):
         self._redis_client.rpush(self._inbox, message)
         put_batch_saving_metric(self.__metrics_logger, self, 1)
 
-    def __move_to_inflight(self, in_flight_key: str, count: int) -> list[str]:
+    def __move_to_inflight(self, in_flight_key: str, count: int) -> tuple[list[str], int]:
         move_script = self.__get_script(self.LUA_MOVE_TO_INFLIGHT)
         results = move_script(
             args=[
@@ -214,8 +218,9 @@ class RedisQueue(Queue):
                 self.MAX_POLL_BYTES,
             ]
         )
-        decoded = [result.decode("utf-8") for result in results]
-        return decoded
+        oversized_count = int(results[0]) if results else 0
+        decoded = [result.decode("utf-8") for result in results[1:]]
+        return decoded, oversized_count
 
     def __get_script(self, script_name: str):
         with self._scripts_lock:
@@ -265,7 +270,10 @@ class RedisQueue(Queue):
                 redis.call("LTRIM", source, removed_count, -1)
             end
 
-            return all
+            local response = {oversized_count}
+            for i=1,#all do response[#response+1] = all[i] end
+
+            return response
                 """
             )
 
