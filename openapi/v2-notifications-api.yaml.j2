@@ -95,25 +95,29 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
               example:
                 notification_not_found:
                   summary: {{ t("Notification not found") }}
                   value:
-                    result: "error"
-                    message: "{{ t("Notification not found in database") }}"
+                    status_code: 404
+                    errors:
+                      - error: "NotificationNotFoundError"
+                        message: "{{ t("Notification not found in database") }}"
         '500':
           description: {{ t("Internal server error") }}
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
               example:
                 internal_server_error:
                   summary: {{ t("Internal server error") }}
                   value:
-                    result: "error"
-                    message: "{{ t("Internal server error") }}"
+                    status_code: 500
+                    errors:
+                      - error: "Exception"
+                        message: "{{ t("Internal server error") }}"
       security:
         - apiKey: []
 
@@ -191,25 +195,29 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
               example:
                 notification_not_found:
                   summary: Notification not found
                   value:
-                    result: "error"
-                    message: "Notification not found in database"
+                    status_code: 404
+                    errors:
+                      - error: "NotificationNotFoundError"
+                        message: "Notification not found in database"
         '500':
           description: {{ t("Internal server error") }}
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
               examples:
                 internal_server_error:
                   summary: Internal server error
                   value:
-                    result: "error"
-                    message: "Internal server error"
+                    status_code: 500
+                    errors:
+                      - error: "Exception"
+                        message: "Internal server error"
       security:
         - apiKey: []
 
@@ -314,13 +322,15 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
               examples:
                 internal_server_error:
                   summary: Internal server error
                   value:
-                    result: "error"
-                    message: "Internal server error"
+                    status_code: 500
+                    errors:
+                      - error: "Exception"
+                        message: "Internal server error"
       security:
         - apiKey: []
 
@@ -470,10 +480,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
               example:
-                result: "error"
-                message: "Unauthorized"
+                status_code: 401
+                errors:
+                  - error: "AuthError"
+                    message: "Unauthorized, authentication token must be provided"
         '403':
           description: {{ t("Forbidden - authentication or authorization errors") }}
           content:
@@ -521,13 +533,15 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
               examples:
                 internal_server_error:
                   summary: Internal server error
                   value:
-                    result: "error"
-                    message: "Internal server error"
+                    status_code: 500
+                    errors:
+                      - error: "Exception"
+                        message: "Internal server error"
       security:
         - apiKey: []
 
@@ -642,13 +656,15 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
               example:
                 internal_server_error:
                   summary: Internal server error
                   value:
-                    result: "error"
-                    message: "Internal server error"
+                    status_code: 500
+                    errors:
+                      - error: "Exception"
+                        message: "Internal server error"
       security:
         - apiKey: []
 
@@ -685,7 +701,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
               example:
                 bad_request:
                   value:
@@ -698,13 +714,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
         '500':
           description: {{ t("Internal server error") }}
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
       security:
         - apiKey: []
 
@@ -761,7 +777,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
               examples:
                 system_clock_error:
                   summary: System clock not accurate
@@ -782,19 +798,21 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
               example:
                 template_not_found:
                   summary: Template not found
                   value:
-                    result: "error"
-                    message: "Template not found in database"
+                    status_code: 404
+                    errors:
+                      - error: "TemplateNotFoundError"
+                        message: "Template not found in database"
         '500':
           description: {{ t("Internal server error") }}
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
       security:
         - apiKey: []
 
@@ -1301,7 +1319,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
       security:
         - apiKey: []
     post:
@@ -1493,13 +1511,15 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
               examples:
                 internal_server_error:
                   summary: Internal server error
                   value:
-                    result: "error"
-                    message: "Internal server error"
+                    status_code: 500
+                    errors:
+                      - error: "Exception"
+                        message: "Internal server error"
       security:
         - apiKey: []
 
@@ -1663,10 +1683,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
               example:
-                result: "error"
-                message: "Internal server error"
+                status_code: 500
+                errors:
+                  - error: "Exception"
+                    message: "Internal server error"
       security:
         - apiKey: []
 
@@ -1865,13 +1887,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
         '500':
           description: {{ t("Internal server error") }}
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
       security:
         - apiKey: []
     delete:
@@ -1948,7 +1970,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
       security:
         - apiKey: []
 
