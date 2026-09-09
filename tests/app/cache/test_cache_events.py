@@ -28,7 +28,6 @@ def test_service_cache_invalidation_registry():
     assert [(rule.namespace, rule.entity_id_attribute) for rule in CACHE_INVALIDATION_REGISTRY[ServiceUser]] == [
         ("service", "service_id"),
         ("user", "user_id"),
-        ("annual_limit", "service_id"),
     ]
 
 
@@ -86,7 +85,6 @@ def test_service_user_change_invalidates_service_and_user_caches(notify_db_sessi
         [
             call("service", str(service.id)),
             call("user", str(user.id)),
-            call("annual_limit", str(service.id)),
         ],
         any_order=True,
     )
