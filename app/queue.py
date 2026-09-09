@@ -30,6 +30,7 @@ def generate_elements(count=10) -> list[str]:
 class Buffer(Enum):
     INBOX = "inbox"
     IN_FLIGHT = "in-flight"
+    OVERSIZED = "oversized-item"
 
     def inbox_name(self, suffix=None, process_type=None):
         if process_type and suffix:
@@ -139,6 +140,7 @@ class RedisQueue(Queue):
 
         """
         self._inbox = Buffer.INBOX.inbox_name(suffix, process_type)
+        self._oversized_queue = Buffer.OVERSIZED.inbox_name(suffix, process_type)
         self._suffix = suffix
         self._process_type = process_type
         self._expire_inflight_after_seconds = expire_inflight_after_seconds
@@ -203,7 +205,15 @@ class RedisQueue(Queue):
 
     def __move_to_inflight(self, in_flight_key: str, count: int) -> list[str]:
         move_script = self.__get_script(self.LUA_MOVE_TO_INFLIGHT)
-        results = move_script(args=[self._inbox, in_flight_key, max(0, min(count, self.MAX_POLL_COUNT)), self.MAX_POLL_BYTES])
+        results = move_script(
+            args=[
+                self._inbox,
+                self._oversized_queue,
+                in_flight_key,
+                max(0, min(count, self.MAX_POLL_COUNT)),
+                self.MAX_POLL_BYTES,
+            ]
+        )
         decoded = [result.decode("utf-8") for result in results]
         return decoded
 
@@ -216,13 +226,15 @@ class RedisQueue(Queue):
             self._scripts[self.LUA_MOVE_TO_INFLIGHT] = self._redis_client.register_script(
                 """
             local source        = ARGV[1]
-            local destination   = ARGV[2]
-            local count         = tonumber(ARGV[3])
-            local max_bytes     = tonumber(ARGV[4])
+            local oversized     = ARGV[2]
+            local destination   = ARGV[3]
+            local count         = tonumber(ARGV[4])
+            local max_bytes     = tonumber(ARGV[5])
             local total_bytes   = 0
             local all           = {}
             local elements      = {}
             local accepted_count = 0
+            local oversized_count = 0
 
             if count > 0 then
                 elements = redis.call("LRANGE", source, 0, count - 1)
@@ -231,18 +243,26 @@ class RedisQueue(Queue):
             for i=1,#elements do
                 local element = elements[i]
                 local element_bytes = string.len(element)
-                if total_bytes + element_bytes > max_bytes then
-                    break
-                end
 
-                all[#all+1] = element
-                total_bytes = total_bytes + element_bytes
-                accepted_count = i
+                if element_bytes > max_bytes then
+                    redis.call("RPUSH", oversized, element)
+                    oversized_count = oversized_count + 1
+                elseif total_bytes + element_bytes > max_bytes then
+                    break
+                else
+                    all[#all+1] = element
+                    total_bytes = total_bytes + element_bytes
+                    accepted_count = accepted_count + 1
+                end
             end
 
             if accepted_count > 0 then
-                redis.call("LPUSH", destination, unpack(elements, 1, accepted_count))
-                redis.call("LTRIM", source, accepted_count, -1)
+                redis.call("LPUSH", destination, unpack(all, 1, accepted_count))
+            end
+
+            local removed_count = accepted_count + oversized_count
+            if removed_count > 0 then
+                redis.call("LTRIM", source, removed_count, -1)
             end
 
             return all

@@ -357,7 +357,62 @@ class TestRedisQueue:
             self.delete_all_list(redis)
 
     @pytest.mark.serial
-    def test_polling_rejects_oversized_head_entry_before_moving_any_messages(self, redis, redis_queue):
+    def test_polling_moves_individually_oversized_middle_entry_to_oversized_queue(self, redis, redis_queue):
+        self.delete_all_list(redis)
+        before = "a" * (RedisQueue.MAX_POLL_BYTES // 8)
+        oversized = "b" * (RedisQueue.MAX_POLL_BYTES + 1)
+        after = "c" * (RedisQueue.MAX_POLL_BYTES // 8)
+        try:
+            redis_queue.publish(before)
+            redis_queue.publish(oversized)
+            redis_queue.publish(after)
+
+            receipt, elements = redis_queue.poll()
+
+            assert elements == [before, after]
+            assert redis.lrange(Buffer.INBOX.inbox_name(QNAME_SUFFIX), 0, -1) == []
+            assert redis.lrange(Buffer.OVERSIZED.inbox_name(QNAME_SUFFIX), 0, -1) == [oversized.encode()]
+            assert redis.lrange(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX), 0, -1) == [after.encode(), before.encode()]
+        finally:
+            self.delete_all_list(redis)
+
+    @pytest.mark.serial
+    def test_polling_keeps_batch_overflow_entry_in_inbox_for_later_retry(self, redis, redis_queue):
+        self.delete_all_list(redis)
+        first = "a" * (RedisQueue.MAX_POLL_BYTES // 6)
+        second = "b" * (RedisQueue.MAX_POLL_BYTES // 6)
+        third = "c" * (RedisQueue.MAX_POLL_BYTES // 6)
+        fourth = "d" * (RedisQueue.MAX_POLL_BYTES // 6)
+        fifth = "e" * (RedisQueue.MAX_POLL_BYTES // 6)
+        sixth = "f" * (RedisQueue.MAX_POLL_BYTES // 6)
+        overflow = "g" * (RedisQueue.MAX_POLL_BYTES // 12)
+        try:
+            redis_queue.publish(first)
+            redis_queue.publish(second)
+            redis_queue.publish(third)
+            redis_queue.publish(fourth)
+            redis_queue.publish(fifth)
+            redis_queue.publish(sixth)
+            redis_queue.publish(overflow)
+
+            receipt, elements = redis_queue.poll()
+
+            assert elements == [first, second, third, fourth, fifth, sixth]
+            assert redis.lrange(Buffer.INBOX.inbox_name(QNAME_SUFFIX), 0, -1) == [overflow.encode()]
+            assert redis.lrange(Buffer.OVERSIZED.inbox_name(QNAME_SUFFIX), 0, -1) == []
+            assert redis.lrange(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX), 0, -1) == [
+                sixth.encode(),
+                fifth.encode(),
+                fourth.encode(),
+                third.encode(),
+                second.encode(),
+                first.encode(),
+            ]
+        finally:
+            self.delete_all_list(redis)
+
+    @pytest.mark.serial
+    def test_polling_moves_oversized_head_entry_to_oversized_queue_and_keeps_processing(self, redis, redis_queue):
         self.delete_all_list(redis)
         oversized = "a" * (RedisQueue.MAX_POLL_BYTES + 1)
         normal = "normal notification"
@@ -367,12 +422,10 @@ class TestRedisQueue:
 
             receipt, elements = redis_queue.poll()
 
-            assert elements == []
-            assert redis.lrange(Buffer.INBOX.inbox_name(QNAME_SUFFIX), 0, -1) == [oversized.encode(), normal.encode()]
-            assert not redis.exists(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX))
-
-            _, next_elements = redis_queue.poll()
-            assert next_elements == []
+            assert elements == [normal]
+            assert redis.lrange(Buffer.INBOX.inbox_name(QNAME_SUFFIX), 0, -1) == []
+            assert redis.lrange(Buffer.OVERSIZED.inbox_name(QNAME_SUFFIX), 0, -1) == [oversized.encode()]
+            assert redis.lrange(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX), 0, -1) == [normal.encode()]
         finally:
             self.delete_all_list(redis)
 
