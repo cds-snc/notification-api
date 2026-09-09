@@ -6,7 +6,7 @@ from sqlalchemy import func, update
 from sqlalchemy.orm import joinedload
 
 from app import db
-from app.cache.cache_events import cache_invalidating_dml
+from app.cache.cache_dml import cache_invalidating_dml
 from app.caching import cache_on_arguments
 from app.dao.dao_utils import transactional
 from app.dao.permissions_dao import permission_dao

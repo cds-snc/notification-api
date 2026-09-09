@@ -9,28 +9,24 @@ import logging
 from sqlalchemy import event
 from sqlalchemy.orm import Session
 
+from app.cache.cache_dml import _CACHE_INVALIDATION_ENTITY_IDS_OPTION
 from app.cache.cache_invalidation_registry import CACHE_INVALIDATION_REGISTRY
 from app.caching import invalidate_group_keys
 
 _CACHE_INVALIDATIONS_KEY = "cache_invalidations_to_run"
-_CACHE_INVALIDATION_ENTITY_IDS_OPTION = "cache_invalidation_entity_ids"
 _EVENTS_REGISTERED = False
 
 # ORM events are tied to a global sqlalchemy session which could exist outside of
 # a flask context, so use a module level logger instead.
 logger = logging.getLogger(__name__)
 
-def cache_invalidating_dml(statement, **entity_ids):
-    """Attach entity IDs for registry-driven invalidation of ORM bulk DML."""
-    return statement.execution_options(**{_CACHE_INVALIDATION_ENTITY_IDS_OPTION: entity_ids})
-
-
 def _as_entity_id_collection(value):
     if value is None:
-        return ()
+        return
     if isinstance(value, (list, tuple, set, frozenset)):
-        return value
-    return (value,)
+        yield from value
+    else:
+        yield value
 
 
 def _queue_cache_invalidation(session, namespace, entity_id):

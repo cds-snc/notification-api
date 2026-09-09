@@ -1,7 +1,7 @@
 from sqlalchemy import delete
 
 from app import db
-from app.cache.cache_events import cache_invalidating_dml
+from app.cache.cache_dml import cache_invalidating_dml
 from app.dao import DAOClass
 from app.models import (
     MANAGE_API_KEYS,
