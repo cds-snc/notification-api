@@ -156,6 +156,14 @@ class JobNotFoundError(InvalidRequest):
         super().__init__(message=self.__class__.message, status_code=self.__class__.status_code)
 
 
+class NotificationNotFoundError(InvalidRequest):
+    status_code = 404
+    message = "Notification not found in database"
+
+    def __init__(self):
+        super().__init__(message=self.__class__.message, status_code=self.__class__.status_code)
+
+
 class JobCancellationNotAllowedError(InvalidRequest):
     status_code = 409
     message = "Job cannot be cancelled because it is already being sent or has already been sent"

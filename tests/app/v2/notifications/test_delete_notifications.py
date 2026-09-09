@@ -123,7 +123,7 @@ def test_delete_notification_nonexistent_id_returns_404(client, sample_notificat
 
     assert response.status_code == 404
     json_response = json.loads(response.get_data(as_text=True))
-    assert json_response == {"message": "Notification not found in database", "result": "error"}
+    assert json_response["errors"] == [{"error": "NotificationNotFoundError", "message": "Notification not found in database"}]
 
 
 def test_delete_notification_belonging_to_another_service_returns_404(client, sample_template):
