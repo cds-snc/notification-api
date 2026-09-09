@@ -4,6 +4,7 @@ The listeners resolve changed ORM models through the invalidation registry,
 collect affected cache groups during a flush, and delete their grouped dogpile
 keys only after the transaction commits.
 """
+import logging
 
 from sqlalchemy import event
 from sqlalchemy.orm import Session
@@ -14,6 +15,9 @@ from app.caching import invalidate_group_keys
 _CACHE_INVALIDATIONS_KEY = "cache_invalidations_to_run"
 _EVENTS_REGISTERED = False
 
+# ORM events are tied to a global sqlalchemy session which could exist outside of
+# a flask context, so use a module level logger instead.
+logger = logging.getLogger(__name__)
 
 def _collect_cache_invalidations(session, flush_context):
     """Resolve changed ORM instances to cache groups and collect them.
@@ -45,7 +49,13 @@ def _invalidate_cache_after_commit(session):
         try:
             invalidate_group_keys(namespace, entity_id)
         except Exception:
-            pass
+            logger.exception(
+                "Failed to invalidate cache group",
+                extra={
+                    "cache_namespace": namespace,
+                    "cache_entity_id": entity_id,
+                },
+            )
 
 
 def _clear_cache_invalidations_after_rollback(session):
