@@ -172,13 +172,10 @@ class TestRedisQueue:
     @pytest.mark.parametrize("count", [0, 1, 98, 99, 100, 101, REDIS_ELEMENTS_COUNT, REDIS_ELEMENTS_COUNT + 1, 500])
     def test_polling_many_messages(self, redis, redis_queue, count):
         with self.given_inbox_with_many_indexes(redis, redis_queue):
-            real_count = count if count < REDIS_ELEMENTS_COUNT else REDIS_ELEMENTS_COUNT
+            real_count = min(max(count, 0), RedisQueue.MAX_POLL_COUNT, REDIS_ELEMENTS_COUNT)
             (receipt, elements) = redis_queue.poll(count)
             assert len(elements) == real_count
-            if count < REDIS_ELEMENTS_COUNT:
-                assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX)) > 0
-            else:
-                assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX)) == 0
+            assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX)) == REDIS_ELEMENTS_COUNT - real_count
             assert redis.llen(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX)) == real_count
             self.delete_all_list(redis)
 
@@ -186,13 +183,12 @@ class TestRedisQueue:
     @pytest.mark.parametrize("count", [0, 1, 98, 99, 100, 101, REDIS_ELEMENTS_COUNT, REDIS_ELEMENTS_COUNT + 1, 500])
     def test_polling_many_messages_with_process(self, redis, redis_queue_with_process, count):
         with self.given_inbox_with_many_indexes(redis, redis_queue_with_process):
-            real_count = count if count < REDIS_ELEMENTS_COUNT else REDIS_ELEMENTS_COUNT
+            real_count = min(max(count, 0), RedisQueue.MAX_POLL_COUNT, REDIS_ELEMENTS_COUNT)
             (receipt, elements) = redis_queue_with_process.poll(count)
             assert len(elements) == real_count
-            if count < REDIS_ELEMENTS_COUNT:
-                assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX, process_type=PROCESS_TYPE)) > 0
-            else:
-                assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX, process_type=PROCESS_TYPE)) == 0
+            assert (
+                redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX, process_type=PROCESS_TYPE)) == REDIS_ELEMENTS_COUNT - real_count
+            )
             assert redis.llen(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX, process_type=PROCESS_TYPE)) == real_count
             self.delete_all_list(redis)
 
@@ -303,6 +299,91 @@ class TestRedisQueue:
         assert elements[0] == notification
 
         self.delete_all_list(redis)
+
+    @pytest.mark.serial
+    def test_polling_stops_before_payload_byte_limit(self, redis, redis_queue):
+        self.delete_all_list(redis)
+        first = "a" * (RedisQueue.MAX_POLL_BYTES // 2)
+        second = "b" * (RedisQueue.MAX_POLL_BYTES // 2)
+        deferred = "c"
+        try:
+            redis_queue.publish(first)
+            redis_queue.publish(second)
+            redis_queue.publish(deferred)
+
+            receipt, elements = redis_queue.poll()
+
+            assert elements == [first, second]
+            assert redis.lrange(Buffer.INBOX.inbox_name(QNAME_SUFFIX), 0, -1) == [deferred.encode()]
+            assert redis.lrange(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX), 0, -1) == [
+                second.encode(),
+                first.encode(),
+            ]
+        finally:
+            self.delete_all_list(redis)
+
+    @pytest.mark.serial
+    def test_polling_stops_before_payload_byte_limit_when_next_entry_is_too_large(self, redis, redis_queue):
+        self.delete_all_list(redis)
+        first = "a" * (RedisQueue.MAX_POLL_BYTES // 2)
+        second = "b" * (RedisQueue.MAX_POLL_BYTES - len(first) + 1)
+        try:
+            redis_queue.publish(first)
+            redis_queue.publish(second)
+
+            receipt, elements = redis_queue.poll()
+
+            assert elements == [first]
+            assert redis.lrange(Buffer.INBOX.inbox_name(QNAME_SUFFIX), 0, -1) == [second.encode()]
+            assert redis.lrange(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX), 0, -1) == [first.encode()]
+        finally:
+            self.delete_all_list(redis)
+
+    @pytest.mark.serial
+    def test_polling_payload_limit_counts_utf8_bytes(self, redis, redis_queue):
+        self.delete_all_list(redis)
+        first = "a" * (RedisQueue.MAX_POLL_BYTES - len("🎅".encode("utf-8")))
+        second = "🎅"
+        try:
+            redis_queue.publish(first)
+            redis_queue.publish(second)
+
+            receipt, elements = redis_queue.poll()
+
+            assert elements == [first, second]
+            assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX)) == 0
+            assert redis.llen(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX)) == 2
+        finally:
+            self.delete_all_list(redis)
+
+    @pytest.mark.serial
+    def test_polling_allows_single_oversized_head_entry_and_does_not_block_later_entries(self, redis, redis_queue):
+        self.delete_all_list(redis)
+        oversized = "a" * (RedisQueue.MAX_POLL_BYTES + 1)
+        normal = "normal notification"
+        try:
+            redis_queue.publish(oversized)
+            redis_queue.publish(normal)
+
+            receipt, elements = redis_queue.poll()
+
+            assert elements == [oversized]
+            assert redis.lrange(Buffer.INBOX.inbox_name(QNAME_SUFFIX), 0, -1) == [normal.encode()]
+            assert redis.lrange(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX), 0, -1) == [oversized.encode()]
+
+            _, next_elements = redis_queue.poll()
+            assert next_elements == [normal]
+        finally:
+            self.delete_all_list(redis)
+
+    @pytest.mark.serial
+    def test_polling_ten_small_messages_still_moves_together(self, redis, redis_queue):
+        with self.given_inbox_with_many_indexes(redis, redis_queue):
+            receipt, elements = redis_queue.poll()
+
+            assert len(elements) == RedisQueue.MAX_POLL_COUNT
+            assert redis.llen(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX)) == RedisQueue.MAX_POLL_COUNT
+            assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX)) == REDIS_ELEMENTS_COUNT - RedisQueue.MAX_POLL_COUNT
 
     def test_scripts_registry_is_isolated_per_instance(self):
         queue_one = RedisQueue("sms")
