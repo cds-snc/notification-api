@@ -3,7 +3,7 @@ from flask import jsonify
 from app import authenticated_service
 from app.dao import notifications_dao
 from app.schema_validation import validate
-from app.v2.errors import BadRequestError
+from app.v2.errors import BadRequestError, NotificationNotFoundError
 from app.v2.notifications import v2_notification_blueprint
 from app.v2.notifications.notification_schemas import notification_by_id
 
@@ -20,7 +20,7 @@ def delete_notification_by_id(notification_id):
     )
 
     if notification is None:
-        return jsonify(result="error", message="Notification not found in database"), 404
+        raise NotificationNotFoundError()
 
     scheduled_notification = notification.scheduled_notification
     if scheduled_notification is None:
