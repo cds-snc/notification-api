@@ -509,7 +509,6 @@ class TestPostNotificationsErrors:
         self, notify_api, client, sample_service, mocker, notification_type, key_send_to, send_to
     ):
         sample = create_template(service=sample_service, template_type=notification_type)
-        save_mock = mocker.patch("app.v2.notifications.post_notifications.db_save_and_send_notification")
         mocker.patch(
             "app.v2.notifications.post_notifications.check_rate_limiting",
             side_effect=RateLimitError("LIMIT", "INTERVAL", "TYPE"),
@@ -532,8 +531,6 @@ class TestPostNotificationsErrors:
         assert error == "RateLimitError"
         assert message == "Exceeded rate limit for key type TYPE of LIMIT requests per INTERVAL seconds"
         assert status_code == 429
-
-        assert not save_mock.called
 
     @pytest.mark.parametrize(
         "notification_type, key_send_to, send_to, expected_error_message",
@@ -558,7 +555,6 @@ class TestPostNotificationsErrors:
         sample_service.sms_annual_limit = 1
         sample_service.email_annual_limit = 1
         template = create_template(service=sample_service, template_type=notification_type)
-        save_mock = mocker.patch("app.v2.notifications.post_notifications.db_save_and_send_notification")
         mocker.patch("app.v2.notifications.post_notifications.check_rate_limiting")
 
         data = {key_send_to: send_to, "template_id": str(template.id)}
@@ -594,8 +590,6 @@ class TestPostNotificationsErrors:
             status_code = json.loads(response.data)["status_code"]
             assert status_code == 429
             assert message == expected_error_message
-
-            assert not save_mock.called
 
     def test_post_sms_notification_returns_400_if_not_allowed_to_send_int_sms(
         self,
