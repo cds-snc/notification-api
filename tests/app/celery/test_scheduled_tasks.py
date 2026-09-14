@@ -46,6 +46,7 @@ from app.models import (
     JOB_STATUS_IN_PROGRESS,
     NOTIFICATION_DELIVERED,
     NOTIFICATION_PENDING_VIRUS_CHECK,
+    ScheduledNotification,
 )
 from app.v2.errors import JobIncompleteError
 
@@ -187,6 +188,7 @@ def test_should_send_all_scheduled_notifications_to_deliver_queue(sample_templat
     mocked.apply_async.assert_called_once_with([str(message_to_deliver.id)], queue=QueueNames.SEND_SMS_MEDIUM, MessageGroupId=ANY)
     scheduled_notifications = dao_get_scheduled_notifications()
     assert not scheduled_notifications
+    assert ScheduledNotification.query.filter_by(notification_id=message_to_deliver.id).count() == 0
 
 
 def test_check_job_status_task_raises_job_incomplete_error(mocker, sample_template):
