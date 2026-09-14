@@ -6,6 +6,7 @@ keys only after the transaction commits.
 """
 import logging
 
+from threading import Lock
 from sqlalchemy import event
 from sqlalchemy.orm import Session
 
@@ -13,7 +14,7 @@ from app.cache.cache_invalidation_registry import CACHE_INVALIDATION_REGISTRY
 from app.caching import invalidate_group_keys
 
 _CACHE_INVALIDATIONS_KEY = "cache_invalidations_to_run"
-_EVENTS_REGISTERED = False
+_EVENT_REGISTRATION_LOCK = Lock()
 
 # ORM events are tied to a global sqlalchemy session which could exist outside of
 # a flask context, so use a module level logger instead.
@@ -65,13 +66,13 @@ def _clear_cache_invalidations_after_rollback(session):
 
 def register_cache_orm_events():
     """Register registry-driven cache listeners once per process."""
-    global _EVENTS_REGISTERED
+    listeners = (
+        ("after_flush", _collect_cache_invalidations),
+        ("after_commit", _invalidate_cache_after_commit),
+        ("after_rollback", _clear_cache_invalidations_after_rollback),
+    )
 
-    if _EVENTS_REGISTERED:
-        return
-
-    event.listen(Session, "after_flush", _collect_cache_invalidations)
-    event.listen(Session, "after_commit", _invalidate_cache_after_commit)
-    event.listen(Session, "after_rollback", _clear_cache_invalidations_after_rollback)
-
-    _EVENTS_REGISTERED = True
+    with _EVENT_REGISTRATION_LOCK:
+        for event_name, listener in listeners:
+            if not event.contains(Session, event_name, listener):
+                event.listen(Session, event_name, listener)
