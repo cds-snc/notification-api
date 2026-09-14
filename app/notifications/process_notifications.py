@@ -12,7 +12,7 @@ from notifications_utils.recipients import (
     validate_and_format_phone_number,
 )
 
-from app import redis_store
+from app import models, redis_store
 from app.celery import provider_tasks
 from app.celery.letters_pdf_tasks import create_letters_pdf
 from app.config import QueueNames
@@ -112,6 +112,19 @@ def persist_notification(
         billable_units=billable_units,
     )
     template = dao_get_template_by_id(template_id, template_version, use_cache=True)
+    # TODO: Remove this logging statement once debugging is complete. It is useful for understanding how templates are routed to queues.
+    current_app.logger.info(
+        "persist_notification: Routing notification %s template %s version %s: process_type_column=%r, "
+        "effective_process_type=%r, category_id=%s, category_email_process_type=%r, category_sms_process_type=%r",
+        notification.id,
+        template.id,
+        template.version,
+        template.process_type_column,
+        template.process_type,
+        template.template_category_id,
+        template.template_category.email_process_type if template.template_category else None,
+        template.template_category.sms_process_type if template.template_category else None,
+    )
     notification.queue_name = choose_queue(
         notification=notification, research_mode=service.research_mode, priority_queue=get_delivery_queue_for_template(template)
     )
@@ -267,20 +280,25 @@ def choose_queue(notification: Notification, research_mode: bool, priority_queue
     if notification.notification_type == SMS_TYPE and notification.sends_with_custom_number():
         return QueueNames.SEND_THROTTLED_SMS
 
-    override_queue: Optional[str] = priority_queue
-    if notification.notification_type == SMS_TYPE:
-        if not priority_queue:
-            override_queue = QueueNames.SEND_SMS_MEDIUM
-    elif notification.notification_type == EMAIL_TYPE:
-        if not priority_queue:
-            override_queue = QueueNames.SEND_EMAIL_MEDIUM
-    elif notification.notification_type == LETTER_TYPE:
-        if not priority_queue:
-            override_queue = QueueNames.CREATE_LETTERS_PDF
+    if priority_queue:
+        return priority_queue
+    else:
+        override_queue: Optional[str] = None
+        match notification.notification_type:
+            case models.SMS_TYPE:
+                override_queue = QueueNames.SEND_SMS_MEDIUM
+            case models.EMAIL_TYPE:
+                override_queue = QueueNames.SEND_EMAIL_MEDIUM
+            case models.LETTER_TYPE:
+                override_queue = QueueNames.CREATE_LETTERS_PDF
+            case _:
+                raise ValueError(f"Could not determine queue for notification type {notification.notification_type!r}")
 
-    if override_queue is None:
-        raise ValueError(f"Could not determine queue for notification type {notification.notification_type!r}")
-    return override_queue
+        current_app.logger.info(
+            f"Notification {notification.id} had no priority queue; determined queue based on notification type and attributes to {override_queue}."
+        )
+
+        return override_queue
 
 
 def choose_deliver_task(notification):
@@ -398,6 +416,19 @@ def persist_notifications(notifications: List[VerifiedNotification]) -> List[Not
         ):
             notification_obj.billable_units = number_of_sms_fragments(template, notification.get("personalisation"))
         service = dao_fetch_service_by_id(service_id, use_cache=True)
+        # TODO: Remove this logging statement once debugging is complete. It is useful for understanding how templates are routed to queues.
+        current_app.logger.info(
+            "persist_notifications: Routing notification %s template %s version %s: process_type_column=%r, "
+            "effective_process_type=%r, category_id=%s, category_email_process_type=%r, category_sms_process_type=%r",
+            notification_obj.id,
+            template.id,
+            template.version,
+            template.process_type_column,
+            template.process_type,
+            template.template_category_id,
+            template.template_category.email_process_type if template.template_category else None,
+            template.template_category.sms_process_type if template.template_category else None,
+        )
         notification_obj.queue_name = choose_queue(
             notification=notification_obj,
             research_mode=service.research_mode,

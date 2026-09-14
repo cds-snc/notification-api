@@ -145,7 +145,7 @@ def send_notification(notification_type: NotificationType):
                 check_sms_daily_limit(authenticated_service, 1)
     # Do not persist or send notification to the queue if it is a simulated recipient
 
-    notification_model = persist_notification(
+    notification = persist_notification(
         template_id=template.id,
         template_version=template.version,
         template_postage=template.postage,
@@ -159,17 +159,30 @@ def send_notification(notification_type: NotificationType):
         reply_to_text=template.get_reply_to_text(),
     )
     if not simulated:
+        # TODO: Remove this logging statement once debugging is complete. It is useful for understanding how templates are routed to queues.
+        current_app.logger.info(
+            "send_notification: Routing notification %s template %s version %s: process_type_column=%r, "
+            "effective_process_type=%r, category_id=%s, category_email_process_type=%r, category_sms_process_type=%r",
+            notification.id,
+            template.id,
+            template.version,
+            template.process_type_column,
+            template.process_type,
+            template.template_category_id,
+            template.template_category.email_process_type if template.template_category else None,
+            template.template_category.sms_process_type if template.template_category else None,
+        )
         send_notification_to_queue(
-            notification=notification_model,
+            notification=notification,
             research_mode=authenticated_service.research_mode,
             queue=get_delivery_queue_for_template(template),
         )
     else:
-        current_app.logger.debug("POST simulated notification for id: {}".format(notification_model.id))
+        current_app.logger.debug("POST simulated notification for id: {}".format(notification.id))
     notification_form.update({"template_version": template.version})
 
     return (
-        jsonify(data=get_notification_return_data(notification_model.id, notification_form, template_object)),
+        jsonify(data=get_notification_return_data(notification.id, notification_form, template_object)),
         201,
     )
 
