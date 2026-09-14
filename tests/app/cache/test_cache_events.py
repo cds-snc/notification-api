@@ -7,7 +7,6 @@ from app.cache.cache_events import register_cache_orm_events
 from app.cache.cache_invalidation_registry import CACHE_INVALIDATION_REGISTRY
 from app.dao.permissions_dao import permission_dao
 from app.dao.service_permissions_dao import dao_add_service_permission, dao_remove_service_permission
-from app.dao.templates_dao import dao_update_template_process_type
 from app.dao.users_dao import save_model_user
 from app.models import (
     LETTER_TYPE,
