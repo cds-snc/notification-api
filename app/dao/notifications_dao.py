@@ -15,7 +15,7 @@ from notifications_utils.timezones import (
     convert_local_timezone_to_utc,
     convert_utc_to_local_timezone,
 )
-from sqlalchemy import asc, desc, func
+from sqlalchemy import asc, desc, func, or_
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import defer, joinedload
 from sqlalchemy.orm.exc import NoResultFound
@@ -495,10 +495,12 @@ def _delete_notifications(notification_type, date_to_delete_from, service_id, qu
     subquery = (
         db.session.query(Notification.id)
         .join(NotificationHistory, NotificationHistory.id == Notification.id)
+        .outerjoin(ScheduledNotification, ScheduledNotification.notification_id == Notification.id)
         .filter(
             Notification.notification_type == notification_type,
             Notification.service_id == service_id,
             Notification.created_at < date_to_delete_from,
+            or_(ScheduledNotification.notification_id.is_(None), ScheduledNotification.pending.is_(False)),
         )
         .limit(query_limit)
         .subquery()
@@ -508,11 +510,13 @@ def _delete_notifications(notification_type, date_to_delete_from, service_id, qu
 
     subquery_for_test_keys = (
         db.session.query(Notification.id)
+        .outerjoin(ScheduledNotification, ScheduledNotification.notification_id == Notification.id)
         .filter(
             Notification.notification_type == notification_type,
             Notification.service_id == service_id,
             Notification.created_at < date_to_delete_from,
             Notification.key_type == KEY_TYPE_TEST,
+            or_(ScheduledNotification.notification_id.is_(None), ScheduledNotification.pending.is_(False)),
         )
         .limit(query_limit)
         .subquery()
@@ -524,14 +528,23 @@ def _delete_notifications(notification_type, date_to_delete_from, service_id, qu
 
 
 def _delete_for_query(subquery):
+    _delete_scheduled_notifications_for_query(subquery)
     number_deleted = db.session.query(Notification).filter(Notification.id.in_(subquery)).delete(synchronize_session=False)
     deleted = number_deleted
     db.session.commit()
     while number_deleted > 0:
+        _delete_scheduled_notifications_for_query(subquery)
         number_deleted = db.session.query(Notification).filter(Notification.id.in_(subquery)).delete(synchronize_session=False)
         deleted += number_deleted
         db.session.commit()
     return deleted
+
+
+def _delete_scheduled_notifications_for_query(subquery):
+    db.session.query(ScheduledNotification).filter(ScheduledNotification.notification_id.in_(subquery)).delete(
+        synchronize_session=False
+    )
+    db.session.commit()
 
 
 def insert_update_notification_history(notification_type, date_to_delete_from, service_id):

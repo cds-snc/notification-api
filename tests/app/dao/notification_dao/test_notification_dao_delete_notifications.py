@@ -7,13 +7,14 @@ from app.dao.notifications_dao import (
     delete_notifications_older_than_retention_by_type,
     insert_update_notification_history,
 )
-from app.models import Notification, NotificationHistory
+from app.models import Notification, NotificationHistory, ScheduledNotification
 from tests.app.db import (
     create_notification,
     create_service,
     create_service_data_retention,
     create_template,
     save_notification,
+    save_scheduled_notification,
 )
 
 
@@ -298,6 +299,38 @@ def test_delete_notifications_returns_sum_correctly(sample_template):
 
     ret = delete_notifications_older_than_retention_by_type("sms", qry_limit=1)
     assert ret == 4
+
+
+def test_delete_notifications_deletes_processed_scheduled_notifications(sample_email_template):
+    notification = save_scheduled_notification(
+        create_notification(
+            template=sample_email_template,
+            status="delivered",
+            created_at=datetime.utcnow() - timedelta(days=8),
+        ),
+        scheduled_for="2017-05-12 14:15",
+    )
+
+    delete_notifications_older_than_retention_by_type("email")
+
+    assert Notification.query.filter_by(id=notification.id).count() == 0
+    assert ScheduledNotification.query.filter_by(notification_id=notification.id).count() == 0
+    assert NotificationHistory.query.filter_by(id=notification.id).count() == 1
+
+
+def test_delete_notifications_skips_pending_scheduled_notifications(sample_email_template):
+    notification = save_scheduled_notification(
+        create_notification(
+            template=sample_email_template,
+            created_at=datetime.utcnow() - timedelta(days=8),
+        ),
+        scheduled_for="2099-01-01 14:15",
+    )
+
+    delete_notifications_older_than_retention_by_type("email")
+
+    assert Notification.query.filter_by(id=notification.id).count() == 1
+    assert ScheduledNotification.query.filter_by(notification_id=notification.id).count() == 1
 
 
 def test_insert_update_notification_history(sample_service):
