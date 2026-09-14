@@ -90,30 +90,17 @@ paths:
                     errors:
                       - error: "AuthError"
                         message: "Non autorisé, le jeton d'authentification doit être fourni"
-        '404':
-          description: Notification non trouvée
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              example:
-                notification_not_found:
-                  summary: Notification non trouvée
-                  value:
-                    result: "error"
-                    message: "Notification non trouvée dans la base de données"
         '500':
           description: Erreur interne du serveur
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
               example:
-                internal_server_error:
-                  summary: Erreur interne du serveur
-                  value:
-                    result: "error"
-                    message: "Erreur interne du serveur"
+                status_code: 500
+                errors:
+                  - error: "Exception"
+                    message: "Internal server error"
       security:
         - apiKey: []
 
@@ -203,12 +190,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-              examples:
-                internal_server_error:
-                  summary: Internal server error
-                  value:
-                    result: "error"
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 500
+                errors:
+                  - error: "Exception"
                     message: "Internal server error"
       security:
         - apiKey: []
@@ -314,12 +300,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-              examples:
-                internal_server_error:
-                  summary: Internal server error
-                  value:
-                    result: "error"
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 500
+                errors:
+                  - error: "Exception"
                     message: "Internal server error"
       security:
         - apiKey: []
@@ -470,10 +455,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
               example:
-                result: "error"
-                message: "Unauthorized"
+                status_code: 401
+                errors:
+                  - error: "AuthError"
+                    message: "Unauthorized, authentication token must be provided"
         '403':
           description: Interdit - erreurs d’authentification ou d’autorisation
           content:
@@ -521,12 +508,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-              examples:
-                internal_server_error:
-                  summary: Internal server error
-                  value:
-                    result: "error"
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 500
+                errors:
+                  - error: "Exception"
                     message: "Internal server error"
       security:
         - apiKey: []
@@ -642,12 +628,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
               example:
-                internal_server_error:
-                  summary: Internal server error
-                  value:
-                    result: "error"
+                status_code: 500
+                errors:
+                  - error: "Exception"
                     message: "Internal server error"
       security:
         - apiKey: []
@@ -685,26 +670,34 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
               example:
-                bad_request:
-                  value:
-                    status_code: 400
-                    errors:
-                      - error: "ValidationError"
-                        message: "Unauthorized, authentication token must be provided"
+                status_code: 400
+                errors:
+                  - error: "ValidationError"
+                    message: "type bad is not one of [sms, email, letter]"
         '401':
           description: Non autorisé
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 401
+                errors:
+                  - error: "AuthError"
+                    message: "Unauthorized, authentication token must be provided"
         '500':
           description: Erreur interne du serveur
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 500
+                errors:
+                  - error: "Exception"
+                    message: "Internal server error"
       security:
         - apiKey: []
 
@@ -761,7 +754,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
               examples:
                 system_clock_error:
                   summary: System clock not accurate
@@ -782,19 +775,23 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
               example:
-                template_not_found:
-                  summary: Template not found
-                  value:
-                    result: "error"
-                    message: "Template not found in database"
+                status_code: 404
+                errors:
+                  - error: "NoResultFound"
+                    message: "No result found"
         '500':
           description: Erreur interne du serveur
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 500
+                errors:
+                  - error: "Exception"
+                    message: "Internal server error"
       security:
         - apiKey: []
 
@@ -1301,7 +1298,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
       security:
         - apiKey: []
     post:
@@ -1493,12 +1490,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-              examples:
-                internal_server_error:
-                  summary: Internal server error
-                  value:
-                    result: "error"
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 500
+                errors:
+                  - error: "Exception"
                     message: "Internal server error"
       security:
         - apiKey: []
@@ -1663,10 +1659,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
               example:
-                result: "error"
-                message: "Internal server error"
+                status_code: 500
+                errors:
+                  - error: "Exception"
+                    message: "Internal server error"
       security:
         - apiKey: []
 
@@ -1865,13 +1863,23 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 404
+                errors:
+                  - error: "JobNotFoundError"
+                    message: "Job not found in database"
         '500':
           description: Erreur interne du serveur
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 500
+                errors:
+                  - error: "Exception"
+                    message: "Internal server error"
       security:
         - apiKey: []
     delete:
@@ -1948,7 +1956,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 500
+                errors:
+                  - error: "Exception"
+                    message: "Internal server error"
       security:
         - apiKey: []
 
