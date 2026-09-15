@@ -42,9 +42,7 @@ jobs:
 
     - name: Build
       run: |
-        docker pull $DOCKER_SLUG:latest
         docker build \
-        --cache-from $DOCKER_SLUG:latest \
         --build-arg GIT_SHA=${GITHUB_SHA} \
         -t $DOCKER_SLUG:${GITHUB_SHA::7} \
         -t $DOCKER_SLUG:latest \
@@ -131,7 +129,7 @@ jobs:
       env:
         TRIVY_DB_REPOSITORY: ${{ vars.TRIVY_DB_REPOSITORY }}
       with:
-        docker_image: "${{ env.DOCKER_SLUG }}:latest"
+        docker_image: "${{ env.DOCKER_SLUG }}:${{ env.DOCKER_TAG }}"
         dockerfile_path: "ci/Dockerfile"
         sbom_name: "notification-api"
         token: "${{ secrets.GITHUB_TOKEN }}"
