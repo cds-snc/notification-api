@@ -18,7 +18,6 @@ from notifications_utils import request_helper
 from sqlalchemy.exc import DataError
 from sqlalchemy.orm.exc import NoResultFound
 
-from app.authentication.audit import audit_jwt_event
 from app.dao.api_key_dao import get_api_key_by_secret
 from app.dao.services_dao import dao_fetch_service_by_id_with_api_keys
 
@@ -106,7 +105,6 @@ def requires_admin_auth():
         g.service_id = current_app.config.get("ADMIN_CLIENT_USER_NAME")
         return handle_admin_key(auth_token, current_app.config.get("ADMIN_CLIENT_SECRET"))
     else:
-        audit_jwt_event("jwt.authorization_failed", auth_token, reason="invalid_issuer")
         raise AuthError("Unauthorized, admin authentication token required", 401)
 
 
@@ -122,7 +120,6 @@ def requires_sre_auth():
         g.service_id = current_app.config.get("SRE_USER_NAME")
         return handle_admin_key(auth_token, current_app.config.get("SRE_CLIENT_SECRET"))
     else:
-        audit_jwt_event("jwt.authorization_failed", auth_token, reason="invalid_issuer")
         raise AuthError("Unauthorized, sre authentication token required", 401)
 
 
@@ -138,7 +135,6 @@ def requires_cache_clear_auth():
         g.service_id = current_app.config.get("CACHE_CLEAR_USER_NAME")
         return handle_admin_key(auth_token, current_app.config.get("CACHE_CLEAR_CLIENT_SECRET"))
     else:
-        audit_jwt_event("jwt.authorization_failed", auth_token, reason="invalid_issuer")
         raise AuthError("Unauthorized, cache clear authentication token required", 401)
 
 
@@ -154,7 +150,6 @@ def requires_cypress_auth():
         g.service_id = current_app.config.get("CYPRESS_AUTH_USER_NAME")
         return handle_admin_key(auth_token, current_app.config.get("CYPRESS_AUTH_CLIENT_SECRET"))
     else:
-        audit_jwt_event("jwt.authorization_failed", auth_token, reason="invalid_issuer")
         raise AuthError("Unauthorized, cypress authentication token required", 401)
 
 
@@ -192,26 +187,20 @@ def requires_auth():
     try:
         service = dao_fetch_service_by_id_with_api_keys(client)
     except DataError:
-        audit_jwt_event("jwt.authorization_failed", auth_token, reason="invalid_service_id")
         raise AuthError("Invalid token: service id is not the right data type", 403)
     except NoResultFound:
-        audit_jwt_event("jwt.authorization_failed", auth_token, reason="service_not_found")
         raise AuthError("Invalid token: service not found", 403)
 
     if not service.api_keys:
-        audit_jwt_event("jwt.authorization_failed", auth_token, reason="service_has_no_api_keys", service_id=service.id)
         raise AuthError("Invalid token: service has no API keys", 403, service_id=service.id)
 
     if not service.active:
-        audit_jwt_event("jwt.authorization_failed", auth_token, reason="service_archived", service_id=service.id)
         raise AuthError("Invalid token: service is archived", 403, service_id=service.id)
 
-    failure_reason = "invalid_signature"
     for api_key in service.api_keys:
         try:
             decode_jwt_token(auth_token, api_key.secret)
         except TokenAlgorithmError:
-            failure_reason = "unsupported_algorithm"
             current_app.logger.warning(
                 "Rejected JWT with unsupported algorithm for service %s, client %s",
                 service.id,
@@ -219,13 +208,16 @@ def requires_auth():
             )
             continue
         except TokenDecodeError:
-            failure_reason = "invalid_signature"
+            current_app.logger.warning(
+                "Rejected JWT with invalid signature for service %s, client %s",
+                service.id,
+                request.headers.get("User-Agent"),
+            )
             continue
         except TokenExpiredError:
             try:
                 decoded_token = decode_token(auth_token)
             except PyJWTError:
-                failure_reason = "expired"
                 current_app.logger.warning(
                     "Rejected expired JWT for service %s, client %s",
                     service.id,
@@ -239,28 +231,13 @@ def requires_auth():
                 decoded_token["iat"],
                 epoch_seconds(),
             )
-            audit_jwt_event("jwt.validation_failed", auth_token, reason="expired", service_id=service.id, api_key_id=api_key.id)
             err_msg = "Error: Your system clock must be accurate to within 30 seconds"
             raise AuthError(err_msg, 403, service_id=service.id, api_key_id=api_key.id)
 
-        try:
-            _auth_with_api_key(api_key, service)
-        except AuthError:
-            audit_jwt_event(
-                "jwt.authorization_failed", auth_token, reason="api_key_revoked", service_id=service.id, api_key_id=api_key.id
-            )
-            raise
-        audit_jwt_event("jwt.validated", auth_token, service_id=service.id, api_key_id=api_key.id)
+        _auth_with_api_key(api_key, service)
         return
     else:
         # service has API keys, but none matching the one the user provided
-        if failure_reason == "invalid_signature":
-            current_app.logger.warning(
-                "Rejected JWT with invalid signature for service %s, client %s",
-                service.id,
-                request.headers.get("User-Agent"),
-            )
-        audit_jwt_event("jwt.validation_failed", auth_token, reason=failure_reason, service_id=service.id)
         raise AuthError("Invalid token: signature, api token not found", 403, service_id=service.id)
 
 
@@ -297,13 +274,10 @@ def __get_token_issuer(auth_token):
     try:
         client = get_token_issuer(auth_token)
     except TokenIssuerError:
-        audit_jwt_event("jwt.validation_failed", auth_token, reason="missing_issuer")
         raise AuthError("Invalid token: iss field not provided", 403)
     except TokenDecodeError:
-        audit_jwt_event("jwt.validation_failed", auth_token, reason="invalid_token")
         raise AuthError("Invalid token: signature, api token is not valid", 403)
     except PyJWTError as e:
-        audit_jwt_event("jwt.validation_failed", auth_token, reason="decode_error")
         raise AuthError(f"Invalid token: {str(e)}", 403)
     return client
 
@@ -312,16 +286,12 @@ def handle_admin_key(auth_token, secret):
     try:
         decode_jwt_token(auth_token, secret)
     except TokenExpiredError:
-        audit_jwt_event("jwt.validation_failed", auth_token, reason="expired")
         raise AuthError("Invalid token: expired, check that your system clock is accurate", 403)
     except TokenAlgorithmError:
-        audit_jwt_event("jwt.validation_failed", auth_token, reason="unsupported_algorithm")
         current_app.logger.warning(
             "Rejected admin JWT with unsupported algorithm, client %s",
             request.headers.get("User-Agent"),
         )
         raise AuthError("Invalid token: signature, api token is not valid", 403)
     except TokenDecodeError:
-        audit_jwt_event("jwt.validation_failed", auth_token, reason="invalid_signature")
         raise AuthError("Invalid token: signature, api token is not valid", 403)
-    audit_jwt_event("jwt.validated", auth_token, service_id=g.get("service_id"))
