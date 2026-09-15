@@ -5,8 +5,8 @@ collect affected cache groups during a flush, and delete their grouped dogpile
 keys only after the transaction commits.
 """
 import logging
-
 from threading import Lock
+
 from sqlalchemy import event
 from sqlalchemy.orm import Session
 
@@ -15,7 +15,6 @@ from app.cache.cache_invalidation_registry import CACHE_INVALIDATION_REGISTRY
 from app.caching import invalidate_group_keys
 
 _CACHE_INVALIDATIONS_KEY = "cache_invalidations_to_run"
-_CACHE_INVALIDATION_ENTITY_IDS_OPTION = "cache_invalidation_entity_ids"
 _EVENT_REGISTRATION_LOCK = Lock()
 # ORM events are tied to a global sqlalchemy session which could exist outside of
 # a flask context, so use a module level logger instead.
@@ -108,6 +107,7 @@ def register_cache_orm_events():
         ("after_flush", _collect_cache_invalidations),
         ("after_commit", _invalidate_cache_after_commit),
         ("after_rollback", _clear_cache_invalidations_after_rollback),
+        ("do_orm_execute", _intercept_bulk_operations),
     )
 
     with _EVENT_REGISTRATION_LOCK:

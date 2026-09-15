@@ -2,11 +2,7 @@ import uuid
 from datetime import datetime, timedelta
 
 import pytest
-from freezegun import freeze_time
-from sqlalchemy.exc import DataError
-from sqlalchemy.orm.exc import NoResultFound
-
-from app import db
+from app.cache.cache_dml import _CACHE_INVALIDATION_ENTITY_IDS_OPTION
 from app.dao.service_user_dao import dao_get_service_user, dao_update_service_user
 from app.dao.users_dao import (
     count_user_verify_codes,
@@ -27,6 +23,11 @@ from app.dao.users_dao import (
 )
 from app.errors import InvalidRequest
 from app.models import EMAIL_AUTH_TYPE, User, VerifyCode
+from freezegun import freeze_time
+from sqlalchemy.exc import DataError
+from sqlalchemy.orm.exc import NoResultFound
+
+from app import db
 from tests.app.db import (
     create_permissions,
     create_service,
@@ -173,6 +174,32 @@ def test_update_user_attribute_blocked():
     save_user_attribute(user, {"blocked": True, "mobile_number": "+2407700900460"})
     print(user.mobile_number, user.current_session_id)
     assert str(getattr(user, "current_session_id")) == "00000000-0000-0000-0000-000000000000"
+
+
+def test_save_user_attribute_uses_fetch_session_sync(mocker):
+    user = User(id=uuid.uuid4())
+    statements = []
+    mocker.patch.object(db.session, "execute", side_effect=statements.append)
+    mocker.patch.object(db.session, "commit")
+
+    save_user_attribute(user, {"name": "New User"})
+
+    statement = statements[0]
+    assert statement.get_execution_options()["synchronize_session"] == "fetch"
+    assert statement.get_execution_options()[_CACHE_INVALIDATION_ENTITY_IDS_OPTION] == {"id": user.id}
+
+
+def test_save_model_user_update_uses_fetch_session_sync(mocker):
+    user = User(id=uuid.uuid4())
+    statements = []
+    mocker.patch.object(db.session, "execute", side_effect=statements.append)
+    mocker.patch.object(db.session, "commit")
+
+    save_model_user(user, update_dict={"name": "Updated User"})
+
+    statement = statements[0]
+    assert statement.get_execution_options()["synchronize_session"] == "fetch"
+    assert statement.get_execution_options()[_CACHE_INVALIDATION_ENTITY_IDS_OPTION] == {"id": user.id}
 
 
 def test_update_user_password(notify_api, notify_db, notify_db_session, sample_user):
