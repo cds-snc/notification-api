@@ -108,6 +108,7 @@ def test_production_formatter_preserves_structured_fields_and_request_id(audit_a
     with audit_app.test_request_context(
         "/notifications", headers={"X-Audit-Trace": "canonical-trace-id", "X-Request-ID": "different-id"}
     ):
+        audit_app.preprocess_request()
         audit_jwt_event("jwt.validated", token, service_id=service_id, api_key_id=key_id)
         record = audit_records(caplog)[0]
         assert record.request_id == "canonical-trace-id"
