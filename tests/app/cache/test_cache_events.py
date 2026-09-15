@@ -1,8 +1,8 @@
 from concurrent.futures import ThreadPoolExecutor
+from types import SimpleNamespace
 from unittest.mock import call
 
-from app import db
-from app.cache import cache_events
+from app.cache.cache_dml import cache_invalidating_dml
 from app.cache.cache_events import register_cache_orm_events
 from app.cache.cache_invalidation_registry import CACHE_INVALIDATION_REGISTRY
 from app.dao.permissions_dao import permission_dao
@@ -19,7 +19,11 @@ from app.models import (
     TemplateRedacted,
     User,
 )
+from sqlalchemy import delete
 from tests.app.db import create_service, create_template, create_user
+
+from app import db
+from app.cache import cache_events
 
 
 def test_register_cache_orm_events_is_thread_safe(mocker):
@@ -41,10 +45,28 @@ def test_register_cache_orm_events_is_thread_safe(mocker):
         ("after_flush", cache_events._collect_cache_invalidations),
         ("after_commit", cache_events._invalidate_cache_after_commit),
         ("after_rollback", cache_events._clear_cache_invalidations_after_rollback),
+        ("do_orm_execute", cache_events._intercept_bulk_operations),
     }
     assert registered_listeners == expected_listeners
-    assert mocked_contains.call_count == 60
-    assert mocked_listen.call_count == 3
+    assert mocked_contains.call_count == 80
+    assert mocked_listen.call_count == 4
+
+
+def test_intercept_bulk_operations_uses_cache_invalidating_dml_metadata(mocker):
+    session = mocker.Mock(info={})
+    mocked_queue = mocker.patch("app.cache.cache_events._queue_model_invalidations")
+    statement = cache_invalidating_dml(delete(ServicePermission), service_id="service-id")
+    orm_context = SimpleNamespace(
+        is_delete=True,
+        is_update=False,
+        bind_mapper=SimpleNamespace(class_=ServicePermission),
+        execution_options=statement.get_execution_options(),
+        session=session,
+    )
+
+    cache_events._intercept_bulk_operations(orm_context)
+
+    mocked_queue.assert_called_once_with(session, ServicePermission, {"service_id": "service-id"})
 
 
 def test_service_cache_invalidation_registry():
