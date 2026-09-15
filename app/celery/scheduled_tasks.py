@@ -30,13 +30,13 @@ from app.dao.invited_org_user_dao import (
 from app.dao.invited_user_dao import delete_invitations_created_more_than_two_days_ago
 from app.dao.jobs_dao import dao_set_scheduled_jobs_to_pending, dao_update_job
 from app.dao.notifications_dao import (
+    dao_delete_scheduled_notification_by_notification_id,
     dao_get_scheduled_notifications,
     dao_old_letters_with_created_status,
     dao_precompiled_letters_still_pending_virus_check,
     get_notification_count_for_job,
     is_delivery_slow_for_provider,
     notifications_not_yet_sent,
-    set_scheduled_notification_to_processed,
 )
 from app.dao.provider_details_dao import dao_toggle_sms_provider, get_current_provider
 from app.dao.users_dao import delete_codes_older_created_more_than_a_day_ago
@@ -98,7 +98,7 @@ def send_scheduled_notifications():
         scheduled_notifications = dao_get_scheduled_notifications()
         for notification in scheduled_notifications:
             send_notification_to_queue(notification, notification.service.research_mode)
-            set_scheduled_notification_to_processed(notification.id)
+            dao_delete_scheduled_notification_by_notification_id(notification.id)
         current_app.logger.info("Sent {} scheduled notifications to the provider queue".format(len(scheduled_notifications)))
     except SQLAlchemyError:
         current_app.logger.exception("Failed to send scheduled notifications")

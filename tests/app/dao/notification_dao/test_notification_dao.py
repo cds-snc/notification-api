@@ -13,6 +13,7 @@ from app.dao.notifications_dao import (
     dao_create_notification,
     dao_created_scheduled_notification,
     dao_delete_notifications_by_id,
+    dao_delete_scheduled_notification_by_notification_id,
     dao_get_last_notification_added_for_job_id,
     dao_get_last_template_usage,
     dao_get_notification_by_reference,
@@ -36,7 +37,6 @@ from app.dao.notifications_dao import (
     notifications_not_yet_sent,
     resign_notifications,
     send_method_stats_by_service,
-    set_scheduled_notification_to_processed,
     update_notification_status_by_id,
     update_notification_status_by_reference,
 )
@@ -1480,7 +1480,7 @@ def test_dao_get_scheduled_notifications(sample_template):
     assert scheduled_notifications[0].scheduled_notification.pending
 
 
-def test_set_scheduled_notification_to_processed(sample_template):
+def test_dao_delete_scheduled_notification_by_notification_id(sample_template):
     notification_1 = save_scheduled_notification(
         create_notification(template=sample_template, status="created"),
         scheduled_for="2017-05-05 14:15",
@@ -1490,9 +1490,10 @@ def test_set_scheduled_notification_to_processed(sample_template):
     assert scheduled_notifications[0].id == notification_1.id
     assert scheduled_notifications[0].scheduled_notification.pending
 
-    set_scheduled_notification_to_processed(notification_1.id)
+    dao_delete_scheduled_notification_by_notification_id(notification_1.id)
     scheduled_notifications = dao_get_scheduled_notifications()
     assert not scheduled_notifications
+    assert ScheduledNotification.query.filter_by(notification_id=notification_1.id).count() == 0
 
 
 def test_dao_get_notifications_by_to_field_filters_status(sample_template):
