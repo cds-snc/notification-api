@@ -2,6 +2,11 @@ import uuid
 from datetime import datetime, timedelta
 
 import pytest
+from freezegun import freeze_time
+from sqlalchemy.exc import DataError
+from sqlalchemy.orm.exc import NoResultFound
+
+from app import db
 from app.cache.cache_dml import _CACHE_INVALIDATION_ENTITY_IDS_OPTION
 from app.dao.service_user_dao import dao_get_service_user, dao_update_service_user
 from app.dao.users_dao import (
@@ -23,11 +28,6 @@ from app.dao.users_dao import (
 )
 from app.errors import InvalidRequest
 from app.models import EMAIL_AUTH_TYPE, User, VerifyCode
-from freezegun import freeze_time
-from sqlalchemy.exc import DataError
-from sqlalchemy.orm.exc import NoResultFound
-
-from app import db
 from tests.app.db import (
     create_permissions,
     create_service,
