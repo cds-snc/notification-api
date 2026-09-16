@@ -54,7 +54,7 @@ def test_register_cache_orm_events_is_thread_safe(mocker):
 
 def test_intercept_bulk_operations_uses_cache_invalidating_dml_metadata(mocker):
     session = mocker.Mock(info={})
-    mocked_queue = mocker.patch("app.cache.cache_events._queue_model_invalidations")
+    mocked_queue = mocker.patch("app.cache.cache_events._queue_entity_invalidations")
     statement = cache_invalidating_dml(delete(ServicePermission), service_id="service-id")
     orm_context = SimpleNamespace(
         is_delete=True,
