@@ -14,9 +14,19 @@ def dao_add_service_permission(service_id, permission):
 
 
 def dao_remove_service_permission(service_id, permission):
-    deleted = ServicePermission.query.filter(
+    """Remove matching service permissions via ORM deletes.
+
+    We intentionally delete loaded ORM objects instead of issuing a bulk
+    ``query.delete()`` so SQLAlchemy session events can observe these changes.
+    This allows service cache invalidation hooks to run consistently.
+    """
+    service_permissions = ServicePermission.query.filter(
         ServicePermission.service_id == service_id,
         ServicePermission.permission == permission,
-    ).delete()
+    ).all()
+
+    for service_permission in service_permissions:
+        db.session.delete(service_permission)
+
     db.session.commit()
-    return deleted
+    return len(service_permissions)
