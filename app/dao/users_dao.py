@@ -47,9 +47,7 @@ def save_model_user(usr: User, update_dict=None, pwd=None):
     if update_dict is not None:
         updates = dict(update_dict)
         _remove_values_for_keys_if_present(updates, ["id", "password_changed_at"])
-        statement = update(User).where(User.id == usr.id).values(**updates).execution_options(
-            synchronize_session="fetch"
-        )
+        statement = update(User).where(User.id == usr.id).values(**updates).execution_options(synchronize_session="fetch")
         db.session.execute(cache_invalidating_dml(statement, id=usr.id))
     else:
         db.session.add(usr)
