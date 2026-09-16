@@ -125,7 +125,12 @@ def create_app(application, config=None):
     if application.config.get("OTEL_REQUEST_METRICS_ENABLED", False):
         init_otel_request_metrics(application)
     aws_sns_client.init_app(application, statsd_client=statsd_client)
-    aws_pinpoint_client.init_app(application, statsd_client=statsd_client)
+    aws_pinpoint_client.init_app(
+        application,
+        statsd_client=statsd_client,
+        dedicated_region=application.config["AWS_DEDICATED_LONG_CODES_REGION"],
+        tollfree_region=application.config["AWS_TOLL_FREE_REGION"],
+    )
     aws_ses_client.init_app(application.config["AWS_REGION"], statsd_client=statsd_client)
     notify_celery.init_app(application)
     NewsletterSubscriber.init_app(application)
