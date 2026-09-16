@@ -1,17 +1,16 @@
-"""Tests for dogpile.cache eviction strategies.
-
-These tests use the in-memory backend so they don't require a running Redis
-instance.  The memory backend is single-process but exercises the same
-CacheRegion API surface (get, set, invalidate, expiration) that the Redis
-backend does in production.
-"""
-
 import time
+from concurrent.futures import ThreadPoolExecutor
+from unittest.mock import call
 from uuid import UUID
 
 from dogpile.cache import make_region
 from dogpile.cache.api import NO_VALUE
+from tests.app.db import create_service, create_template, create_user
 
+from app import db
+from app.cache import cache_events
+from app.cache.cache_events import register_cache_orm_events
+from app.cache.cache_invalidation_registry import CACHE_INVALIDATION_REGISTRY
 from app.caching import (
     _json_cache_deserializer,
     _json_cache_serializer,
@@ -19,10 +18,25 @@ from app.caching import (
     cache_on_arguments,
     init_dogpile_cache,
 )
+from app.dao.permissions_dao import permission_dao
+from app.dao.service_permissions_dao import (
+    dao_add_service_permission,
+    dao_remove_service_permission,
+)
+from app.dao.users_dao import save_model_user
+from app.models import (
+    LETTER_TYPE,
+    Permission,
+    Service,
+    ServicePermission,
+    ServiceUser,
+    Template,
+    TemplateRedacted,
+    User,
+)
 
 
 def _make_memory_region(expiration_time=600):
-    """Create a throwaway in-memory region for a single test."""
     return make_region(
         function_key_generator=cache_key_generator,
         serializer=_json_cache_serializer,
@@ -33,9 +47,166 @@ def _make_memory_region(expiration_time=600):
     )
 
 
-class TestExpirationEviction:
-    """Values should be considered stale after the configured expiration_time."""
+class TestCacheEvents:
+    def test_register_cache_orm_events_is_thread_safe(self, mocker):
+        registered_listeners = set()
 
+        def contains(_target, event_name, listener):
+            return (event_name, listener) in registered_listeners
+
+        def listen(_target, event_name, listener):
+            registered_listeners.add((event_name, listener))
+
+        mocked_contains = mocker.patch(
+            "app.cache.cache_events.event.contains", side_effect=contains
+        )
+        mocked_listen = mocker.patch(
+            "app.cache.cache_events.event.listen", side_effect=listen
+        )
+
+        with ThreadPoolExecutor(max_workers=8) as executor:
+            list(executor.map(lambda _: register_cache_orm_events(), range(20)))
+
+        expected_listeners = {
+            ("after_flush", cache_events._collect_cache_invalidations),
+            ("after_commit", cache_events._invalidate_cache_after_commit),
+            ("after_rollback", cache_events._clear_cache_invalidations_after_rollback),
+        }
+        assert registered_listeners == expected_listeners
+        assert mocked_contains.call_count == 60
+        assert mocked_listen.call_count == 3
+
+    def test_service_update_invalidates_service_cache(self, notify_db_session, mocker):
+        register_cache_orm_events()
+        service = create_service(
+            service_name="service-cache-update", email_from="service-cache-update"
+        )
+
+        mocked_invalidate = mocker.patch("app.cache.cache_events.invalidate_group_keys")
+
+        service.name = "service-cache-update-2"
+        db.session.add(service)
+        db.session.commit()
+
+        mocked_invalidate.assert_called_once_with("service", str(service.id))
+
+    def test_service_permission_changes_invalidate_service_cache(
+        self, notify_db_session, mocker
+    ):
+        register_cache_orm_events()
+        service = create_service(
+            service_name="service-cache-perms", email_from="service-cache-perms"
+        )
+
+        mocked_invalidate = mocker.patch("app.cache.cache_events.invalidate_group_keys")
+
+        dao_add_service_permission(service.id, LETTER_TYPE)
+        dao_remove_service_permission(service.id, LETTER_TYPE)
+
+        mocked_invalidate.assert_has_calls(
+            [call("service", str(service.id)), call("service", str(service.id))]
+        )
+
+    def test_service_user_change_invalidates_service_and_user_caches(
+        self, notify_db_session, mocker
+    ):
+        register_cache_orm_events()
+        service = create_service(
+            service_name="service-cache-user", email_from="service-cache-user"
+        )
+        user = create_user()
+
+        mocked_invalidate = mocker.patch("app.cache.cache_events.invalidate_group_keys")
+
+        db.session.add(ServiceUser(service_id=service.id, user_id=user.id))
+        db.session.commit()
+
+        mocked_invalidate.assert_has_calls(
+            [
+                call("service", str(service.id)),
+                call("user", str(user.id)),
+            ],
+            any_order=True,
+        )
+
+    def test_user_update_invalidates_user_cache(self, notify_db_session, mocker):
+        register_cache_orm_events()
+        user = create_user()
+        mocked_invalidate = mocker.patch("app.cache.cache_events.invalidate_group_keys")
+
+        save_model_user(user, update_dict={"name": "Updated name"})
+
+        mocked_invalidate.assert_called_once_with("user", str(user.id))
+
+    def test_permission_removal_rollback_discards_user_cache_invalidation(
+        self, notify_db_session, sample_service, mocker
+    ):
+        register_cache_orm_events()
+        user = sample_service.users[0]
+        mocked_invalidate = mocker.patch("app.cache.cache_events.invalidate_group_keys")
+
+        permission_dao.remove_user_service_permissions(
+            user=user, service=sample_service
+        )
+        db.session.rollback()
+        db.session.commit()
+
+        mocked_invalidate.assert_not_called()
+
+    def test_template_update_invalidates_template_cache(
+        self, notify_db_session, mocker
+    ):
+        register_cache_orm_events()
+        service = create_service(
+            service_name="template-cache-service", email_from="template-cache-service"
+        )
+        template = create_template(service=service)
+        mocked_invalidate = mocker.patch("app.cache.cache_events.invalidate_group_keys")
+
+        template.name = "Updated template name"
+        db.session.commit()
+
+        mocked_invalidate.assert_called_once_with("template", str(template.id))
+
+
+class TestCacheInvalidationRegistry:
+    def test_service_cache_invalidation_registry(self):
+        assert [
+            (rule.namespace, rule.entity_id_attribute)
+            for rule in CACHE_INVALIDATION_REGISTRY[Service]
+        ] == [("service", "id")]
+        assert [
+            (rule.namespace, rule.entity_id_attribute)
+            for rule in CACHE_INVALIDATION_REGISTRY[ServicePermission]
+        ] == [("service", "service_id")]
+        assert [
+            (rule.namespace, rule.entity_id_attribute)
+            for rule in CACHE_INVALIDATION_REGISTRY[ServiceUser]
+        ] == [
+            ("service", "service_id"),
+            ("user", "user_id"),
+        ]
+
+    def test_user_and_template_cache_invalidation_registry(self):
+        assert [
+            (rule.namespace, rule.entity_id_attribute)
+            for rule in CACHE_INVALIDATION_REGISTRY[User]
+        ] == [("user", "id")]
+        assert [
+            (rule.namespace, rule.entity_id_attribute)
+            for rule in CACHE_INVALIDATION_REGISTRY[Permission]
+        ] == [("user", "user_id")]
+        assert [
+            (rule.namespace, rule.entity_id_attribute)
+            for rule in CACHE_INVALIDATION_REGISTRY[Template]
+        ] == [("template", "id")]
+        assert [
+            (rule.namespace, rule.entity_id_attribute)
+            for rule in CACHE_INVALIDATION_REGISTRY[TemplateRedacted]
+        ] == [("template", "template_id")]
+
+
+class TestExpirationEviction:
     def test_value_is_served_from_cache_before_expiry(self):
         region = _make_memory_region(expiration_time=10)
         call_count = 0
@@ -86,12 +257,12 @@ class TestExpirationEviction:
         fetch("aaaaaaaa-1111-2222-3333-444444444444")
         fetch("bbbbbbbb-1111-2222-3333-444444444444")
 
-        assert call_count == 2, "Each unique key should trigger exactly one creator call"
+        assert (
+            call_count == 2
+        ), "Each unique key should trigger exactly one creator call"
 
 
 class TestExplicitInvalidation:
-    """Calling .invalidate() on a decorated function should force regeneration."""
-
     def test_invalidate_forces_regeneration(self):
         region = _make_memory_region(expiration_time=600)
         call_count = 0
@@ -126,15 +297,13 @@ class TestExplicitInvalidation:
 
         fetch.invalidate("aaaaaaaa-1111-2222-3333-444444444444")  # type: ignore[attr-defined]
 
-        fetch("aaaaaaaa-1111-2222-3333-444444444444")  # should regenerate
-        fetch("bbbbbbbb-1111-2222-3333-444444444444")  # should still be cached
+        fetch("aaaaaaaa-1111-2222-3333-444444444444")
+        fetch("bbbbbbbb-1111-2222-3333-444444444444")
 
         assert call_count == 3, "Only the invalidated key should regenerate"
 
 
 class TestRegionInvalidation:
-    """region.invalidate() makes *all* keys stale in one call."""
-
     def test_hard_invalidation_forces_all_keys_to_regenerate(self):
         region = _make_memory_region(expiration_time=600)
         call_count = 0
@@ -169,17 +338,12 @@ class TestRegionInvalidation:
         assert first["version"] == 1
 
         region.invalidate(hard=False)
-
-        # Soft invalidation: dogpile returns the stale value to the first
-        # caller while regenerating.
         fetch("abc-123")
-        # After soft invalidation the region regenerates on next access
+
         assert call_count == 2
 
 
 class TestDecoratorHelpers:
-    """The decorator attaches .set(), .get(), .refresh() helpers."""
-
     def test_set_injects_value_without_calling_creator(self):
         region = _make_memory_region(expiration_time=600)
         call_count = 0
@@ -225,8 +389,6 @@ class TestDecoratorHelpers:
 
 
 class TestRegionDelete:
-    """region.delete() removes a key entirely so the next get returns NO_VALUE."""
-
     def test_delete_removes_cached_value(self):
         region = _make_memory_region(expiration_time=600)
 
@@ -237,9 +399,7 @@ class TestRegionDelete:
         assert region.get("mykey") is NO_VALUE
 
 
-class TestCacheKeyGenerator:
-    """Verify our custom key generator produces deterministic, namespaced keys."""
-
+class TestCacheKeys:
     def test_key_contains_namespace_and_function_name(self):
         def dao_fetch_service_by_id_cached(service_id):
             pass
@@ -251,7 +411,9 @@ class TestCacheKeyGenerator:
         assert "dao_fetch_service_by_id_cached" in key
         assert "d4e5f6a7-1234-5678-9abc-def012345678" in key
 
-    def test_grouped_key_uses_compact_prefix_and_excludes_primary_param_from_fingerprint(self):
+    def test_grouped_key_uses_compact_prefix_and_excludes_primary_param_from_fingerprint(
+        self,
+    ):
         def dao_fetch_service_by_id_cached(service_id, only_active=False):
             pass
 
@@ -259,7 +421,9 @@ class TestCacheKeyGenerator:
         gen = cache_key_generator("service", dao_fetch_service_by_id_cached)
         key = gen("d4e5f6a7-1234-5678-9abc-def012345678", False)
 
-        assert key.startswith("service:d4e5f6a7-1234-5678-9abc-def012345678:dao_fetch_service_by_id_cached:")
+        assert key.startswith(
+            "service:d4e5f6a7-1234-5678-9abc-def012345678:dao_fetch_service_by_id_cached:"
+        )
         assert "only_active=False" in key
         assert "service_id=" not in key
 
@@ -274,7 +438,9 @@ class TestCacheKeyGenerator:
             UUID("a1b2c3d4-1234-5678-9abc-def012345678"),
         )
 
-        assert key.startswith("template:d4e5f6a7-1234-5678-9abc-def012345678:dao_get_template_by_id_cached:")
+        assert key.startswith(
+            "template:d4e5f6a7-1234-5678-9abc-def012345678:dao_get_template_by_id_cached:"
+        )
         assert "service_id=a1b2c3d4-1234-5678-9abc-def012345678" in key
 
     def test_same_args_produce_same_key(self):
@@ -303,8 +469,6 @@ class TestCacheKeyGenerator:
         assert key_false != key_true, "Boolean args must differentiate cache keys"
 
     def test_uuid_object_and_string_produce_same_key(self):
-        from uuid import UUID
-
         def my_func(service_id):
             pass
 
