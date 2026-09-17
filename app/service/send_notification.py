@@ -119,6 +119,15 @@ def send_one_off_notification(service_id, post_data):
             # TODO FF_USE_BILLABLE_UNITS removal - Use billable_units when feature flag is enabled
             if current_app.config.get("FF_USE_BILLABLE_UNITS"):
                 increment_by = notification.billable_units
+                if increment_by is None:
+                    current_app.logger.info(
+                        "billable_units None at one-off send: service=%s notification_id=%s template_id=%s "
+                        "template_version=%s",
+                        service.id,
+                        notification.id,
+                        template.id,
+                        getattr(template, "version", None),
+                    )
             else:
                 increment_by = 1
             increment_sms_daily_count_send_warnings_if_needed(service, increment_by)
