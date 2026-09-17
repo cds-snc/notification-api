@@ -13,9 +13,10 @@ class AwsPinpointClient(SmsClient):
     AWS Pinpoint SMS client
     """
 
-    def init_app(self, current_app, statsd_client, *args, **kwargs):
-        self._client = boto3.client("pinpoint-sms-voice-v2", region_name="ca-central-1")
-        self._dedicated_client = boto3.client("pinpoint-sms-voice-v2", region_name=current_app.config["AWS_PINPOINT_REGION"])
+    def init_app(self, current_app, statsd_client, dedicated_region, tollfree_region, *args, **kwargs):
+        self._client = boto3.client("pinpoint-sms-voice-v2", region_name=current_app.config["AWS_REGION"])
+        self._dedicated_client = boto3.client("pinpoint-sms-voice-v2", region_name=dedicated_region)
+        self._tollfree_client = boto3.client("pinpoint-sms-voice-v2", region_name=tollfree_region)
         super(AwsPinpointClient, self).__init__(*args, **kwargs)
         self.current_app = current_app
         self.name = "pinpoint"
@@ -49,7 +50,8 @@ class AwsPinpointClient(SmsClient):
                 send_with_dedicated_phone_number = self._send_with_dedicated_phone_number(sender)
                 # If the number is US based, we must use a US Toll Free number to send the message
                 if phonenumbers.region_code_for_number(match.number) == "US":
-                    response = self._dedicated_client.send_text_message(
+                    client = self._tollfree_client
+                    response = client.send_text_message(
                         DestinationPhoneNumber=destinationNumber,
                         OriginationIdentity=self.current_app.config["AWS_US_TOLL_FREE_NUMBER"],
                         MessageBody=content,
@@ -58,8 +60,9 @@ class AwsPinpointClient(SmsClient):
                         TimeToLive=ttl_seconds,
                     )
                 elif send_with_dedicated_phone_number:
+                    client = self._dedicated_client
                     dryrun = destinationNumber == self.current_app.config["EXTERNAL_TEST_NUMBER"]
-                    response = self._dedicated_client.send_text_message(
+                    response = client.send_text_message(
                         DestinationPhoneNumber=destinationNumber,
                         OriginationIdentity=sender,
                         MessageBody=content,
@@ -76,7 +79,8 @@ class AwsPinpointClient(SmsClient):
                 # For international numbers we send with an AWS number for the corresponding country, using our default sender id.
                 # Note that Canada does not currently support sender ids.
                 elif phonenumbers.region_code_for_number(match.number) != "CA":
-                    response = self._client.send_text_message(
+                    client = self._client
+                    response = client.send_text_message(
                         DestinationPhoneNumber=destinationNumber,
                         MessageBody=content,
                         MessageType=messageType,
@@ -84,8 +88,9 @@ class AwsPinpointClient(SmsClient):
                         TimeToLive=ttl_seconds,
                     )
                 else:
+                    client = self._client
                     dryrun = destinationNumber == self.current_app.config["EXTERNAL_TEST_NUMBER"]
-                    response = self._client.send_text_message(
+                    response = client.send_text_message(
                         DestinationPhoneNumber=destinationNumber,
                         OriginationIdentity=pool_id,
                         MessageBody=content,
@@ -98,12 +103,12 @@ class AwsPinpointClient(SmsClient):
                         self.current_app.logger.info(
                             f"SMS with message id {response.get('MessageId')} is sending to EXTERNAL_TEST_NUMBER. Boto call made to AWS, but not send on."
                         )
-            except self._client.exceptions.ConflictException as e:
+            except client.exceptions.ConflictException as e:
                 if e.response.get("Reason") == "DESTINATION_PHONE_NUMBER_OPTED_OUT":
                     opted_out = True
                 else:
                     raise PinpointConflictException(e)
-            except self._client.exceptions.ValidationException as e:
+            except client.exceptions.ValidationException as e:
                 raise PinpointValidationException(e)
             except Exception as e:
                 self.statsd_client.incr("clients.pinpoint.error")
