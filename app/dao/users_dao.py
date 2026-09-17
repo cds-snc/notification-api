@@ -6,6 +6,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import joinedload
 
 from app import db
+from app.annotations import log_execution_time
 from app.caching import cache_on_arguments
 from app.dao.dao_utils import transactional
 from app.dao.permissions_dao import permission_dao
@@ -114,12 +115,14 @@ def verify_within_time(user, age=timedelta(seconds=30)):
     return query.count()
 
 
+@log_execution_time
 def get_user_by_id(user_id=None) -> User:
     if user_id:
         return User.query.filter_by(id=user_id).one()
     return User.query.filter_by().all()
 
 
+@log_execution_time
 @cache_on_arguments(namespace="user", group_by="user_id")
 def dao_get_user_by_id_cached(user_id) -> dict:
     """Return a JSON-safe cached representation of a single user."""

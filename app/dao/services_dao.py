@@ -11,6 +11,7 @@ from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.expression import and_, asc, case, func
 
 from app import db, redis_store
+from app.annotations import log_execution_time
 from app.caching import cache_on_arguments
 from app.dao.dao_utils import VersionOptions, transactional, version_class
 from app.dao.date_util import get_current_financial_year, get_midnight
@@ -198,6 +199,7 @@ def dao_fetch_live_services_data():
     return results
 
 
+@log_execution_time
 @cache_on_arguments(namespace="service", group_by="service_id")
 def dao_fetch_service_by_id_cached(service_id: str, only_active=False) -> dict:
     """Dogpile cached version of fetching a service by id"""
@@ -210,6 +212,7 @@ def dao_fetch_service_by_id_cached(service_id: str, only_active=False) -> dict:
     return service
 
 
+@log_execution_time
 def dao_fetch_service_by_id(service_id, only_active=False, use_cache=False) -> Service:
     if use_cache:
         service_cache = redis_store.get(service_cache_key(service_id))
