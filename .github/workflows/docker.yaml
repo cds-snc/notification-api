@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Build and push
     steps:
-    - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+    - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
     - name: Install AWS CLI
       run: |
         curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
@@ -28,7 +28,7 @@ jobs:
         aws --version
 
     - name: Configure credentials to CDS public ECR using OIDC
-      uses: aws-actions/configure-aws-credentials@ececac1a45f3b08a01d2dd070d28d111c5fe6722 # v4.1.0
+      uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
       with:
         role-to-assume: arn:aws:iam::283582579564:role/notification-api-apply
         role-session-name: NotifyApiGitHubActions
@@ -127,7 +127,7 @@ jobs:
         TOKEN: ${{ steps.notify-pr-bot.outputs.token }}
 
     - name: Generate docker SBOM
-      uses: cds-snc/security-tools/.github/actions/generate-sbom@12a0cdea1c5a515dfcbe353693db804a1793c0ed # v4.0.1
+      uses: cds-snc/security-tools/.github/actions/generate-sbom@d123fa2b895f7ef5b400fad333d2101b103b2e64 # v4.0.4
       env:
         TRIVY_DB_REPOSITORY: ${{ vars.TRIVY_DB_REPOSITORY }}
       with:
