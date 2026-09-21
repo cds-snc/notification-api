@@ -119,14 +119,19 @@ def send_one_off_notification(service_id, post_data):
             # TODO FF_USE_BILLABLE_UNITS removal - Use billable_units when feature flag is enabled
             if current_app.config.get("FF_USE_BILLABLE_UNITS"):
                 increment_by = notification.billable_units
-                if increment_by is None:
-                    current_app.logger.info(
-                        "billable_units None at one-off send: service=%s notification_id=%s template_id=%s "
-                        "template_version=%s",
+                if (
+                    increment_by is None
+                    and str(service.id) == "7681b7ae-6fde-437e-9021-d4ab1f0a61a6"
+                    and str(template.id) == "4cfa9657-c351-491b-a894-3a9a0cda4f8a"
+                ):
+                    current_app.logger.warning(
+                        "billable_units None at v2 single-send: service=%s notification_id=%s "
+                        "template_id=%s template_version=%s personalisation_length=%s",
                         service.id,
-                        notification.id,
+                        getattr(notification, "id", None),
                         template.id,
                         getattr(template, "version", None),
+                        len(notification.personalisation) if notification.personalisation else 0,
                     )
             else:
                 increment_by = 1
