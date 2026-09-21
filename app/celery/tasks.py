@@ -381,6 +381,11 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
     except SQLAlchemyError as e:
         signed_and_verified = list(zip(signed_notifications, verified_notifications))
         handle_batch_error_and_forward(self, signed_and_verified, SMS_TYPE, e, receipt)
+    except Exception as e:
+        current_app.logger.info(
+            f"Batch saving: unexpected error persisting notifications {list(notification_id_queue.keys())} "
+            f"associated with receipt {receipt}: {e}"
+        )
 
     if saved_notifications:
         try_to_send_notifications_to_queue(notification_id_queue, saved_notifications)
@@ -479,6 +484,11 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
     except SQLAlchemyError as e:
         signed_and_verified = list(zip(signed_notifications, verified_notifications))
         handle_batch_error_and_forward(self, signed_and_verified, EMAIL_TYPE, e, receipt)
+    except Exception as e:
+        current_app.logger.info(
+            f"Batch saving: unexpected error persisting notifications {list(notification_id_queue.keys())} "
+            f"associated with receipt {receipt}: {e}"
+        )
 
     if saved_notifications:
         try_to_send_notifications_to_queue(notification_id_queue, saved_notifications)
