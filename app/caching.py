@@ -4,11 +4,6 @@ from uuid import UUID
 
 from dogpile.cache import make_region
 
-GROUP_BY_FUNCTION = {
-    "dao_fetch_service_by_id_cached": ("service", "service_id"),
-    "dao_get_user_by_id_cached": ("user", "user_id"),
-}
-
 
 def _as_uuid_string(value):
     if isinstance(value, UUID):
@@ -92,7 +87,7 @@ def cache_key_generator(namespace, fn):
     Other argument types are serialized deterministically to avoid collisions.
     """
     fn_name = fn.__name__
-    group_info = GROUP_BY_FUNCTION.get(fn_name)
+    group_info = getattr(fn, "__cache_group__", None)
 
     def generate_key(*args, **kwargs):
         bound = _bind_args(fn, args, kwargs)
@@ -140,6 +135,31 @@ def invalidate_group_keys(group_name, group_id, batch_size=500, namespace=None):
             break
 
     return deleted
+
+
+def invalidate_service_cache_keys(service_id):
+    """Invalidate all dogpile cache entries associated with a service id.
+
+    This invalidates the exact service fetch keys and then best-effort clears
+    all grouped service keys for the id prefix.
+    """
+    normalized_service_id = str(service_id)
+
+    # Prefix invalidation is best-effort and requires Redis backend access.
+    try:
+        invalidate_group_keys("service", normalized_service_id)
+    except Exception:
+        pass  #  Failures are swallowed because request/transaction paths should not fail due to cache backend issues.
+
+
+def cache_on_arguments(*, namespace, group_by):
+    """Cache function arguments and group its keys by one named argument."""
+
+    def decorate(fn):
+        fn.__cache_group__ = (namespace, group_by)
+        return dogpile_region.cache_on_arguments(namespace=namespace)(fn)
+
+    return decorate
 
 
 dogpile_region = make_region(

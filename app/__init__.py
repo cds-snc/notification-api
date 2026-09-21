@@ -125,7 +125,12 @@ def create_app(application, config=None):
     if application.config.get("OTEL_REQUEST_METRICS_ENABLED", False):
         init_otel_request_metrics(application)
     aws_sns_client.init_app(application, statsd_client=statsd_client)
-    aws_pinpoint_client.init_app(application, statsd_client=statsd_client)
+    aws_pinpoint_client.init_app(
+        application,
+        statsd_client=statsd_client,
+        dedicated_region=application.config["AWS_DEDICATED_LONG_CODES_REGION"],
+        tollfree_region=application.config["AWS_TOLL_FREE_REGION"],
+    )
     aws_ses_client.init_app(application.config["AWS_REGION"], statsd_client=statsd_client)
     notify_celery.init_app(application)
     NewsletterSubscriber.init_app(application)
@@ -156,6 +161,10 @@ def create_app(application, config=None):
     redis_store.init_app(application)
     bounce_rate_client.init_app(application)
     init_dogpile_cache(application)
+    if application.config.get("FF_USE_DOGPILE_CACHING", False) is True:
+        from app.cache.cache_events import register_cache_orm_events
+
+        register_cache_orm_events()
 
     sms_bulk_publish.init_app(flask_cache_ops, metrics_logger)
     sms_normal_publish.init_app(flask_cache_ops, metrics_logger)

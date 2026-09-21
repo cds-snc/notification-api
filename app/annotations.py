@@ -1,10 +1,26 @@
 from functools import wraps
-
-# from flask import current_app
 from inspect import signature
+from time import perf_counter
+
+from flask import current_app
 
 from app import signer_notification
 from app.encryption import SignedNotification, SignedNotifications
+
+
+def log_execution_time(func):
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        started = perf_counter()
+        try:
+            return func(*args, **kwargs)
+        finally:
+            elapsed_ms = (perf_counter() - started) * 1000
+            current_app.logger.info(
+                f"dao.execution_time function={func.__module__}.{func.__qualname__} elapsed_ms={elapsed_ms:.2f}"
+            )
+
+    return wrapper
 
 
 def unsign_params(func):
