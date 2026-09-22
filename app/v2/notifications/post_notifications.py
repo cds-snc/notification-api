@@ -364,6 +364,12 @@ def post_notification(notification_type: NotificationType):
         if not is_test_notification:
             # TODO FF_USE_BILLABLE_UNITS removal - Use billable_units when feature flag is enabled
             increment_by = notification.billable_units if current_app.config.get("FF_USE_BILLABLE_UNITS") else 1
+            if increment_by is None:
+                current_app.logger.info(
+                    f"Billable units is None for notification {getattr(notification, 'id', None)}, template {template.id}"
+                )
+                increment_by = 1
+
             increment_sms_daily_count_send_warnings_if_needed(authenticated_service, increment_by)
 
     if notification_type == SMS_TYPE:

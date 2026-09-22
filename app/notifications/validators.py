@@ -344,7 +344,7 @@ def increment_sms_daily_count_send_warnings_if_needed(service: Service, requeste
 
     # Redis INCRBY requires a numeric amount; treat a missing billable-unit count as one SMS.
     if requested_sms is None:
-        current_app.logger.warning("SMS billable_units was None; defaulting requested_count to 1")
+        current_app.logger.info(f"SMS billable_units was None; defaulting requested_count to 1 for service: {service.id}")
         requested_sms = 1
 
     # TODO FF_USE_BILLABLE_UNITS removal - Increment billable units when feature flag is enabled
