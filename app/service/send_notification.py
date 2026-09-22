@@ -124,14 +124,18 @@ def send_one_off_notification(service_id, post_data):
                     and str(service.id) == "7681b7ae-6fde-437e-9021-d4ab1f0a61a6"
                     and str(template.id) == "4cfa9657-c351-491b-a894-3a9a0cda4f8a"
                 ):
+                    recomputed_fragment_count = number_of_sms_fragments(template, personalisation)
                     current_app.logger.warning(
                         "billable_units None at v2 single-send: service=%s notification_id=%s "
-                        "template_id=%s template_version=%s personalisation_length=%s",
+                        "template_id=%s template_version=%s personalisation_length=%s content=%r "
+                        "recomputed_fragment_count=%s",
                         service.id,
                         getattr(notification, "id", None),
                         template.id,
                         getattr(template, "version", None),
                         len(notification.personalisation) if notification.personalisation else 0,
+                        template.content,
+                        recomputed_fragment_count,
                     )
             else:
                 increment_by = 1
