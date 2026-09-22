@@ -343,6 +343,7 @@ def register_v2_blueprints(application):
     )
     from app.v2.manage_template_folder import (  # noqa
         get_folder,
+        patch_folder,
         post_folder,
         v2_manage_template_folder_blueprint,
     )
