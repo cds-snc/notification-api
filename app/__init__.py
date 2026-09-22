@@ -341,6 +341,10 @@ def register_v2_blueprints(application):
         post_template,
         v2_manage_template_blueprint,
     )
+    from app.v2.manage_template_folder import (  # noqa
+        get_folder,
+        v2_manage_template_folder_blueprint,
+    )
     from app.v2.notifications import (  # noqa
         cancel_bulk_job,
         delete_notifications,
@@ -369,6 +373,8 @@ def register_v2_blueprints(application):
     register_notify_blueprint(application, v2_template_blueprint, requires_auth)
 
     register_notify_blueprint(application, v2_manage_template_blueprint, requires_auth)
+
+    register_notify_blueprint(application, v2_manage_template_folder_blueprint, requires_auth)
 
     register_notify_blueprint(application, get_inbound_sms, requires_auth)
 
