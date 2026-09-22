@@ -364,24 +364,6 @@ def post_notification(notification_type: NotificationType):
         if not is_test_notification:
             # TODO FF_USE_BILLABLE_UNITS removal - Use billable_units when feature flag is enabled
             increment_by = notification.billable_units if current_app.config.get("FF_USE_BILLABLE_UNITS") else 1
-            if (
-                increment_by is None
-                and str(authenticated_service.id) == "7681b7ae-6fde-437e-9021-d4ab1f0a61a6"
-                and str(template.id) == "4cfa9657-c351-491b-a894-3a9a0cda4f8a"
-            ):
-                recomputed_fragment_count = number_of_sms_fragments(template, personalisation)
-                current_app.logger.warning(
-                    "billable_units None at v2 single-send: service=%s notification_id=%s "
-                    "template_id=%s template_version=%s personalisation_length=%s content=%r "
-                    "recomputed_fragment_count=%s",
-                    authenticated_service.id,
-                    getattr(notification, "id", None),
-                    template.id,
-                    getattr(template, "version", None),
-                    len(notification.personalisation) if notification.personalisation else 0,
-                    template.content,
-                    recomputed_fragment_count,
-                )
             increment_sms_daily_count_send_warnings_if_needed(authenticated_service, increment_by)
 
     if notification_type == SMS_TYPE:
