@@ -315,45 +315,54 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
             current_app.logger.exception(f"Invalid signature for signed_notification {signed_notification}")
             raise
         service_id = _notification.get("service_id", service_id)  # take it it out of the notification if it's there
-        service = dao_fetch_service_by_id(service_id, use_cache=True)
-
-        template = dao_get_template_by_id(
-            _notification.get("template"), version=_notification.get("template_version"), use_cache=True
-        )
-        # todo: _notification may not have "sender_id" key
-        sender_id = _notification.get("sender_id")  # type: ignore
         notification_id = _notification.get("id", create_uuid())
 
-        if "reply_to_text" in _notification and _notification["reply_to_text"]:
-            reply_to_text = _notification["reply_to_text"]
-        else:
-            reply_to_text = ""  # type: ignore
-            if sender_id:
-                reply_to_text = try_validate_and_format_phone_number(
-                    dao_get_service_sms_senders_by_id(service_id, sender_id).sms_sender
-                )
-            elif template.service:
-                reply_to_text = template.get_reply_to_text()
-            else:
-                reply_to_text = service.get_default_sms_sender()  # type: ignore
+        # This prep work (lookups, reply-to resolution) previously ran unguarded: any exception here
+        # escaped save_smss with zero logging, silently dropping the whole batch. Log before re-raising.
+        try:
+            service = dao_fetch_service_by_id(service_id, use_cache=True)
 
-        notification: VerifiedNotification = {
-            **_notification,  # type: ignore
-            "notification_id": notification_id,
-            "reply_to_text": reply_to_text,
-            "service": service,
-            "key_type": _notification.get("key_type", KEY_TYPE_NORMAL),
-            "template_id": template.id,
-            "template_version": template.version,
-            "recipient": _notification.get("to"),
-            "personalisation": _notification.get("personalisation"),
-            "notification_type": SMS_TYPE,  # type: ignore
-            "simulated": _notification.get("simulated", None),
-            "api_key_id": _notification.get("api_key", None),
-            "created_at": datetime.utcnow(),
-            "job_id": _notification.get("job", None),
-            "job_row_number": _notification.get("row_number", None),
-        }
+            template = dao_get_template_by_id(
+                _notification.get("template"), version=_notification.get("template_version"), use_cache=True
+            )
+            # todo: _notification may not have "sender_id" key
+            sender_id = _notification.get("sender_id")  # type: ignore
+
+            if "reply_to_text" in _notification and _notification["reply_to_text"]:
+                reply_to_text = _notification["reply_to_text"]
+            else:
+                reply_to_text = ""  # type: ignore
+                if sender_id:
+                    reply_to_text = try_validate_and_format_phone_number(
+                        dao_get_service_sms_senders_by_id(service_id, sender_id).sms_sender
+                    )
+                elif template.service:
+                    reply_to_text = template.get_reply_to_text()
+                else:
+                    reply_to_text = service.get_default_sms_sender()  # type: ignore
+
+            notification: VerifiedNotification = {
+                **_notification,  # type: ignore
+                "notification_id": notification_id,
+                "reply_to_text": reply_to_text,
+                "service": service,
+                "key_type": _notification.get("key_type", KEY_TYPE_NORMAL),
+                "template_id": template.id,
+                "template_version": template.version,
+                "recipient": _notification.get("to"),
+                "personalisation": _notification.get("personalisation"),
+                "notification_type": SMS_TYPE,  # type: ignore
+                "simulated": _notification.get("simulated", None),
+                "api_key_id": _notification.get("api_key", None),
+                "created_at": datetime.utcnow(),
+                "job_id": _notification.get("job", None),
+                "job_row_number": _notification.get("row_number", None),
+            }
+        except Exception:
+            current_app.logger.info(
+                f"Batch saving: failed to prepare sms notification {notification_id} "
+                f"(service={service_id}, template={_notification.get('template')}) for persistence"
+            )
 
         verified_notifications.append(notification)
         notification_id_queue[notification_id] = notification.get("queue")  # type: ignore
@@ -414,50 +423,58 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
             current_app.logger.exception(f"Invalid signature for signed_notification {signed_notification}")
             raise
         service_id = _notification.get("service_id", _service_id)  # take it it out of the notification if it's there
-
-        # get service from local cache if possible
-        if service_id not in service_id_map:
-            service = dao_fetch_service_by_id(service_id)
-            service_id_map[service_id] = service
-        else:
-            service = service_id_map[service_id]
-
-        template = dao_get_template_by_id(
-            _notification.get("template"), version=_notification.get("template_version"), use_cache=True
-        )
-        # todo: _notification does not have key "sender_id"
-        sender_id = _notification.get("sender_id")  # type: ignore
         notification_id = _notification.get("id", create_uuid())
-        reply_to_text = ""  # type: ignore
-        if (
-            "reply_to_text" in _notification and _notification["reply_to_text"]
-        ):  # first just see if we already have a value of this and use it, otherwise continue with the logic below
-            reply_to_text = _notification["reply_to_text"]  # type: ignore
-        else:
-            if sender_id:
-                reply_to_text = dao_get_reply_to_by_id(service_id, sender_id).email_address
-            elif template.service:
-                reply_to_text = template.get_reply_to_text()  # type: ignore
-            else:
-                reply_to_text = service.get_default_reply_to_email_address()
 
-        notification: VerifiedNotification = {
-            **_notification,  # type: ignore
-            "notification_id": notification_id,
-            "reply_to_text": reply_to_text,
-            "service": service,
-            "key_type": _notification.get("key_type", KEY_TYPE_NORMAL),
-            "template_id": template.id,
-            "template_version": template.version,
-            "recipient": _notification.get("to"),
-            "personalisation": _notification.get("personalisation"),
-            "notification_type": EMAIL_TYPE,  # type: ignore
-            "simulated": _notification.get("simulated", None),
-            "api_key_id": _notification.get("api_key", None),
-            "created_at": datetime.utcnow(),
-            "job_id": _notification.get("job", None),
-            "job_row_number": _notification.get("row_number", None),
-        }
+        # This prep work (lookups, reply-to resolution) previously ran unguarded: any exception here
+        # escaped save_emails with zero logging, silently dropping the whole batch. Log before re-raising.
+        try:
+            # get service from local cache if possible
+            if service_id not in service_id_map:
+                service = dao_fetch_service_by_id(service_id)
+                service_id_map[service_id] = service
+            else:
+                service = service_id_map[service_id]
+
+            template = dao_get_template_by_id(
+                _notification.get("template"), version=_notification.get("template_version"), use_cache=True
+            )
+            # todo: _notification does not have key "sender_id"
+            sender_id = _notification.get("sender_id")  # type: ignore
+            reply_to_text = ""  # type: ignore
+            if (
+                "reply_to_text" in _notification and _notification["reply_to_text"]
+            ):  # first just see if we already have a value of this and use it, otherwise continue with the logic below
+                reply_to_text = _notification["reply_to_text"]  # type: ignore
+            else:
+                if sender_id:
+                    reply_to_text = dao_get_reply_to_by_id(service_id, sender_id).email_address
+                elif template.service:
+                    reply_to_text = template.get_reply_to_text()  # type: ignore
+                else:
+                    reply_to_text = service.get_default_reply_to_email_address()
+
+            notification: VerifiedNotification = {
+                **_notification,  # type: ignore
+                "notification_id": notification_id,
+                "reply_to_text": reply_to_text,
+                "service": service,
+                "key_type": _notification.get("key_type", KEY_TYPE_NORMAL),
+                "template_id": template.id,
+                "template_version": template.version,
+                "recipient": _notification.get("to"),
+                "personalisation": _notification.get("personalisation"),
+                "notification_type": EMAIL_TYPE,  # type: ignore
+                "simulated": _notification.get("simulated", None),
+                "api_key_id": _notification.get("api_key", None),
+                "created_at": datetime.utcnow(),
+                "job_id": _notification.get("job", None),
+                "job_row_number": _notification.get("row_number", None),
+            }
+        except Exception:
+            current_app.logger.info(
+                f"Batch saving: failed to prepare email notification {notification_id} "
+                f"(service={service_id}, template={_notification.get('template')}) for persistence"
+            )
 
         verified_notifications.append(notification)
         notification_id_queue[notification_id] = notification.get("queue")  # type: ignore
