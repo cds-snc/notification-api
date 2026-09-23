@@ -405,8 +405,8 @@ class TestRedisQueue:
 
     @pytest.mark.serial
     def test_polling_stops_before_ten_large_notifications_exceed_sqs_double_encoded_limit(self, redis, redis_queue):
-        # Regression test for a batch of ~19KB notifications (e.g. GAC-sized emails with large
-        # personalisation) that used to all fit under the old 180 KiB raw MAX_POLL_BYTES cap,
+        # Regression test for a batch of ~19KB notifications that used to all fit under the
+        # old 180 KiB raw MAX_POLL_BYTES cap,
         # but whose celery/kombu double-base64-encoded SQS message ended up around 313 KiB,
         # exceeding the SQS 256 KiB limit and getting stuck as an in-flight that never acks.
         self.delete_all_list(redis)
