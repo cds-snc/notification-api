@@ -385,6 +385,44 @@ class TestRedisQueue:
             assert redis.llen(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX)) == RedisQueue.MAX_POLL_COUNT
             assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX)) == REDIS_ELEMENTS_COUNT - RedisQueue.MAX_POLL_COUNT
 
+    def test_max_poll_bytes_leaves_headroom_for_celery_sqs_double_base64_encoding(self):
+        # A polled batch is sent as the args of a celery task over our SQS-backed broker.
+        # Celery base64-encodes the task body, and kombu's SQS transport base64-encodes the
+        # *entire* envelope again, inflating the raw bytes by ~16/9 (1.78x) plus envelope
+        # overhead (headers, ids, argsrepr, etc). This asserts MAX_POLL_BYTES, once inflated
+        # by that factor plus a generous overhead allowance, still fits under the SQS hard
+        # limit of 256 KiB with headroom to spare -- guarding against reintroducing the
+        # "exceeded SQS size limit" bug by raising MAX_POLL_BYTES without accounting for it.
+        sqs_max_message_size_bytes = 256 * 1024
+        double_base64_inflation_factor = 16 / 9
+        generous_envelope_overhead_bytes = 8 * 1024
+
+        estimated_final_sqs_body_size = (
+            RedisQueue.MAX_POLL_BYTES * double_base64_inflation_factor + generous_envelope_overhead_bytes
+        )
+
+        assert estimated_final_sqs_body_size < sqs_max_message_size_bytes
+
+    @pytest.mark.serial
+    def test_polling_stops_before_ten_large_notifications_exceed_sqs_double_encoded_limit(self, redis, redis_queue):
+        # Regression test for a batch of ~19KB notifications that used to all fit under the
+        # old 180 KiB raw MAX_POLL_BYTES cap,
+        # but whose celery/kombu double-base64-encoded SQS message ended up around 313 KiB,
+        # exceeding the SQS 256 KiB limit and getting stuck as an in-flight that never acks.
+        self.delete_all_list(redis)
+        large_notification = "n" * (19 * 1024)
+        try:
+            for _ in range(RedisQueue.MAX_POLL_COUNT):
+                redis_queue.publish(large_notification)
+
+            receipt, elements = redis_queue.poll()
+
+            assert len(elements) < RedisQueue.MAX_POLL_COUNT
+            assert sum(len(e.encode("utf-8")) for e in elements) <= RedisQueue.MAX_POLL_BYTES
+            assert redis.llen(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX)) == len(elements)
+        finally:
+            self.delete_all_list(redis)
+
     def test_scripts_registry_is_isolated_per_instance(self):
         queue_one = RedisQueue("sms")
         queue_two = RedisQueue("sms")
