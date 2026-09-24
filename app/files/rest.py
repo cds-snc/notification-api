@@ -10,13 +10,13 @@ from app.dao.files_dao import (
     dao_archive_file,
     dao_create_file,
     dao_get_file_by_document_id_including_archived,
-    dao_get_file_by_id,
+    dao_get_file_by_id_template_id_and_service_id,
     dao_get_file_status_by_id_and_template_id,
     dao_get_files_by_template_id,
     dao_update_file,
 )
 from app.dao.permissions_dao import permission_dao
-from app.dao.templates_dao import dao_get_template_by_id
+from app.dao.templates_dao import dao_get_template_by_id_and_service_id
 from app.errors import InvalidRequest, register_errors
 from app.files.files_schema import (
     guardduty_scan_verdict_callback_schema,
@@ -30,11 +30,11 @@ from app.models import (
     UPLOAD_DOCUMENT,
     Files,
 )
-from app.notifications.validators import check_service_has_permission, validate_template_exists
+from app.notifications.validators import check_service_has_permission, check_template_is_active
 from app.schema_validation import validate
 from app.schemas import files_schema
 
-files_blueprint = Blueprint("files", __name__, url_prefix="/templates/<uuid:template_id>/files")
+files_blueprint = Blueprint("files", __name__, url_prefix="/service/<uuid:service_id>/template/<uuid:template_id>/files")
 register_errors(files_blueprint)
 
 scan_verdict_callback_blueprint = Blueprint("scan_verdict_callback", __name__, url_prefix="/templates/scan-verdict-callback")
@@ -54,27 +54,37 @@ GUARD_DUTY_STATUS_MAP = {
 MAX_TOTAL_FILE_SIZE = 6 * 1024 * 1024  # 6MB
 
 
+def _get_template_for_service_or_404(template_id, service_id):
+    try:
+        return dao_get_template_by_id_and_service_id(template_id, service_id)
+    except NoResultFound:
+        raise InvalidRequest("Template not found", status_code=404)
+
+
+def _get_file_for_template_or_404(file_id, template_id, service_id):
+    try:
+        return dao_get_file_by_id_template_id_and_service_id(file_id, template_id, service_id)
+    except NoResultFound:
+        raise InvalidRequest(f"Requested file_id {file_id} is not associated with template {template_id}", 404)
+
+
 @files_blueprint.route("", methods=["POST"])
-def create_file(template_id):
+def create_file(service_id, template_id):
     data = request.get_json()
     validate(data, post_create_file_schema)
 
     user_id = data["created_by"]
-    permissions = {p.permission for p in permission_dao.get_permissions_by_user_id(data["created_by"])}
+    permissions = {p.permission for p in permission_dao.get_permissions_by_user_id_and_service_id(user_id, service_id)}
 
     if MANAGE_TEMPLATES not in permissions:
         raise InvalidRequest(f"User {user_id} does not have {MANAGE_TEMPLATES} permissions.", 403)
 
-    try:
-        template = dao_get_template_by_id(template_id)
-    except NoResultFound:
-        raise InvalidRequest("Template not found", status_code=404)
-
+    template = _get_template_for_service_or_404(template_id, service_id)
     service = template.service
     check_service_has_permission(UPLOAD_DOCUMENT, service.permissions)
-    validate_template_exists(template_id, service)
+    check_template_is_active(template)
 
-    existing_files = dao_get_files_by_template_id(template_id)
+    existing_files = dao_get_files_by_template_id(template.id, service.id)
     existing_size = sum(f.file_size or 0 for f in existing_files)
 
     filename = data["name"]
@@ -105,7 +115,7 @@ def create_file(template_id):
     current_app.logger.info(f"Uploaded file to S3 for template {template_id} document_id: {document_id}")
 
     file = Files(
-        template_id=data["template_id"],
+        template_id=template.id,
         service_id=service.id,
         document_id=document_id,
         type=data["type"],
@@ -121,27 +131,21 @@ def create_file(template_id):
 
 
 @files_blueprint.route("")
-def get_files_by_template_id(template_id):
-    files = dao_get_files_by_template_id(template_id)
+def get_files_by_template_id(service_id, template_id):
+    files = dao_get_files_by_template_id(template_id, service_id)
     data = files_schema.dump(files, many=True)
     return jsonify(data)
 
 
 @files_blueprint.route("/<uuid:file_id>/status", methods=["GET"])
-def get_file_status(template_id, file_id):
-    file_status = dao_get_file_status_by_id_and_template_id(file_id, template_id)
+def get_file_status(service_id, template_id, file_id):
+    file_status = dao_get_file_status_by_id_and_template_id(file_id, template_id, service_id)
     return jsonify({"status": file_status}), 200
 
 
 @files_blueprint.route("/<uuid:file_id>", methods=["DELETE"])
-def delete_file(template_id, file_id):
-    fetched_file = dao_get_file_by_id(file_id)
-
-    if fetched_file.template_id != template_id:
-        raise InvalidRequest(
-            f"Requested file_id {file_id} is not associated with template {template_id}",
-            404,
-        )
+def delete_file(service_id, template_id, file_id):
+    fetched_file = _get_file_for_template_or_404(file_id, template_id, service_id)
 
     # Delete from S3 via document-download-api first
     try:
@@ -200,14 +204,8 @@ def update_file_status():
 
 
 @files_blueprint.route("/<uuid:file_id>/download", methods=["GET"])
-def get_file_contents(template_id, file_id):
-    fetched_file = dao_get_file_by_id(file_id)
-
-    if fetched_file.template_id != template_id:
-        raise InvalidRequest(
-            f"Requested file_id {file_id} is not associated with template {template_id}",
-            404,
-        )
+def get_file_contents(service_id, template_id, file_id):
+    fetched_file = _get_file_for_template_or_404(file_id, template_id, service_id)
 
     if fetched_file.status != FILE_STATUS_UPLOADED:
         raise InvalidRequest(
