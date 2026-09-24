@@ -134,6 +134,7 @@ def _cache_template_files_for_job(job_id: UUID, template_id: UUID) -> None:
                     "mime_type": file.mime_type,
                     "service_id": str(file.service_id),
                     "file_id": str(file.id),
+                    "file_size": file.file_size,
                 }
             )
 
