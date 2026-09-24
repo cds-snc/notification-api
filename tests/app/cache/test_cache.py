@@ -71,10 +71,11 @@ class TestCacheEvents:
             ("after_flush", cache_events._collect_cache_invalidations),
             ("after_commit", cache_events._invalidate_cache_after_commit),
             ("after_rollback", cache_events._clear_cache_invalidations_after_rollback),
+            ("do_orm_execute", cache_events._intercept_bulk_operations),
         }
         assert registered_listeners == expected_listeners
-        assert mocked_contains.call_count == 60
-        assert mocked_listen.call_count == 3
+        assert mocked_contains.call_count == 80
+        assert mocked_listen.call_count == 4
 
     def test_service_update_invalidates_service_cache(self, notify_db_session, mocker):
         register_cache_orm_events()
