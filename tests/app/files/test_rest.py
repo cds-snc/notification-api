@@ -6,9 +6,9 @@ from flask import current_app, url_for
 
 from app.dao.permissions_dao import permission_dao
 from app.files.rest import _parse_scan_verdict_payload
-from app.models import FILE_STATUS_UPLOADED, FILE_STATUS_VIRUS_SCAN_FAILED
+from app.models import EMAIL_TYPE, FILE_STATUS_UPLOADED, FILE_STATUS_VIRUS_SCAN_FAILED, UPLOAD_DOCUMENT
 from tests.app.conftest import create_sample_template
-from tests.app.db import create_user
+from tests.app.db import create_service, create_template, create_user
 from tests.conftest import set_config_values
 
 MOCK_DOCUMENT_ID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
@@ -351,6 +351,59 @@ class TestCreateFile:
             },
             _expected_status=201,
         )
+
+
+def _create_attacker_service():
+    return create_service(
+        service_name=f"Attacker service {uuid.uuid4()}",
+        service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT],
+    )
+
+
+def _create_file_payload(template_id, user_id):
+    return {
+        "template_id": str(template_id),
+        "type": "attach",
+        "name": "idor-poc-test.txt",
+        "mime_type": "text/plain",
+        "file_size": 10,
+        "file_data": base64.b64encode(b"POC file").decode("utf-8"),
+        "created_by": str(user_id),
+    }
+
+
+class TestCrossServiceAccess:
+    def test_create_file_returns_403_when_user_not_member_of_template_service(
+        self, mocker, notify_db, notify_db_session, admin_request, sample_service_full_permissions
+    ):
+        mock_upload = _mock_upload_template_attachment(mocker)
+        victim_template = create_sample_template(notify_db, notify_db_session, service=sample_service_full_permissions)
+        attacker_service = _create_attacker_service()
+
+        admin_request.post(
+            "files.create_file",
+            template_id=str(victim_template.id),
+            _data=_create_file_payload(victim_template.id, attacker_service.created_by.id),
+            _expected_status=403,
+        )
+        mock_upload.assert_not_called()
+
+    def test_create_file_ignores_template_id_in_body(
+        self, mocker, notify_db, notify_db_session, admin_request, sample_service_full_permissions
+    ):
+        _mock_upload_template_attachment(mocker)
+        victim_template = create_sample_template(notify_db, notify_db_session, service=sample_service_full_permissions)
+        attacker_service = _create_attacker_service()
+        attacker_template = create_template(attacker_service, template_type=EMAIL_TYPE)
+
+        response = admin_request.post(
+            "files.create_file",
+            template_id=str(attacker_template.id),
+            _data=_create_file_payload(victim_template.id, attacker_service.created_by.id),
+            _expected_status=201,
+        )
+        assert response["template_id"] == str(attacker_template.id)
+        assert response["service_id"] == str(attacker_service.id)
 
 
 class TestGetFile:
