@@ -116,6 +116,12 @@ for attempt in $(seq 1 "$db_upgrade_attempts"); do
   fi
 done
 
+if [ -f /home/vscode/.gitconfig-host ]; then
+  if ! git config --global --get-all include.path | grep -Fxq /home/vscode/.gitconfig-host; then
+    git config --global --add include.path /home/vscode/.gitconfig-host
+  fi
+fi
+
 # Set up git blame to ignore certain revisions e.g. sweeping code formatting changes.
 git config blame.ignoreRevsFile .git-blame-ignore-revs
 
