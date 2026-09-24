@@ -5,10 +5,9 @@ from app.dao.dao_utils import transactional
 from app.models import FILE_STATUS_UPLOADED, Files
 
 
-def dao_get_files_by_template_id(template_id, service_id):
+def dao_get_files_by_template_id(template_id):
     return Files.query.filter(
         Files.template_id == template_id,
-        Files.service_id == service_id,
         Files.archived == False,  # noqa: E712
     ).all()
 
@@ -23,13 +22,12 @@ def dao_get_ready_files_by_template_id(template_id):
     ).all()
 
 
-def dao_get_file_status_by_id_and_template_id(file_id, template_id, service_id):
+def dao_get_file_status_by_id_and_template_id(file_id, template_id):
     return (
         db.session.query(Files.status)
         .filter(
             Files.id == file_id,
             Files.template_id == template_id,
-            Files.service_id == service_id,
             Files.archived == False,  # noqa: E712
         )
         .scalar()
@@ -39,15 +37,6 @@ def dao_get_file_status_by_id_and_template_id(file_id, template_id, service_id):
 def dao_get_file_by_id(file_id):
     return Files.query.filter(
         Files.id == file_id,
-        Files.archived == False,  # noqa: E712
-    ).one()
-
-
-def dao_get_file_by_id_template_id_and_service_id(file_id, template_id, service_id):
-    return Files.query.filter(
-        Files.id == file_id,
-        Files.template_id == template_id,
-        Files.service_id == service_id,
         Files.archived == False,  # noqa: E712
     ).one()
 

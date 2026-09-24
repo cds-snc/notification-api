@@ -16,7 +16,7 @@ post_create_file_schema = {
         },
         "created_by": uuid,
     },
-    "required": ["type", "name", "mime_type", "file_size", "file_data", "created_by"],
+    "required": ["template_id", "type", "name", "mime_type", "file_size", "file_data", "created_by"],
 }
 
 post_update_file_status_schema = {
