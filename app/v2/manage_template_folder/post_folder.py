@@ -22,6 +22,10 @@ def post_manage_template_folder():
 
     data = validate(request.get_json() or {}, post_manage_template_folder_request)
 
+    name = data["name"].strip()
+    if not name:
+        raise BadRequestError(message="name cannot be empty")
+
     parent_folder_id = data.get("parent_folder_id")
     if parent_folder_id:
         try:
@@ -36,7 +40,7 @@ def post_manage_template_folder():
 
     folder = TemplateFolder(
         service_id=authenticated_service.id,
-        name=data["name"].strip(),
+        name=name,
         parent_id=parent_folder_id,
         users=users_with_permission,
     )

@@ -90,6 +90,22 @@ class TestPostTemplateFolderV2:
 
         assert response.status_code == 400
 
+    def test_create_folder_returns_400_for_whitespace_only_name(
+        self, client, sample_service, create_api_key_with_manage_api_perm
+    ):
+        auth_header = create_authorization_header(api_key=create_api_key_with_manage_api_perm)
+
+        response = client.post(
+            "/v2/manage-template-folder",
+            data=json.dumps({"name": "   "}),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+
+        assert response.status_code == 400
+        data = json.loads(response.get_data(as_text=True))
+        assert data["errors"][0]["message"] == "name cannot be empty"
+        assert sample_service.all_template_folders == []
+
     def test_create_folder_returns_400_for_unknown_parent(self, client, sample_service, create_api_key_with_manage_api_perm):
         auth_header = create_authorization_header(api_key=create_api_key_with_manage_api_perm)
 
