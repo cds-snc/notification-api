@@ -959,6 +959,22 @@ class TestBillableUnitsInValidators:
             mock_increment_billable.assert_called_once_with(service.id, 10)
             mock_fetch_billable.assert_called()
 
+    def test_increment_sms_daily_count_defaults_missing_billable_units_to_one(
+        self, notify_api, notify_db, notify_db_session, mocker
+    ):
+        with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
+            service = create_sample_service(notify_db, notify_db_session, sms_limit=100)
+
+            mock_increment_billable = mocker.patch(
+                "app.notifications.validators.increment_todays_requested_sms_billable_units_count"
+            )
+            mocker.patch("app.notifications.validators.fetch_todays_requested_sms_billable_units_count", return_value=50)
+            mocker.patch("app.annual_limit_client.check_has_warning_been_sent", return_value=True)
+
+            increment_sms_daily_count_send_warnings_if_needed(service, None)
+
+            mock_increment_billable.assert_called_once_with(service.id, 1)
+
     def test_increment_sms_daily_count_increments_message_count_when_flag_disabled(
         self, notify_api, notify_db, notify_db_session, mocker
     ):

@@ -2,7 +2,7 @@ import base64
 import functools
 from datetime import datetime, time, timedelta
 
-from flask import current_app, has_request_context, request
+from flask import current_app
 from notifications_utils import SMS_CHAR_COUNT_LIMIT
 from notifications_utils.clients.redis import (
     near_billable_units_sms_daily_limit_cache_key,
@@ -342,17 +342,10 @@ def increment_sms_daily_count_send_warnings_if_needed(service: Service, requeste
     if not current_app.config["REDIS_ENABLED"]:
         return
 
-    # A None amount crashes redis INCRBY (DataError). Guard and log the caller so the
-    # send path that produced it can be identified. The daily counter self-heals from
-    # the DB on its next re-seed.
+    # Redis INCRBY requires a numeric amount; treat a missing billable-unit count as one SMS.
     if requested_sms is None:
-        endpoint = request.endpoint if has_request_context() else "no-request-context"
-        current_app.logger.info(
-            "increment_sms_daily_count received requested_sms=None for service %s (endpoint: %s); skipping increment",
-            service.id,
-            endpoint,
-            stack_info=True,
-        )
+        current_app.logger.info(f"SMS billable_units was None; defaulting requested_count to 1 for service: {service.id}")
+        requested_sms = 1
 
     # TODO FF_USE_BILLABLE_UNITS removal - Increment billable units when feature flag is enabled
     if current_app.config.get("FF_USE_BILLABLE_UNITS"):

@@ -119,7 +119,16 @@ class RedisQueue(Queue):
     LUA_MOVE_TO_INFLIGHT = "move-in-inflight"
     LUA_EXPIRE_INFLIGHTS = "expire-inflights"
     MAX_POLL_COUNT = 10
-    MAX_POLL_BYTES = 180 * 1024
+
+    # A batch polled here ends up as the args of a `save_emails`/`save_smss` celery task sent
+    # over our SQS-backed broker. Celery base64-encodes the task body, and kombu's SQS
+    # transport then base64-encodes that *entire* envelope (headers + already-encoded body)
+    # a second time before it becomes the SQS MessageBody. Two base64 passes inflate the raw
+    # bytes below by ~16/9 (1.78x), plus a few KB of envelope overhead (task name, ids,
+    # argsrepr, etc). SQS hard-caps a message at 256 KiB, so we keep the raw budget well
+    # under that once inflated, e.g. 100 KiB raw -> ~180 KiB once encoded, leaving headroom
+    # for the envelope overhead and any variance in it.
+    MAX_POLL_BYTES = 100 * 1024
 
     def __init__(self, suffix=None, expire_inflight_after_seconds=300, process_type=None) -> None:
         """
