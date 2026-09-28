@@ -94,3 +94,4 @@ node_modules/
 tests_cypress/cypress/videos/
 .github/instructions/*
 .ruff_cache/
+.env/
