@@ -2,6 +2,7 @@ import base64
 import json
 import uuid
 
+import pytest
 from flask import current_app, url_for
 
 from app.dao.permissions_dao import permission_dao
@@ -412,16 +413,84 @@ class TestGetFile:
             "files.get_file_status",
             template_id=str(sample_file.template_id),
             file_id=str(sample_file.id),
+            service_id=str(sample_file.service_id),
             _expected_status=200,
         )
         assert response["status"] == sample_file.status
 
     def test_get_files_by_template_id(self, admin_request, sample_file):
-        admin_request.get(
+        response = admin_request.get(
             "files.get_files_by_template_id",
             template_id=str(sample_file.template_id),
+            service_id=str(sample_file.service_id),
             _expected_status=200,
         )
+        assert [f["id"] for f in response] == [str(sample_file.id)]
+
+
+class TestServiceScoping:
+    @pytest.mark.parametrize(
+        "method, endpoint, needs_file_id",
+        [
+            ("get", "files.get_files_by_template_id", False),
+            ("get", "files.get_file_status", True),
+            ("get", "files.get_file_contents", True),
+            ("delete", "files.delete_file", True),
+        ],
+    )
+    @pytest.mark.parametrize("service_id", [None, "not-a-uuid"], ids=["missing", "invalid"])
+    def test_returns_400_without_valid_service_id(
+        self, mocker, admin_request, sample_file, method, endpoint, needs_file_id, service_id
+    ):
+        mock_delete = mocker.patch("app.files.rest.document_download_client.delete_document")
+        kwargs = {"template_id": str(sample_file.template_id)}
+        if needs_file_id:
+            kwargs["file_id"] = str(sample_file.id)
+        if service_id:
+            kwargs["service_id"] = service_id
+
+        getattr(admin_request, method)(endpoint, _expected_status=400, **kwargs)
+        mock_delete.assert_not_called()
+
+    def test_list_returns_nothing_for_other_service(self, admin_request, sample_file):
+        response = admin_request.get(
+            "files.get_files_by_template_id",
+            template_id=str(sample_file.template_id),
+            service_id=str(_create_attacker_service().id),
+        )
+        assert response == []
+
+    def test_status_returns_none_for_other_service(self, admin_request, sample_file):
+        response = admin_request.get(
+            "files.get_file_status",
+            template_id=str(sample_file.template_id),
+            file_id=str(sample_file.id),
+            service_id=str(_create_attacker_service().id),
+        )
+        assert response == {"status": None}
+
+    def test_download_returns_404_for_other_service(self, mocker, admin_request, sample_file):
+        mock_download = mocker.patch("app.files.rest.document_download_client.download_document")
+        admin_request.get(
+            "files.get_file_contents",
+            template_id=str(sample_file.template_id),
+            file_id=str(sample_file.id),
+            service_id=str(_create_attacker_service().id),
+            _expected_status=404,
+        )
+        mock_download.assert_not_called()
+
+    def test_delete_returns_404_for_other_service(self, mocker, admin_request, sample_file):
+        mock_delete = mocker.patch("app.files.rest.document_download_client.delete_document")
+        admin_request.delete(
+            "files.delete_file",
+            template_id=str(sample_file.template_id),
+            file_id=str(sample_file.id),
+            service_id=str(_create_attacker_service().id),
+            _expected_status=404,
+        )
+        mock_delete.assert_not_called()
+        assert sample_file.archived is False
 
 
 SCAN_VERDICT_TOKEN = "test-scan-verdict-token"
@@ -529,6 +598,7 @@ class TestDeleteFile:
             "files.delete_file",
             template_id=str(sample_file.template_id),
             file_id=str(sample_file.id),
+            service_id=str(sample_file.service_id),
             _expected_status=204,
         )
 
@@ -544,7 +614,7 @@ class TestDeleteFile:
         # Verify archived file no longer appears in the template's file list
         from app.dao.files_dao import dao_get_files_by_template_id
 
-        visible_files = dao_get_files_by_template_id(sample_file.template_id)
+        visible_files = dao_get_files_by_template_id(sample_file.template_id, sample_file.service_id)
         assert all(f.id != sample_file.id for f in visible_files)
 
     def test_delete_file_returns_404_when_template_file_mismatch(
@@ -559,6 +629,7 @@ class TestDeleteFile:
             "files.delete_file",
             template_id=str(different_template.id),
             file_id=str(sample_file.id),
+            service_id=str(sample_file.service_id),
             _expected_status=404,
         )
 
@@ -577,6 +648,7 @@ class TestDeleteFile:
             "files.delete_file",
             template_id=str(sample_file.template_id),
             file_id=str(sample_file.id),
+            service_id=str(sample_file.service_id),
             _expected_status=500,
         )
 

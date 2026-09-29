@@ -1,5 +1,6 @@
 import base64
 import binascii
+import uuid
 
 from flask import Blueprint, current_app, jsonify, request
 from sqlalchemy.exc import NoResultFound
@@ -10,7 +11,7 @@ from app.dao.files_dao import (
     dao_archive_file,
     dao_create_file,
     dao_get_file_by_document_id_including_archived,
-    dao_get_file_by_id,
+    dao_get_file_by_id_template_id_and_service_id,
     dao_get_file_status_by_id_and_template_id,
     dao_get_files_by_template_id,
     dao_update_file,
@@ -54,6 +55,13 @@ GUARD_DUTY_STATUS_MAP = {
 MAX_TOTAL_FILE_SIZE = 6 * 1024 * 1024  # 6MB
 
 
+def _get_service_id_arg():
+    try:
+        return uuid.UUID(request.args["service_id"])
+    except (KeyError, ValueError):
+        raise InvalidRequest("A valid service_id query parameter is required", status_code=400)
+
+
 @files_blueprint.route("", methods=["POST"])
 def create_file(template_id):
     data = request.get_json()
@@ -74,7 +82,7 @@ def create_file(template_id):
     check_service_has_permission(UPLOAD_DOCUMENT, service.permissions)
     validate_template_exists(template.id, service)
 
-    existing_files = dao_get_files_by_template_id(template.id)
+    existing_files = dao_get_files_by_template_id(template.id, service.id)
     existing_size = sum(f.file_size or 0 for f in existing_files)
 
     filename = data["name"]
@@ -122,26 +130,20 @@ def create_file(template_id):
 
 @files_blueprint.route("")
 def get_files_by_template_id(template_id):
-    files = dao_get_files_by_template_id(template_id)
+    files = dao_get_files_by_template_id(template_id, _get_service_id_arg())
     data = files_schema.dump(files, many=True)
     return jsonify(data)
 
 
 @files_blueprint.route("/<uuid:file_id>/status", methods=["GET"])
 def get_file_status(template_id, file_id):
-    file_status = dao_get_file_status_by_id_and_template_id(file_id, template_id)
+    file_status = dao_get_file_status_by_id_and_template_id(file_id, template_id, _get_service_id_arg())
     return jsonify({"status": file_status}), 200
 
 
 @files_blueprint.route("/<uuid:file_id>", methods=["DELETE"])
 def delete_file(template_id, file_id):
-    fetched_file = dao_get_file_by_id(file_id)
-
-    if fetched_file.template_id != template_id:
-        raise InvalidRequest(
-            f"Requested file_id {file_id} is not associated with template {template_id}",
-            404,
-        )
+    fetched_file = dao_get_file_by_id_template_id_and_service_id(file_id, template_id, _get_service_id_arg())
 
     # Delete from S3 via document-download-api first
     try:
@@ -201,13 +203,7 @@ def update_file_status():
 
 @files_blueprint.route("/<uuid:file_id>/download", methods=["GET"])
 def get_file_contents(template_id, file_id):
-    fetched_file = dao_get_file_by_id(file_id)
-
-    if fetched_file.template_id != template_id:
-        raise InvalidRequest(
-            f"Requested file_id {file_id} is not associated with template {template_id}",
-            404,
-        )
+    fetched_file = dao_get_file_by_id_template_id_and_service_id(file_id, template_id, _get_service_id_arg())
 
     if fetched_file.status != FILE_STATUS_UPLOADED:
         raise InvalidRequest(
