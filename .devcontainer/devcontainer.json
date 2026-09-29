@@ -4,6 +4,7 @@
 	"service": "notify-api",
 	"workspaceFolder": "/workspace",
 	"shutdownAction": "stopCompose",
+	"forwardPorts": [6011],
 	"remoteEnv": {
 		"PATH": "/home/vscode/.local/bin:${containerEnv:PATH}" // give our installed Python modules precedence
 	},
