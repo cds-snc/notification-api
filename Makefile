@@ -64,7 +64,12 @@ smoke-test-local:
 aws-login: ## Log in to AWS SSO for local staging development
 	@test -x "$(AWS_CLI)" || (echo "AWS CLI v2 is required; rebuild the dev container"; exit 1)
 	@"$(AWS_CLI)" --version | grep -q 'aws-cli/2\.' || (echo "AWS CLI v2 is required; rebuild the dev container"; exit 1)
-	"$(AWS_CLI)" sso login --profile "$(AWS_PROFILE)"
+	@if "$(AWS_CLI)" sts get-caller-identity --profile "$(AWS_PROFILE)" >/dev/null 2>&1; then \
+		echo "AWS SSO session already active for $(AWS_PROFILE)"; \
+	else \
+		echo "AWS SSO session missing or expired; starting login"; \
+		"$(AWS_CLI)" sso login --profile "$(AWS_PROFILE)"; \
+	fi
 
 .PHONY: run
 run: aws-login ## Run the web app with the staging AWS SSO profile
