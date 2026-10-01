@@ -4,6 +4,8 @@ from datetime import datetime, timedelta
 
 import pwnedpasswords
 from flask import Blueprint, abort, current_app, jsonify, request
+from itsdangerous import BadData
+from notifications_utils.url_safe_token import check_token
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -19,6 +21,7 @@ from app.dao.fido2_key_dao import (
     list_fido2_keys,
     save_fido2_key,
 )
+from app.dao.invited_user_dao import has_accepted_invite_for_email_address
 from app.dao.login_event_dao import list_login_events, save_login_event
 from app.dao.permissions_dao import permission_dao
 from app.dao.service_user_dao import dao_get_service_user, dao_update_service_user
@@ -193,6 +196,11 @@ def activate_user(user_id):
     user = get_user_by_id(user_id=user_id)
     if user.state == "active":
         raise InvalidRequest("User already active", status_code=400)
+
+    # Proof of inbox ownership: the signed verify-email link, or an accepted invite to this address.
+    token = (request.get_json(silent=True) or {}).get("email_verification_token")
+    if not (_is_email_verification_token_for_user(token, user) or has_accepted_invite_for_email_address(user.email_address)):
+        raise InvalidRequest("User email address has not been verified", status_code=400)
 
     user.state = "active"
     save_model_user(user)
@@ -939,6 +947,24 @@ def _create_verification_url(user):
     data = json.dumps({"user_id": str(user.id), "email": user.email_address})
     url = "/verify-email/"
     return url_with_token(data, url, current_app.config)
+
+
+def _is_email_verification_token_for_user(token, user):
+    if not token:
+        return False
+    try:
+        data = json.loads(
+            check_token(
+                token=token,
+                secret=current_app.config["SECRET_KEY"],
+                max_age_seconds=current_app.config["EMAIL_EXPIRY_SECONDS"],
+            )
+        )
+    except (BadData, ValueError):
+        return False
+    if not isinstance(data, dict):
+        return False
+    return data.get("user_id") == str(user.id) and str(data.get("email", "")).lower() == user.email_address.lower()
 
 
 def _create_confirmation_url(user, email_address):
