@@ -4,6 +4,9 @@
 	"service": "notify-api",
 	"workspaceFolder": "/workspace",
 	"shutdownAction": "stopCompose",
+	"mounts": [
+		"source=${localEnv:HOME}/.aws,target=/home/vscode/.aws,type=bind"
+	],
 	"remoteEnv": {
 		"PATH": "/home/vscode/.local/bin:${containerEnv:PATH}" // give our installed Python modules precedence
 	},

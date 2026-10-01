@@ -55,6 +55,16 @@ RUN apt-get update && \
     && apt-get clean -y \
     && rm -rf /var/lib/apt/lists/*
 
+RUN case "$(dpkg --print-architecture)" in \
+            amd64) AWS_CLI_ARCH="x86_64" ;; \
+            arm64) AWS_CLI_ARCH="aarch64" ;; \
+            *) echo "Unsupported architecture for AWS CLI v2"; exit 1 ;; \
+        esac && \
+        curl "https://awscli.amazonaws.com/awscli-exe-linux-${AWS_CLI_ARCH}.zip" -o /tmp/awscliv2.zip && \
+        unzip -q /tmp/awscliv2.zip -d /tmp && \
+        /tmp/aws/install --update && \
+        rm -rf /tmp/aws /tmp/awscliv2.zip
+
 # Upgrade pip
 RUN pip install --upgrade pip
 
