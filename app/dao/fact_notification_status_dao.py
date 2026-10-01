@@ -212,8 +212,11 @@ def fetch_delivered_notification_stats_by_month():
             MonthlyNotificationStatsSummary.notification_type,
             func.sum(MonthlyNotificationStatsSummary.notification_count).label("count"),
         )
+        .join(Service, Service.id == MonthlyNotificationStatsSummary.service_id)
         .filter(
             MonthlyNotificationStatsSummary.month >= "2019-11-01",  # GC Notify start date
+            Service.count_as_live.is_(True),
+            Service.restricted.is_(False),
         )
         .group_by(
             MonthlyNotificationStatsSummary.month,

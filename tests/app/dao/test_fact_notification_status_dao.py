@@ -913,6 +913,22 @@ class TestFetchDeliveredNotificationStatsbyMonth:
         assert results[4].notification_type == "sms"
         assert results[4].count == 6
 
+    def test_fetch_delivered_notification_stats_by_month_excludes_trial_and_not_count_as_live_services(self, sample_service):
+        trial_service = create_service(service_name="trial", restricted=True)
+        not_live_service = create_service(service_name="not live", count_as_live=False)
+        for service in [sample_service, trial_service, not_live_service]:
+            create_monthly_notification_stats_summary(
+                month="2020-04-01",
+                service=service,
+                notification_type="email",
+                count=5,
+            )
+
+        results = fetch_delivered_notification_stats_by_month()
+
+        assert len(results) == 1
+        assert results[0].count == 5
+
     def test_fetch_delivered_notification_stats_by_month_empty(self):
         assert fetch_delivered_notification_stats_by_month() == []
 
