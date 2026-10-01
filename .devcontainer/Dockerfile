@@ -65,6 +65,8 @@ RUN case "$(dpkg --print-architecture)" in \
         /tmp/aws/install --update && \
         rm -rf /tmp/aws /tmp/awscliv2.zip
 
+RUN install -d -o vscode -g vscode /home/vscode/.aws/sso/cache
+
 # Upgrade pip
 RUN pip install --upgrade pip
 
