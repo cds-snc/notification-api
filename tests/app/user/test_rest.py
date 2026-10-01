@@ -1,12 +1,15 @@
 import json
+import uuid
 from datetime import datetime
 from unittest import mock
 from unittest.mock import ANY
+from urllib.parse import unquote
 from uuid import UUID
 
 import pytest
 from flask import current_app, url_for
 from freezegun import freeze_time
+from notifications_utils.url_safe_token import generate_token
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import db
@@ -29,6 +32,8 @@ from app.models import (
 from app.user.contact_request import ContactRequest
 from tests import create_authorization_header
 from tests.app.db import (
+    create_invited_org_user,
+    create_invited_user,
     create_organisation,
     create_reply_to_email,
     create_service,
@@ -1176,14 +1181,118 @@ def test_update_user_password_does_not_create_LoginEvent_when_loginData_not_prov
     assert LoginEvent.query.count() == 0
 
 
-def test_activate_user(admin_request, sample_user, mocker):
+def _signed_token(payload, secret=None):
+    # admin receives the token URL-decoded from its /verify-email/<token> route
+    return unquote(generate_token(payload, secret or current_app.config["SECRET_KEY"]))
+
+
+def _email_verification_token(user_id, email):
+    return _signed_token(json.dumps({"user_id": str(user_id), "email": email}))
+
+
+def test_activate_user_with_email_verification_token(admin_request, sample_user):
     sample_user.state = "pending"
 
-    resp = admin_request.post("user.activate_user", user_id=sample_user.id)
+    resp = admin_request.post(
+        "user.activate_user",
+        user_id=sample_user.id,
+        _data={"email_verification_token": _email_verification_token(sample_user.id, sample_user.email_address.upper())},
+    )
 
     assert resp["data"]["id"] == str(sample_user.id)
     assert resp["data"]["state"] == "active"
     assert sample_user.state == "active"
+
+
+def test_activate_user_with_accepted_service_invite(admin_request, sample_user):
+    sample_user.state = "pending"
+    invite = create_invited_user(service=create_service(), to_email_address=sample_user.email_address.upper())
+    invite.status = "accepted"
+
+    resp = admin_request.post("user.activate_user", user_id=sample_user.id)
+
+    assert resp["data"]["state"] == "active"
+
+
+def test_activate_user_with_accepted_org_invite(admin_request, sample_user):
+    sample_user.state = "pending"
+    invite = create_invited_org_user(create_organisation(), create_service().users[0], email_address=sample_user.email_address)
+    invite.status = "accepted"
+
+    resp = admin_request.post("user.activate_user", user_id=sample_user.id)
+
+    assert resp["data"]["state"] == "active"
+
+
+@pytest.mark.parametrize("invite_status", ["pending", "cancelled"])
+def test_activate_user_fails_if_invite_not_accepted(admin_request, sample_user, invite_status):
+    sample_user.state = "pending"
+    invite = create_invited_user(service=create_service(), to_email_address=sample_user.email_address)
+    invite.status = invite_status
+
+    resp = admin_request.post("user.activate_user", user_id=sample_user.id, _expected_status=400)
+
+    assert resp["message"] == "User email address has not been verified"
+    assert sample_user.state == "pending"
+
+
+def test_activate_user_fails_if_accepted_invite_is_for_another_email(admin_request, sample_user):
+    sample_user.state = "pending"
+    invite = create_invited_user(service=create_service(), to_email_address="someone-else@canada.ca")
+    invite.status = "accepted"
+
+    admin_request.post("user.activate_user", user_id=sample_user.id, _expected_status=400)
+
+    assert sample_user.state == "pending"
+
+
+def test_activate_user_fails_without_proof_of_email_ownership(admin_request, sample_user):
+    sample_user.state = "pending"
+
+    resp = admin_request.post("user.activate_user", user_id=sample_user.id, _expected_status=400)
+
+    assert resp["message"] == "User email address has not been verified"
+    assert sample_user.state == "pending"
+
+
+@pytest.mark.parametrize(
+    "token_factory",
+    [
+        lambda user: _email_verification_token(uuid.uuid4(), user.email_address),
+        lambda user: _email_verification_token(user.id, "someone-else@canada.ca"),
+        lambda user: _signed_token(json.dumps({"user_id": str(user.id), "email": user.email_address}), "wrong-secret"),
+        lambda user: _signed_token(str(user.id)),
+        lambda user: "not-a-token",
+    ],
+    ids=["other-user", "other-email", "bad-signature", "not-json", "garbage"],
+)
+def test_activate_user_fails_with_invalid_email_verification_token(admin_request, sample_user, token_factory):
+    sample_user.state = "pending"
+
+    admin_request.post(
+        "user.activate_user",
+        user_id=sample_user.id,
+        _data={"email_verification_token": token_factory(sample_user)},
+        _expected_status=400,
+    )
+
+    assert sample_user.state == "pending"
+
+
+def test_activate_user_fails_with_expired_email_verification_token(admin_request, sample_user):
+    sample_user.state = "pending"
+    with freeze_time("2026-01-01 12:00:00"):
+        token = _email_verification_token(sample_user.id, sample_user.email_address)
+
+    with freeze_time("2026-01-01 13:00:01"):
+        admin_request.post(
+            "user.activate_user",
+            user_id=sample_user.id,
+            _data={"email_verification_token": token},
+            _expected_status=400,
+        )
+
+    assert sample_user.state == "pending"
 
 
 def test_activate_user_fails_if_already_active(admin_request, sample_user):
