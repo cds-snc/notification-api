@@ -3,6 +3,7 @@ FROM mcr.microsoft.com/vscode/devcontainers/python:3.12-bookworm
 RUN rm -f /etc/apt/sources.list.d/yarn.list
 
 ARG KUBENS_VERSION="0.9.4"
+ARG AWS_CLI_VERSION="2.27.41"
 ENV POETRY_VERSION="1.7.1"
 ENV POETRY_VENV_PATH="/home/vscode/.venv/workspace"
 
@@ -54,6 +55,21 @@ RUN apt-get update && \
     && apt-get autoremove -y \
     && apt-get clean -y \
     && rm -rf /var/lib/apt/lists/*
+
+RUN case "$(dpkg --print-architecture)" in \
+            amd64) AWS_CLI_ARCH="x86_64"; AWS_CLI_SHA256="15daae6cc803984064e3d4be9cfd07c4ae8ea703633c0a0b67acc6e321f706a3" ;; \
+            arm64) AWS_CLI_ARCH="aarch64"; AWS_CLI_SHA256="2c6ed21cf7cff0a7d77118c69bee867128bf4c588db7b5c044ffba5faeb6ccde" ;; \
+            *) echo "Unsupported architecture for AWS CLI v2"; exit 1 ;; \
+        esac && \
+        curl --fail --location --silent --show-error \
+            "https://awscli.amazonaws.com/awscli-exe-linux-${AWS_CLI_ARCH}-${AWS_CLI_VERSION}.zip" \
+            -o /tmp/awscliv2.zip && \
+        echo "${AWS_CLI_SHA256}  /tmp/awscliv2.zip" | sha256sum --check --status && \
+        unzip -q /tmp/awscliv2.zip -d /tmp && \
+        /tmp/aws/install --update && \
+        rm -rf /tmp/aws /tmp/awscliv2.zip
+
+RUN install -d -o vscode -g vscode /home/vscode/.aws/sso/cache
 
 # Upgrade pip
 RUN pip install --upgrade pip
