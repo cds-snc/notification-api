@@ -112,6 +112,7 @@ def dao_update_template(template):
     db.session.add(template)
 
 
+@log_execution_time
 @transactional
 def dao_update_template_reply_to(template_id, reply_to):
     statement = (
@@ -132,6 +133,7 @@ def dao_update_template_reply_to(template_id, reply_to):
     return template
 
 
+@log_execution_time
 @transactional
 def dao_update_template_process_type(template_id, process_type):
     statement = (
@@ -152,6 +154,7 @@ def dao_update_template_process_type(template_id, process_type):
     return template
 
 
+@log_execution_time
 @transactional
 def dao_update_template_category(template_id, category_id):
     statement = (

@@ -1,6 +1,7 @@
 from sqlalchemy import delete
 
 from app import db
+from app.annotations import log_execution_time
 from app.cache.cache_dml import cache_invalidating_dml
 from app.dao import DAOClass
 from app.models import (
@@ -37,6 +38,7 @@ class PermissionDAO(DAOClass):
             permission = Permission(permission=name, user=user, service=service)
             self.create_instance(permission, _commit=False)
 
+    @log_execution_time
     def _delete_permissions(self, user, service=None):
         statement = delete(self.Meta.model).where(self.Meta.model.user_id == user.id)
         if service is not None:
