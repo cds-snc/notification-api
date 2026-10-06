@@ -110,10 +110,8 @@ def _collect_cache_invalidations(
         )
         elapsed_ms = (perf_counter() - started) * 1000
         logger.info(
-            "cache.collect_invalidations instances=%d invalidations=%d elapsed_ms=%.2f",
-            len(instances),
-            invalidations_after - invalidations_before,
-            elapsed_ms,
+            f"cache.collect_invalidations instances={len(instances)} "
+            f"invalidations={invalidations_after - invalidations_before} elapsed_ms={elapsed_ms:.2f}"
         )
 
 

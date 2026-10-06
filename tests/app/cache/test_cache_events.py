@@ -70,10 +70,7 @@ def test_collect_cache_invalidations_logs_performance(mocker):
     cache_events._collect_cache_invalidations(session, mocker.Mock())
 
     mocked_logger.info.assert_called_once_with(
-        "cache.collect_invalidations instances=%d invalidations=%d elapsed_ms=%.2f",
-        1,
-        1,
-        125.0,
+        "cache.collect_invalidations instances=1 invalidations=1 elapsed_ms=125.00"
     )
 
 
@@ -94,12 +91,7 @@ def test_invalidate_group_keys_logs_performance(mocker):
 
     assert deleted == 3
     mocked_logger.info.assert_called_once_with(
-        "cache.invalidate_group_keys namespace=%s scans=%d matched=%d deleted=%d elapsed_ms=%.2f",
-        "service",
-        2,
-        3,
-        3,
-        125.0,
+        "cache.invalidate_group_keys namespace=service batch_size=500 scans=2 matched=3 deleted=3 elapsed_ms=125.00"
     )
 
 

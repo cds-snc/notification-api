@@ -146,12 +146,8 @@ def invalidate_group_keys(group_name, group_id, batch_size=500, namespace=None):
     finally:
         elapsed_ms = (perf_counter() - started) * 1000
         logger.info(
-            "cache.invalidate_group_keys namespace=%s scans=%d matched=%d deleted=%d elapsed_ms=%.2f",
-            ns,
-            scans,
-            matched,
-            deleted,
-            elapsed_ms,
+            f"cache.invalidate_group_keys namespace={ns} batch_size={batch_size} scans={scans} "
+            f"matched={matched} deleted={deleted} elapsed_ms={elapsed_ms:.2f}"
         )
 
     return deleted
