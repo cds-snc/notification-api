@@ -2,9 +2,15 @@ from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 from unittest.mock import call
 
+from sqlalchemy import delete
+from tests.app.db import create_service, create_template, create_user
+
+from app import db
+from app.cache import cache_events
 from app.cache.cache_dml import cache_invalidating_dml
 from app.cache.cache_events import register_cache_orm_events
 from app.cache.cache_invalidation_registry import CACHE_INVALIDATION_REGISTRY
+from app.caching import invalidate_group_keys
 from app.dao.permissions_dao import permission_dao
 from app.dao.service_permissions_dao import dao_add_service_permission, dao_remove_service_permission
 from app.dao.templates_dao import dao_update_template_process_type
@@ -19,11 +25,6 @@ from app.models import (
     TemplateRedacted,
     User,
 )
-from sqlalchemy import delete
-from tests.app.db import create_service, create_template, create_user
-
-from app import db
-from app.cache import cache_events
 
 
 def test_register_cache_orm_events_is_thread_safe(mocker):
@@ -50,6 +51,48 @@ def test_register_cache_orm_events_is_thread_safe(mocker):
     assert registered_listeners == expected_listeners
     assert mocked_contains.call_count == 80
     assert mocked_listen.call_count == 4
+
+
+def test_collect_cache_invalidations_logs_performance(mocker):
+    class CachedModel:
+        pass
+
+    instance = CachedModel()
+    instance.id = "entity-id"
+    session = SimpleNamespace(new={instance}, dirty=set(), deleted=set(), info={})
+    rule = SimpleNamespace(namespace="service", entity_id_attribute="id")
+    mocker.patch.object(
+        cache_events, "CACHE_INVALIDATION_REGISTRY", {CachedModel: (rule,)}
+    )
+    mocker.patch("app.cache.cache_events.perf_counter", side_effect=[10, 10.125])
+    mocked_logger = mocker.patch("app.cache.cache_events.logger")
+
+    cache_events._collect_cache_invalidations(session, mocker.Mock())
+
+    mocked_logger.info.assert_called_once_with(
+        "cache.collect_invalidations instances=1 invalidations=1 elapsed_ms=125.00"
+    )
+
+
+def test_invalidate_group_keys_logs_performance(mocker):
+    redis_client = mocker.Mock()
+    redis_client.scan.side_effect = [
+        (1, [b"service:entity-id:first", b"service:entity-id:second"]),
+        (0, [b"service:entity-id:third"]),
+    ]
+    redis_client.delete.side_effect = [2, 1]
+    mocker.patch(
+        "app.caching._get_redis_client_from_region", return_value=redis_client
+    )
+    mocker.patch("app.caching.perf_counter", side_effect=[20, 20.125])
+    mocked_logger = mocker.patch("app.caching.logger")
+
+    deleted = invalidate_group_keys("service", "entity-id")
+
+    assert deleted == 3
+    mocked_logger.info.assert_called_once_with(
+        "cache.invalidate_group_keys namespace=service batch_size=500 scans=2 matched=3 deleted=3 elapsed_ms=125.00"
+    )
 
 
 def test_intercept_bulk_operations_uses_cache_invalidating_dml_metadata(mocker):

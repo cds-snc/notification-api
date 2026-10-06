@@ -8,6 +8,7 @@ keys only after the transaction commits.
 import logging
 from collections.abc import Iterator, Mapping
 from threading import Lock
+from time import perf_counter
 from typing import cast
 from uuid import UUID
 
@@ -87,15 +88,31 @@ def _collect_cache_invalidations(
     The set deduplicates cases where several changed rows affect the same cache
     group in one transaction.
     """
-    for instance in session.new.union(session.dirty).union(session.deleted):
-        for model, rules in CACHE_INVALIDATION_REGISTRY.items():
-            if not isinstance(instance, model):
-                continue
+    started = perf_counter()
+    instances = session.new.union(session.dirty).union(session.deleted)
+    invalidations_before = len(session.info.get(_CACHE_INVALIDATIONS_KEY, ()))
 
-            for rule in rules:
-                entity_id = getattr(instance, rule.entity_id_attribute, None)
-                if entity_id is not None:
-                    _queue_cache_invalidation(session, rule.namespace, entity_id)
+    try:
+        for instance in instances:
+            for model, rules in CACHE_INVALIDATION_REGISTRY.items():
+                if not isinstance(instance, model):
+                    continue
+
+                for rule in rules:
+                    entity_id = getattr(instance, rule.entity_id_attribute, None)
+                    if entity_id is not None:
+                        _queue_cache_invalidation(
+                            session, rule.namespace, entity_id
+                        )
+    finally:
+        invalidations_after = len(
+            session.info.get(_CACHE_INVALIDATIONS_KEY, ())
+        )
+        elapsed_ms = (perf_counter() - started) * 1000
+        logger.info(
+            f"cache.collect_invalidations instances={len(instances)} "
+            f"invalidations={invalidations_after - invalidations_before} elapsed_ms={elapsed_ms:.2f}"
+        )
 
 
 def _invalidate_cache_after_commit(session: Session) -> None:
