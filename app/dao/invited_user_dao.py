@@ -1,7 +1,9 @@
 from datetime import datetime, timedelta
 
+from sqlalchemy import func
+
 from app import db
-from app.models import InvitedUser
+from app.models import INVITE_ACCEPTED, InvitedOrganisationUser, InvitedUser
 
 
 def save_invited_user(invited_user):
@@ -19,6 +21,16 @@ def get_invited_user_by_id(invited_user_id):
 
 def get_invited_users_for_service(service_id):
     return InvitedUser.query.filter_by(service_id=service_id).all()
+
+
+def has_accepted_invite_for_email_address(email_address):
+    email_address = email_address.lower()
+    return any(
+        db.session.query(
+            model.query.filter(func.lower(model.email_address) == email_address, model.status == INVITE_ACCEPTED).exists()
+        ).scalar()
+        for model in (InvitedUser, InvitedOrganisationUser)
+    )
 
 
 def delete_invitations_created_more_than_two_days_ago():
