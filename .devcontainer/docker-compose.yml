@@ -11,9 +11,12 @@ services:
       REDIS_URL: redis://redis:6380
     volumes:
       - ..:/workspace:cached
+      - ${HOME}/.gitconfig:/home/vscode/.gitconfig-host:ro
     command: sleep infinity
     links:
       - db
+    ports:
+      - "6011:6011"
     expose:
       - "6011"
     networks:
