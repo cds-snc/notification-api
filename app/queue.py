@@ -111,6 +111,11 @@ class Queue(ABC):
         """
         pass
 
+    @abstractmethod
+    def replace_inflight(self, receipt: UUID, expected_signed_value: str, replacement_signed_value: str) -> bool:
+        """Atomically replace an in-flight value if the expected value is still present."""
+        pass
+
 
 # TODO: Check if we want to move the queue API and implementations into the utils project.
 class RedisQueue(Queue):
@@ -118,6 +123,7 @@ class RedisQueue(Queue):
 
     LUA_MOVE_TO_INFLIGHT = "move-in-inflight"
     LUA_EXPIRE_INFLIGHTS = "expire-inflights"
+    LUA_REPLACE_INFLIGHT = "replace-inflight"
     MAX_POLL_COUNT = 10
 
     # A batch polled here ends up as the args of a `save_emails`/`save_smss` celery task sent
@@ -210,6 +216,11 @@ class RedisQueue(Queue):
         self._redis_client.rpush(self._inbox, message)
         put_batch_saving_metric(self.__metrics_logger, self, 1)
 
+    def replace_inflight(self, receipt: UUID, expected_signed_value: str, replacement_signed_value: str) -> bool:
+        inflight_name = Buffer.IN_FLIGHT.inflight_name(receipt, self._suffix, self._process_type)
+        replace_script = self.__get_script(self.LUA_REPLACE_INFLIGHT)
+        return bool(replace_script(args=[inflight_name, expected_signed_value, replacement_signed_value]))
+
     def __move_to_inflight(self, in_flight_key: str, count: int) -> list[str]:
         move_script = self.__get_script(self.LUA_MOVE_TO_INFLIGHT)
         results = move_script(args=[self._inbox, in_flight_key, max(0, min(count, self.MAX_POLL_COUNT)), self.MAX_POLL_BYTES])
@@ -294,6 +305,24 @@ class RedisQueue(Queue):
                 """
             )
 
+            self._scripts[self.LUA_REPLACE_INFLIGHT] = self._redis_client.register_script(
+                """
+            local inflight    = ARGV[1]
+            local expected    = ARGV[2]
+            local replacement = ARGV[3]
+            local elements    = redis.call("LRANGE", inflight, 0, -1)
+
+            for index, element in ipairs(elements) do
+                if element == expected then
+                    redis.call("LSET", inflight, index - 1, replacement)
+                    return 1
+                end
+            end
+
+            return 0
+                """
+            )
+
 
 class MockQueue(Queue):
     """Implementation of a queue that spits out randomly generated elements.
@@ -309,3 +338,6 @@ class MockQueue(Queue):
 
     def publish(self, message: str):
         pass
+
+    def replace_inflight(self, receipt: UUID, expected_signed_value: str, replacement_signed_value: str) -> bool:
+        return False

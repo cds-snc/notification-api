@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from typing import Any, List, NewType, Optional, TypedDict, cast
 
 from flask_bcrypt import check_password_hash, generate_password_hash
@@ -28,6 +29,65 @@ class NotificationDictToSign(TypedDict):
     row_number: Optional[Any]  # should this be int or str?
 
 
+class NotificationMetadata(TypedDict, total=False):
+    enqueued_at: Optional[str]
+    last_processed_at: Optional[str]
+    retry_count: int
+
+
+class NotificationEnvelope(TypedDict):
+    message: NotificationDictToSign
+    metadata: NotificationMetadata
+
+
+def _utc_isoformat(value: datetime) -> str:
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def create_notification_envelope(
+    message: NotificationDictToSign, *, enqueued_at: Optional[datetime] = None
+) -> NotificationEnvelope:
+    return {
+        "message": message.copy(),
+        "metadata": {
+            "enqueued_at": _utc_isoformat(enqueued_at or datetime.now(timezone.utc)),
+            "last_processed_at": None,
+            "retry_count": 0,
+        },
+    }
+
+
+def update_notification_envelope(
+    envelope: NotificationEnvelope,
+    *,
+    last_processed_at: Optional[datetime] = None,
+    retry_count: Optional[int] = None,
+) -> NotificationEnvelope:
+    metadata = envelope["metadata"].copy()
+    if last_processed_at is not None:
+        metadata["last_processed_at"] = _utc_isoformat(last_processed_at)
+    if retry_count is not None:
+        metadata["retry_count"] = retry_count
+    return {"message": envelope["message"].copy(), "metadata": metadata}
+
+
+def verify_notification(
+    signer: "CryptoSigner", signed_notification: str | bytes
+) -> tuple[NotificationDictToSign, Optional[NotificationEnvelope]]:
+    verified = signer.verify(signed_notification)
+    if (
+        isinstance(verified, dict)
+        and set(verified) == {"message", "metadata"}
+        and isinstance(verified["message"], dict)
+        and isinstance(verified["metadata"], dict)
+    ):
+        envelope = cast(NotificationEnvelope, verified)
+        return envelope["message"], envelope
+    return cast(NotificationDictToSign, verified), None
+
+
 class CryptoSigner:
     def init_app(self, app: Any, secret_key: str | List[str], salt: str) -> None:
         """Initialise the CryptoSigner class.
@@ -42,7 +102,7 @@ class CryptoSigner:
         self.serializer = URLSafeSerializer(secret_key)
         self.salt = salt
 
-    def sign(self, to_sign: str | NotificationDictToSign) -> str | bytes:
+    def sign(self, to_sign: str | NotificationDictToSign | NotificationEnvelope) -> str | bytes:
         """Sign a string or dict with the class secret key and salt.
 
         Args:
@@ -53,7 +113,7 @@ class CryptoSigner:
         """
         return self.serializer.dumps(to_sign, salt=self.salt)
 
-    def sign_with_all_keys(self, to_sign: str | NotificationDictToSign) -> List[str | bytes]:
+    def sign_with_all_keys(self, to_sign: str | NotificationDictToSign | NotificationEnvelope) -> List[str | bytes]:
         """Sign a string or dict with all the individual keys in the class secret key list, and the class salt.
 
         Args:

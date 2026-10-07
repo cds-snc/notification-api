@@ -259,6 +259,46 @@ class TestRedisQueue:
             assert len(redis.keys("*")) == 1
 
     @pytest.mark.serial
+    def test_replace_inflight_replaces_only_expected_value(self, redis, redis_queue):
+        redis_queue.publish("first")
+        redis_queue.publish("second")
+        receipt, elements = redis_queue.poll(2)
+
+        assert redis_queue.replace_inflight(receipt, elements[0], "updated-first")
+        assert redis.lrange(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX), 0, -1) == [b"second", b"updated-first"]
+
+    @pytest.mark.serial
+    def test_replace_inflight_rejects_stale_value_without_creating_or_duplicating(self, redis, redis_queue):
+        redis_queue.publish("original")
+        receipt, elements = redis_queue.poll(1)
+
+        assert redis_queue.replace_inflight(receipt, elements[0], "newer")
+        assert not redis_queue.replace_inflight(receipt, elements[0], "stale-update")
+        assert redis.lrange(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX), 0, -1) == [b"newer"]
+
+    @pytest.mark.serial
+    def test_replace_inflight_does_not_recreate_acknowledged_receipt(self, redis, redis_queue):
+        redis_queue.publish("original")
+        receipt, elements = redis_queue.poll(1)
+        redis_queue.acknowledge(receipt)
+
+        assert not redis_queue.replace_inflight(receipt, elements[0], "replacement")
+        assert not redis.exists(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX))
+
+    @pytest.mark.serial
+    def test_replace_inflight_does_not_duplicate_message_moved_by_expiry(self, redis, redis_queue):
+        redis_queue.publish("original")
+        receipt, elements = redis_queue.poll(1)
+        inflight_name = Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX)
+        inbox_name = Buffer.INBOX.inbox_name(QNAME_SUFFIX)
+        redis.lpush(inbox_name, redis.lpop(inflight_name))
+        redis.delete(inflight_name)
+
+        assert not redis_queue.replace_inflight(receipt, elements[0], "replacement")
+        assert redis.lrange(inbox_name, 0, -1) == [b"original"]
+        assert not redis.exists(inflight_name)
+
+    @pytest.mark.serial
     def test_expire_inflights(self, redis, redis_queue):
         with self.given_inbox_with_many_indexes(redis, redis_queue):
             inbox_name = Buffer.INBOX.inbox_name(QNAME_SUFFIX)
@@ -429,13 +469,15 @@ class TestRedisQueue:
 
         script_one_move = object()
         script_one_expire = object()
+        script_one_replace = object()
         script_two_move = object()
         script_two_expire = object()
+        script_two_replace = object()
 
         redis_client_one = mock.Mock()
-        redis_client_one.register_script.side_effect = [script_one_move, script_one_expire]
+        redis_client_one.register_script.side_effect = [script_one_move, script_one_expire, script_one_replace]
         redis_client_two = mock.Mock()
-        redis_client_two.register_script.side_effect = [script_two_move, script_two_expire]
+        redis_client_two.register_script.side_effect = [script_two_move, script_two_expire, script_two_replace]
 
         queue_one.init_app(redis_client_one, metrics_logger)
         queue_two.init_app(redis_client_two, metrics_logger)
@@ -446,8 +488,10 @@ class TestRedisQueue:
         assert queue_one_scripts is not queue_two_scripts
         assert queue_one_scripts[RedisQueue.LUA_MOVE_TO_INFLIGHT] is script_one_move
         assert queue_one_scripts[RedisQueue.LUA_EXPIRE_INFLIGHTS] is script_one_expire
+        assert queue_one_scripts[RedisQueue.LUA_REPLACE_INFLIGHT] is script_one_replace
         assert queue_two_scripts[RedisQueue.LUA_MOVE_TO_INFLIGHT] is script_two_move
         assert queue_two_scripts[RedisQueue.LUA_EXPIRE_INFLIGHTS] is script_two_expire
+        assert queue_two_scripts[RedisQueue.LUA_REPLACE_INFLIGHT] is script_two_replace
 
 
 @pytest.mark.usefixtures("notify_api")

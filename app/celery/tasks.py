@@ -62,7 +62,7 @@ from app.dao.service_sms_sender_dao import dao_get_service_sms_senders_by_id
 from app.dao.services_dao import dao_fetch_service_by_id
 from app.dao.templates_dao import dao_get_template_by_id
 from app.email_limit_utils import fetch_todays_email_count
-from app.encryption import SignedNotification
+from app.encryption import SignedNotification, verify_notification
 from app.exceptions import DVLAException
 from app.models import (
     BULK,
@@ -310,7 +310,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
     saved_notifications: List[Notification] = []
     for signed_notification in signed_notifications:
         try:
-            _notification = signer_notification.verify(signed_notification)
+            _notification, _ = verify_notification(signer_notification, signed_notification)
         except BadSignature:
             current_app.logger.exception(f"Invalid signature for signed_notification {signed_notification}")
             raise
@@ -418,7 +418,7 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
 
     for signed_notification in signed_notifications:
         try:
-            _notification = signer_notification.verify(signed_notification)
+            _notification, _ = verify_notification(signer_notification, signed_notification)
         except BadSignature:
             current_app.logger.exception(f"Invalid signature for signed_notification {signed_notification}")
             raise
