@@ -349,7 +349,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
                 "key_type": _notification.get("key_type", KEY_TYPE_NORMAL),
                 "template_id": template.id,
                 "template_version": template.version,
-                "recipient": _notification.get("to"),
+                "recipient": _notification["to"],
                 "personalisation": _notification.get("personalisation"),
                 "notification_type": SMS_TYPE,  # type: ignore
                 "simulated": _notification.get("simulated", None),
@@ -461,7 +461,7 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
                 "key_type": _notification.get("key_type", KEY_TYPE_NORMAL),
                 "template_id": template.id,
                 "template_version": template.version,
-                "recipient": _notification.get("to"),
+                "recipient": _notification["to"],
                 "personalisation": _notification.get("personalisation"),
                 "notification_type": EMAIL_TYPE,  # type: ignore
                 "simulated": _notification.get("simulated", None),

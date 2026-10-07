@@ -19,7 +19,7 @@ class NotificationDictToSign(TypedDict):
     to: str  # recipient
     reply_to_text: NotRequired[str]
     personalisation: Optional[dict]
-    simulated: NotRequired[bool]
+    simulated: NotRequired[Optional[bool]]
     api_key: str
     key_type: str  # should be ApiKeyType but I can't import that here
     client_reference: Optional[str]
