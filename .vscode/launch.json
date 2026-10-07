@@ -12,12 +12,14 @@
             "name": "Python: Gunicorn",
             "type": "debugpy",
             "request": "launch",
+            "preLaunchTask": "aws-login",
             "program": "gunicorn",
             "gevent": true,
             "args": ["--config", "gunicorn_config.py", "application"],
             "env": {
                 "FLASK_APP": "application.py",
-                "FLASK_ENV": "development"
+                "FLASK_ENV": "development",
+                "AWS_PROFILE": "notify-staging"
             },
             "justMyCode": false,
             "console": "integratedTerminal"
@@ -26,10 +28,12 @@
             "name": "Python: Flask",
             "type": "debugpy",
             "request": "launch",
+            "preLaunchTask": "aws-login",
             "module": "flask",
             "env": {
                 "FLASK_APP": "application.py",
-                "FLASK_ENV": "development"
+                "FLASK_ENV": "development",
+                "AWS_PROFILE": "notify-staging"
             },
             "args": [
                 "run",
@@ -44,8 +48,12 @@
             "name": "Python: Celery",
             "type": "debugpy",
             "request": "launch",
+            "preLaunchTask": "aws-login",
             "python": "${command:python.interpreterPath}",
             "module": "celery",
+            "env": {
+                "AWS_PROFILE": "notify-staging"
+            },
             "console": "integratedTerminal",
             "justMyCode": false,
             "args": [
