@@ -727,3 +727,103 @@ def test_complaint_retry_logic():
     # Should return the complaint for retry since no notification was found
     assert len(complaints_to_retry) == 1
     assert complaints_to_retry[0]["mail"]["messageId"] == "missing-notification-id"
+
+
+class TestBatchSeedStateFixDoubleCounting:
+    """Tests for the fix that checks seed state once per service after the batch DB write,
+    preventing double-counting when multiple notifications in a batch trigger seeding."""
+
+    def test_batch_does_not_double_count_when_seeding_occurs(self, sample_email_template, notify_api, mocker):
+        """When seeding occurs for a batch of notifications, none of them should be individually incremented
+        because they are all already included in the seed."""
+        mock_increment_delivered = mocker.patch("app.annual_limit_client.increment_email_delivered")
+        mock_increment_failed = mocker.patch("app.annual_limit_client.increment_email_failed")
+        mocker.patch("app.annual_limit_client.get_all_notification_counts", return_value={})
+
+        # Simulate seeding occurring (did_we_seed=True) — this means all notifications
+        # in the batch were counted during the seed
+        mocker.patch(
+            "app.celery.process_ses_receipts_tasks.get_annual_limit_notifications_v3",
+            return_value=({}, True),
+        )
+
+        refs = []
+        for i in range(5):
+            ref = f"ref_batch_{i}"
+            save_notification(
+                create_notification(
+                    sample_email_template,
+                    reference=ref,
+                    sent_at=datetime.utcnow(),
+                    status="sending",
+                )
+            )
+            refs.append(ref)
+
+        with set_config(notify_api, "REDIS_ENABLED", True):
+            assert process_ses_results(generate_ses_notification_callbacks(references=refs))
+
+        # No individual increments should have occurred since seeding counted them all
+        mock_increment_delivered.assert_not_called()
+        mock_increment_failed.assert_not_called()
+
+    def test_batch_increments_each_notification_when_already_seeded(self, sample_email_template, notify_api, mocker):
+        """When already seeded (did_we_seed=False), each notification in the batch should be incremented."""
+        mock_increment_delivered = mocker.patch("app.annual_limit_client.increment_email_delivered")
+        mocker.patch("app.annual_limit_client.increment_email_failed")
+        mocker.patch("app.annual_limit_client.get_all_notification_counts", return_value={})
+
+        # Simulate already seeded (did_we_seed=False) — these notifications are NOT in the seed
+        mocker.patch(
+            "app.celery.process_ses_receipts_tasks.get_annual_limit_notifications_v3",
+            return_value=({}, False),
+        )
+
+        refs = []
+        for i in range(5):
+            ref = f"ref_incr_{i}"
+            save_notification(
+                create_notification(
+                    sample_email_template,
+                    reference=ref,
+                    sent_at=datetime.utcnow(),
+                    status="sending",
+                )
+            )
+            refs.append(ref)
+
+        with set_config(notify_api, "REDIS_ENABLED", True):
+            assert process_ses_results(generate_ses_notification_callbacks(references=refs))
+
+        # Each notification should be individually incremented
+        assert mock_increment_delivered.call_count == 5
+
+    def test_seed_state_checked_once_per_service(self, sample_email_template, notify_api, mocker):
+        """The seed state should be checked exactly once per service, not once per notification."""
+        mocker.patch("app.annual_limit_client.increment_email_delivered")
+        mocker.patch("app.annual_limit_client.increment_email_failed")
+        mocker.patch("app.annual_limit_client.get_all_notification_counts", return_value={})
+
+        mock_get_annual_limit = mocker.patch(
+            "app.celery.process_ses_receipts_tasks.get_annual_limit_notifications_v3",
+            return_value=({}, False),
+        )
+
+        refs = []
+        for i in range(5):
+            ref = f"ref_once_{i}"
+            save_notification(
+                create_notification(
+                    sample_email_template,
+                    reference=ref,
+                    sent_at=datetime.utcnow(),
+                    status="sending",
+                )
+            )
+            refs.append(ref)
+
+        with set_config(notify_api, "REDIS_ENABLED", True):
+            assert process_ses_results(generate_ses_notification_callbacks(references=refs))
+
+        # Should be called once for the service, not 5 times
+        mock_get_annual_limit.assert_called_once_with(sample_email_template.service_id)
