@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Build and push
     steps:
-    - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+    - uses: actions/checkout@main 
     - name: Install AWS CLI
       run: |
         curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
