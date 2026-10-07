@@ -1,8 +1,12 @@
 import inspect
 import json
+import logging
+from time import perf_counter
 from uuid import UUID
 
 from dogpile.cache import make_region
+
+logger = logging.getLogger(__name__)
 
 
 def _as_uuid_string(value):
@@ -120,19 +124,31 @@ def _get_redis_client_from_region():
 
 
 def invalidate_group_keys(group_name, group_id, batch_size=500, namespace=None):
+    started = perf_counter()
     ns = namespace or group_name
-    redis_client = _get_redis_client_from_region()
     # Grouped keys are generated as <namespace>:<group_id>:<function>:<fingerprint>
     prefix = f"{ns}:{group_id}:"
     cursor = 0
     deleted = 0
+    matched = 0
+    scans = 0
 
-    while True:
-        cursor, keys = redis_client.scan(cursor=cursor, match=f"{prefix}*", count=batch_size)
-        if keys:
-            deleted += redis_client.delete(*keys)
-        if cursor == 0:
-            break
+    try:
+        redis_client = _get_redis_client_from_region()
+        while True:
+            cursor, keys = redis_client.scan(cursor=cursor, match=f"{prefix}*", count=batch_size)
+            scans += 1
+            matched += len(keys)
+            if keys:
+                deleted += redis_client.delete(*keys)
+            if cursor == 0:
+                break
+    finally:
+        elapsed_ms = (perf_counter() - started) * 1000
+        logger.info(
+            f"cache.invalidate_group_keys namespace={ns} batch_size={batch_size} scans={scans} "
+            f"matched={matched} deleted={deleted} elapsed_ms={elapsed_ms:.2f}"
+        )
 
     return deleted
 
