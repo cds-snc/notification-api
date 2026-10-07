@@ -217,6 +217,21 @@ class RedisQueue(Queue):
         put_batch_saving_metric(self.__metrics_logger, self, 1)
 
     def replace_inflight(self, receipt: UUID, expected_signed_value: str, replacement_signed_value: str) -> bool:
+        """
+        Calls a LUA script to replace an in-flight notification in Redis when metadata is updated
+
+        For example:
+        1. Beat polls the inbox
+        2. Redis moves notification(s) to inflight
+        3. save_emails|save_smss receives the receipt and updates: enqueued_at, last_processed_at, and retry_count
+        4. The message is re-signed, preserving original values
+        5. Notification is saved to the DB
+
+        Args:
+            receipt (UUID): id of the inflight to replace
+            expected_signed_value (str): Signed string that a celery worker received from the in-flight list
+            replacement_signed_value (str): Newly signed envelope containing the same notification message but updated metadata
+        """
         inflight_name = Buffer.IN_FLIGHT.inflight_name(receipt, self._suffix, self._process_type)
         replace_script = self.__get_script(self.LUA_REPLACE_INFLIGHT)
         return bool(replace_script(args=[inflight_name, expected_signed_value, replacement_signed_value]))
