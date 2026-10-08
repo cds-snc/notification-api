@@ -271,7 +271,7 @@ class RedisQueue(Queue):
     def publish(self, message: str):
         if self._signer is not None:
             notification, envelope = verify_notification(self._signer, message)
-            if envelope is None:
+            if envelope is None and current_app.config.get("FF_QUEUE_MESSAGE_ENVELOPE", False):
                 signed_envelope = self._signer.sign(create_notification_envelope(notification))
                 message = signed_envelope.decode("utf-8") if isinstance(signed_envelope, bytes) else signed_envelope
         self._redis_client.rpush(self._inbox, message)
@@ -284,7 +284,7 @@ class RedisQueue(Queue):
         For example:
         1. Beat polls the inbox
         2. Redis moves notification(s) to inflight
-        3. save_emails|save_smss receives the receipt and updates: enqueued_at, last_processed_at, and retry_count
+        3. save_emails|save_smss receives the receipt and updates last_processed_at and retry_count
         4. The message is re-signed, preserving original values
         5. Notification is saved to the DB
 

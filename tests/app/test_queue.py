@@ -113,8 +113,9 @@ class TestRedisQueue:
 
     @pytest.mark.serial
     @freeze_time("2026-10-08 14:30:00")
-    def test_publish_wraps_and_signs_notification_at_enqueue_time(self, redis, enveloping_redis_queue):
+    def test_publish_wraps_and_signs_notification_at_enqueue_time(self, redis, enveloping_redis_queue, app):
         self.delete_all_list(redis)
+        app.config["FF_QUEUE_MESSAGE_ENVELOPE"] = True
         notification = self.notification()
 
         enveloping_redis_queue.publish(signer_notification.sign(notification))
@@ -129,8 +130,30 @@ class TestRedisQueue:
         }
 
     @pytest.mark.serial
-    def test_publish_preserves_existing_envelope_metadata(self, redis, enveloping_redis_queue):
+    @pytest.mark.parametrize("enabled", [None, False])
+    def test_publish_preserves_legacy_value_when_envelope_writing_is_disabled(self, redis, enveloping_redis_queue, app, enabled):
         self.delete_all_list(redis)
+        if enabled is None:
+            app.config.pop("FF_QUEUE_MESSAGE_ENVELOPE", None)
+        else:
+            app.config["FF_QUEUE_MESSAGE_ENVELOPE"] = enabled
+        signed_notification = signer_notification.sign(self.notification())
+
+        enveloping_redis_queue.publish(signed_notification)
+
+        stored = redis.lindex(Buffer.INBOX.inbox_name(QNAME_SUFFIX), 0)
+        assert stored.decode("utf-8") == signed_notification
+        _, envelope = verify_notification(signer_notification, stored)
+        assert envelope is None
+
+    def test_envelope_writing_is_disabled_by_default(self, app):
+        assert app.config["FF_QUEUE_MESSAGE_ENVELOPE"] is False
+
+    @pytest.mark.serial
+    @pytest.mark.parametrize("enabled", [False, True])
+    def test_publish_preserves_existing_envelope_metadata(self, redis, enveloping_redis_queue, app, enabled):
+        self.delete_all_list(redis)
+        app.config["FF_QUEUE_MESSAGE_ENVELOPE"] = enabled
         envelope = create_notification_envelope(
             self.notification(), enqueued_at=datetime(2026, 10, 7, 14, 30, tzinfo=timezone.utc)
         )
