@@ -4,6 +4,11 @@
 	"service": "notify-api",
 	"workspaceFolder": "/workspace",
 	"shutdownAction": "stopCompose",
+	"mounts": [
+		"source=notification-api-aws-home-v2,target=/home/vscode/.aws,type=volume",
+		"source=${localEnv:HOME}/.aws/config,target=/home/vscode/.aws/config,type=bind,readonly",
+		"source=notification-api-aws-sso-cache-v2,target=/home/vscode/.aws/sso/cache,type=volume"
+	],
 	"remoteEnv": {
 		"PATH": "/home/vscode/.local/bin:${containerEnv:PATH}" // give our installed Python modules precedence
 	},
@@ -57,5 +62,6 @@
 		"ghcr.io/devcontainers/features/node:1": {}
 	},
 	"postCreateCommand": "bash /workspace/.devcontainer/scripts/notify-dev-entrypoint.sh",
+	"postStartCommand": "sudo install -d -o vscode -g vscode /home/vscode/.aws/cli /home/vscode/.aws/sso/cache",
 	"remoteUser": "vscode"
 }
