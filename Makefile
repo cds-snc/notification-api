@@ -6,6 +6,8 @@ APP_VERSION_FILE = app/version.py
 
 GIT_BRANCH ?= $(shell git symbolic-ref --short HEAD 2> /dev/null || echo "detached")
 GIT_COMMIT ?= $(shell git rev-parse HEAD)
+AWS_PROFILE ?= notify-staging
+AWS_CLI ?= /usr/local/bin/aws
 
 .PHONY: help
 help:
@@ -58,9 +60,21 @@ smoke-test-dev:
 smoke-test-local:
 	cd tests_smoke && poetry run python smoke_test.py --local --nofiles
 
+.PHONY: aws-login
+aws-login: ## Log in to AWS SSO for local staging development
+	@test -x "$(AWS_CLI)" || (echo "AWS CLI v2 is required; rebuild the dev container"; exit 1)
+	@"$(AWS_CLI)" --version 2>&1 | grep -q 'aws-cli/2\.' || (echo "AWS CLI v2 is required; rebuild the dev container"; exit 1)
+	@if identity_output=$$("$(AWS_CLI)" sts get-caller-identity --profile "$(AWS_PROFILE)" 2>&1); then \
+		echo "AWS SSO session already active for $(AWS_PROFILE)"; \
+	else \
+		printf '%s\n' "$$identity_output"; \
+		echo "AWS SSO session missing or expired; starting login"; \
+		"$(AWS_CLI)" sso login --profile "$(AWS_PROFILE)"; \
+	fi
+
 .PHONY: run
-run: ## Run the web app
-	poetry run flask run -p 6011 --host=0.0.0.0
+run: aws-login ## Run the web app with the staging AWS SSO profile
+	AWS_PROFILE="$(AWS_PROFILE)" poetry run flask run -p 6011 --host=0.0.0.0
 
 .PHONY: run-celery-local
 run-celery-local: ## Run the celery workers with all the queues
