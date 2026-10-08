@@ -1,9 +1,10 @@
 import random
 import string
 from abc import ABC, abstractmethod
+from datetime import datetime, timezone
 from enum import Enum
 from threading import Lock
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, TypedDict, cast
 from uuid import UUID, uuid4
 
 from flask import current_app
@@ -16,6 +17,60 @@ from app.aws.metrics import (
     put_batch_saving_metric,
 )
 from app.aws.metrics_logger import MetricsLogger
+from app.encryption import CryptoSigner, NotificationDictToSign
+
+
+class NotificationEnvelope(TypedDict):
+    message: NotificationDictToSign
+    metadata: Dict[str, Any]
+
+
+def _utc_isoformat(value: datetime) -> str:
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def create_notification_envelope(
+    message: NotificationDictToSign, *, enqueued_at: Optional[datetime] = None
+) -> NotificationEnvelope:
+    return {
+        "message": message.copy(),
+        "metadata": {
+            "enqueued_at": _utc_isoformat(enqueued_at or datetime.now(timezone.utc)),
+            "last_processed_at": None,
+            "retry_count": 0,
+        },
+    }
+
+
+def update_notification_envelope(
+    envelope: NotificationEnvelope,
+    *,
+    last_processed_at: Optional[datetime] = None,
+    retry_count: Optional[int] = None,
+) -> NotificationEnvelope:
+    metadata = envelope["metadata"].copy()
+    if last_processed_at is not None:
+        metadata["last_processed_at"] = _utc_isoformat(last_processed_at)
+    if retry_count is not None:
+        metadata["retry_count"] = retry_count
+    return {"message": envelope["message"].copy(), "metadata": metadata}
+
+
+def verify_notification(
+    signer: CryptoSigner, signed_notification: str | bytes
+) -> tuple[NotificationDictToSign, Optional[NotificationEnvelope]]:
+    verified = signer.verify(signed_notification)
+    if (
+        isinstance(verified, dict)
+        and set(verified) == {"message", "metadata"}
+        and isinstance(verified["message"], dict)
+        and isinstance(verified["metadata"], dict)
+    ):
+        envelope = cast(NotificationEnvelope, verified)
+        return envelope["message"], envelope
+    return cast(NotificationDictToSign, verified), None
 
 
 def generate_element(length=10) -> str:
@@ -111,6 +166,11 @@ class Queue(ABC):
         """
         pass
 
+    @abstractmethod
+    def replace_inflight(self, receipt: UUID, expected_signed_value: str, replacement_signed_value: str) -> bool:
+        """Atomically replace an in-flight value if the expected value is still present."""
+        pass
+
 
 # TODO: Check if we want to move the queue API and implementations into the utils project.
 class RedisQueue(Queue):
@@ -118,6 +178,7 @@ class RedisQueue(Queue):
 
     LUA_MOVE_TO_INFLIGHT = "move-in-inflight"
     LUA_EXPIRE_INFLIGHTS = "expire-inflights"
+    LUA_REPLACE_INFLIGHT = "replace-inflight"
     MAX_POLL_COUNT = 10
 
     # A batch polled here ends up as the args of a `save_emails`/`save_smss` celery task sent
@@ -154,10 +215,11 @@ class RedisQueue(Queue):
         self._scripts: Dict[str, Any] = {}
         self._scripts_lock = Lock()
 
-    def init_app(self, redis: Redis, metrics_logger: MetricsLogger):
+    def init_app(self, redis: Redis, metrics_logger: MetricsLogger, signer: Optional[CryptoSigner] = None):
         self._redis_client = redis
         self.__register_scripts()
         self.__metrics_logger = metrics_logger
+        self._signer = signer
 
     def poll(self, count=10) -> tuple[UUID, list[str]]:
         receipt = uuid4()
@@ -207,8 +269,33 @@ class RedisQueue(Queue):
         return True
 
     def publish(self, message: str):
+        if self._signer is not None:
+            notification, envelope = verify_notification(self._signer, message)
+            if envelope is None and current_app.config.get("FF_QUEUE_MESSAGE_ENVELOPE", False):
+                signed_envelope = self._signer.sign(create_notification_envelope(notification))
+                message = signed_envelope.decode("utf-8") if isinstance(signed_envelope, bytes) else signed_envelope
         self._redis_client.rpush(self._inbox, message)
         put_batch_saving_metric(self.__metrics_logger, self, 1)
+
+    def replace_inflight(self, receipt: UUID, expected_signed_value: str, replacement_signed_value: str) -> bool:
+        """
+        Calls a LUA script to replace an in-flight notification in Redis when metadata is updated
+
+        For example:
+        1. Beat polls the inbox
+        2. Redis moves notification(s) to inflight
+        3. save_emails|save_smss receives the receipt and updates last_processed_at and retry_count
+        4. The message is re-signed, preserving original values
+        5. Notification is saved to the DB
+
+        Args:
+            receipt (UUID): id of the inflight to replace
+            expected_signed_value (str): Signed string that a celery worker received from the in-flight list
+            replacement_signed_value (str): Newly signed envelope containing the same notification message but updated metadata
+        """
+        inflight_name = Buffer.IN_FLIGHT.inflight_name(receipt, self._suffix, self._process_type)
+        replace_script = self.__get_script(self.LUA_REPLACE_INFLIGHT)
+        return bool(replace_script(args=[inflight_name, expected_signed_value, replacement_signed_value]))
 
     def __move_to_inflight(self, in_flight_key: str, count: int) -> list[str]:
         move_script = self.__get_script(self.LUA_MOVE_TO_INFLIGHT)
@@ -294,6 +381,24 @@ class RedisQueue(Queue):
                 """
             )
 
+            self._scripts[self.LUA_REPLACE_INFLIGHT] = self._redis_client.register_script(
+                """
+            local inflight    = ARGV[1]
+            local expected    = ARGV[2]
+            local replacement = ARGV[3]
+            local elements    = redis.call("LRANGE", inflight, 0, -1)
+
+            for index, element in ipairs(elements) do
+                if element == expected then
+                    redis.call("LSET", inflight, index - 1, replacement)
+                    return 1
+                end
+            end
+
+            return 0
+                """
+            )
+
 
 class MockQueue(Queue):
     """Implementation of a queue that spits out randomly generated elements.
@@ -309,3 +414,6 @@ class MockQueue(Queue):
 
     def publish(self, message: str):
         pass
+
+    def replace_inflight(self, receipt: UUID, expected_signed_value: str, replacement_signed_value: str) -> bool:
+        return False
