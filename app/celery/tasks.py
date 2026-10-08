@@ -62,7 +62,7 @@ from app.dao.service_sms_sender_dao import dao_get_service_sms_senders_by_id
 from app.dao.services_dao import dao_fetch_service_by_id
 from app.dao.templates_dao import dao_get_template_by_id
 from app.email_limit_utils import fetch_todays_email_count
-from app.encryption import SignedNotification, verify_notification
+from app.encryption import SignedNotification
 from app.exceptions import DVLAException
 from app.models import (
     BULK,
@@ -87,6 +87,7 @@ from app.notifications.process_notifications import (
     persist_notifications,
     send_notification_to_queue,
 )
+from app.queue import verify_notification
 from app.report.utils import generate_csv_from_notifications, send_requested_report_ready
 from app.sms_fragment_utils import fetch_todays_requested_sms_count
 from app.types import VerifiedNotification

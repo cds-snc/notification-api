@@ -1,9 +1,10 @@
 import random
 import string
 from abc import ABC, abstractmethod
+from datetime import datetime, timezone
 from enum import Enum
 from threading import Lock
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, TypedDict, cast
 from uuid import UUID, uuid4
 
 from flask import current_app
@@ -16,6 +17,60 @@ from app.aws.metrics import (
     put_batch_saving_metric,
 )
 from app.aws.metrics_logger import MetricsLogger
+from app.encryption import CryptoSigner, NotificationDictToSign
+
+
+class NotificationEnvelope(TypedDict):
+    message: NotificationDictToSign
+    metadata: Dict[str, Any]
+
+
+def _utc_isoformat(value: datetime) -> str:
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def create_notification_envelope(
+    message: NotificationDictToSign, *, enqueued_at: Optional[datetime] = None
+) -> NotificationEnvelope:
+    return {
+        "message": message.copy(),
+        "metadata": {
+            "enqueued_at": _utc_isoformat(enqueued_at or datetime.now(timezone.utc)),
+            "last_processed_at": None,
+            "retry_count": 0,
+        },
+    }
+
+
+def update_notification_envelope(
+    envelope: NotificationEnvelope,
+    *,
+    last_processed_at: Optional[datetime] = None,
+    retry_count: Optional[int] = None,
+) -> NotificationEnvelope:
+    metadata = envelope["metadata"].copy()
+    if last_processed_at is not None:
+        metadata["last_processed_at"] = _utc_isoformat(last_processed_at)
+    if retry_count is not None:
+        metadata["retry_count"] = retry_count
+    return {"message": envelope["message"].copy(), "metadata": metadata}
+
+
+def verify_notification(
+    signer: CryptoSigner, signed_notification: str | bytes
+) -> tuple[NotificationDictToSign, Optional[NotificationEnvelope]]:
+    verified = signer.verify(signed_notification)
+    if (
+        isinstance(verified, dict)
+        and set(verified) == {"message", "metadata"}
+        and isinstance(verified["message"], dict)
+        and isinstance(verified["metadata"], dict)
+    ):
+        envelope = cast(NotificationEnvelope, verified)
+        return envelope["message"], envelope
+    return cast(NotificationDictToSign, verified), None
 
 
 def generate_element(length=10) -> str:
@@ -160,10 +215,11 @@ class RedisQueue(Queue):
         self._scripts: Dict[str, Any] = {}
         self._scripts_lock = Lock()
 
-    def init_app(self, redis: Redis, metrics_logger: MetricsLogger):
+    def init_app(self, redis: Redis, metrics_logger: MetricsLogger, signer: Optional[CryptoSigner] = None):
         self._redis_client = redis
         self.__register_scripts()
         self.__metrics_logger = metrics_logger
+        self._signer = signer
 
     def poll(self, count=10) -> tuple[UUID, list[str]]:
         receipt = uuid4()
@@ -213,6 +269,11 @@ class RedisQueue(Queue):
         return True
 
     def publish(self, message: str):
+        if self._signer is not None:
+            notification, envelope = verify_notification(self._signer, message)
+            if envelope is None:
+                signed_envelope = self._signer.sign(create_notification_envelope(notification))
+                message = signed_envelope.decode("utf-8") if isinstance(signed_envelope, bytes) else signed_envelope
         self._redis_client.rpush(self._inbox, message)
         put_batch_saving_metric(self.__metrics_logger, self, 1)
 

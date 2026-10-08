@@ -1,15 +1,26 @@
 import time
 from contextlib import contextmanager
+from datetime import datetime, timezone
 from unittest import mock
 from uuid import uuid4
 
 import pytest
 from flask import Flask
+from freezegun import freeze_time
+from itsdangerous import BadSignature
 from pytest_mock_resources import create_redis_fixture
 
-from app import create_app, flask_redis, metrics_logger
+from app import create_app, flask_redis, metrics_logger, signer_notification
 from app.config import Config, Test
-from app.queue import Buffer, MockQueue, RedisQueue, generate_element
+from app.queue import (
+    Buffer,
+    MockQueue,
+    RedisQueue,
+    create_notification_envelope,
+    generate_element,
+    update_notification_envelope,
+    verify_notification,
+)
 
 redis = create_redis_fixture(scope="function")
 REDIS_ELEMENTS_COUNT = 123
@@ -78,6 +89,92 @@ class TestRedisQueue:
         q = RedisQueue(QNAME_SUFFIX, expire_inflight_after_seconds=1, process_type=PROCESS_TYPE)
         q.init_app(flask_redis, metrics_logger)
         return q
+
+    @pytest.fixture()
+    def enveloping_redis_queue(self, app):
+        q = RedisQueue(QNAME_SUFFIX, expire_inflight_after_seconds=1)
+        q.init_app(flask_redis, metrics_logger, signer_notification)
+        return q
+
+    @staticmethod
+    def notification():
+        return {
+            "template": "template-id",
+            "template_version": 1,
+            "to": "test@example.com",
+            "personalisation": None,
+            "api_key": "api-key-id",
+            "key_type": "normal",
+            "queue": None,
+            "sender_id": None,
+            "client_reference": None,
+            "row_number": None,
+        }
+
+    @pytest.mark.serial
+    @freeze_time("2026-10-08 14:30:00")
+    def test_publish_wraps_and_signs_notification_at_enqueue_time(self, redis, enveloping_redis_queue):
+        self.delete_all_list(redis)
+        notification = self.notification()
+
+        enveloping_redis_queue.publish(signer_notification.sign(notification))
+
+        stored = redis.lindex(Buffer.INBOX.inbox_name(QNAME_SUFFIX), 0)
+        message, envelope = verify_notification(signer_notification, stored)
+        assert message == notification
+        assert envelope["metadata"] == {
+            "enqueued_at": "2026-10-08T14:30:00Z",
+            "last_processed_at": None,
+            "retry_count": 0,
+        }
+
+    @pytest.mark.serial
+    def test_publish_preserves_existing_envelope_metadata(self, redis, enveloping_redis_queue):
+        self.delete_all_list(redis)
+        envelope = create_notification_envelope(
+            self.notification(), enqueued_at=datetime(2026, 10, 7, 14, 30, tzinfo=timezone.utc)
+        )
+        signed_envelope = signer_notification.sign(envelope)
+
+        enveloping_redis_queue.publish(signed_envelope)
+
+        stored = redis.lindex(Buffer.INBOX.inbox_name(QNAME_SUFFIX), 0)
+        assert stored.decode("utf-8") == signed_envelope
+
+    @pytest.mark.serial
+    def test_publish_rejects_invalid_signature(self, redis, enveloping_redis_queue):
+        self.delete_all_list(redis)
+
+        with pytest.raises(BadSignature):
+            enveloping_redis_queue.publish("not-a-signed-notification")
+
+        assert not redis.exists(Buffer.INBOX.inbox_name(QNAME_SUFFIX))
+
+    def test_notification_envelope_round_trip_preserves_unknown_metadata(self):
+        envelope = create_notification_envelope(
+            self.notification(), enqueued_at=datetime(2026, 10, 7, 14, 30, tzinfo=timezone.utc)
+        )
+        envelope["metadata"]["future_attribute"] = {"nested": [1, True, None]}
+
+        updated = update_notification_envelope(
+            envelope,
+            last_processed_at=datetime(2026, 10, 7, 14, 35, tzinfo=timezone.utc),
+            retry_count=1,
+        )
+        message, verified_envelope = verify_notification(signer_notification, signer_notification.sign(updated))
+
+        assert message == envelope["message"]
+        assert verified_envelope == updated
+        assert verified_envelope["metadata"]["future_attribute"] == {"nested": [1, True, None]}
+        assert envelope["metadata"]["last_processed_at"] is None
+
+    def test_verify_notification_accepts_legacy_signed_dictionary(self):
+        notification = self.notification()
+
+        message, envelope = verify_notification(signer_notification, signer_notification.sign(notification))
+
+        assert message == notification
+        assert envelope is None
 
     @contextmanager
     def given_inbox_with_one_element(self, redis, redis_queue):
