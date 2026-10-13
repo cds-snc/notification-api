@@ -77,12 +77,12 @@ run: aws-login ## Run the web app with the staging AWS SSO profile
 	AWS_PROFILE="$(AWS_PROFILE)" poetry run flask run -p 6011 --host=0.0.0.0
 
 .PHONY: run-celery-local
-run-celery-local: ## Run the celery workers with all the queues
-	poetry run ./scripts/run_celery_local.sh
+run-celery-local: aws-login ## Run the celery workers with all the queues
+	AWS_PROFILE="$(AWS_PROFILE)" poetry run ./scripts/run_celery_local.sh
 
 .PHONY: run-celery-local-filtered
-run-celery-local-filtered: ## Run the celery workers with all queues but filter out common scheduled tasks
-	poetry run ./scripts/run_celery_local.sh 2>&1 >/dev/null | grep -iEv 'beat|in-flight-to-inbox|run-scheduled-jobs|check-job-status'
+run-celery-local-filtered: aws-login ## Run the celery workers with all queues but filter out common scheduled tasks
+	AWS_PROFILE="$(AWS_PROFILE)" poetry run ./scripts/run_celery_local.sh 2>&1 >/dev/null | grep -iEv 'beat|in-flight-to-inbox|run-scheduled-jobs|check-job-status'
 
 .PHONY: run-celery-purge
 run-celery-purge: ## Purge the celery queues
