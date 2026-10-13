@@ -22,6 +22,23 @@ class TestPatchTemplateFolderV2:
         data = json.loads(response.get_data(as_text=True))
         assert data["name"] == "new name"
 
+    def test_rename_folder_returns_400_for_whitespace_only_name(
+        self, client, sample_service, create_api_key_with_manage_api_perm
+    ):
+        folder = create_template_folder(sample_service, name="old name")
+        auth_header = create_authorization_header(api_key=create_api_key_with_manage_api_perm)
+
+        response = client.patch(
+            f"/v2/manage-template-folder/{folder.id}",
+            data=json.dumps({"name": "   "}),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+
+        assert response.status_code == 400
+        data = json.loads(response.get_data(as_text=True))
+        assert data["errors"][0]["message"] == "name cannot be empty"
+        assert dao_get_template_folder_by_id_and_service_id(folder.id, sample_service.id).name == "old name"
+
     def test_move_folder_into_parent(self, client, sample_service, create_api_key_with_manage_api_perm):
         parent = create_template_folder(sample_service, name="parent")
         folder = create_template_folder(sample_service, name="child")

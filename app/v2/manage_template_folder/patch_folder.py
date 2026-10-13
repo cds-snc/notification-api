@@ -29,7 +29,10 @@ def patch_manage_template_folder(template_folder_id):
     folder = dao_get_template_folder_by_id_and_service_id(template_folder_id, authenticated_service.id)
 
     if "name" in data:
-        folder.name = data["name"].strip()
+        name = data["name"].strip()
+        if not name:
+            raise BadRequestError(message="name cannot be empty")
+        folder.name = name
 
     if "parent_folder_id" in data:
         folder.parent = _validated_parent_folder(folder, data["parent_folder_id"])
