@@ -1,7 +1,7 @@
 from flask import jsonify, request
 from sqlalchemy.orm.exc import NoResultFound
 
-from app import api_user, authenticated_service
+from app import api_user, authenticated_service, redis_store
 from app.dao.template_folder_dao import (
     dao_get_template_folder_by_id_and_service_id,
     dao_update_template_folder,
@@ -38,6 +38,7 @@ def patch_manage_template_folder(template_folder_id):
         folder.parent = _validated_parent_folder(folder, data["parent_folder_id"])
 
     dao_update_template_folder(folder)
+    redis_store.delete(f"service-{authenticated_service.id}-template-folders")
 
     return jsonify(_serialize_folder(folder)), 200
 
