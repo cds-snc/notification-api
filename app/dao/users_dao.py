@@ -122,7 +122,6 @@ def get_user_by_id(user_id=None) -> User:
     return User.query.filter_by().all()
 
 
-@log_execution_time
 @cache_on_arguments(namespace="user", group_by="user_id")
 def dao_get_user_by_id_cached(user_id) -> dict:
     """Return a JSON-safe cached representation of a single user."""
