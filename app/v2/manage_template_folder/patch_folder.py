@@ -35,7 +35,10 @@ def patch_manage_template_folder(template_folder_id):
         folder.name = name
 
     if "parent_folder_id" in data:
-        folder.parent = _validated_parent_folder(folder, data["parent_folder_id"])
+        new_parent = _validated_parent_folder(folder, data["parent_folder_id"])
+        folder.parent = new_parent
+        if new_parent is not None:
+            _restrict_users_to_parent_access(folder, new_parent.users)
 
     dao_update_template_folder(folder)
     redis_store.delete(f"service-{authenticated_service.id}-template-folders")
@@ -59,3 +62,10 @@ def _validated_parent_folder(folder, parent_folder_id):
         raise BadRequestError(message="You cannot move a folder to one of its subfolders")
 
     return target_folder
+
+
+def _restrict_users_to_parent_access(folder, parent_users):
+    # A moved folder (and its subfolders) must not be visible to users who cannot access the new parent.
+    folder.users = [user for user in folder.users if user in parent_users]
+    for subfolder in folder.subfolders:
+        _restrict_users_to_parent_access(subfolder, folder.users)
