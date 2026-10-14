@@ -1,6 +1,6 @@
 from flask import jsonify
 
-from app import api_user, authenticated_service
+from app import api_user, authenticated_service, redis_store
 from app.dao.template_folder_dao import (
     dao_delete_template_folder,
     dao_get_template_folder_by_id_and_service_id,
@@ -27,5 +27,6 @@ def delete_manage_template_folder(template_folder_id):
 
     serialized = _serialize_folder(folder)
     dao_delete_template_folder(folder)
+    redis_store.delete(f"service-{authenticated_service.id}-template-folders")
 
     return jsonify(serialized), 200

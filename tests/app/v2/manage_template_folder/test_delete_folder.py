@@ -26,6 +26,21 @@ class TestDeleteTemplateFolderV2:
         with pytest.raises(NoResultFound):
             dao_get_template_folder_by_id_and_service_id(folder.id, sample_service.id)
 
+    def test_delete_folder_invalidates_template_folders_cache(
+        self, client, mocker, sample_service, create_api_key_with_manage_api_perm
+    ):
+        mock_redis_delete = mocker.patch("app.v2.manage_template_folder.delete_folder.redis_store.delete")
+        folder = create_template_folder(sample_service, name="to delete")
+        auth_header = create_authorization_header(api_key=create_api_key_with_manage_api_perm)
+
+        response = client.delete(
+            f"/v2/manage-template-folder/{folder.id}",
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+
+        assert response.status_code == 200
+        mock_redis_delete.assert_called_once_with(f"service-{sample_service.id}-template-folders")
+
     def test_delete_folder_with_subfolder_returns_400(self, client, sample_service, create_api_key_with_manage_api_perm):
         parent = create_template_folder(sample_service, name="parent")
         create_template_folder(sample_service, name="child", parent=parent)
