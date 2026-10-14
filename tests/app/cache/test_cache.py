@@ -3,6 +3,7 @@ from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import call
 from uuid import UUID
 
+import pytest
 from dogpile.cache import make_region
 from dogpile.cache.api import NO_VALUE
 from tests.app.db import create_service, create_template, create_user
@@ -45,6 +46,63 @@ def _make_memory_region(expiration_time=600):
         "dogpile.cache.memory",
         expiration_time=expiration_time,
     )
+
+
+class TestCacheAccessLogging:
+    def test_logs_regeneration_and_cache_reuse(self, mocker):
+        mocker.patch("app.caching.dogpile_region", _make_memory_region())
+        mocker.patch("app.caching.perf_counter", side_effect=[10, 10.01234, 20, 20.001])
+        logger = mocker.patch("app.caching.logger")
+        creator_calls = []
+
+        @cache_on_arguments(namespace="service", group_by="service_id")
+        def fetch(service_id):
+            creator_calls.append(service_id)
+            return {"id": service_id}
+
+        assert fetch("abc-123") == {"id": "abc-123"}
+        assert fetch(service_id="abc-123") == {"id": "abc-123"}
+        assert creator_calls == ["abc-123"]
+        assert fetch.__name__ == "fetch"
+        function = f"{fetch.__module__}.{fetch.__qualname__}"
+        assert logger.info.call_args_list == [
+            call(
+                f"dao.execution_time function={function} elapsed_ms=12.34 "
+                "cache_namespace=service cache_outcome=regenerated"
+            ),
+            call(
+                f"dao.execution_time function={function} elapsed_ms=1.00 "
+                "cache_namespace=service cache_outcome=reused"
+            ),
+        ]
+        fetch.invalidate("abc-123")
+        assert fetch.get("abc-123") is NO_VALUE
+
+    def test_logs_error_and_recovers_on_next_call(self, mocker):
+        mocker.patch("app.caching.dogpile_region", _make_memory_region())
+        mocker.patch("app.caching.perf_counter", side_effect=[10, 10.002, 20, 20.003])
+        logger = mocker.patch("app.caching.logger")
+
+        @cache_on_arguments(namespace="service", group_by="service_id")
+        def fetch(service_id):
+            if service_id == "failed":
+                raise ValueError("failed")
+            return {"id": service_id}
+
+        with pytest.raises(ValueError, match="failed"):
+            fetch("failed")
+        assert fetch("abc-123") == {"id": "abc-123"}
+        function = f"{fetch.__module__}.{fetch.__qualname__}"
+        assert logger.info.call_args_list == [
+            call(
+                f"dao.execution_time function={function} elapsed_ms=2.00 "
+                "cache_namespace=service cache_outcome=error"
+            ),
+            call(
+                f"dao.execution_time function={function} elapsed_ms=3.00 "
+                "cache_namespace=service cache_outcome=regenerated"
+            ),
+        ]
 
 
 class TestCacheEvents:

@@ -199,7 +199,6 @@ def dao_fetch_live_services_data():
     return results
 
 
-@log_execution_time
 @cache_on_arguments(namespace="service", group_by="service_id")
 def dao_fetch_service_by_id_cached(service_id: str, only_active=False) -> dict:
     """Dogpile cached version of fetching a service by id"""

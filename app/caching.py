@@ -1,6 +1,8 @@
 import inspect
 import json
 import logging
+from contextvars import ContextVar
+from functools import wraps
 from time import perf_counter
 from uuid import UUID
 
@@ -173,7 +175,36 @@ def cache_on_arguments(*, namespace, group_by):
 
     def decorate(fn):
         fn.__cache_group__ = (namespace, group_by)
-        return dogpile_region.cache_on_arguments(namespace=namespace)(fn)
+        invocation: ContextVar[dict[str, bool] | None] = ContextVar(f"cache_access_{namespace}_{fn.__name__}", default=None)
+
+        @wraps(fn)
+        def creator(*args, **kwargs):
+            state = invocation.get()
+            if state is not None:
+                state["creator_executed"] = True
+            return fn(*args, **kwargs)
+
+        cached_fn = dogpile_region.cache_on_arguments(namespace=namespace)(creator)
+
+        @wraps(cached_fn)
+        def wrapper(*args, **kwargs):
+            state = {"creator_executed": False}
+            token = invocation.set(state)
+            started = perf_counter()
+            outcome = "error"
+            try:
+                result = cached_fn(*args, **kwargs)
+                outcome = "regenerated" if state["creator_executed"] else "reused"
+                return result
+            finally:
+                elapsed_ms = (perf_counter() - started) * 1000
+                invocation.reset(token)
+                logger.info(
+                    f"dao.execution_time function={fn.__module__}.{fn.__qualname__} elapsed_ms={elapsed_ms:.2f} "
+                    f"cache_namespace={namespace} cache_outcome={outcome}"
+                )
+
+        return wrapper
 
     return decorate
 
