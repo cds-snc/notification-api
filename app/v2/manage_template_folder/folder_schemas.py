@@ -19,3 +19,14 @@ post_manage_template_folder_request = {
     "required": ["name"],
     "additionalProperties": False,
 }
+
+patch_manage_template_folder_request = {
+    "$schema": "http://json-schema.org/draft-04/schema#",
+    "description": "PATCH schema for renaming or moving a manage template folder",
+    "type": "object",
+    "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "parent_folder_id": nullable_uuid,
+    },
+    "additionalProperties": False,
+}

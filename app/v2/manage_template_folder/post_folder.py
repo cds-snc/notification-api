@@ -1,7 +1,7 @@
 from flask import jsonify, request
 from sqlalchemy.orm.exc import NoResultFound
 
-from app import api_user, authenticated_service
+from app import api_user, authenticated_service, redis_store
 from app.dao.service_user_dao import dao_get_active_service_users
 from app.dao.template_folder_dao import (
     dao_create_template_folder,
@@ -46,5 +46,6 @@ def post_manage_template_folder():
     )
 
     dao_create_template_folder(folder)
+    redis_store.delete(f"service-{authenticated_service.id}-template-folders")
 
     return jsonify(_serialize_folder(folder)), 201
