@@ -1254,6 +1254,444 @@ paths:
         - apiKey: []
 
 
+  /v2/manage-template-folder:
+    get:
+      summary: Get all template folders
+      description: |
+        Retrieve all template folders for the service.
+
+        This endpoint requires a NEW API key with the manage_templates permission.
+      operationId: getManageTemplateFolders
+      tags:
+        - Manage Template Folders
+      responses:
+        '200':
+          description: Template folders retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManageTemplateFoldersResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '403':
+          description: Forbidden - NEW API key missing required manage_templates permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                missing_permission:
+                  summary: Missing manage templates permission
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "ForbiddenError"
+                        message: "This API key does not have permission to manage templates."
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+      security:
+        - apiKey: []
+
+    post:
+      summary: Create a template folder
+      description: |
+        Create a new template folder, either at the root of the service or inside a parent folder.
+
+        Root folders are shared with all active users on the service. Subfolders inherit user access from their parent folder.
+
+        This endpoint requires a NEW API key with the manage_templates permission.
+      operationId: postManageTemplateFolder
+      tags:
+        - Manage Template Folders
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ManageTemplateFolderPostRequest'
+            examples:
+              create_root_folder:
+                summary: Create a folder at the root of the service
+                value:
+                  name: "Appointment reminders"
+              create_subfolder:
+                summary: Create a folder inside another folder
+                value:
+                  name: "January reminders"
+                  parent_folder_id: "87654321-4321-4321-4321-210987654321"
+      responses:
+        '201':
+          description: Template folder created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManageTemplateFolder'
+        '400':
+          description: Bad request - validation errors or parent folder not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                missing_name:
+                  summary: Required field missing
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "name is a required property"
+                empty_name:
+                  summary: Folder name is empty
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "name cannot be empty"
+                invalid_parent_folder_id:
+                  summary: Invalid parent folder ID format
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "parent_folder_id is not a valid UUID"
+                parent_folder_not_found:
+                  summary: Parent folder not found
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "parent_folder_id not found"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '403':
+          description: Forbidden - NEW API key missing required manage_templates permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                missing_permission:
+                  summary: Missing manage templates permission
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "ForbiddenError"
+                        message: "This API key does not have permission to manage templates."
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+      security:
+        - apiKey: []
+
+
+  /v2/manage-template-folder/{template-folder-id}:
+    get:
+      summary: Get template folder by ID
+      description: |
+        Retrieve a specific template folder by ID.
+
+        This endpoint requires a NEW API key with the manage_templates permission.
+      operationId: getManageTemplateFolderById
+      tags:
+        - Manage Template Folders
+      parameters:
+        - name: template-folder-id
+          in: path
+          description: Unique identifier for the template folder
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '200':
+          description: Template folder retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManageTemplateFolder'
+        '400':
+          description: Bad request - invalid template folder ID format
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 400
+                errors:
+                  - error: "ValidationError"
+                    message: "id is not a valid UUID"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '403':
+          description: Forbidden - NEW API key missing required manage_templates permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                missing_permission:
+                  summary: Missing manage templates permission
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "ForbiddenError"
+                        message: "This API key does not have permission to manage templates."
+        '404':
+          description: Template folder not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 404
+                errors:
+                  - error: "NoResultFound"
+                    message: "No result found"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+      security:
+        - apiKey: []
+
+    patch:
+      summary: Update a template folder
+      description: |
+        Rename a template folder and/or move it to a different parent folder. Set parent_folder_id to null to move the folder to the root of the service.
+
+        When a folder is moved into a parent folder, it and its subfolders are only visible to users who also have access to the new parent folder.
+
+        This endpoint requires a NEW API key with the manage_templates permission.
+      operationId: patchManageTemplateFolder
+      tags:
+        - Manage Template Folders
+      parameters:
+        - name: template-folder-id
+          in: path
+          description: Unique identifier for the template folder
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ManageTemplateFolderPatchRequest'
+            examples:
+              rename_folder:
+                summary: Rename a folder
+                value:
+                  name: "Appointment reminders"
+              move_folder:
+                summary: Move a folder into another folder
+                value:
+                  parent_folder_id: "87654321-4321-4321-4321-210987654321"
+              move_folder_to_root:
+                summary: Move a folder to the root of the service
+                value:
+                  parent_folder_id: null
+      responses:
+        '200':
+          description: Template folder updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManageTemplateFolder'
+        '400':
+          description: Bad request - validation errors or invalid parent folder
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                invalid_template_folder_id:
+                  summary: Invalid template folder ID format
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "id is not a valid UUID"
+                empty_name:
+                  summary: Folder name is empty
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "name cannot be empty"
+                invalid_parent_folder_id:
+                  summary: Invalid parent folder ID format
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "parent_folder_id is not a valid UUID"
+                parent_folder_not_found:
+                  summary: Parent folder not found
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "parent_folder_id not found"
+                move_to_itself:
+                  summary: Folder cannot be moved into itself
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "You cannot move a folder to itself"
+                move_to_subfolder:
+                  summary: Folder cannot be moved into one of its subfolders
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "You cannot move a folder to one of its subfolders"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '403':
+          description: Forbidden - NEW API key missing required manage_templates permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                missing_permission:
+                  summary: Missing manage templates permission
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "ForbiddenError"
+                        message: "This API key does not have permission to manage templates."
+        '404':
+          description: Template folder not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 404
+                errors:
+                  - error: "NoResultFound"
+                    message: "No result found"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+      security:
+        - apiKey: []
+
+    delete:
+      summary: Delete a template folder
+      description: |
+        Delete an empty template folder. The folder must not contain any templates or subfolders.
+
+        This endpoint requires a NEW API key with the manage_templates permission.
+      operationId: deleteManageTemplateFolder
+      tags:
+        - Manage Template Folders
+      parameters:
+        - name: template-folder-id
+          in: path
+          description: Unique identifier for the template folder
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '200':
+          description: Template folder deleted successfully. The response contains the deleted folder.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManageTemplateFolder'
+        '400':
+          description: Bad request - invalid ID or folder is not empty
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                invalid_template_folder_id:
+                  summary: Invalid template folder ID format
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "id is not a valid UUID"
+                folder_not_empty:
+                  summary: Folder contains templates or subfolders
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "Folder is not empty"
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '403':
+          description: Forbidden - NEW API key missing required manage_templates permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                missing_permission:
+                  summary: Missing manage templates permission
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "ForbiddenError"
+                        message: "This API key does not have permission to manage templates."
+        '404':
+          description: Template folder not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 404
+                errors:
+                  - error: "NoResultFound"
+                    message: "No result found"
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+      security:
+        - apiKey: []
+
+
   /v2/notifications/bulk:
     get:
       summary: Get list of bulk jobs
@@ -2413,6 +2851,67 @@ components:
         - errors
         - template_categories
 
+    ManageTemplateFolder:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        service_id:
+          $ref: '#/components/schemas/UUID'
+        name:
+          type: string
+        parent_folder_id:
+          allOf:
+            - $ref: '#/components/schemas/UUID'
+          nullable: true
+        users_with_permission:
+          type: array
+          description: IDs of the service users who can access this folder
+          items:
+            $ref: '#/components/schemas/UUID'
+      required:
+        - id
+        - service_id
+        - name
+        - parent_folder_id
+        - users_with_permission
+
+    ManageTemplateFoldersResponse:
+      type: object
+      properties:
+        template_folders:
+          type: array
+          items:
+            $ref: '#/components/schemas/ManageTemplateFolder'
+      required:
+        - template_folders
+
+    ManageTemplateFolderPostRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        parent_folder_id:
+          allOf:
+            - $ref: '#/components/schemas/UUID'
+          nullable: true
+      required:
+        - name
+      additionalProperties: false
+
+    ManageTemplateFolderPatchRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        parent_folder_id:
+          allOf:
+            - $ref: '#/components/schemas/UUID'
+          nullable: true
+      additionalProperties: false
+
 
     Links:
       type: object
@@ -2845,5 +3344,7 @@ tags:
     description: Operations related to notification templates
   - name: Manage Templates
     description: Operations for creating, updating, retrieving, and archiving templates using a NEW API key with manage_templates permission
+  - name: Manage Template Folders
+    description: Operations for creating, updating, retrieving, and deleting template folders using a NEW API key with manage_templates permission
   - name: Reports
     description: Operations for requesting and downloading reports using an API key with 'manage_reports' permission
