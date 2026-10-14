@@ -176,7 +176,6 @@ def dao_update_template_category(template_id, category_id):
     return template
 
 
-@log_execution_time
 @cache_on_arguments(namespace="template", group_by="template_id")
 def dao_get_template_by_id_cached(template_id, service_id) -> dict:
     """Return a JSON-safe cached representation of a service's template."""
