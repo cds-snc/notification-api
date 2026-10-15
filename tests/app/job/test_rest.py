@@ -187,7 +187,7 @@ def test_create_unscheduled_email_job_increments_daily_count(client, mocker, sam
 
     assert response.status_code == 201
 
-    app.celery.tasks.process_job.apply_async.assert_called_once_with(([str(fake_uuid)]), queue="process-jobs")
+    app.celery.tasks.process_job.apply_async.assert_called_once_with(([str(fake_uuid)]), queue="job-tasks")
     app.job.rest.increment_email_daily_count_send_warnings_if_needed.assert_called_once_with(sample_email_job.service, 1)
 
 
@@ -264,7 +264,7 @@ def test_create_unscheduled_job(client, sample_template, mocker, fake_uuid):
     response = client.post(path, data=json.dumps(data), headers=headers)
     assert response.status_code == 201
 
-    app.celery.tasks.process_job.apply_async.assert_called_once_with(([str(fake_uuid)]), queue="process-jobs")
+    app.celery.tasks.process_job.apply_async.assert_called_once_with(([str(fake_uuid)]), queue="job-tasks")
 
     resp_json = json.loads(response.get_data(as_text=True))
 
@@ -315,7 +315,7 @@ def test_create_unscheduled_job_with_sender_id_in_metadata(client, sample_templa
 
     assert resp_json["data"]["sender_id"] == fake_uuid
 
-    app.celery.tasks.process_job.apply_async.assert_called_once_with(([str(fake_uuid)]), queue="process-jobs")
+    app.celery.tasks.process_job.apply_async.assert_called_once_with(([str(fake_uuid)]), queue="job-tasks")
 
 
 def test_create_job_sets_sender_id_from_database(client, mocker, fake_uuid, sample_user):

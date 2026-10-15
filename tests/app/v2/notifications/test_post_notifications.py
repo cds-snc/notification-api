@@ -2778,7 +2778,7 @@ class TestBulkSend:
 
         upload_to_s3.assert_called_once_with(sample_email_template.service_id, "email address\r\nfoo@example.com")
         if not is_scheduled:
-            process_job.assert_called_once_with([str(job_id)], queue="process-jobs")
+            process_job.assert_called_once_with([str(job_id)], queue="job-tasks")
         else:
             process_job.assert_not_called()
 

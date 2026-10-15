@@ -99,11 +99,8 @@ class QueueNames(object):
     # without affecting the short-lived periodic-tasks workers.
     NIGHTLY = "nightly-tasks"
 
-    # Queue for job status and recovery tasks.
+    # Queue for job processing, recovery, and status-check tasks.
     JOBS = "job-tasks"
-
-    # Queue for processing bulk jobs.
-    PROCESS_JOBS = "process-jobs"
 
     # Queue for tasks to retry.
     RETRY = "retry-tasks"
@@ -154,7 +151,6 @@ class QueueNames(object):
             QueueNames.RESEARCH_MODE,
             QueueNames.REPORTING,
             QueueNames.JOBS,
-            QueueNames.PROCESS_JOBS,
             QueueNames.RETRY,
             QueueNames.CALLBACKS_RETRY,
             QueueNames.NOTIFY,
