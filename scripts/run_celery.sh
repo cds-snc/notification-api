@@ -2,8 +2,8 @@
 
 set -e
 
-# Runs celery with all celery queues except the throttled sms queue,
-# periodic-tasks, and job-tasks.
+# Runs celery with all celery queues except the throttled SMS queue and
+# job-tasks.
 
 echo "Start celery, concurrency: ${CELERY_CONCURRENCY-4}"
 

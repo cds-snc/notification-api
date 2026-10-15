@@ -3,7 +3,7 @@
 set -e
 
 # Runs celery with all celery queues except send-throttled-sms-tasks,
-# send-sms-*, send-email-*, periodic-tasks, and job-tasks.
+# send-sms-*, send-email-*, and job-tasks.
 
 echo "Start celery, concurrency: ${CELERY_CONCURRENCY-4}"
 
