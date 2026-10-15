@@ -254,7 +254,7 @@
 "Bad request - invalid template folder ID format","Requête non valide - format d’ID de dossier de gabarits non valide"
 "Template folder not found","Dossier de gabarits introuvable"
 "Update a template folder","Mettre à jour un dossier de gabarits"
-"Rename a template folder and/or move it to a different parent folder. Set parent_folder_id to null to move the folder to the root of the service.","Renommer un dossier de gabarits et/ou le déplacer vers un autre dossier parent. Attribuez la valeur parent_folder_id à null pour déplacer le dossier à la racine du service."
+"Rename a template folder and/or move it to a different parent folder. Set parent_folder_id to null to move the folder to the root of the service.","Renommer un dossier de gabarits et/ou le déplacer vers un autre dossier parent. Attribuez la valeur null à parent_folder_id pour déplacer le dossier à la racine du service."
 "When a folder is moved into a parent folder, it and its subfolders are only visible to team members who also have access to the new parent folder.","Lorsqu’un dossier est déplacé dans un dossier parent, ce dossier ainsi que ses sous-dossiers ne sont visibles que par les membres de l'équipe ayant aussi accès au nouveau dossier parent."
 "Rename a folder","Renommer un dossier"
 "Move a folder into another folder","Déplacer un dossier dans un autre dossier"
