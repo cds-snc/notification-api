@@ -639,6 +639,21 @@ def test_get_latest_sent_notification_for_job_partially_processed_job(sample_job
     assert latest_sent_notification.updated_at == now
 
 
+def test_get_latest_sent_notification_for_job_ignores_null_updated_at(sample_job):
+    now = datetime.utcnow()
+    save_notification(create_notification(template=sample_job.template, job=sample_job, status="sent", updated_at=now))
+    save_notification(create_notification(template=sample_job.template, job=sample_job, status="created", updated_at=None))
+
+    latest_sent_notification = get_latest_sent_notification_for_job(sample_job.id)
+    assert latest_sent_notification.updated_at == now
+
+
+def test_get_latest_sent_notification_for_job_only_null_updated_at(sample_job):
+    save_notification(create_notification(template=sample_job.template, job=sample_job, status="created", updated_at=None))
+
+    assert get_latest_sent_notification_for_job(sample_job.id) is None
+
+
 def test_get_latest_sent_notification_for_job_no_notifications(sample_template):
     job = create_job(template=sample_template, notification_count=0, job_status=JOB_STATUS_PENDING)
 
