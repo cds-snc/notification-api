@@ -2,7 +2,7 @@
 
 set -e
 
-TERMINATE_TIMEOUT=9
+TERMINATE_TIMEOUT="${CELERY_TERMINATE_TIMEOUT:-9}"
 
 function get_celery_pids {
   # get the PIDs of the process whose parent is the root process
@@ -54,8 +54,8 @@ function on_exit {
   send_signal_to_celery_processes TERM
 
   # check if the apps are still running every second
-  while [[ "$wait_time" -le "$TERMINATE_TIMEOUT" ]]; do
-    echo "exit function is running with wait time of 9s" >> /proc/1/fd/1
+  while [[ "$wait_time" -lt "$TERMINATE_TIMEOUT" ]]; do
+    echo "exit function is running with wait time of ${wait_time}s" >> /proc/1/fd/1
     get_celery_pids
     ensure_celery_is_running
     # shellcheck disable=SC2219 # We could probably rewrite it as `((wait_time++)) || true` but I haven't tested and I assume this works as is
