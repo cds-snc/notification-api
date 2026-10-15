@@ -2892,6 +2892,7 @@ components:
         name:
           type: string
           minLength: 1
+          pattern: '\S'
         parent_folder_id:
           allOf:
             - $ref: '#/components/schemas/UUID'
@@ -2906,6 +2907,7 @@ components:
         name:
           type: string
           minLength: 1
+          pattern: '\S'
         parent_folder_id:
           allOf:
             - $ref: '#/components/schemas/UUID'
