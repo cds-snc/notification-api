@@ -61,7 +61,7 @@ save_emails = cast(Task, save_emails)
 def run_scheduled_jobs():
     try:
         for job in dao_set_scheduled_jobs_to_pending():
-            process_job.apply_async([str(job.id)], queue=QueueNames.JOBS)
+            process_job.apply_async([str(job.id)], queue=QueueNames.PROCESS_JOBS)
             current_app.logger.info("Job ID {} added to process job queue".format(job.id))
     except SQLAlchemyError:
         current_app.logger.exception("Failed to run scheduled jobs")

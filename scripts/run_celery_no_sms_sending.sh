@@ -2,7 +2,7 @@
 
 set -e
 
-# Runs celery with all celery queues except job-tasks, send-throttled-sms-tasks,
+# Runs celery with all celery queues except process-jobs, send-throttled-sms-tasks,
 # send-sms-high, send-sms-medium, or send-sms-low.
 
 # Check and see if this is running in K8s and if so, wait for cloudwatch agent
@@ -28,4 +28,4 @@ fi
 
 echo "Start celery, concurrency: ${CELERY_CONCURRENCY-4}"
 
-celery -A run_celery.notify_celery worker --pidfile="/tmp/celery.pid" --loglevel=INFO --pool="${CELERY_POOL:-prefork}" --concurrency="${CELERY_CONCURRENCY-4}" -Q -priority-database-tasks.fifo,-normal-database-tasks,-bulk-database-tasks,notify-internal-tasks,periodic-tasks,priority-tasks,normal-tasks,bulk-tasks,reporting-tasks,research-mode-tasks,retry-tasks,send-email-high,send-email-medium,send-email-low,service-callbacks,service-callbacks-retry,delivery-receipts
+celery -A run_celery.notify_celery worker --pidfile="/tmp/celery.pid" --loglevel=INFO --pool="${CELERY_POOL:-prefork}" --concurrency="${CELERY_CONCURRENCY-4}" -Q -priority-database-tasks.fifo,-normal-database-tasks,-bulk-database-tasks,job-tasks,notify-internal-tasks,periodic-tasks,priority-tasks,normal-tasks,bulk-tasks,reporting-tasks,research-mode-tasks,retry-tasks,send-email-high,send-email-medium,send-email-low,service-callbacks,service-callbacks-retry,delivery-receipts
