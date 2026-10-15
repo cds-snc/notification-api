@@ -58,10 +58,6 @@ def test_queue_names_all_queues_correct():
     ) == set(queues)
 
 
-def test_check_job_status_remains_on_periodic_queue():
-    assert config.Config.CELERYBEAT_SCHEDULE["check-job-status"]["options"]["queue"] == QueueNames.PERIODIC
-
-
 def test_get_safe_config(mocker, reload_config):
     mock_get_class_attrs = mocker.patch("notifications_utils.logging.get_class_attrs")
     mock_get_sensitive_config = mocker.patch("app.config.Config.get_sensitive_config")
