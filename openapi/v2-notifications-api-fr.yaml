@@ -802,7 +802,7 @@ paths:
       description: |
         Récupérer toutes les catégories de modèles disponibles pour les opérations de gestion des modèles.
 
-        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_permissions (manage_templates).
+        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_templates.
       operationId: getManageTemplateCategories
       tags:
         - Manage Templates
@@ -828,7 +828,7 @@ paths:
                       - error: "AuthError"
                         message: "Unauthorized, authentication token must be provided"
         '403':
-          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_permissions requise (manage_templates)
+          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_templates requise
           content:
             application/json:
               schema:
@@ -857,7 +857,7 @@ paths:
       description: |
         Récupérer un modèle spécifique par ID avec les permissions de gestion des modèles.
 
-        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_permissions (manage_templates).
+        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_templates.
       operationId: getManageTemplateById
       tags:
         - Manage Templates
@@ -893,7 +893,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
         '403':
-          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_permissions requise (manage_templates)
+          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_templates requise
           content:
             application/json:
               schema:
@@ -934,7 +934,7 @@ paths:
       description: |
         Mettre à jour les champs modifiables d’un modèle, y compris la catégorie et l’affectation du dossier parent.
 
-        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_permissions (manage_templates).
+        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_templates.
       operationId: patchManageTemplate
       tags:
         - Manage Templates
@@ -1022,7 +1022,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
         '403':
-          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_permissions requise (manage_templates)
+          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_templates requise
           content:
             application/json:
               schema:
@@ -1055,7 +1055,7 @@ paths:
       description: |
         Archiver un modèle et le retirer de tout dossier.
 
-        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_permissions (manage_templates).
+        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_templates.
       operationId: deleteManageTemplate
       tags:
         - Manage Templates
@@ -1101,7 +1101,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
         '403':
-          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_permissions requise (manage_templates)
+          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_templates requise
           content:
             application/json:
               schema:
@@ -1136,7 +1136,7 @@ paths:
       description: |
         Créer un nouveau modèle avec une catégorie de modèle obligatoire.
 
-        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_permissions (manage_templates).
+        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_templates.
       operationId: postManageTemplate
       tags:
         - Manage Templates
@@ -1224,7 +1224,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
         '403':
-          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_permissions requise (manage_templates) ou le type de modèle n’est pas autorisé pour le service
+          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_templates requise ou le type de modèle n’est pas autorisé pour le service
           content:
             application/json:
               schema:
@@ -1244,6 +1244,444 @@ paths:
                     errors:
                       - error: "ForbiddenError"
                         message: "Creating email templates is not allowed"
+        '500':
+          description: Erreur interne du serveur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+      security:
+        - apiKey: []
+
+
+  /v2/manage-template-folder:
+    get:
+      summary: Obtenir tous les dossiers de gabarits
+      description: |
+        Récupérer tous les dossiers de gabarits du service.
+
+        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_templates.
+      operationId: getManageTemplateFolders
+      tags:
+        - Manage Template Folders
+      responses:
+        '200':
+          description: Dossiers de gabarits récupérés avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManageTemplateFoldersResponse'
+        '401':
+          description: Non autorisé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '403':
+          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_templates requise
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                missing_permission:
+                  summary: Permission de gestion des modèles manquante
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "ForbiddenError"
+                        message: "This API key does not have permission to manage templates."
+        '500':
+          description: Erreur interne du serveur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+      security:
+        - apiKey: []
+
+    post:
+      summary: Créer un dossier de gabarits
+      description: |
+        Créer un nouveau dossier de gabarits, à la racine du service ou dans un dossier parent.
+
+        Les dossiers racine sont partagés avec tous les utilisateurs actifs du service. Les sous-dossiers héritent de l’accès des utilisateurs de leur dossier parent.
+
+        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_templates.
+      operationId: postManageTemplateFolder
+      tags:
+        - Manage Template Folders
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ManageTemplateFolderPostRequest'
+            examples:
+              create_root_folder:
+                summary: Créer un dossier à la racine du service
+                value:
+                  name: "Rappels de rendez-vous"
+              create_subfolder:
+                summary: Créer un dossier dans un autre dossier
+                value:
+                  name: "Rappels de janvier"
+                  parent_folder_id: "87654321-4321-4321-4321-210987654321"
+      responses:
+        '201':
+          description: Dossier de gabarits créé avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManageTemplateFolder'
+        '400':
+          description: Mauvaise requête - erreurs de validation ou dossier parent introuvable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                missing_name:
+                  summary: Champ obligatoire manquant
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "name is a required property"
+                empty_name:
+                  summary: Le nom du dossier est vide
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "name cannot be empty"
+                invalid_parent_folder_id:
+                  summary: Format d’ID de dossier parent invalide
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "parent_folder_id is not a valid UUID"
+                parent_folder_not_found:
+                  summary: Dossier parent introuvable
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "parent_folder_id not found"
+        '401':
+          description: Non autorisé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '403':
+          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_templates requise
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                missing_permission:
+                  summary: Permission de gestion des modèles manquante
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "ForbiddenError"
+                        message: "This API key does not have permission to manage templates."
+        '500':
+          description: Erreur interne du serveur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+      security:
+        - apiKey: []
+
+
+  /v2/manage-template-folder/{template-folder-id}:
+    get:
+      summary: Obtenir un dossier de gabarits par ID
+      description: |
+        Récupérer un dossier de gabarits précis par ID.
+
+        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_templates.
+      operationId: getManageTemplateFolderById
+      tags:
+        - Manage Template Folders
+      parameters:
+        - name: template-folder-id
+          in: path
+          description: Identifiant unique du dossier de gabarits
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '200':
+          description: Dossier de gabarits récupéré avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManageTemplateFolder'
+        '400':
+          description: Mauvaise requête - format d’ID de dossier de gabarits invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 400
+                errors:
+                  - error: "ValidationError"
+                    message: "id is not a valid UUID"
+        '401':
+          description: Non autorisé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '403':
+          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_templates requise
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                missing_permission:
+                  summary: Permission de gestion des modèles manquante
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "ForbiddenError"
+                        message: "This API key does not have permission to manage templates."
+        '404':
+          description: Dossier de gabarits introuvable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 404
+                errors:
+                  - error: "NoResultFound"
+                    message: "No result found"
+        '500':
+          description: Erreur interne du serveur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+      security:
+        - apiKey: []
+
+    patch:
+      summary: Mettre à jour un dossier de gabarits
+      description: |
+        Renommer un dossier de gabarits ou le déplacer vers un autre dossier parent, ou les deux. Définissez parent_folder_id à null pour déplacer le dossier à la racine du service.
+
+        Lorsqu’un dossier est déplacé dans un dossier parent, lui et ses sous-dossiers sont visibles uniquement par les utilisateurs qui ont aussi accès au nouveau dossier parent.
+
+        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_templates.
+      operationId: patchManageTemplateFolder
+      tags:
+        - Manage Template Folders
+      parameters:
+        - name: template-folder-id
+          in: path
+          description: Identifiant unique du dossier de gabarits
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ManageTemplateFolderPatchRequest'
+            examples:
+              rename_folder:
+                summary: Renommer un dossier
+                value:
+                  name: "Rappels de rendez-vous"
+              move_folder:
+                summary: Déplacer un dossier dans un autre dossier
+                value:
+                  parent_folder_id: "87654321-4321-4321-4321-210987654321"
+              move_folder_to_root:
+                summary: Déplacer un dossier à la racine du service
+                value:
+                  parent_folder_id: null
+      responses:
+        '200':
+          description: Dossier de gabarits mis à jour avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManageTemplateFolder'
+        '400':
+          description: Mauvaise requête - erreurs de validation ou dossier parent invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                invalid_template_folder_id:
+                  summary: Format d’ID de dossier de gabarits invalide
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "id is not a valid UUID"
+                empty_name:
+                  summary: Le nom du dossier est vide
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "name cannot be empty"
+                invalid_parent_folder_id:
+                  summary: Format d’ID de dossier parent invalide
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "parent_folder_id is not a valid UUID"
+                parent_folder_not_found:
+                  summary: Dossier parent introuvable
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "parent_folder_id not found"
+                move_to_itself:
+                  summary: Un dossier ne peut pas être déplacé dans lui-même
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "You cannot move a folder to itself"
+                move_to_subfolder:
+                  summary: Un dossier ne peut pas être déplacé dans l’un de ses sous-dossiers
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "You cannot move a folder to one of its subfolders"
+        '401':
+          description: Non autorisé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '403':
+          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_templates requise
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                missing_permission:
+                  summary: Permission de gestion des modèles manquante
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "ForbiddenError"
+                        message: "This API key does not have permission to manage templates."
+        '404':
+          description: Dossier de gabarits introuvable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 404
+                errors:
+                  - error: "NoResultFound"
+                    message: "No result found"
+        '500':
+          description: Erreur interne du serveur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+      security:
+        - apiKey: []
+
+    delete:
+      summary: Supprimer un dossier de gabarits
+      description: |
+        Supprimer un dossier de gabarits vide. Le dossier ne doit contenir aucun gabarit ni sous-dossier.
+
+        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_templates.
+      operationId: deleteManageTemplateFolder
+      tags:
+        - Manage Template Folders
+      parameters:
+        - name: template-folder-id
+          in: path
+          description: Identifiant unique du dossier de gabarits
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '200':
+          description: Dossier de gabarits supprimé avec succès. La réponse contient le dossier supprimé.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManageTemplateFolder'
+        '400':
+          description: Mauvaise requête - ID invalide ou dossier non vide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                invalid_template_folder_id:
+                  summary: Format d’ID de dossier de gabarits invalide
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "id is not a valid UUID"
+                folder_not_empty:
+                  summary: Le dossier contient des gabarits ou des sous-dossiers
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "Folder is not empty"
+        '401':
+          description: Non autorisé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '403':
+          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_templates requise
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                missing_permission:
+                  summary: Permission de gestion des modèles manquante
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "ForbiddenError"
+                        message: "This API key does not have permission to manage templates."
+        '404':
+          description: Dossier de gabarits introuvable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 404
+                errors:
+                  - error: "NoResultFound"
+                    message: "No result found"
         '500':
           description: Erreur interne du serveur
           content:
@@ -2413,6 +2851,69 @@ components:
         - errors
         - template_categories
 
+    ManageTemplateFolder:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        service_id:
+          $ref: '#/components/schemas/UUID'
+        name:
+          type: string
+        parent_folder_id:
+          allOf:
+            - $ref: '#/components/schemas/UUID'
+          nullable: true
+        users_with_permission:
+          type: array
+          description: ID des utilisateurs du service qui peuvent accéder à ce dossier
+          items:
+            $ref: '#/components/schemas/UUID'
+      required:
+        - id
+        - service_id
+        - name
+        - parent_folder_id
+        - users_with_permission
+
+    ManageTemplateFoldersResponse:
+      type: object
+      properties:
+        template_folders:
+          type: array
+          items:
+            $ref: '#/components/schemas/ManageTemplateFolder'
+      required:
+        - template_folders
+
+    ManageTemplateFolderPostRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          pattern: '\S'
+        parent_folder_id:
+          allOf:
+            - $ref: '#/components/schemas/UUID'
+          nullable: true
+      required:
+        - name
+      additionalProperties: false
+
+    ManageTemplateFolderPatchRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          pattern: '\S'
+        parent_folder_id:
+          allOf:
+            - $ref: '#/components/schemas/UUID'
+          nullable: true
+      additionalProperties: false
+
 
     Links:
       type: object
@@ -2844,6 +3345,8 @@ tags:
   - name: Templates
     description: Opérations liées aux modèles de notification
   - name: Manage Templates
-    description: Opérations pour créer, mettre à jour, récupérer et archiver des modèles avec la permission manage_permissions (manage_templates)
+    description: Opérations pour créer, mettre à jour, récupérer et archiver des modèles avec la permission manage_templates
+  - name: Manage Template Folders
+    description: Opérations pour créer, mettre à jour, récupérer et supprimer des dossiers de gabarits à l’aide d’une NOUVELLE clé API avec la permission manage_templates
   - name: Reports
     description: Opérations pour demander et télécharger des rapports avec une clé API ayant la permission \manage_reports\""
