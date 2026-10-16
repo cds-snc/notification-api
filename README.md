@@ -41,6 +41,8 @@ For any issues during the following instructions, make sure to review the
 
 `make run`
 
+The API and local worker targets log in with the `notify-staging` AWS SSO profile by default. When both `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` are non-empty environment variables (for example, in CI), they skip the AWS CLI checks and SSO login and do not set `AWS_PROFILE` for the application.
+
 
 ##  To run the queues
 
