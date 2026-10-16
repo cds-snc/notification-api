@@ -41,7 +41,7 @@ For any issues during the following instructions, make sure to review the
 
 `make run`
 
-The API and local worker targets log in with the `notify-staging` AWS SSO profile by default. When both `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` are non-empty environment variables (for example, in CI), they skip the AWS CLI checks and SSO login and do not set `AWS_PROFILE` for the application.
+The API and local worker targets log in with the `notify-staging` AWS SSO profile by default. For CI environments that provide AWS credentials directly, use `make run-celery-local-filtered-ci`; it does not run SSO login and unsets `AWS_PROFILE` so the AWS SDK uses the environment credentials.
 
 
 ##  To run the queues
