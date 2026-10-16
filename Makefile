@@ -8,6 +8,7 @@ GIT_BRANCH ?= $(shell git symbolic-ref --short HEAD 2> /dev/null || echo "detach
 GIT_COMMIT ?= $(shell git rev-parse HEAD)
 AWS_PROFILE ?= notify-staging
 AWS_CLI ?= /usr/local/bin/aws
+AWS_PROFILE_ENV = $(if $(and $(AWS_ACCESS_KEY_ID),$(AWS_SECRET_ACCESS_KEY)),,AWS_PROFILE="$(AWS_PROFILE)")
 
 .PHONY: help
 help:
@@ -62,27 +63,31 @@ smoke-test-local:
 
 .PHONY: aws-login
 aws-login: ## Log in to AWS SSO for local staging development
-	@test -x "$(AWS_CLI)" || (echo "AWS CLI v2 is required; rebuild the dev container"; exit 1)
-	@"$(AWS_CLI)" --version 2>&1 | grep -q 'aws-cli/2\.' || (echo "AWS CLI v2 is required; rebuild the dev container"; exit 1)
-	@if identity_output=$$("$(AWS_CLI)" sts get-caller-identity --profile "$(AWS_PROFILE)" 2>&1); then \
-		echo "AWS SSO session already active for $(AWS_PROFILE)"; \
+	@if [[ -n "$${AWS_ACCESS_KEY_ID:-}" && -n "$${AWS_SECRET_ACCESS_KEY:-}" ]]; then \
+		echo "AWS environment credentials detected; skipping SSO login"; \
 	else \
-		printf '%s\n' "$$identity_output"; \
-		echo "AWS SSO session missing or expired; starting login"; \
-		"$(AWS_CLI)" sso login --profile "$(AWS_PROFILE)"; \
+		test -x "$(AWS_CLI)" || { echo "AWS CLI v2 is required; rebuild the dev container"; exit 1; }; \
+		"$(AWS_CLI)" --version 2>&1 | grep -q 'aws-cli/2\.' || { echo "AWS CLI v2 is required; rebuild the dev container"; exit 1; }; \
+		if identity_output=$$("$(AWS_CLI)" sts get-caller-identity --profile "$(AWS_PROFILE)" 2>&1); then \
+			echo "AWS SSO session already active for $(AWS_PROFILE)"; \
+		else \
+			printf '%s\n' "$$identity_output"; \
+			echo "AWS SSO session missing or expired; starting login"; \
+			"$(AWS_CLI)" sso login --profile "$(AWS_PROFILE)"; \
+		fi; \
 	fi
 
 .PHONY: run
 run: aws-login ## Run the web app with the staging AWS SSO profile
-	AWS_PROFILE="$(AWS_PROFILE)" poetry run flask run -p 6011 --host=0.0.0.0
+	$(AWS_PROFILE_ENV) poetry run flask run -p 6011 --host=0.0.0.0
 
 .PHONY: run-celery-local
 run-celery-local: aws-login ## Run the celery workers with all the queues
-	AWS_PROFILE="$(AWS_PROFILE)" poetry run ./scripts/run_celery_local.sh
+	$(AWS_PROFILE_ENV) poetry run ./scripts/run_celery_local.sh
 
 .PHONY: run-celery-local-filtered
 run-celery-local-filtered: aws-login ## Run the celery workers with all queues but filter out common scheduled tasks
-	AWS_PROFILE="$(AWS_PROFILE)" poetry run ./scripts/run_celery_local.sh 2>&1 >/dev/null | grep -iEv 'beat|in-flight-to-inbox|run-scheduled-jobs|check-job-status'
+	$(AWS_PROFILE_ENV) poetry run ./scripts/run_celery_local.sh 2>&1 >/dev/null | grep -iEv 'beat|in-flight-to-inbox|run-scheduled-jobs|check-job-status'
 
 .PHONY: run-celery-purge
 run-celery-purge: ## Purge the celery queues
