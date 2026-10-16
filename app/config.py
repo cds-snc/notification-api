@@ -297,6 +297,7 @@ class Config(object):
     CSV_UPLOAD_BUCKET_NAME = os.getenv("CSV_UPLOAD_BUCKET_NAME", "notification-alpha-canada-ca-csv-upload")
     ASSET_DOMAIN = os.getenv("ASSET_DOMAIN", "assets.notification.canada.ca")
     INVITATION_EXPIRATION_DAYS = 2
+    EMAIL_EXPIRY_SECONDS = 3600  # 1 hour, matches admin's verify-email link expiry
     NOTIFY_APP_NAME = "api"
     SQLALCHEMY_RECORD_QUERIES = False
     SQLALCHEMY_TRACK_MODIFICATIONS = False
