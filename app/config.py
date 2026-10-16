@@ -99,7 +99,7 @@ class QueueNames(object):
     # without affecting the short-lived periodic-tasks workers.
     NIGHTLY = "nightly-tasks"
 
-    # Queue for scheduled notifications.
+    # Queue for job processing, recovery, and status-check tasks.
     JOBS = "job-tasks"
 
     # Queue for tasks to retry.
