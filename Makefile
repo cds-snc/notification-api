@@ -76,6 +76,10 @@ aws-login: ## Log in to AWS SSO for local staging development
 run: aws-login ## Run the web app with the staging AWS SSO profile
 	AWS_PROFILE="$(AWS_PROFILE)" poetry run flask run -p 6011 --host=0.0.0.0
 
+.PHONY: run-ci
+run-ci: ## Run the web app with AWS credentials from the environment (CI)
+	env -u AWS_PROFILE poetry run flask run -p 6011 --host=0.0.0.0
+
 .PHONY: run-celery-local
 run-celery-local: aws-login ## Run the celery workers with all the queues
 	AWS_PROFILE="$(AWS_PROFILE)" poetry run ./scripts/run_celery_local.sh
