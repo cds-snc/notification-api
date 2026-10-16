@@ -18,7 +18,7 @@ class NotificationDictToSign(TypedDict):
     to: str  # recipient
     reply_to_text: NotRequired[str]
     personalisation: Optional[dict]
-    simulated: NotRequired[bool]
+    simulated: NotRequired[Optional[bool]]
     api_key: str
     key_type: str  # should be ApiKeyType but I can't import that here
     client_reference: Optional[str]
@@ -42,7 +42,7 @@ class CryptoSigner:
         self.serializer = URLSafeSerializer(secret_key)
         self.salt = salt
 
-    def sign(self, to_sign: str | NotificationDictToSign) -> str | bytes:
+    def sign(self, to_sign: Any) -> str | bytes:
         """Sign a string or dict with the class secret key and salt.
 
         Args:
@@ -53,7 +53,7 @@ class CryptoSigner:
         """
         return self.serializer.dumps(to_sign, salt=self.salt)
 
-    def sign_with_all_keys(self, to_sign: str | NotificationDictToSign) -> List[str | bytes]:
+    def sign_with_all_keys(self, to_sign: Any) -> List[str | bytes]:
         """Sign a string or dict with all the individual keys in the class secret key list, and the class salt.
 
         Args:
