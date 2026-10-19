@@ -62,7 +62,7 @@ smoke-test-local:
 
 .PHONY: smoke-test-staging
 smoke-test-staging:
- 	"$(AWS_CLI)" sso login --profile notify-staging
+	"$(AWS_CLI)" sso login --profile notify-staging
 	AWS_PROFILE=notify-staging make smoke-test
 
 .PHONY: smoke-test-prod
