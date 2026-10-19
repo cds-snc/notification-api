@@ -60,14 +60,14 @@ smoke-test-dev:
 smoke-test-local:
 	cd tests_smoke && poetry run python smoke_test.py --local --nofiles
 
-.PHONY: smoke-test-prod
+.PHONY: smoke-test-staging
 smoke-test-staging:
-	/usr/local/bin/aws sso login --profile notify-staging
+ 	"$(AWS_CLI)" sso login --profile notify-staging
 	AWS_PROFILE=notify-staging make smoke-test
 
 .PHONY: smoke-test-prod
 smoke-test-prod:
-	/usr/local/bin/aws sso login --profile notify-prod
+	"$(AWS_CLI)" sso login --profile notify-prod
 	AWS_PROFILE=notify-prod make smoke-test
 
 .PHONY: aws-login
