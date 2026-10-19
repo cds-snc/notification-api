@@ -2,7 +2,7 @@
 
 set -e
 
-# Runs celery with all celery queues except send-throttled-sms-tasks, 
+# Runs celery with all celery queues except send-throttled-sms-tasks,
 # send-sms-high, send-sms-medium, or send-sms-low.
 
 # Check and see if this is running in K8s and if so, wait for cloudwatch agent
