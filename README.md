@@ -41,6 +41,8 @@ For any issues during the following instructions, make sure to review the
 
 `make run`
 
+The API and local worker targets log in with the `notify-staging` AWS SSO profile by default. For CI environments that provide AWS credentials directly, use `make run-ci` and `make run-celery-local-filtered-ci`; these targets do not run SSO login and unset `AWS_PROFILE` so the AWS SDK uses the environment credentials.
+
 
 ##  To run the queues
 
