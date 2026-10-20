@@ -42,6 +42,8 @@ def test_cache_logs_use_application_stdout_handlers_without_app_context(mocker, 
     monkeypatch.setattr("sys.stdout", output)
     for name in (app_name, "utils", "app.caching", "app.cache.cache_events"):
         module_logger = logging.getLogger(name)
+        # Alembic's fileConfig disables existing loggers during database setup.
+        monkeypatch.setattr(module_logger, "disabled", False)
         monkeypatch.setattr(module_logger, "handlers", [])
         monkeypatch.setattr(module_logger, "level", logging.NOTSET)
         monkeypatch.setattr(module_logger, "propagate", True)
