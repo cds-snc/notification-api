@@ -646,13 +646,13 @@ zstd = ["zstandard (==0.23.0)"]
 
 [[package]]
 name = "certifi"
-version = "2024.12.14"
+version = "2026.10.19"
 description = "Python package for providing Mozilla's CA Bundle."
 optional = false
-python-versions = ">=3.6"
+python-versions = ">=3.7"
 files = [
-    {file = "certifi-2024.12.14-py3-none-any.whl", hash = "sha256:1275f7a45be9464efc1173084eaa30f866fe2e47d389406136d332ed4967ec56"},
-    {file = "certifi-2024.12.14.tar.gz", hash = "sha256:b650d30f370c2b724812bee08008be0c4163b163ddaec3f2546c1caf65f191db"},
+    {file = "certifi-2026.10.19-py3-none-any.whl", hash = "sha256:42d35340cc5b9ba78e818ddbff0c5b1c2b779de448a340fd1b989f5fa8670e1b"},
+    {file = "certifi-2026.10.19.tar.gz", hash = "sha256:035c1e85572b141bf1c3a3eff0e33a8eb74917522f2559075ff8d2fea780a1ae"},
 ]
 
 [[package]]
@@ -2737,7 +2737,7 @@ requests = ">=2.0.0"
 
 [[package]]
 name = "notifications-utils"
-version = "53.2.34"
+version = "53.2.35"
 description = "Shared python code for Notification - Provides logging utils etc."
 optional = false
 python-versions = "~3.12.7"
@@ -2749,7 +2749,7 @@ awscli = "1.45.59"
 bleach = "6.3.0"
 boto3 = "1.43.54"
 cachetools = "4.2.4"
-certifi = "^2024.0.0"
+certifi = "^2026.10.19"
 cryptography = "^46.0.5"
 Flask = "2.3.3"
 Flask-Redis = "0.4.0"
@@ -2773,8 +2773,8 @@ werkzeug = "3.1.6"
 [package.source]
 type = "git"
 url = "https://github.com/cds-snc/notifier-utils.git"
-reference = "53.2.34"
-resolved_reference = "a27df2c71ab173d57c384e65bdeb2d10dd5196a8"
+reference = "task/update-packages"
+resolved_reference = "f9b6611a3be52f8353aec8c81aa532d67b187379"
 
 [[package]]
 name = "opentelemetry-api"
@@ -5031,4 +5031,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.12.7"
-content-hash = "0c675635d429c8240bcfc8c4e0b96bf99ed048978e21c12668b9334bb0af9aaa"
+content-hash = "6620a7e3d5f0f82461f442f11519a4bc22c96e28d6060c2bd033910d0dd2ce02"
