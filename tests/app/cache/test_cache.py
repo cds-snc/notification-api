@@ -6,6 +6,7 @@ from uuid import UUID
 import pytest
 from dogpile.cache import make_region
 from dogpile.cache.api import NO_VALUE
+from flask import Flask, jsonify
 from tests.app.db import create_service, create_template, create_user
 
 from app import db
@@ -578,12 +579,8 @@ class TestJsonSerializer:
 
 class TestInitDogpileCache:
     def test_uses_localhost_when_redis_url_is_none(self, mocker):
-        app = mocker.MagicMock()
-        app.config.get.side_effect = lambda key, default=None: {
-            "REDIS_URL": None,
-            "DOGPILE_CACHE_EXPIRATION": 600,
-            "DOGPILE_CACHE_BACKEND": "dogpile.cache.redis",
-        }.get(key, default)
+        app = Flask("test")
+        app.config.update(REDIS_URL=None, DOGPILE_CACHE_EXPIRATION=600, DOGPILE_CACHE_BACKEND="dogpile.cache.redis")
 
         mock_configure = mocker.patch("app.caching.dogpile_region.configure")
 
