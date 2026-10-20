@@ -6,7 +6,7 @@ from uuid import UUID
 import pytest
 from dogpile.cache import make_region
 from dogpile.cache.api import NO_VALUE
-from flask import Flask, jsonify
+from flask import Flask
 from tests.app.db import create_service, create_template, create_user
 
 from app import db
