@@ -45,12 +45,11 @@ jobs:
         docker build \
         --build-arg GIT_SHA=${GITHUB_SHA} \
         -t $DOCKER_SLUG:${GITHUB_SHA::7} \
-        -t $DOCKER_SLUG:latest \
         -f ci/Dockerfile .
 
     - name: Publish
       run: |
-        docker push $DOCKER_SLUG:latest && docker push $DOCKER_SLUG:${GITHUB_SHA::7}
+        docker push $DOCKER_SLUG:${GITHUB_SHA::7}
 
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@5fd3084fc36e372ff1fff382a39b10d03659f355 # v2.2.0
@@ -140,4 +139,3 @@ jobs:
       run: |
         json='{"text":"<!here> CI is failing in <https://github.com/cds-snc/notification-api/actions/runs/'${{ github.run_id }}'|notification-api> !"}'
         curl -X POST -H 'Content-type: application/json' --data "$json"  ${{ secrets.SLACK_WEBHOOK }}
-

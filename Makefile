@@ -60,6 +60,16 @@ smoke-test-dev:
 smoke-test-local:
 	cd tests_smoke && poetry run python smoke_test.py --local --nofiles
 
+.PHONY: smoke-test-staging
+smoke-test-staging:
+	"$(AWS_CLI)" sso login --profile notify-staging
+	AWS_PROFILE=notify-staging make smoke-test
+
+.PHONY: smoke-test-prod
+smoke-test-prod:
+	"$(AWS_CLI)" sso login --profile notify-prod
+	AWS_PROFILE=notify-prod make smoke-test
+
 .PHONY: aws-login
 aws-login: ## Log in to AWS SSO for local staging development
 	@test -x "$(AWS_CLI)" || (echo "AWS CLI v2 is required; rebuild the dev container"; exit 1)
