@@ -29,8 +29,9 @@ RUN apk add --no-cache bash \
 RUN apk add --no-cache ca-certificates && \
     sed -i \
       -e 's|^mozilla/emSign_ECC_Root_CA_-_G3.crt|!&|' \
+      -e 's|^mozilla/Comodo_AAA_Services_root.crt|!&|' \
       /etc/ca-certificates.conf && \
-    update-ca-certificates
+    update-ca-certificates --fresh
 
 RUN set -ex && mkdir /app
 WORKDIR /app
