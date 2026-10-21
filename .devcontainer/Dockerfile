@@ -11,6 +11,7 @@ ENV POETRY_VENV_PATH="/home/vscode/.venv/workspace"
 RUN apt-get update && \
     apt-get -y install --no-install-recommends \
     apt-utils \
+    ca-certificates \
     postgresql-client \
     curl \
     dbus-x11 \
@@ -57,8 +58,7 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 # -- Install CA certificates and update them to disable emSign ECC Root CA - G3 --
-RUN apk add --no-cache ca-certificates && \
-    sed -i \
+RUN sed -i \
       -e 's|^mozilla/emSign_ECC_Root_CA_-_G3.crt|!&|' \
       -e 's|^mozilla/Comodo_AAA_Services_root.crt|!&|' \
       /etc/ca-certificates.conf && \
