@@ -19,6 +19,10 @@ permissions:
   id-token: write
   contents: read
 
+concurrency:
+  group: performance-test-deploy-staging
+  cancel-in-progress: false
+
 jobs:
   build-push-and-deploy:
     if: github.ref == 'refs/heads/main'
