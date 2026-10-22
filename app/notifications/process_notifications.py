@@ -537,7 +537,9 @@ def parse_scheduled_for(scheduled_for: str) -> datetime:
 
 def is_scheduled_for_a_later_day(scheduled_for: Optional[str]) -> bool:
     """True if a notification is scheduled to be sent after today (UTC, same as the daily limit counts)."""
-    return bool(scheduled_for) and parse_scheduled_for(scheduled_for).date() > datetime.utcnow().date()
+    if not scheduled_for:
+        return False
+    return parse_scheduled_for(scheduled_for).date() > datetime.utcnow().date()
 
 
 def persist_scheduled_one_off_notification(notification: Notification, scheduled_for: str) -> ScheduledOneOffNotification:

@@ -3282,6 +3282,7 @@ def test_post_bulk_returns_403_if_service_suspended(client, notify_db_session, m
 class TestBillableUnitsInV2Notifications:
     """Tests for billable_units in v2 notifications API"""
 
+    @freeze_time("2017-05-14 14:00:00")
     def test_post_sms_notification_uses_billable_units_for_daily_count_when_flag_enabled(
         self, notify_api, client, sample_template, mocker, mock_annual_limits
     ):
@@ -3301,7 +3302,7 @@ class TestBillableUnitsInV2Notifications:
             mocker.patch("app.notifications.process_notifications.dao_get_template_by_id", return_value=sample_template)
             ensure_service_has_permission(sample_template.service_id, SCHEDULE_NOTIFICATIONS)
 
-            # Use scheduled_for so notification is persisted immediately
+            # Use scheduled_for (later today) so the notification is persisted immediately
             scheduled_time = (datetime.utcnow() + timedelta(hours=1)).strftime("%Y-%m-%d %H:%M")
             data = {
                 "phone_number": "+16502532222",
@@ -3319,12 +3320,13 @@ class TestBillableUnitsInV2Notifications:
             assert response.status_code == 201
 
             # Get the notification that was created
-            notification = Notification.query.filter_by(template_id=sample_template.id).first()
+            notification = ScheduledOneOffNotification.query.filter_by(template_id=sample_template.id).first()
             assert notification.billable_units == 2
 
             # Verify increment was called with billable_units=2
             mock_increment.assert_called_once_with(sample_template.service, 2)
 
+    @freeze_time("2017-05-14 14:00:00")
     def test_post_sms_notification_uses_count_of_1_when_flag_disabled(
         self, notify_api, client, sample_template, mocker, mock_annual_limits
     ):
@@ -3342,7 +3344,7 @@ class TestBillableUnitsInV2Notifications:
             mocker.patch("app.sms_fragment_utils.fetch_todays_total_sms_billable_units", return_value=0)
             ensure_service_has_permission(sample_template.service_id, SCHEDULE_NOTIFICATIONS)
 
-            # Use scheduled_for so notification is persisted immediately
+            # Use scheduled_for (later today) so the notification is persisted immediately
             scheduled_time = (datetime.utcnow() + timedelta(hours=1)).strftime("%Y-%m-%d %H:%M")
             data = {
                 "phone_number": "+16502532222",
@@ -3360,8 +3362,10 @@ class TestBillableUnitsInV2Notifications:
             assert response.status_code == 201
 
             # Get the notification that was created
-            notification = Notification.query.filter_by(template_id=sample_template.id).first()
-            assert notification.billable_units == 0
+            # Billable units are always stored for scheduled notifications, so they're counted if the flag is enabled
+            # before they're sent
+            notification = ScheduledOneOffNotification.query.filter_by(template_id=sample_template.id).first()
+            assert notification.billable_units == 2
 
             # Verify increment was called with count=1 despite long message
             mock_increment.assert_called_once_with(sample_template.service, 1)
@@ -3428,6 +3432,7 @@ class TestBillableUnitsInV2Notifications:
             # Simulated recipient should not increment daily count
             mock_increment.assert_not_called()
 
+    @freeze_time("2017-05-14 14:00:00")
     def test_post_email_notification_always_uses_count_of_1(
         self, notify_api, client, sample_email_template, mocker, mock_annual_limits
     ):
@@ -3441,7 +3446,7 @@ class TestBillableUnitsInV2Notifications:
             mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=0)
             ensure_service_has_permission(sample_email_template.service_id, SCHEDULE_NOTIFICATIONS)
 
-            # Use scheduled_for so notification is persisted immediately
+            # Use scheduled_for (later today) so the notification is persisted immediately
             scheduled_time = (datetime.utcnow() + timedelta(hours=1)).strftime("%Y-%m-%d %H:%M")
             data = {
                 "email_address": "test@example.com",
@@ -3470,6 +3475,7 @@ class TestBillableUnitsInV2Notifications:
             # Verify increment was called with count=1
             mock_increment.assert_called_once_with(sample_email_template.service, 1)
 
+    @freeze_time("2017-05-14 14:00:00")
     def test_post_sms_with_personalisation_calculates_billable_units_correctly(
         self, notify_api, client, mocker, mock_annual_limits
     ):
@@ -3490,7 +3496,7 @@ class TestBillableUnitsInV2Notifications:
             mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
             mocker.patch("app.sms_fragment_utils.fetch_todays_total_sms_billable_units", return_value=0)
 
-            # Use scheduled_for so notification is persisted immediately
+            # Use scheduled_for (later today) so the notification is persisted immediately
             scheduled_time = (datetime.utcnow() + timedelta(hours=1)).strftime("%Y-%m-%d %H:%M")
             # Long personalisation value makes message require 2 fragments
             data = {
@@ -3510,7 +3516,7 @@ class TestBillableUnitsInV2Notifications:
             assert response.status_code == 201
 
             # Get the notification that was created
-            notification = Notification.query.filter_by(template_id=template.id).first()
+            notification = ScheduledOneOffNotification.query.filter_by(template_id=template.id).first()
             # "Hello " + 200 'a's = 206 chars -> 2 fragments
             assert notification.billable_units == 2
 

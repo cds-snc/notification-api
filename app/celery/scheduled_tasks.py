@@ -154,7 +154,8 @@ def _send_due_scheduled_one_off_notifications() -> int:
 
 
 def _scheduled_one_off_notification_to_sign(scheduled_notification: ScheduledOneOffNotification) -> NotificationDictToSign:
-    return {
+    # Same fields as notifications that are sent straight away, see process_sms_or_email_notification
+    notification_to_sign = {
         "id": str(scheduled_notification.id),
         "template": str(scheduled_notification.template_id),
         "service_id": str(scheduled_notification.service_id),
@@ -166,7 +167,8 @@ def _scheduled_one_off_notification_to_sign(scheduled_notification: ScheduledOne
         "key_type": scheduled_notification.key_type,
         "client_reference": scheduled_notification.client_reference,
         "reply_to_text": scheduled_notification.reply_to_text,
-    }  # type: ignore
+    }
+    return cast(NotificationDictToSign, notification_to_sign)
 
 
 @notify_celery.task(name="delete-verify-codes")
