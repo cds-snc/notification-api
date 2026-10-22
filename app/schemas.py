@@ -622,6 +622,13 @@ class NotificationWithTemplateSchema(BaseSchema):
     created_at = FlexibleDateTime()
     updated_at = FlexibleDateTime()
     sent_at = FlexibleDateTime()
+    scheduled_for = fields.Method("get_scheduled_for", dump_only=True)
+
+    def get_scheduled_for(self, notification):
+        scheduled_notification = notification.scheduled_notification
+        if scheduled_notification is None or not scheduled_notification.pending:
+            return None
+        return scheduled_notification.scheduled_for.strftime(FlexibleDateTime.OLD_MARSHMALLOW_FORMAT)
 
     @pre_dump
     def add_api_key_name(self, in_data, **kwargs):
@@ -764,6 +771,7 @@ class NotificationsFilterSchema(Schema):
     format_for_csv = fields.String()
     to = fields.String()
     include_one_off = fields.Boolean(required=False)
+    include_scheduled = fields.Boolean(required=False)
     count_pages = fields.Boolean(required=False)
 
     @pre_load
