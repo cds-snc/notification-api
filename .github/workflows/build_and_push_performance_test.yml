@@ -1,83 +1,160 @@
 
-name: Build and Push Performance Testing Container to ECR
+name: Build and Deploy Performance Test Runner
 
 on:
   workflow_dispatch:
   push:
-    branches: [ "main" ]
-    paths:
-      - 'tests_nightly_performance/**'
+    branches: ["main"]
 
 env:
-  GITHUB_SHA: ${{ github.sha }}
-  REGISTRY: ${{ secrets.STAGING_AWS_ACCOUNT_ID }}.dkr.ecr.ca-central-1.amazonaws.com/notify
   ACCOUNT_ID: ${{ secrets.STAGING_AWS_ACCOUNT_ID }}
   AWS_DEFAULT_REGION: ca-central-1
+  REGISTRY: ${{ secrets.STAGING_AWS_ACCOUNT_ID }}.dkr.ecr.ca-central-1.amazonaws.com
+  ECR_REPOSITORY: notify/performance-test
+  NORMAL_TASK_FAMILY: performance_test_cluster
+  FAILURE_TASK_FAMILY: performance_test_cluster_failure_scenarios
+  CONTAINER_NAME: performance-tests-container
 
 permissions:
-  id-token: write # This is required for requesting the OIDC JWT
-  contents: write # This is required for actions/checkout
-  pull-requests: write
+  id-token: write
+  contents: read
 
 jobs:
-  changes:
-    runs-on: ubuntu-latest
-    outputs:
-      images: ${{ steps.filter.outputs.changes }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
-
-      - uses: dorny/paths-filter@7267a8516b6f92bdb098633497bad573efdbf271 # v2.12.0
-        id: filter
-        with:
-          filters: |
-            performance-test: 
-              - 'tests_nightly_performance/**'
-
-
   build-push-and-deploy:
-    if: ${{ needs.changes.outputs.images != '[]' }}
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    needs: changes
-    strategy:
-      fail-fast: false
-      matrix:
-        image: ${{ fromJSON(needs.changes.outputs.images) }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+
+      - name: Set image tag
+        id: image-tag
+        run: echo "tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+        env:
+          GITHUB_SHA: ${{ github.sha }}
 
       - name: Build container
         run: |
           docker build \
-          --build-arg git_sha=$GITHUB_SHA \
-          -t $REGISTRY/${{ matrix.image }}:$GITHUB_SHA \
-          -t $REGISTRY/${{ matrix.image }}:latest . \
-          -f tests_nightly_performance/Dockerfile
+            --build-arg git_sha="$GITHUB_SHA" \
+            -t "$IMAGE_URI" \
+            -f tests_nightly_performance/Dockerfile .
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+          IMAGE_URI: ${{ env.REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ steps.image-tag.outputs.tag }}
 
-      - name: Configure credentials to Notify using OIDC
+      - name: Configure staging AWS credentials using OIDC
         uses: aws-actions/configure-aws-credentials@ececac1a45f3b08a01d2dd070d28d111c5fe6722 # v4.1.0
         with:
-          role-to-assume: arn:aws:iam::${{env.ACCOUNT_ID}}:role/notification-api-apply
-          role-session-name: NotifyApiApply
+          role-to-assume: arn:aws:iam::${{ env.ACCOUNT_ID }}:role/notification-api-build-push-performance-test
+          role-session-name: NotifyApiPerformanceTestDeploy
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
       - name: Login to ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@5a88a04c91d5c6f97aae0d9be790e64d9b1d47b7 # v1.7.1
 
-      - name: Push containers to ECR
+      - name: Push SHA-tagged image to staging ECR
+        run: docker push "$IMAGE_URI"
+        env:
+          IMAGE_URI: ${{ env.REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ steps.image-tag.outputs.tag }}
+
+      - name: Update ECS task definitions and scheduled target
+        env:
+          IMAGE_URI: ${{ env.REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ steps.image-tag.outputs.tag }}
+          NORMAL_TASK_FAMILY: ${{ env.NORMAL_TASK_FAMILY }}
+          FAILURE_TASK_FAMILY: ${{ env.FAILURE_TASK_FAMILY }}
+          CONTAINER_NAME: ${{ env.CONTAINER_NAME }}
         run: |
-          docker push $REGISTRY/${{ matrix.image }}:$GITHUB_SHA
-          docker push $REGISTRY/${{ matrix.image }}:latest
+          set -euo pipefail
+
+          register_task_definition() {
+            local family="$1"
+            local definition
+            local tags
+            local input
+
+            definition="$(aws ecs describe-task-definition \
+              --task-definition "$family" \
+              --include TAGS \
+              --output json)"
+            tags="$(jq -c '.tags // []' <<< "$definition")"
+            input="$(jq -ce \
+              --arg container "$CONTAINER_NAME" \
+              --arg image "$IMAGE_URI" \
+              --argjson tags "$tags" '
+                .taskDefinition
+                | if ([.containerDefinitions[] | select(.name == $container)] | length) != 1
+                  then error("Expected exactly one matching container")
+                  else .containerDefinitions |= map(
+                    if .name == $container then .image = $image else . end
+                  )
+                  end
+                | .tags = $tags
+                | del(
+                    .taskDefinitionArn,
+                    .revision,
+                    .status,
+                    .requiresAttributes,
+                    .compatibilities,
+                    .registeredAt,
+                    .registeredBy
+                  )
+              ' <<< "$definition")"
+
+            aws ecs register-task-definition \
+              --cli-input-json "$input" \
+              --query 'taskDefinition.taskDefinitionArn' \
+              --output text
+          }
+
+          failure_task_definition_arn="$(register_task_definition "$FAILURE_TASK_FAMILY")"
+          normal_task_definition_arn="$(register_task_definition "$NORMAL_TASK_FAMILY")"
+          echo "Registered failure-scenario task definition: $failure_task_definition_arn"
+          echo "Registered scheduled task definition: $normal_task_definition_arn"
+
+          target_response="$(aws events list-targets-by-rule \
+            --rule perf_test_event_rule \
+            --output json)"
+          if [ "$(jq '.Targets | length' <<< "$target_response")" -ne 1 ]; then
+            echo "Expected exactly one target for perf_test_event_rule" >&2
+            exit 1
+          fi
+
+          targets="$(jq -ce --arg arn "$normal_task_definition_arn" '
+            [
+              .Targets[]
+              | .EcsParameters.TaskDefinitionArn = $arn
+              | with_entries(select(
+                  .key == "Id" or
+                  .key == "Arn" or
+                  .key == "RoleArn" or
+                  .key == "Input" or
+                  .key == "InputPath" or
+                  .key == "InputTransformer" or
+                  .key == "EcsParameters" or
+                  .key == "RetryPolicy" or
+                  .key == "DeadLetterConfig"
+                ))
+            ]
+          ' <<< "$target_response")"
+          failed_entries="$(aws events put-targets \
+            --rule perf_test_event_rule \
+            --targets "$targets" \
+            --query FailedEntryCount \
+            --output text)"
+          if [ "$failed_entries" != "0" ]; then
+            echo "Failed to update scheduled ECS target" >&2
+            exit 1
+          fi
 
       - name: Logout of Amazon ECR
-        run: docker logout ${{ steps.login-ecr.outputs.registry }}
+        if: always() && steps.login-ecr.outcome == 'success'
+        run: docker logout "${{ steps.login-ecr.outputs.registry }}"
 
       - name: Notify Slack channel if this job failed
         if: ${{ failure() }}
         run: |
           json='{"text":"<!here> CI is failing in <https://github.com/cds-snc/notification-api/actions/runs/'${{ github.run_id }}'|notification-api> !"}'
-          curl -X POST -H 'Content-type: application/json' --data "$json"  ${{ secrets.SLACK_WEBHOOK }}
+          curl -X POST -H 'Content-type: application/json' --data "$json" "${{ secrets.SLACK_WEBHOOK }}"
