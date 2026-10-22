@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
@@ -15,3 +16,18 @@ class VerifiedNotification(NotificationDictToSign):
     created_at: datetime
     job_id: Optional[Job]
     job_row_number: Optional[int]
+
+
+@dataclass
+class NotificationCallbackData:
+    id: str
+    to: str
+    status: str
+    formatted_status: str
+    notification_type: str
+    client_reference: Optional[str]
+    provider_response: Optional[str]
+    created_at: datetime
+    updated_at: Optional[datetime]
+    sent_at: Optional[datetime]
+    service_id: str  # needed by the callback dispatch in nightly_tasks
