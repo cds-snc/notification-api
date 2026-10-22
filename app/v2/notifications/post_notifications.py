@@ -18,13 +18,7 @@ from app import (
     authenticated_service,
     create_uuid,
     document_download_client,
-    email_bulk_publish,
-    email_normal_publish,
-    email_priority_publish,
     signer_notification,
-    sms_bulk_publish,
-    sms_normal_publish,
-    sms_priority_publish,
     statsd_client,
 )
 from app.annual_limit_utils import get_annual_limit_notifications_v2
@@ -41,18 +35,15 @@ from app.dao.templates_dao import get_precompiled_letter_template
 from app.email_limit_utils import fetch_todays_email_count
 from app.encryption import NotificationDictToSign
 from app.models import (
-    BULK,
     EMAIL_TYPE,
     JOB_STATUS_PENDING,
     JOB_STATUS_SCHEDULED,
     KEY_TYPE_TEAM,
     KEY_TYPE_TEST,
     LETTER_TYPE,
-    NORMAL,
     NOTIFICATION_CREATED,
     NOTIFICATION_DELIVERED,
     NOTIFICATION_SENDING,
-    PRIORITY,
     SMS_TYPE,
     UPLOAD_DOCUMENT,
     ApiKey,
@@ -65,11 +56,12 @@ from app.notifications.process_notifications import (
     choose_queue,
     csv_has_simulated_and_non_simulated_recipients,
     db_save_and_send_notification,
+    is_scheduled_for_a_later_day,
     number_of_sms_fragments,
-    persist_notification,
-    persist_scheduled_notification,
+    persist_scheduled_one_off_notification,
     simulated_recipient,
     transform_notification,
+    triage_notification_to_queues,
 )
 from app.notifications.validators import (
     check_email_annual_limit,
@@ -321,6 +313,10 @@ def post_notification(notification_type: NotificationType):
         check_email_annual_limit(authenticated_service, 1)
         check_email_daily_limit(authenticated_service, 1)  # 1 email
 
+    # Like scheduled bulk jobs, a notification scheduled for a later day is counted towards that day's limit when that
+    # day's count is loaded from the database (it includes notifications scheduled for the day), not today's.
+    count_towards_todays_limit = not is_scheduled_for_a_later_day(scheduled_for)
+
     if template.template_type == SMS_TYPE:
         is_test_notification = api_user.key_type == KEY_TYPE_TEST or simulated_recipient(form["phone_number"], notification_type)
         if not is_test_notification:
@@ -356,10 +352,10 @@ def post_notification(notification_type: NotificationType):
 
         template_with_content.values = notification.personalisation
 
-    if template.template_type == EMAIL_TYPE and api_user.key_type != KEY_TYPE_TEST:
+    if template.template_type == EMAIL_TYPE and api_user.key_type != KEY_TYPE_TEST and count_towards_todays_limit:
         increment_email_daily_count_send_warnings_if_needed(authenticated_service, 1)  # 1 email
 
-    if template.template_type == SMS_TYPE:
+    if template.template_type == SMS_TYPE and count_towards_todays_limit:
         is_test_notification = api_user.key_type == KEY_TYPE_TEST or simulated_recipient(form["phone_number"], notification_type)
         if not is_test_notification:
             # TODO FF_USE_BILLABLE_UNITS removal - Use billable_units when feature flag is enabled
@@ -397,33 +393,6 @@ def post_notification(notification_type: NotificationType):
         scheduled_for=scheduled_for,
     )
     return jsonify(resp), 201
-
-
-def triage_notification_to_queues(notification_type: NotificationType, signed_notification_data, template: Template):
-    """Determine which queue to use based on notification_type and process_type
-
-    Args:
-        notification_type: Type of notification being sent; either SMS_TYPE or EMAIL_TYPE
-        signed_notification_data: Encrypted notification data
-        template: Template used to send notification
-    Returns:
-        None
-
-    """
-    if notification_type == SMS_TYPE:
-        if template.process_type == PRIORITY:
-            sms_priority_publish.publish(signed_notification_data)
-        elif template.process_type == NORMAL:
-            sms_normal_publish.publish(signed_notification_data)
-        elif template.process_type == BULK:
-            sms_bulk_publish.publish(signed_notification_data)
-    elif notification_type == EMAIL_TYPE:
-        if template.process_type == PRIORITY:
-            email_priority_publish.publish(signed_notification_data)
-        elif template.process_type == NORMAL:
-            email_normal_publish.publish(signed_notification_data)
-        elif template.process_type == BULK:
-            email_bulk_publish.publish(signed_notification_data)
 
 
 def process_sms_or_email_notification(
@@ -469,7 +438,8 @@ def process_sms_or_email_notification(
             update_last_used_api_key(api_key_id, api_key_last_used)
 
     if scheduled_for:
-        notification = persist_notification(  # keep scheduled notifications using the old code path for now
+        # Not added to the notifications table or the sending queues until it's sent, see send_scheduled_notifications
+        notification = transform_notification(
             template_id=template.id,
             template_version=template.version,
             recipient=form_send_to,
@@ -480,8 +450,10 @@ def process_sms_or_email_notification(
             key_type=api_key.key_type,
             client_reference=form.get("reference", None),
             reply_to_text=reply_to_text,
+            notification_id=_notification["id"],
+            billable_units=number_of_sms_fragments(template, personalisation),
         )
-        persist_scheduled_notification(notification.id, form["scheduled_for"])
+        persist_scheduled_one_off_notification(notification, scheduled_for)
     elif not simulated:
         triage_notification_to_queues(notification_type, signed_notification_data, template)
 

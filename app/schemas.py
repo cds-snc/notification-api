@@ -622,6 +622,15 @@ class NotificationWithTemplateSchema(BaseSchema):
     created_at = FlexibleDateTime()
     updated_at = FlexibleDateTime()
     sent_at = FlexibleDateTime()
+    scheduled_for = fields.Method("get_scheduled_for", dump_only=True)
+
+    def get_scheduled_for(self, notification):
+        # Only set for notifications scheduled before scheduled_one_off_notifications was added. Notifications in
+        # scheduled_one_off_notifications set it when they're serialized.
+        scheduled_notification = notification.scheduled_notification
+        if scheduled_notification is None or not scheduled_notification.pending:
+            return None
+        return scheduled_notification.scheduled_for.strftime(FlexibleDateTime.OLD_MARSHMALLOW_FORMAT)
 
     @pre_dump
     def add_api_key_name(self, in_data, **kwargs):

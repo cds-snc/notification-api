@@ -26,6 +26,7 @@ from app.models import (
     ApiKey,
     Notification,
     ScheduledNotification,
+    ScheduledOneOffNotification,
     ServicePermission,
     ServiceSmsSender,
 )
@@ -1101,16 +1102,20 @@ class TestSchedulingSends:
     )
     @freeze_time("2017-05-14 14:00:00")
     def test_post_notification_with_scheduled_for(
-        self, client, notify_db_session, notification_type, key_send_to, send_to, mock_annual_limits
+        self, client, notify_db_session, mocker, notification_type, key_send_to, send_to, mock_annual_limits
     ):
+        mock_sms_publish = mocker.patch("app.sms_normal_publish.publish")
+        mock_email_publish = mocker.patch("app.email_normal_publish.publish")
         service = create_service(
             service_name=str(uuid.uuid4()),
             service_permissions=[EMAIL_TYPE, SMS_TYPE],
         )
-        template = create_template(service=service, template_type=notification_type)
+        template = create_template(service=service, template_type=notification_type, content="Hello ((name))")
         data = {
             key_send_to: send_to,
-            "template_id": str(template.id) if notification_type == EMAIL_TYPE else str(template.id),
+            "template_id": str(template.id),
+            "personalisation": {"name": "Jo"},
+            "reference": "my-ref",
             "scheduled_for": "2017-05-14 14:15",
         }
         auth_header = create_authorization_header(service_id=service.id)
@@ -1122,10 +1127,27 @@ class TestSchedulingSends:
         )
         assert response.status_code == 201
         resp_json = json.loads(response.get_data(as_text=True))
-        scheduled_notification = ScheduledNotification.query.filter_by(notification_id=resp_json["id"]).all()
-        assert len(scheduled_notification) == 1
-        assert resp_json["id"] == str(scheduled_notification[0].notification_id)
         assert resp_json["scheduled_for"] == "2017-05-14 14:15"
+
+        # Not added to the notifications table or the sending queues until it's sent
+        assert Notification.query.count() == 0
+        assert ScheduledNotification.query.count() == 0
+        mock_sms_publish.assert_not_called()
+        mock_email_publish.assert_not_called()
+
+        scheduled_notification = ScheduledOneOffNotification.query.one()
+        assert str(scheduled_notification.id) == resp_json["id"]
+        assert scheduled_notification.service_id == service.id
+        assert scheduled_notification.template_id == template.id
+        assert scheduled_notification.template_version == template.version
+        assert scheduled_notification.notification_type == notification_type
+        assert scheduled_notification.to == send_to
+        assert scheduled_notification.personalisation == {"name": "Jo"}
+        assert scheduled_notification.client_reference == "my-ref"
+        assert scheduled_notification.key_type == KEY_TYPE_NORMAL
+        assert scheduled_notification.scheduled_for == datetime(2017, 5, 14, 14, 15)
+        assert scheduled_notification.created_at == datetime(2017, 5, 14, 14, 0)
+        assert scheduled_notification.billable_units == (1 if notification_type == SMS_TYPE else 0)
 
     @pytest.mark.parametrize(
         "notification_type, key_send_to, send_to",
@@ -1158,8 +1180,8 @@ class TestSchedulingSends:
         )
         assert response.status_code == 201
         resp_json = json.loads(response.get_data(as_text=True))
-        scheduled_notification = ScheduledNotification.query.filter_by(notification_id=resp_json["id"]).all()
-        assert len(scheduled_notification) == 1
+        scheduled_notification = ScheduledOneOffNotification.query.get(resp_json["id"])
+        assert scheduled_notification.scheduled_for == datetime(2017, 5, 14, 14, 15)
 
     @pytest.mark.parametrize(
         "notification_type, key_send_to, send_to",
@@ -1194,6 +1216,58 @@ class TestSchedulingSends:
         assert response.status_code == 201
         resp_json = json.loads(response.get_data(as_text=True))
         assert resp_json["scheduled_for"] == "2017-05-14 14:15"
+
+    @pytest.mark.parametrize(
+        "scheduled_for, expect_daily_count_incremented",
+        [
+            ("2017-05-14 23:59", True),
+            ("2017-05-15 00:00", False),
+            ("2017-05-17 14:00", False),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "notification_type, key_send_to, send_to",
+        [
+            ("sms", "phone_number", "6502532222"),
+            ("email", "email_address", "sample@email.com"),
+        ],
+    )
+    @freeze_time("2017-05-14 14:00:00")
+    def test_post_scheduled_notification_only_counts_towards_todays_limit_if_scheduled_for_today(
+        self,
+        client,
+        notify_db_session,
+        mocker,
+        notification_type,
+        key_send_to,
+        send_to,
+        scheduled_for,
+        expect_daily_count_incremented,
+        mock_annual_limits,
+    ):
+        mock_increment_email = mocker.patch(
+            "app.v2.notifications.post_notifications.increment_email_daily_count_send_warnings_if_needed"
+        )
+        mock_increment_sms = mocker.patch(
+            "app.v2.notifications.post_notifications.increment_sms_daily_count_send_warnings_if_needed"
+        )
+        mock_check_email = mocker.patch("app.v2.notifications.post_notifications.check_email_daily_limit")
+        mock_check_sms = mocker.patch("app.v2.notifications.post_notifications.check_sms_daily_limit")
+        service = create_service(service_name=str(uuid.uuid4()), service_permissions=[EMAIL_TYPE, SMS_TYPE])
+        template = create_template(service=service, template_type=notification_type)
+
+        response = client.post(
+            "/v2/notifications/{}".format(notification_type),
+            data=json.dumps({key_send_to: send_to, "template_id": str(template.id), "scheduled_for": scheduled_for}),
+            headers=[("Content-Type", "application/json"), create_authorization_header(service_id=service.id)],
+        )
+
+        assert response.status_code == 201
+        # Limits are always checked when the notification is requested, like scheduled bulk jobs
+        mock_check = mock_check_sms if notification_type == SMS_TYPE else mock_check_email
+        mock_check.assert_called_once()
+        mock_increment = mock_increment_sms if notification_type == SMS_TYPE else mock_increment_email
+        assert mock_increment.called is expect_daily_count_incremented
 
 
 class TestSendingDocuments:
