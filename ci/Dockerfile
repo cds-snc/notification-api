@@ -25,6 +25,14 @@ RUN apk add --no-cache bash \
     cargo && \
     rm -rf /var/cache/apk/*
 
+# -- Install CA certificates and update them to disable emSign ECC Root CA - G3 --
+RUN apk add --no-cache ca-certificates && \
+    sed -i \
+      -e 's|^mozilla/emSign_ECC_Root_CA_-_G3.crt|!&|' \
+      -e 's|^mozilla/Comodo_AAA_Services_root.crt|!&|' \
+      /etc/ca-certificates.conf && \
+    update-ca-certificates --fresh
+
 RUN set -ex && mkdir /app
 WORKDIR /app
 

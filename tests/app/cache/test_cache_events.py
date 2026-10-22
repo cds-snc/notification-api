@@ -1,7 +1,13 @@
+import json
+import logging
 from concurrent.futures import ThreadPoolExecutor
+from io import StringIO
 from types import SimpleNamespace
 from unittest.mock import call
 
+import pytest
+from flask import Flask
+from notifications_utils import logging as notify_logging
 from sqlalchemy import delete
 from tests.app.db import create_service, create_template, create_user
 
@@ -10,7 +16,7 @@ from app.cache import cache_events
 from app.cache.cache_dml import cache_invalidating_dml
 from app.cache.cache_events import register_cache_orm_events
 from app.cache.cache_invalidation_registry import CACHE_INVALIDATION_REGISTRY, CacheInvalidationRule
-from app.caching import _unlink_exact_keys, invalidate_group_keys
+from app.caching import dogpile_region, init_dogpile_cache, _unlink_exact_keys, invalidate_group_keys
 from app.dao.permissions_dao import permission_dao
 from app.dao.service_permissions_dao import dao_add_service_permission, dao_remove_service_permission
 from app.dao.templates_dao import dao_update_template_process_type
@@ -26,6 +32,55 @@ from app.models import (
     TemplateRedacted,
     User,
 )
+
+
+@pytest.mark.parametrize("app_name", ["api", "celery"])
+@pytest.mark.parametrize("log_level", ["INFO", "WARNING"])
+def test_cache_logs_use_application_stdout_handlers_without_app_context(mocker, monkeypatch, app_name, log_level):
+    app = Flask(app_name)
+    app.config.update(DEBUG=False, NOTIFY_APP_NAME=app_name, NOTIFY_LOG_LEVEL=log_level, NOTIFY_LOG_PATH="")
+    output = StringIO()
+    monkeypatch.setattr("sys.stdout", output)
+    for name in (app_name, "utils", "app.caching", "app.cache.cache_events"):
+        module_logger = logging.getLogger(name)
+        # Alembic's fileConfig disables existing loggers during database setup.
+        monkeypatch.setattr(module_logger, "disabled", False)
+        monkeypatch.setattr(module_logger, "handlers", [])
+        monkeypatch.setattr(module_logger, "level", logging.NOTSET)
+        monkeypatch.setattr(module_logger, "propagate", True)
+    monkeypatch.setattr(logging.getLogger(), "handlers", [])
+    monkeypatch.setattr(logging.getLogger(), "level", logging.WARNING)
+    notify_logging.init_app(app)
+    mocker.patch.object(dogpile_region, "configure")
+    init_dogpile_cache(app)
+    init_dogpile_cache(app)
+    output.seek(0)
+    output.truncate()
+
+    redis_client = mocker.Mock()
+    redis_client.scan.return_value = (0, [b"template:entity-id:cached"])
+    redis_client.delete.return_value = 1
+    mocker.patch("app.caching._get_redis_client_from_region", return_value=redis_client)
+    instance = Template(id="entity-id")
+    session = SimpleNamespace(new={instance}, dirty=set(), deleted=set(), info={})
+
+    cache_events._collect_cache_invalidations(session, mocker.Mock())
+    assert invalidate_group_keys("template", "entity-id") == 1
+
+    records = [json.loads(line) for line in output.getvalue().splitlines()]
+    if log_level == "WARNING":
+        assert records == []
+    else:
+        assert len(records) == 2
+        assert [record["name"] for record in records] == [
+            "app.cache.cache_events", "app.caching"
+        ]
+        assert all(record["application"] == app_name for record in records)
+        assert all(record["levelname"] == "INFO" for record in records)
+        assert all(record["requestId"] == "no-request-id" for record in records)
+        assert "cache.collect_invalidations instances=1 invalidations=1" in records[0]["message"]
+        assert "cache.invalidate_group_keys namespace=template" in records[1]["message"]
+        assert "matched=1 deleted=1" in records[1]["message"]
 
 
 def test_register_cache_orm_events_is_thread_safe(mocker):

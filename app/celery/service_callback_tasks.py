@@ -30,7 +30,7 @@ def _calculate_callback_retry_countdown(retries: int) -> int:
     return max(1, min(max_delay_seconds, int(round(jittered_seconds))))
 
 
-@notify_celery.task(bind=True, name="send-delivery-status", max_retries=5, default_retry_delay=300)
+@notify_celery.task(bind=True, name="send-delivery-status", max_retries=8, default_retry_delay=300)
 @statsd(namespace="tasks")
 def send_delivery_status_to_service(self, notification_id, signed_status_update, service_id):
     status_update = signer_delivery_status.verify(signed_status_update)

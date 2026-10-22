@@ -340,6 +340,13 @@ def _configure_region(region, app, redis_url, expiration_time, redis_expiration_
 
 
 def init_dogpile_cache(app):
+    # Module loggers do not inherit handlers from Flask's "api" or "celery" logger.
+    for name in (__name__, "app.cache.cache_events"):
+        cache_logger = logging.getLogger(name)
+        cache_logger.handlers = app.logger.handlers[:]
+        cache_logger.setLevel(app.logger.getEffectiveLevel())
+        cache_logger.propagate = False
+        
     redis_url = app.config.get("REDIS_URL") or "redis://localhost:6379/0"
     expiration_time = app.config.get("DOGPILE_CACHE_EXPIRATION", 600)
     _configure_region(dogpile_region, app, redis_url, expiration_time, expiration_time)

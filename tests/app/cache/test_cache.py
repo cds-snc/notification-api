@@ -7,12 +7,11 @@ import pytest
 from dogpile.cache import make_region
 from dogpile.cache.api import NO_VALUE
 from fakeredis import FakeRedis
-from flask import jsonify
+from flask import Flask jsonify
 from freezegun import freeze_time
 from tests import create_authorization_header
 from tests.app.db import create_notification, create_service, create_template, create_user
 from tests.conftest import set_config
-
 from app import db
 from app.cache import cache_events
 from app.cache.cache_events import register_cache_orm_events
@@ -806,12 +805,8 @@ class TestJsonSerializer:
 
 class TestInitDogpileCache:
     def test_uses_localhost_when_redis_url_is_none(self, mocker):
-        app = mocker.MagicMock()
-        app.config.get.side_effect = lambda key, default=None: {
-            "REDIS_URL": None,
-            "DOGPILE_CACHE_EXPIRATION": 600,
-            "DOGPILE_CACHE_BACKEND": "dogpile.cache.redis",
-        }.get(key, default)
+        app = Flask("test")
+        app.config.update(REDIS_URL=None, DOGPILE_CACHE_EXPIRATION=600, DOGPILE_CACHE_BACKEND="dogpile.cache.redis")
 
         mock_configure = mocker.patch("app.caching.dogpile_region.configure")
         mocker.patch("app.caching.short_lived_region.configure")
