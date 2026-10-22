@@ -198,6 +198,14 @@ def test_should_update_status_by_id_and_set_sent_by(sample_template):
     assert updated.sent_by == "mmg"
 
 
+def test_should_update_status_by_id_and_set_provider_response(sample_email_template):
+    notification = save_notification(create_notification(template=sample_email_template))
+
+    updated = update_notification_status_by_id(notification.id, "technical-failure", provider_response="Some reason")
+    assert updated.status == "technical-failure"
+    assert Notification.query.get(notification.id).provider_response == "Some reason"
+
+
 def test_should_not_update_status_by_reference_if_from_country_with_no_delivery_receipts(
     sample_template,
 ):

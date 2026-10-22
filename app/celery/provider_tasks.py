@@ -11,6 +11,7 @@ from app.config import Config
 from app.dao.notifications_dao import get_notification_with_template, update_notification_status_by_id
 from app.delivery import send_to_providers
 from app.exceptions import (
+    EmailFromHeaderTooLongException,
     InvalidUrlException,
     MalwareDetectedException,
     MalwareScanInProgressException,
@@ -111,6 +112,17 @@ def deliver_email(self, notification_id):
             "Start sending email for notification id: {} with template process type: {}".format(notification_id, process_type)
         )
         send_to_providers.send_email_to_provider(notification)
+    except EmailFromHeaderTooLongException as e:
+        current_app.logger.warning(
+            f"Cannot send notification {notification_id}, the service name and email address are too long "
+            f"for the From header: {str(e)}."
+        )
+        update_notification_status_by_id(
+            notification_id,
+            NOTIFICATION_TECHNICAL_FAILURE,
+            provider_response=send_to_providers.FROM_HEADER_TOO_LONG_PROVIDER_RESPONSE,
+        )
+        _check_and_queue_callback_task(notification)
     except InvalidEmailError as e:
         if not notification.to.isascii():
             current_app.logger.info(f"Cannot send notification {notification_id} (has a non-ascii email address): {str(e)}")
