@@ -108,6 +108,7 @@ from app.notifications.process_notifications import (
 )
 from app.schema_validation import validate
 from app.schemas import (
+    FlexibleDateTime,
     api_key_schema,
     detailed_service_schema,
     email_data_request_schema,
@@ -563,7 +564,6 @@ def get_all_notifications_for_service(service_id):
             search_term=data["to"],
             statuses=data.get("status"),
             notification_type=notification_type,
-            include_scheduled=data.get("include_scheduled", False),
         )
     page = data["page"] if "page" in data else 1
     page_size = data["page_size"] if "page_size" in data else current_app.config.get("PAGE_SIZE")
@@ -571,8 +571,6 @@ def get_all_notifications_for_service(service_id):
     include_jobs = data.get("include_jobs", True)
     include_from_test_key = data.get("include_from_test_key", False)
     include_one_off = data.get("include_one_off", True)
-    # Scheduled notifications that haven't been sent yet aren't shown in the sent notifications lists by default.
-    include_scheduled = data.get("include_scheduled", False)
 
     count_pages = data.get("count_pages", True)
     format_for_csv = data.get("format_for_csv", False)
@@ -588,7 +586,6 @@ def get_all_notifications_for_service(service_id):
         include_from_test_key=include_from_test_key,
         include_one_off=include_one_off,
         format_for_csv=format_for_csv,
-        include_scheduled=include_scheduled,
     )
 
     kwargs = request.args.to_dict()
@@ -616,10 +613,10 @@ def get_scheduled_notifications_for_service(service_id):
     if page < 1 or page_size < 1:
         raise InvalidRequest("page and page_size must be positive integers", status_code=400)
 
-    pagination = notifications_dao.dao_get_pending_scheduled_notifications_for_service(service_id, page=page, page_size=page_size)
+    pagination = notifications_dao.dao_get_scheduled_one_off_notifications_for_service(service_id, page=page, page_size=page_size)
     return (
         jsonify(
-            notifications=notification_with_template_schema.dump(pagination.items, many=True),
+            notifications=[_scheduled_one_off_notification_json(n) for n in pagination.items],
             page_size=page_size,
             total=pagination.total,
         ),
@@ -632,8 +629,19 @@ def get_notification_for_service(service_id, notification_id):
     notification = notifications_dao.get_notification_with_personalisation(service_id, notification_id, key_type=None)
     if notification is not None:
         return jsonify(notification_with_template_schema.dump(notification)), 200
-    else:
-        return jsonify(result="error", message="Notification not found in database"), 404
+
+    scheduled_notification = notifications_dao.dao_get_scheduled_one_off_notification(service_id, notification_id)
+    if scheduled_notification is not None:
+        return jsonify(_scheduled_one_off_notification_json(scheduled_notification)), 200
+
+    return jsonify(result="error", message="Notification not found in database"), 404
+
+
+def _scheduled_one_off_notification_json(scheduled_notification):
+    # Same format as a notification that has been sent, so it can be shown the same way
+    data = notification_with_template_schema.dump(scheduled_notification.as_notification())
+    data["scheduled_for"] = scheduled_notification.scheduled_for.strftime(FlexibleDateTime.OLD_MARSHMALLOW_FORMAT)
+    return data
 
 
 @service_blueprint.route("/<uuid:service_id>/notifications/<uuid:notification_id>/cancel", methods=["POST"])
@@ -661,11 +669,15 @@ def cancel_notification_for_service(service_id, notification_id):
 
 @service_blueprint.route("/<uuid:service_id>/notifications/<uuid:notification_id>/cancel-scheduled", methods=["POST"])
 def cancel_scheduled_notification_for_service(service_id, notification_id):
+    if notifications_dao.dao_delete_scheduled_one_off_notification(service_id, notification_id):
+        return jsonify(result="success"), 200
+
     notification = notifications_dao.get_notification_with_personalisation(service_id, notification_id, key_type=None)
 
     if notification is None:
         raise InvalidRequest("Notification not found", status_code=404)
 
+    # Notifications scheduled before scheduled_one_off_notifications was added are linked to a ScheduledNotification
     scheduled_notification = notification.scheduled_notification
     if scheduled_notification is None:
         raise InvalidRequest("Notification is not scheduled and cannot be cancelled", status_code=400)
@@ -677,13 +689,12 @@ def cancel_scheduled_notification_for_service(service_id, notification_id):
     return jsonify(result="success"), 200
 
 
-def search_for_notification_by_to_field(service_id, search_term, statuses, notification_type, include_scheduled=True):
+def search_for_notification_by_to_field(service_id, search_term, statuses, notification_type):
     results = notifications_dao.dao_get_notifications_by_to_field(
         service_id=service_id,
         search_term=search_term,
         statuses=statuses,
         notification_type=notification_type,
-        include_scheduled=include_scheduled,
     )
     return (
         jsonify(notifications=notification_with_template_schema.dump(results, many=True)),

@@ -12,7 +12,15 @@ from notifications_utils.recipients import (
     validate_and_format_phone_number,
 )
 
-from app import redis_store
+from app import (
+    email_bulk_publish,
+    email_normal_publish,
+    email_priority_publish,
+    redis_store,
+    sms_bulk_publish,
+    sms_normal_publish,
+    sms_priority_publish,
+)
 from app.celery import provider_tasks
 from app.celery.letters_pdf_tasks import create_letters_pdf
 from app.config import QueueNames
@@ -20,21 +28,24 @@ from app.dao.api_key_dao import update_last_used_api_key
 from app.dao.notifications_dao import (
     bulk_insert_notifications,
     dao_create_notification,
-    dao_created_scheduled_notification,
+    dao_create_scheduled_one_off_notification,
     dao_delete_notifications_by_id,
 )
 from app.dao.services_dao import dao_fetch_service_by_id
 from app.dao.templates_dao import dao_get_template_by_id
 from app.models import (
+    BULK,
     EMAIL_TYPE,
     KEY_TYPE_TEST,
     LETTER_TYPE,
+    NORMAL,
     NOTIFICATION_CREATED,
+    PRIORITY,
     SMS_TYPE,
     ApiKeyType,
     Notification,
     NotificationType,
-    ScheduledNotification,
+    ScheduledOneOffNotification,
     Service,
 )
 from app.types import VerifiedNotification
@@ -492,8 +503,60 @@ def simulated_recipient(to_address: str, notification_type: NotificationType) ->
         return to_address in current_app.config["SIMULATED_EMAIL_ADDRESSES"]
 
 
-def persist_scheduled_notification(notification_id, scheduled_for):
+def triage_notification_to_queues(notification_type: NotificationType, signed_notification_data, template):
+    """Determine which queue to use based on notification_type and process_type
+
+    Args:
+        notification_type: Type of notification being sent; either SMS_TYPE or EMAIL_TYPE
+        signed_notification_data: Encrypted notification data
+        template: Template used to send notification
+    Returns:
+        None
+
+    """
+    if notification_type == SMS_TYPE:
+        if template.process_type == PRIORITY:
+            sms_priority_publish.publish(signed_notification_data)
+        elif template.process_type == NORMAL:
+            sms_normal_publish.publish(signed_notification_data)
+        elif template.process_type == BULK:
+            sms_bulk_publish.publish(signed_notification_data)
+    elif notification_type == EMAIL_TYPE:
+        if template.process_type == PRIORITY:
+            email_priority_publish.publish(signed_notification_data)
+        elif template.process_type == NORMAL:
+            email_normal_publish.publish(signed_notification_data)
+        elif template.process_type == BULK:
+            email_bulk_publish.publish(signed_notification_data)
+
+
+def parse_scheduled_for(scheduled_for: str) -> datetime:
     # scheduled_for is UTC already, same as the bulk/job scheduling endpoint - accepts full ISO 8601
-    scheduled_datetime = parse_date(scheduled_for).replace(tzinfo=None)
-    scheduled_notification = ScheduledNotification(notification_id=notification_id, scheduled_for=scheduled_datetime)
-    dao_created_scheduled_notification(scheduled_notification)
+    return parse_date(scheduled_for).replace(tzinfo=None)
+
+
+def is_scheduled_for_a_later_day(scheduled_for: Optional[str]) -> bool:
+    """True if a notification is scheduled to be sent after today (UTC, same as the daily limit counts)."""
+    return bool(scheduled_for) and parse_scheduled_for(scheduled_for).date() > datetime.utcnow().date()
+
+
+def persist_scheduled_one_off_notification(notification: Notification, scheduled_for: str) -> ScheduledOneOffNotification:
+    """Store a one-off notification to be sent later. Nothing is added to the notifications table until it is sent."""
+    scheduled_notification = ScheduledOneOffNotification(
+        id=notification.id,
+        service_id=notification.service_id,
+        template_id=notification.template_id,
+        template_version=notification.template_version,
+        notification_type=notification.notification_type,
+        to=notification.to,
+        api_key_id=notification.api_key_id,
+        key_type=notification.key_type,
+        client_reference=notification.client_reference,
+        reply_to_text=notification.reply_to_text,
+        billable_units=notification.billable_units or 0,
+        scheduled_for=parse_scheduled_for(scheduled_for),
+        created_at=notification.created_at,
+    )
+    scheduled_notification._personalisation = notification._personalisation
+    dao_create_scheduled_one_off_notification(scheduled_notification)
+    return scheduled_notification

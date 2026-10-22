@@ -7,6 +7,8 @@ from app import DATETIME_FORMAT
 from tests import create_authorization_header
 from tests.app.db import (
     create_notification,
+    create_scheduled_one_off_notification,
+    create_service,
     create_template,
     save_notification,
     save_scheduled_notification,
@@ -790,3 +792,46 @@ def test_get_pdf_for_notification_fails_for_non_letters(client, sample_notificat
 
     assert response.status_code == 400
     assert response.json["errors"] == [{"error": "BadRequestError", "message": "Notification is not a letter"}]
+
+
+def test_get_notification_by_id_returns_scheduled_one_off_notification(client, sample_template_with_placeholders):
+    scheduled_notification = create_scheduled_one_off_notification(
+        sample_template_with_placeholders,
+        scheduled_for="2099-05-12 15:15",
+        personalisation={"name": "Jo"},
+        client_reference="my-ref",
+        created_at=datetime.datetime(2099, 5, 10, 9, 30),
+    )
+
+    response = client.get(
+        path="/v2/notifications/{}".format(scheduled_notification.id),
+        headers=[
+            ("Content-Type", "application/json"),
+            create_authorization_header(service_id=scheduled_notification.service_id),
+        ],
+    )
+
+    assert response.status_code == 200
+    json_response = json.loads(response.get_data(as_text=True))
+    assert json_response["id"] == str(scheduled_notification.id)
+    assert json_response["reference"] == "my-ref"
+    assert json_response["phone_number"] == scheduled_notification.to
+    assert json_response["type"] == "sms"
+    assert json_response["status"] == "created"
+    assert json_response["body"] == "Hello Jo\nYour thing is due soon"
+    assert json_response["template"]["id"] == str(sample_template_with_placeholders.id)
+    assert json_response["created_at"] == "2099-05-10T09:30:00.000000Z"
+    assert json_response["sent_at"] is None
+    assert json_response["scheduled_for"] == "2099-05-12T15:15:00.000000Z"
+
+
+def test_get_notification_by_id_doesnt_return_another_services_scheduled_one_off_notification(client, sample_template):
+    scheduled_notification = create_scheduled_one_off_notification(sample_template)
+    other_service = create_service(service_name="other")
+
+    response = client.get(
+        path="/v2/notifications/{}".format(scheduled_notification.id),
+        headers=[("Content-Type", "application/json"), create_authorization_header(service_id=other_service.id)],
+    )
+
+    assert response.status_code == 404

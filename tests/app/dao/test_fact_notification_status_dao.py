@@ -59,7 +59,6 @@ from tests.app.db import (
     create_service,
     create_template,
     save_notification,
-    save_scheduled_notification,
 )
 
 
@@ -1692,39 +1691,3 @@ class TestBillableUnitsInFactNotificationStatusDao:
         assert template2_entry is not None
         assert template2_entry.billable_units == 5
         assert template2_entry.count == 1
-
-
-class TestPendingScheduledNotificationsExcludedFromStats:
-    @freeze_time("2019-06-18T12:00:00")
-    def test_fetch_notification_status_for_day_excludes_pending_scheduled_notifications(self, notify_db_session):
-        template = create_template(service=create_service(), template_type="email")
-        save_notification(create_notification(template=template, status="delivered"))
-        save_scheduled_notification(create_notification(template=template), scheduled_for="2019-06-20 15:00")
-        # a non-pending scheduled notification has been sent and should be counted
-        save_scheduled_notification(create_notification(template=template, status="sending"), scheduled_for="2019-06-18 11:00")
-
-        results = fetch_notification_status_for_day(process_day=datetime.utcnow(), service_ids=[template.service_id])
-
-        assert sorted((row.status, row.notification_count) for row in results) == [("delivered", 1), ("sending", 1)]
-
-    @freeze_time("2019-06-18T12:00:00")
-    def test_fetch_notification_status_for_service_for_today_and_7_previous_days_excludes_pending_scheduled(
-        self, notify_db_session
-    ):
-        template = create_template(service=create_service(), template_type="email")
-        save_notification(create_notification(template=template, status="delivered"))
-        save_scheduled_notification(create_notification(template=template), scheduled_for="2019-06-20 15:00")
-
-        results = fetch_notification_status_for_service_for_today_and_7_previous_days(template.service_id, by_template=True)
-
-        assert [(row.status, row.count) for row in results] == [("delivered", 1)]
-
-    @freeze_time("2019-06-18T12:00:00")
-    def test_fetch_notification_billable_units_for_today_and_7_previous_days_excludes_pending_scheduled(self, notify_db_session):
-        template = create_template(service=create_service(), template_type="sms")
-        save_notification(create_notification(template=template, status="delivered", billable_units=2))
-        save_scheduled_notification(create_notification(template=template, billable_units=3), scheduled_for="2019-06-20 15:00")
-
-        results = fetch_notification_billable_units_for_service_for_today_and_7_previous_days(template.service_id)
-
-        assert [(row.status, row.count, row.billable_units) for row in results] == [("delivered", 1, 2)]

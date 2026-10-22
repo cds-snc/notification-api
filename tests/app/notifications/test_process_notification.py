@@ -22,15 +22,17 @@ from app.models import (
     Notification,
     NotificationHistory,
     ScheduledNotification,
+    ScheduledOneOffNotification,
     Template,
 )
 from app.notifications.process_notifications import (
     choose_queue,
     create_content_for_notification,
     db_save_and_send_notification,
+    is_scheduled_for_a_later_day,
     persist_notification,
     persist_notifications,
-    persist_scheduled_notification,
+    persist_scheduled_one_off_notification,
     send_notification_to_queue,
     simulated_recipient,
     transform_notification,
@@ -811,19 +813,64 @@ class TestSimulatedRecipient:
 
 
 class TestScheduledNotification:
-    def test_persist_scheduled_notification(self, sample_notification):
-        # scheduled_for is treated as UTC, matching the bulk/job scheduling endpoint - no local timezone conversion
-        persist_scheduled_notification(sample_notification.id, "2017-05-12 14:15")
-        scheduled_notification = ScheduledNotification.query.all()
-        assert len(scheduled_notification) == 1
-        assert scheduled_notification[0].notification_id == sample_notification.id
-        assert scheduled_notification[0].scheduled_for == datetime.datetime(2017, 5, 12, 14, 15)
+    def _transient_notification(self, template, **kwargs):
+        return transform_notification(
+            template_id=template.id,
+            template_version=template.version,
+            recipient="+16502532222",
+            service=template.service,
+            personalisation={"name": "Jo"},
+            notification_type=template.template_type,
+            api_key_id=None,
+            key_type="normal",
+            client_reference="my-ref",
+            reply_to_text="+16502532223",
+            billable_units=2,
+            **kwargs,
+        )
 
-    def test_persist_scheduled_notification_accepts_full_iso8601(self, sample_notification):
-        persist_scheduled_notification(sample_notification.id, "2017-05-12T14:15:00")
-        scheduled_notification = ScheduledNotification.query.all()
-        assert len(scheduled_notification) == 1
-        assert scheduled_notification[0].scheduled_for == datetime.datetime(2017, 5, 12, 14, 15)
+    @freeze_time("2017-05-12 10:00")
+    def test_persist_scheduled_one_off_notification(self, sample_template):
+        notification = self._transient_notification(sample_template)
+
+        # scheduled_for is treated as UTC, matching the bulk/job scheduling endpoint - no local timezone conversion
+        persist_scheduled_one_off_notification(notification, "2017-05-12 14:15")
+
+        assert Notification.query.count() == 0
+        assert ScheduledNotification.query.count() == 0
+        scheduled_notification = ScheduledOneOffNotification.query.one()
+        assert scheduled_notification.id == notification.id
+        assert scheduled_notification.service_id == sample_template.service_id
+        assert scheduled_notification.template_id == sample_template.id
+        assert scheduled_notification.template_version == sample_template.version
+        assert scheduled_notification.notification_type == "sms"
+        assert scheduled_notification.to == "+16502532222"
+        assert scheduled_notification.personalisation == {"name": "Jo"}
+        assert scheduled_notification.client_reference == "my-ref"
+        assert scheduled_notification.reply_to_text == "+16502532223"
+        assert scheduled_notification.billable_units == 2
+        assert scheduled_notification.key_type == "normal"
+        assert scheduled_notification.scheduled_for == datetime.datetime(2017, 5, 12, 14, 15)
+        assert scheduled_notification.created_at == datetime.datetime(2017, 5, 12, 10, 0)
+
+    def test_persist_scheduled_one_off_notification_accepts_full_iso8601(self, sample_template):
+        persist_scheduled_one_off_notification(self._transient_notification(sample_template), "2017-05-12T14:15:00")
+
+        assert ScheduledOneOffNotification.query.one().scheduled_for == datetime.datetime(2017, 5, 12, 14, 15)
+
+    @freeze_time("2017-05-12 23:00")
+    @pytest.mark.parametrize(
+        "scheduled_for, expected",
+        [
+            (None, False),
+            ("2017-05-12 23:30", False),
+            ("2017-05-12T23:59:59", False),
+            ("2017-05-13 00:00", True),
+            ("2017-05-15T10:00:00", True),
+        ],
+    )
+    def test_is_scheduled_for_a_later_day(self, scheduled_for, expected):
+        assert is_scheduled_for_a_later_day(scheduled_for) is expected
 
 
 class TestChooseQueue:

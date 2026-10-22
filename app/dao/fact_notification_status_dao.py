@@ -8,7 +8,6 @@ from sqlalchemy.types import DateTime, Integer
 
 from app import db
 from app.dao.date_util import get_query_date_based_on_retention_period
-from app.dao.notifications_dao import is_pending_scheduled_notification
 from app.models import (
     EMAIL_TYPE,
     KEY_TYPE_NORMAL,
@@ -77,18 +76,6 @@ def fetch_notification_status_for_day(process_day, service_ids=None):
 
 
 def query_for_fact_status_data(table, start_date, end_date, notification_type, service_id):
-    filters = [
-        table.created_at >= start_date,
-        table.created_at < end_date,
-        table.notification_type == notification_type,
-        table.service_id == service_id,
-        table.key_type != KEY_TYPE_TEST,
-    ]
-    if table is Notification:
-        # Scheduled notifications that haven't been sent yet shouldn't be counted. The nightly task re-processes the
-        # last 4 days, so they're picked up once sent (except ones scheduled near the 96h max, sent after that window).
-        filters.append(~is_pending_scheduled_notification())
-
     query = (
         db.session.query(
             table.template_id,
@@ -100,7 +87,13 @@ def query_for_fact_status_data(table, start_date, end_date, notification_type, s
             func.count().label("notification_count"),
             func.sum(table.billable_units).label("billable_units"),
         )
-        .filter(*filters)
+        .filter(
+            table.created_at >= start_date,
+            table.created_at < end_date,
+            table.notification_type == notification_type,
+            table.service_id == service_id,
+            table.key_type != KEY_TYPE_TEST,
+        )
         .group_by(
             table.template_id,
             table.service_id,
@@ -418,7 +411,6 @@ def _stats_for_today_with_billable_units(service_id, start_time, by_template=Fal
             Notification.created_at >= start_time,
             Notification.service_id == service_id,
             Notification.key_type != KEY_TYPE_TEST,
-            ~is_pending_scheduled_notification(),
         )
         .group_by(
             Notification.notification_type,
@@ -456,7 +448,6 @@ def _stats_for_today(service_id, start_time, by_template=False, notification_typ
             Notification.created_at >= start_time,
             Notification.service_id == service_id,
             Notification.key_type != KEY_TYPE_TEST,
-            ~is_pending_scheduled_notification(),
         )
         .group_by(
             Notification.notification_type,

@@ -15,7 +15,7 @@ from notifications_utils.timezones import (
     convert_local_timezone_to_utc,
     convert_utc_to_local_timezone,
 )
-from sqlalchemy import asc, desc, exists, func
+from sqlalchemy import asc, desc, func
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import defer, joinedload
 from sqlalchemy.orm.exc import NoResultFound
@@ -46,18 +46,11 @@ from app.models import (
     NotificationHistory,
     Organisation,
     ScheduledNotification,
+    ScheduledOneOffNotification,
     Service,
     ServiceDataRetention,
 )
 from app.utils import escape_special_characters
-
-
-def is_pending_scheduled_notification():
-    """SQL clause that is true for notifications that are scheduled for the future and have not been sent yet."""
-    return exists().where(
-        ScheduledNotification.notification_id == Notification.id,
-        ScheduledNotification.pending.is_(True),
-    )
 
 
 @transactional
@@ -393,15 +386,11 @@ def get_notifications_for_service(
     client_reference=None,
     include_one_off=True,
     format_for_csv=False,
-    include_scheduled=True,
 ):
     if page_size is None:
         page_size = current_app.config["PAGE_SIZE"]
 
     filters = [Notification.service_id == service_id]
-
-    if not include_scheduled:
-        filters.append(~is_pending_scheduled_notification())
 
     if limit_days is not None:
         filters.append(Notification.created_at > get_query_date_based_on_retention_period(limit_days))
@@ -701,7 +690,7 @@ def dao_update_notifications_by_reference(references, update_dict):
 
 
 @statsd(namespace="dao")
-def dao_get_notifications_by_to_field(service_id, search_term, notification_type=None, statuses=None, include_scheduled=True):
+def dao_get_notifications_by_to_field(service_id, search_term, notification_type=None, statuses=None):
     if notification_type is None:
         notification_type = guess_notification_type(search_term)
 
@@ -734,8 +723,6 @@ def dao_get_notifications_by_to_field(service_id, search_term, notification_type
         filters.append(Notification.status.in_(statuses))
     if notification_type:
         filters.append(Notification.notification_type == notification_type)
-    if not include_scheduled:
-        filters.append(~is_pending_scheduled_notification())
 
     results = db.session.query(Notification).filter(*filters).order_by(desc(Notification.created_at)).all()
     return results
@@ -772,19 +759,49 @@ def dao_created_scheduled_notification(scheduled_notification):
 
 
 @statsd(namespace="dao")
-def dao_get_pending_scheduled_notifications_for_service(service_id, page=1, page_size=None):
+def dao_create_scheduled_one_off_notification(scheduled_notification: ScheduledOneOffNotification):
+    db.session.add(scheduled_notification)
+    db.session.commit()
+
+
+@statsd(namespace="dao")
+def dao_get_scheduled_one_off_notification(service_id, notification_id):
+    return ScheduledOneOffNotification.query.filter_by(service_id=service_id, id=notification_id).one_or_none()
+
+
+@statsd(namespace="dao")
+def dao_get_scheduled_one_off_notifications_for_service(service_id, page=1, page_size=None):
     if page_size is None:
         page_size = current_app.config["PAGE_SIZE"]
 
     return (
-        Notification.query.join(ScheduledNotification)
-        .filter(
-            Notification.service_id == service_id,
-            ScheduledNotification.pending.is_(True),
-        )
-        .options(joinedload(Notification.scheduled_notification))
-        .order_by(asc(ScheduledNotification.scheduled_for), asc(Notification.created_at))
+        ScheduledOneOffNotification.query.filter(ScheduledOneOffNotification.service_id == service_id)
+        .options(joinedload(ScheduledOneOffNotification.template))
+        .order_by(asc(ScheduledOneOffNotification.scheduled_for), asc(ScheduledOneOffNotification.created_at))
         .paginate(page=page, per_page=page_size)
+    )
+
+
+@statsd(namespace="dao")
+@transactional
+def dao_delete_scheduled_one_off_notification(service_id, notification_id) -> int:
+    # Returns 0 if the notification doesn't exist or has already been released for sending
+    return (
+        db.session.query(ScheduledOneOffNotification)
+        .filter(ScheduledOneOffNotification.service_id == service_id, ScheduledOneOffNotification.id == notification_id)
+        .delete(synchronize_session=False)
+    )
+
+
+def dao_get_due_scheduled_one_off_notifications(limit):
+    """Locks and returns scheduled one-off notifications that are due to be sent. Rows locked by another worker are
+    skipped. The caller must delete the rows once they're sent and commit, which releases the locks."""
+    return (
+        ScheduledOneOffNotification.query.filter(ScheduledOneOffNotification.scheduled_for <= datetime.utcnow())
+        .order_by(asc(ScheduledOneOffNotification.scheduled_for))
+        .limit(limit)
+        .with_for_update(skip_locked=True)
+        .all()
     )
 
 

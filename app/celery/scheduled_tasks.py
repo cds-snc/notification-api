@@ -7,10 +7,12 @@ from sqlalchemy import and_
 from sqlalchemy.exc import SQLAlchemyError
 
 from app import (
+    db,
     email_bulk,
     email_normal,
     email_priority,
     notify_celery,
+    signer_notification,
     sms_bulk,
     sms_normal,
     sms_priority,
@@ -31,6 +33,7 @@ from app.dao.invited_user_dao import delete_invitations_created_more_than_two_da
 from app.dao.jobs_dao import dao_set_scheduled_jobs_to_pending, dao_update_job
 from app.dao.notifications_dao import (
     dao_delete_scheduled_notification_by_notification_id,
+    dao_get_due_scheduled_one_off_notifications,
     dao_get_scheduled_notifications,
     dao_old_letters_with_created_status,
     dao_precompiled_letters_still_pending_virus_check,
@@ -40,14 +43,20 @@ from app.dao.notifications_dao import (
 )
 from app.dao.provider_details_dao import dao_toggle_sms_provider, get_current_provider
 from app.dao.users_dao import delete_codes_older_created_more_than_a_day_ago
+from app.encryption import NotificationDictToSign
 from app.models import (
     EMAIL_TYPE,
     JOB_STATUS_ERROR,
     JOB_STATUS_IN_PROGRESS,
     SMS_TYPE,
     Job,
+    ScheduledOneOffNotification,
 )
-from app.notifications.process_notifications import send_notification_to_queue
+from app.notifications.process_notifications import (
+    send_notification_to_queue,
+    simulated_recipient,
+    triage_notification_to_queues,
+)
 from app.v2.errors import JobIncompleteError
 from celery import Task
 
@@ -91,10 +100,18 @@ def mark_jobs_complete():
         raise
 
 
+SCHEDULED_ONE_OFF_NOTIFICATIONS_BATCH_SIZE = 500
+
+
 @notify_celery.task(name="send-scheduled-notifications")
 @statsd(namespace="tasks")
 def send_scheduled_notifications():
     try:
+        sent_count = _send_due_scheduled_one_off_notifications()
+        current_app.logger.info(f"Sent {sent_count} scheduled one-off notifications to the sending queues")
+
+        # Notifications scheduled before scheduled_one_off_notifications was added, or by an older API instance
+        # during a deploy, are in the notifications table and are linked to a ScheduledNotification.
         scheduled_notifications = dao_get_scheduled_notifications()
         for notification in scheduled_notifications:
             send_notification_to_queue(notification, notification.service.research_mode)
@@ -103,6 +120,53 @@ def send_scheduled_notifications():
     except SQLAlchemyError:
         current_app.logger.exception("Failed to send scheduled notifications")
         raise
+
+
+def _send_due_scheduled_one_off_notifications() -> int:
+    """Puts scheduled one-off notifications that are due on the same queues as notifications sent straight away, so
+    they're added to the notifications table, and counted, when they're sent. Returns the number sent."""
+    sent_count = 0
+    while True:
+        due_notifications = dao_get_due_scheduled_one_off_notifications(SCHEDULED_ONE_OFF_NOTIFICATIONS_BATCH_SIZE)
+        try:
+            for scheduled_notification in due_notifications:
+                if scheduled_notification.service.active:
+                    triage_notification_to_queues(
+                        scheduled_notification.notification_type,
+                        signer_notification.sign(_scheduled_one_off_notification_to_sign(scheduled_notification)),
+                        scheduled_notification.template,
+                    )
+                    sent_count += 1
+                else:
+                    current_app.logger.warning(
+                        f"Scheduled notification {scheduled_notification.id} not sent, "
+                        f"service {scheduled_notification.service_id} is inactive"
+                    )
+                db.session.delete(scheduled_notification)
+            # Also releases the row locks. If publishing fails, the rows are kept and retried on the next run.
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            raise
+
+        if len(due_notifications) < SCHEDULED_ONE_OFF_NOTIFICATIONS_BATCH_SIZE:
+            return sent_count
+
+
+def _scheduled_one_off_notification_to_sign(scheduled_notification: ScheduledOneOffNotification) -> NotificationDictToSign:
+    return {
+        "id": str(scheduled_notification.id),
+        "template": str(scheduled_notification.template_id),
+        "service_id": str(scheduled_notification.service_id),
+        "template_version": str(scheduled_notification.template_version),
+        "to": str(scheduled_notification.to),
+        "personalisation": scheduled_notification.personalisation,
+        "simulated": simulated_recipient(scheduled_notification.to, scheduled_notification.notification_type),
+        "api_key": str(scheduled_notification.api_key_id) if scheduled_notification.api_key_id else None,
+        "key_type": scheduled_notification.key_type,
+        "client_reference": scheduled_notification.client_reference,
+        "reply_to_text": scheduled_notification.reply_to_text,
+    }  # type: ignore
 
 
 @notify_celery.task(name="delete-verify-codes")
