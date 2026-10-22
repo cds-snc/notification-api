@@ -24,6 +24,18 @@ from app.v2.notifications.notification_schemas import (
 def get_notification_by_id(notification_id):
     _data = {"notification_id": notification_id}
     validate(_data, notification_by_id)
+    if current_app.config.get("FF_USE_DOGPILE_CACHING", False) is True:
+        snapshot = notifications_dao.get_cached_notification_snapshot(authenticated_service.id, notification_id)
+        if snapshot is not None:
+            notification = snapshot["v2"]
+            notification["template"]["uri"] = url_for(
+                "v2_template.get_template_by_id",
+                template_id=notification["template"]["id"],
+                version=notification["template"]["version"],
+                _external=True,
+            )
+            return jsonify(notification), 200
+        return jsonify(result="error", message="Notification not found in database"), 404
     notification = notifications_dao.get_notification_with_personalisation(
         authenticated_service.id, notification_id, key_type=None
     )

@@ -6,9 +6,12 @@ from uuid import UUID
 import pytest
 from dogpile.cache import make_region
 from dogpile.cache.api import NO_VALUE
-from flask import Flask
-from tests.app.db import create_service, create_template, create_user
-
+from fakeredis import FakeRedis
+from flask import Flask, jsonify
+from freezegun import freeze_time
+from tests import create_authorization_header
+from tests.app.db import create_notification, create_service, create_template, create_user
+from tests.conftest import set_config
 from app import db
 from app.cache import cache_events
 from app.cache.cache_events import register_cache_orm_events
@@ -18,8 +21,12 @@ from app.caching import (
     _json_cache_serializer,
     cache_key_generator,
     cache_on_arguments,
+    exact_cache_key,
     init_dogpile_cache,
+    invalidate_cache_entities,
+    short_lived_region,
 )
+from app.dao import notifications_dao
 from app.dao.permissions_dao import permission_dao
 from app.dao.service_permissions_dao import (
     dao_add_service_permission,
@@ -28,6 +35,8 @@ from app.dao.service_permissions_dao import (
 from app.dao.users_dao import save_model_user
 from app.models import (
     LETTER_TYPE,
+    NOTIFICATION_DELIVERED,
+    Notification,
     Permission,
     Service,
     ServicePermission,
@@ -106,6 +115,223 @@ class TestCacheAccessLogging:
         ]
 
 
+@pytest.fixture
+def notification_cache(client, notify_api, mocker):
+    register_cache_orm_events()
+    redis_client = FakeRedis()
+    region = make_region(
+        serializer=_json_cache_serializer,
+        deserializer=_json_cache_deserializer,
+    ).configure("dogpile.cache.redis", expiration_time=60, arguments={"redis_expiration_time": 120})
+    region.backend.writer_client = redis_client
+    region.backend.reader_client = redis_client
+    mocker.patch.object(short_lived_region, "backend", region.backend)
+    with set_config(notify_api, "FF_USE_DOGPILE_CACHING", True):
+        yield redis_client
+
+
+def _snapshot(notification):
+    return notifications_dao.get_cached_notification_snapshot(notification.service_id, notification.id)
+
+
+@pytest.mark.parametrize("route", ["v1", "v2", "admin"])
+@pytest.mark.parametrize("notification_fixture", ["sample_notification", "sample_email_notification", "sample_letter_notification"])
+def test_notification_cache_preserves_response_and_reuses_snapshot(
+    client, notification_cache, request, mocker, route, notification_fixture
+):
+    notification = request.getfixturevalue(notification_fixture)
+    if route == "admin":
+        path = f"/service/{notification.service_id}/notifications/{notification.id}"
+        headers = [create_authorization_header()]
+    else:
+        path = f"{'/v2' if route == 'v2' else ''}/notifications/{notification.id}"
+        headers = [create_authorization_header(service_id=notification.service_id)]
+    with set_config(client.application, "FF_USE_DOGPILE_CACHING", False):
+        expected = client.get(path, headers=headers)
+    assert expected.status_code == 200
+    first = client.get(path, headers=headers)
+    assert first.status_code == 200
+    # Compare raw bytes so key order (not just content) matches the uncached response
+    assert first.data == expected.data
+    assert notification_cache.exists(exact_cache_key("notification", notification.id))
+    mocker.patch.object(notifications_dao, "Notification", side_effect=AssertionError("Cache hit queried database"))
+    second = client.get(path, headers=headers)
+    assert second.status_code == 200
+    assert second.data == expected.data
+
+
+def test_notification_snapshot_is_shared_by_all_routes(notification_cache, sample_notification):
+    _snapshot(sample_notification)
+    assert notification_cache.keys("notification:*") == [exact_cache_key("notification", sample_notification.id).encode()]
+
+
+@pytest.mark.parametrize("prefix", ["", "/v2"])
+def test_notification_cache_checks_service_ownership_on_hits(client, notification_cache, sample_notification, prefix):
+    notification = sample_notification
+    assert _snapshot(notification) is not None
+    other_service = create_service(service_name="other-cache-service", email_from="other-cache-service")
+    assert notifications_dao.get_cached_notification_snapshot(other_service.id, notification.id) is None
+    response = client.get(
+        f"{prefix}/notifications/{notification.id}",
+        headers=[create_authorization_header(service_id=other_service.id)],
+    )
+    assert response.status_code == 404
+
+
+def test_notification_cache_normalizes_ids_and_does_not_cache_missing(notification_cache, sample_notification):
+    service_id = sample_notification.service_id
+    first = notifications_dao.get_cached_notification_snapshot(service_id, sample_notification.id)
+    second = notifications_dao.get_cached_notification_snapshot(str(service_id), str(sample_notification.id))
+    assert jsonify(first).get_json() == jsonify(second).get_json()
+    missing_id = UUID("aaaaaaaa-1111-2222-3333-444444444444")
+    assert notifications_dao.get_cached_notification_snapshot(service_id, missing_id) is None
+    assert not notification_cache.exists(exact_cache_key("notification", missing_id))
+
+
+def test_notification_insert_does_not_queue_invalidation(notification_cache, sample_template, mocker):
+    unlink = mocker.spy(notification_cache, "unlink")
+    create_notification(template=sample_template)
+    unlink.assert_not_called()
+    assert db.session.info.get(cache_events._CACHE_INVALIDATIONS_KEY) is None
+
+
+def test_orm_notification_update_invalidates_after_commit(notification_cache, sample_notification):
+    _snapshot(sample_notification)
+    sample_notification.status = NOTIFICATION_DELIVERED
+    notifications_dao.dao_update_notification(sample_notification)
+    assert not notification_cache.exists(exact_cache_key("notification", sample_notification.id))
+    assert _snapshot(sample_notification)["v2"]["status"] == NOTIFICATION_DELIVERED
+
+
+def test_bulk_notification_update_invalidates_once_after_commit(notification_cache, sample_notification, mocker):
+    notification = sample_notification
+    _snapshot(notification)
+    unlink = mocker.spy(notification_cache, "unlink")
+    scan = mocker.spy(notification_cache, "scan")
+    notification.status = NOTIFICATION_DELIVERED
+    notifications_dao.update_notification_statuses([notification])
+    unlink.assert_called_once_with(exact_cache_key("notification", notification.id))
+    scan.assert_not_called()
+    refreshed = _snapshot(notification)
+    assert refreshed["v1"]["status"] == NOTIFICATION_DELIVERED
+    assert refreshed["v2"]["status"] == NOTIFICATION_DELIVERED
+    assert refreshed["admin"]["status"] == NOTIFICATION_DELIVERED
+
+
+def test_notification_cache_rollback_discards_invalidation(notification_cache, sample_notification, mocker):
+    notification = sample_notification
+    _snapshot(notification)
+    unlink = mocker.spy(notification_cache, "unlink")
+    notification.status = NOTIFICATION_DELIVERED
+    db.session.flush()
+    db.session.rollback()
+    unlink.assert_not_called()
+    assert notification_cache.exists(exact_cache_key("notification", notification.id))
+    db.session.commit()
+    unlink.assert_not_called()
+
+
+def test_notification_delete_evicts_cached_snapshot(notification_cache, sample_notification):
+    notification_id = sample_notification.id
+    service_id = sample_notification.service_id
+    _snapshot(sample_notification)
+    notifications_dao.dao_delete_notifications_by_id(notification_id)
+    assert not notification_cache.exists(exact_cache_key("notification", notification_id))
+    assert notifications_dao.get_cached_notification_snapshot(service_id, notification_id) is None
+
+
+@pytest.mark.parametrize("operation", ["reference", "timeout"])
+def test_notification_bulk_dml_evicts_cached_snapshot(notification_cache, sample_notification, operation):
+    notification = sample_notification
+    notification_id = notification.id
+    notification.reference = str(notification.id)
+    db.session.commit()
+    _snapshot(notification)
+    if operation == "reference":
+        assert notifications_dao.dao_update_notifications_by_reference(
+            [notification.reference], {"status": NOTIFICATION_DELIVERED}
+        ) == (1, 0)
+    else:
+        notifications_dao.dao_timeout_notifications(0)
+    assert not notification_cache.exists(exact_cache_key("notification", notification_id))
+
+
+def test_notification_cache_uses_short_lived_region_expiry(notification_cache, sample_notification, mocker):
+    notification_id = sample_notification.id
+    mocker.patch.object(short_lived_region, "expiration_time", 5)
+    with freeze_time() as frozen:
+        snapshot = _snapshot(sample_notification)
+        db.session.connection().execute(
+            Notification.__table__.update().where(Notification.id == notification_id).values(status=NOTIFICATION_DELIVERED)
+        )
+        db.session.commit()
+        assert _snapshot(sample_notification)["v1"]["status"] == snapshot["v1"]["status"]
+        frozen.tick(6)
+        assert _snapshot(sample_notification)["v1"]["status"] == NOTIFICATION_DELIVERED
+
+
+def test_notification_snapshot_supports_dogpile_helpers(notification_cache, sample_notification):
+    cached_fn = notifications_dao.dao_get_notification_snapshot_cached
+    cached_fn(sample_notification.id)
+    assert notification_cache.exists(exact_cache_key("notification", sample_notification.id))
+    cached_fn.invalidate(sample_notification.id)
+    assert not notification_cache.exists(exact_cache_key("notification", sample_notification.id))
+
+
+def test_notification_snapshot_logs_cache_outcome(notification_cache, sample_notification, mocker):
+    logger = mocker.patch("app.caching.logger")
+    notifications_dao.dao_get_notification_snapshot_cached(sample_notification.id)
+    notifications_dao.dao_get_notification_snapshot_cached(sample_notification.id)
+    messages = [c.args[0] for c in logger.info.call_args_list if c.args[0].startswith("dao.execution_time")]
+    assert [m.split("cache_outcome=")[1] for m in messages] == ["regenerated", "reused"]
+    assert all("function=app.dao.notifications_dao.dao_get_notification_snapshot_cached" in m for m in messages)
+
+
+class TestCacheNamespaces:
+    def test_exact_namespace_rejects_functions_with_extra_arguments(self):
+        with pytest.raises(TypeError, match="must take only 'notification_id'"):
+
+            @cache_on_arguments(namespace="notification", group_by="notification_id")
+            def fetch(notification_id, service_id):
+                pass
+
+    def test_decorator_rejects_missing_group_by_argument(self):
+        with pytest.raises(TypeError, match="must accept the group_by argument 'service_id'"):
+
+            @cache_on_arguments(namespace="service", group_by="service_id")
+            def fetch(user_id):
+                pass
+
+    def test_exact_namespace_uses_short_lived_region_and_exact_key(self, mocker):
+        default_region = mocker.patch("app.caching.dogpile_region")
+        short_region = mocker.patch("app.caching.short_lived_region")
+        captured = {}
+        short_region.cache_on_arguments.return_value = lambda creator: captured.setdefault("creator", creator)
+
+        @cache_on_arguments(namespace="notification", group_by="notification_id")
+        def fetch(notification_id):
+            pass
+
+        short_region.cache_on_arguments.assert_called_once_with(namespace="notification")
+        default_region.cache_on_arguments.assert_not_called()
+        notification_id = UUID("d4e5f6a7-1234-5678-9abc-def012345678")
+        generate_key = cache_key_generator("notification", captured["creator"])
+        assert generate_key(notification_id) == generate_key(str(notification_id)) == f"notification:{notification_id}"
+
+    def test_invalidate_cache_entities_dispatches_on_namespace_strategy(self, mocker):
+        unlink = mocker.patch("app.caching._unlink_exact_keys")
+        scan = mocker.patch("app.caching.invalidate_group_keys")
+
+        invalidate_cache_entities("notification", ["a", "b"])
+        invalidate_cache_entities("service", ["s1", "s2", "s1"])
+
+        unlink.assert_called_once_with("notification", ["a", "b"], short_lived_region)
+        assert [c.args[:2] for c in scan.call_args_list] == [("service", "s1"), ("service", "s2")]
+
+    def test_serializer_preserves_key_order(self):
+        assert _json_cache_serializer({"b": 1, "a": 2}) == b'{"b":1,"a":2}'
+
+
 class TestCacheEvents:
     def test_register_cache_orm_events_is_thread_safe(self, mocker):
         registered_listeners = set()
@@ -142,7 +368,7 @@ class TestCacheEvents:
             service_name="service-cache-update", email_from="service-cache-update"
         )
 
-        mocked_invalidate = mocker.patch("app.cache.cache_events.invalidate_group_keys")
+        mocked_invalidate = mocker.patch("app.caching.invalidate_group_keys")
 
         service.name = "service-cache-update-2"
         db.session.add(service)
@@ -158,7 +384,7 @@ class TestCacheEvents:
             service_name="service-cache-perms", email_from="service-cache-perms"
         )
 
-        mocked_invalidate = mocker.patch("app.cache.cache_events.invalidate_group_keys")
+        mocked_invalidate = mocker.patch("app.caching.invalidate_group_keys")
 
         dao_add_service_permission(service.id, LETTER_TYPE)
         dao_remove_service_permission(service.id, LETTER_TYPE)
@@ -176,7 +402,7 @@ class TestCacheEvents:
         )
         user = create_user()
 
-        mocked_invalidate = mocker.patch("app.cache.cache_events.invalidate_group_keys")
+        mocked_invalidate = mocker.patch("app.caching.invalidate_group_keys")
 
         db.session.add(ServiceUser(service_id=service.id, user_id=user.id))
         db.session.commit()
@@ -192,7 +418,7 @@ class TestCacheEvents:
     def test_user_update_invalidates_user_cache(self, notify_db_session, mocker):
         register_cache_orm_events()
         user = create_user()
-        mocked_invalidate = mocker.patch("app.cache.cache_events.invalidate_group_keys")
+        mocked_invalidate = mocker.patch("app.caching.invalidate_group_keys")
 
         save_model_user(user, update_dict={"name": "Updated name"})
 
@@ -203,7 +429,7 @@ class TestCacheEvents:
     ):
         register_cache_orm_events()
         user = sample_service.users[0]
-        mocked_invalidate = mocker.patch("app.cache.cache_events.invalidate_group_keys")
+        mocked_invalidate = mocker.patch("app.caching.invalidate_group_keys")
 
         permission_dao.remove_user_service_permissions(
             user=user, service=sample_service
@@ -221,7 +447,7 @@ class TestCacheEvents:
             service_name="template-cache-service", email_from="template-cache-service"
         )
         template = create_template(service=service)
-        mocked_invalidate = mocker.patch("app.cache.cache_events.invalidate_group_keys")
+        mocked_invalidate = mocker.patch("app.caching.invalidate_group_keys")
 
         template.name = "Updated template name"
         db.session.commit()
@@ -583,8 +809,26 @@ class TestInitDogpileCache:
         app.config.update(REDIS_URL=None, DOGPILE_CACHE_EXPIRATION=600, DOGPILE_CACHE_BACKEND="dogpile.cache.redis")
 
         mock_configure = mocker.patch("app.caching.dogpile_region.configure")
+        mocker.patch("app.caching.short_lived_region.configure")
 
         init_dogpile_cache(app)
 
         _, kwargs = mock_configure.call_args
         assert kwargs["arguments"]["url"] == "redis://localhost:6379/0"
+
+    def test_short_lived_region_redis_ttl_tracks_freshness_window(self, mocker):
+        app = mocker.MagicMock()
+        app.config.get.side_effect = lambda key, default=None: {
+            "REDIS_URL": "redis://cache:6379/0",
+            "DOGPILE_CACHE_EXPIRATION": 600,
+            "DOGPILE_SHORT_LIVED_CACHE_EXPIRATION": 30,
+        }.get(key, default)
+        mocker.patch("app.caching.dogpile_region.configure")
+        mock_notification_configure = mocker.patch("app.caching.short_lived_region.configure")
+
+        init_dogpile_cache(app)
+
+        _, kwargs = mock_notification_configure.call_args
+        assert kwargs["expiration_time"] == 30
+        assert kwargs["arguments"]["url"] == "redis://cache:6379/0"
+        assert kwargs["arguments"]["redis_expiration_time"] == 60
