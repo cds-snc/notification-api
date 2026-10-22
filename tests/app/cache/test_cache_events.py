@@ -9,14 +9,15 @@ from app import db
 from app.cache import cache_events
 from app.cache.cache_dml import cache_invalidating_dml
 from app.cache.cache_events import register_cache_orm_events
-from app.cache.cache_invalidation_registry import CACHE_INVALIDATION_REGISTRY
-from app.caching import invalidate_group_keys
+from app.cache.cache_invalidation_registry import CACHE_INVALIDATION_REGISTRY, CacheInvalidationRule
+from app.caching import _unlink_exact_keys, invalidate_group_keys
 from app.dao.permissions_dao import permission_dao
 from app.dao.service_permissions_dao import dao_add_service_permission, dao_remove_service_permission
 from app.dao.templates_dao import dao_update_template_process_type
 from app.dao.users_dao import save_model_user
 from app.models import (
     LETTER_TYPE,
+    Notification,
     Permission,
     Service,
     ServicePermission,
@@ -60,7 +61,7 @@ def test_collect_cache_invalidations_logs_performance(mocker):
     instance = CachedModel()
     instance.id = "entity-id"
     session = SimpleNamespace(new={instance}, dirty=set(), deleted=set(), info={})
-    rule = SimpleNamespace(namespace="service", entity_id_attribute="id")
+    rule = CacheInvalidationRule(namespace="service", entity_id_attribute="id")
     mocker.patch.object(
         cache_events, "CACHE_INVALIDATION_REGISTRY", {CachedModel: (rule,)}
     )
@@ -72,6 +73,31 @@ def test_collect_cache_invalidations_logs_performance(mocker):
     mocked_logger.info.assert_called_once_with(
         "cache.collect_invalidations instances=1 invalidations=1 elapsed_ms=125.00"
     )
+
+
+def test_collect_cache_invalidations_skips_inserts_when_rule_opts_out(mocker):
+    class CachedModel:
+        pass
+
+    inserted, updated, deleted = CachedModel(), CachedModel(), CachedModel()
+    inserted.id, updated.id, deleted.id = "inserted", "updated", "deleted"
+    session = SimpleNamespace(new={inserted}, dirty={updated}, deleted={deleted}, info={})
+    rule = CacheInvalidationRule(namespace="notification", entity_id_attribute="id", invalidate_on_insert=False)
+    mocker.patch.object(cache_events, "CACHE_INVALIDATION_REGISTRY", {CachedModel: (rule,)})
+
+    cache_events._collect_cache_invalidations(session, mocker.Mock())
+
+    assert session.info[cache_events._CACHE_INVALIDATIONS_KEY] == {
+        ("notification", "updated"),
+        ("notification", "deleted"),
+    }
+
+
+def test_notification_rule_skips_inserts():
+    assert [
+        (rule.namespace, rule.entity_id_attribute, rule.invalidate_on_insert)
+        for rule in CACHE_INVALIDATION_REGISTRY[Notification]
+    ] == [("notification", "id", False)]
 
 
 def test_invalidate_group_keys_logs_performance(mocker):
@@ -93,6 +119,73 @@ def test_invalidate_group_keys_logs_performance(mocker):
     mocked_logger.info.assert_called_once_with(
         "cache.invalidate_group_keys namespace=service batch_size=500 scans=2 matched=3 deleted=3 elapsed_ms=125.00"
     )
+
+
+def test_exact_key_invalidation_deletes_deduplicated_keys_in_batches(mocker):
+    redis_client = mocker.Mock()
+    redis_client.unlink.side_effect = [2, 1]
+    mocker.patch("app.caching._get_redis_client_from_region", return_value=redis_client)
+
+    deleted = _unlink_exact_keys("notification", ["first", "second", "first", "third"], region=None, batch_size=2)
+
+    assert deleted == 3
+    assert redis_client.unlink.call_args_list == [
+        call("notification:first", "notification:second"),
+        call("notification:third"),
+    ]
+    redis_client.scan.assert_not_called()
+
+
+def test_after_commit_invalidates_each_namespace_in_one_batch(mocker):
+    session = SimpleNamespace(info={cache_events._CACHE_INVALIDATIONS_KEY: {
+        ("notification", "first"), ("notification", "second"), ("service", "service-id")
+    }})
+    invalidate = mocker.patch("app.cache.cache_events.invalidate_cache_entities")
+
+    cache_events._invalidate_cache_after_commit(session)
+
+    calls = {c.args[0]: set(c.args[1]) for c in invalidate.call_args_list}
+    assert calls == {"notification": {"first", "second"}, "service": {"service-id"}}
+    assert session.info == {}
+
+
+def test_after_commit_failure_in_one_namespace_does_not_block_others(mocker):
+    session = SimpleNamespace(info={cache_events._CACHE_INVALIDATIONS_KEY: {
+        ("notification", "first"), ("service", "service-id")
+    }})
+    invalidate = mocker.patch(
+        "app.cache.cache_events.invalidate_cache_entities",
+        side_effect=lambda namespace, _ids: (_ for _ in ()).throw(RuntimeError()) if namespace == "notification" else 1,
+    )
+    mocked_logger = mocker.patch("app.cache.cache_events.logger")
+
+    cache_events._invalidate_cache_after_commit(session)
+
+    assert invalidate.call_count == 2
+    mocked_logger.exception.assert_called_once()
+
+
+def test_queue_cache_invalidations_resolves_model_rules_and_accepts_iterables(mocker):
+    mocker.patch("app.cache.cache_events.event.contains", return_value=True)
+    session = SimpleNamespace(info={})
+
+    cache_events.queue_cache_invalidations(session, Notification, id=(i for i in ["a", "b"]))
+    cache_events.queue_cache_invalidations(session, Notification, id="c")
+
+    assert session.info[cache_events._CACHE_INVALIDATIONS_KEY] == {
+        ("notification", "a"),
+        ("notification", "b"),
+        ("notification", "c"),
+    }
+
+
+def test_queue_cache_invalidations_is_noop_when_listeners_not_registered(mocker):
+    mocker.patch("app.cache.cache_events.event.contains", return_value=False)
+    session = SimpleNamespace(info={})
+
+    cache_events.queue_cache_invalidations(session, Notification, id=["a"])
+
+    assert session.info == {}
 
 
 def test_intercept_bulk_operations_uses_cache_invalidating_dml_metadata(mocker):
@@ -144,7 +237,7 @@ def test_service_update_invalidates_service_cache(notify_db_session, mocker):
     register_cache_orm_events()
     service = create_service(service_name="service-cache-update", email_from="service-cache-update")
 
-    mocked_invalidate = mocker.patch("app.cache.cache_events.invalidate_group_keys")
+    mocked_invalidate = mocker.patch("app.caching.invalidate_group_keys")
 
     service.name = "service-cache-update-2"
     db.session.add(service)
@@ -157,7 +250,7 @@ def test_service_permission_changes_invalidate_service_cache(notify_db_session, 
     register_cache_orm_events()
     service = create_service(service_name="service-cache-perms", email_from="service-cache-perms")
 
-    mocked_invalidate = mocker.patch("app.cache.cache_events.invalidate_group_keys")
+    mocked_invalidate = mocker.patch("app.caching.invalidate_group_keys")
 
     dao_add_service_permission(service.id, LETTER_TYPE)
     dao_remove_service_permission(service.id, LETTER_TYPE)
@@ -170,7 +263,7 @@ def test_service_user_change_invalidates_service_and_user_caches(notify_db_sessi
     service = create_service(service_name="service-cache-user", email_from="service-cache-user")
     user = create_user()
 
-    mocked_invalidate = mocker.patch("app.cache.cache_events.invalidate_group_keys")
+    mocked_invalidate = mocker.patch("app.caching.invalidate_group_keys")
 
     db.session.add(ServiceUser(service_id=service.id, user_id=user.id))
     db.session.commit()
@@ -187,7 +280,7 @@ def test_service_user_change_invalidates_service_and_user_caches(notify_db_sessi
 def test_user_update_invalidates_user_cache(notify_db_session, mocker):
     register_cache_orm_events()
     user = create_user()
-    mocked_invalidate = mocker.patch("app.cache.cache_events.invalidate_group_keys")
+    mocked_invalidate = mocker.patch("app.caching.invalidate_group_keys")
 
     save_model_user(user, update_dict={"name": "Updated name"})
 
@@ -197,7 +290,7 @@ def test_user_update_invalidates_user_cache(notify_db_session, mocker):
 def test_permission_removal_invalidates_user_cache(notify_db_session, sample_service, mocker):
     register_cache_orm_events()
     user = sample_service.users[0]
-    mocked_invalidate = mocker.patch("app.cache.cache_events.invalidate_group_keys")
+    mocked_invalidate = mocker.patch("app.caching.invalidate_group_keys")
 
     permission_dao.remove_user_service_permissions(user=user, service=sample_service)
     db.session.commit()
@@ -208,7 +301,7 @@ def test_permission_removal_invalidates_user_cache(notify_db_session, sample_ser
 def test_permission_removal_rollback_discards_user_cache_invalidation(notify_db_session, sample_service, mocker):
     register_cache_orm_events()
     user = sample_service.users[0]
-    mocked_invalidate = mocker.patch("app.cache.cache_events.invalidate_group_keys")
+    mocked_invalidate = mocker.patch("app.caching.invalidate_group_keys")
 
     permission_dao.remove_user_service_permissions(user=user, service=sample_service)
     db.session.rollback()
@@ -221,7 +314,7 @@ def test_template_update_invalidates_template_cache(notify_db_session, mocker):
     register_cache_orm_events()
     service = create_service(service_name="template-cache-service", email_from="template-cache-service")
     template = create_template(service=service)
-    mocked_invalidate = mocker.patch("app.cache.cache_events.invalidate_group_keys")
+    mocked_invalidate = mocker.patch("app.caching.invalidate_group_keys")
 
     template.name = "Updated template name"
     db.session.commit()
@@ -233,7 +326,7 @@ def test_template_bulk_update_invalidates_template_cache(notify_db_session, mock
     register_cache_orm_events()
     service = create_service(service_name="template-bulk-cache-service", email_from="template-bulk-cache-service")
     template = create_template(service=service)
-    mocked_invalidate = mocker.patch("app.cache.cache_events.invalidate_group_keys")
+    mocked_invalidate = mocker.patch("app.caching.invalidate_group_keys")
 
     dao_update_template_process_type(template.id, "priority")
 

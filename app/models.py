@@ -2097,11 +2097,12 @@ class Notification(BaseModel):
 
         return serialized
 
-    def serialize(self) -> dict:
+    def serialize(self, include_template_uri: bool = True) -> dict:
+        # The template URI depends on the request host, so cached snapshots omit it and callers add it per request.
         template_dict = {
             "version": self.template.version,
             "id": self.template.id,
-            "uri": self.template.get_link(),
+            "uri": self.template.get_link() if include_template_uri else None,
         }
 
         serialized = {

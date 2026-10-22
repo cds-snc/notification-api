@@ -66,9 +66,29 @@ and follows this flow:
 
 ## Our implementation
 
-In our application, we configure one Dogpile region backed by Redis. Distributed
-locking is enabled so workers coordinate cache regeneration. The default expiry
-is 600 seconds and is configurable with `DOGPILE_CACHE_EXPIRATION`.
+In our application, we configure two Dogpile regions backed by Redis. Distributed
+locking is enabled so workers coordinate cache regeneration.
+
+| Region | Expiry setting | Default | Used by |
+| --- | --- | --- | --- |
+| `dogpile_region` | `DOGPILE_CACHE_EXPIRATION` | 600s | service, user, template |
+| `short_lived_region` | `DOGPILE_SHORT_LIVED_CACHE_EXPIRATION` | 60s | notification |
+
+Each region's physical Redis TTL is twice its freshness window, so one worker can
+regenerate an expired value while others are served the previous one.
+
+Developers never pick a region or key strategy at the call site. Both are declared
+once per namespace in `CACHE_NAMESPACES` (`app/caching.py`); namespaces not listed
+use the defaults (prefix keys, default region):
+
+```python
+CACHE_NAMESPACES = {
+    "notification": CacheNamespace(key_strategy=KEY_STRATEGY_EXACT, region=REGION_SHORT_LIVED),
+}
+```
+
+The decorator, key generator, and after-commit invalidation all read this table,
+so reads and invalidations cannot disagree about where a namespace's keys live.
 
 By default, argument caching produces an exact key for each invocation. Invalidating
 that exact key requires knowing every function's name and every argument combination.
@@ -105,6 +125,18 @@ template:7d...:dao_get_template_by_id:service_id=2a...
 This key structure gives us more options when designing invalidation strategies.
 With logical groups we can easily target and invalidate key groups
 
+### Key strategies
+
+- **Prefix** (default): keys use the grouped format above, so one owner can have
+  many argument variants. Invalidation scans for `<namespace>:<id>:*`. Suited to
+  low-churn entities (service, user, template).
+- **Exact**: the key is exactly `<namespace>:<id>`. Invalidation is a batched
+  `UNLINK` with no scanning, so bulk writes that touch thousands of rows stay
+  cheap. Exact strategy is best suited to high-churn entities (notification). 
+  Because there is no room for an argument fingerprint, the decorator raises 
+  `TypeError` at import time if an exact-namespace function takes any argument 
+  other than `group_by`. Any scoping (for example service ownership) must be 
+  checked by the caller after the read.
 
 The group argument is used as the key prefix and all other arguments remain part
 of the fingerprint. This distinction is important. A function accepting both
@@ -124,8 +156,7 @@ The implementation deliberately separates two concerns:
 
 1. A cached read declares its namespace and group owner at the function level through the 
 cache_on_arguments annotation
-1. The invalidation registry declares which model writes can change that
-	 owner's serialized data.
+1. The invalidation registry declares which model writes can change that owner's serialized data.
 
 This is necessary because a cached payload is not always invalidated only by a
 write to the same table.
@@ -219,6 +250,64 @@ After a commit, `invalidate_group_keys` scans for
 rollback, the queued set is simply removed. This gives every observed ORM write
 the same transaction-aware behavior without requiring each DAO to remember an
 invalidation call.
+
+### Notification caching and hybrid invalidation
+
+The single-notification GET endpoints (v1 `/notifications/<id>`, v2
+`/v2/notifications/<id>`, and admin `/service/<service_id>/notifications/<id>`)
+use Dogpile when `FF_USE_DOGPILE_CACHING` is enabled. Lists, searches, PDF
+downloads, and DAO reads used to make write decisions remain uncached.
+
+Every route reads through `get_cached_notification_snapshot(service_id,
+notification_id)`, a thin wrapper around the cached DAO:
+
+```python
+@cache_on_arguments(
+    namespace="notification",
+    group_by="notification_id",
+    should_cache_fn=lambda snapshot: snapshot is not None,
+)
+def dao_get_notification_snapshot_cached(notification_id): ...
+```
+
+The `notification` namespace is registered as exact and short-lived, so the key
+is `notification:<notification-id>`. The JSON snapshot contains the owning service
+ID plus the v1, v2, and admin response representations, so all routes share one
+entry and one invalidation. Because the key deliberately omits the service ID (the
+write path only knows the notification ID), the wrapper checks service ownership
+on every read, including cache hits. The v2 template URL depends on the request
+host, so it is omitted from the snapshot and rebuilt per request. Missing
+notifications are not cached (`should_cache_fn`).
+
+The short-lived region keeps high-churn notification entries from occupying Redis
+for the default 600-second TTL used by service, user, and template data.
+
+**The reduced TTL is the freshness guarantee** for
+user-visible status changes. After commit, notification IDs are deduplicated and
+their exact keys are removed with Redis `UNLINK` in batches of at most 500 keys,
+so notification invalidation never scans Redis.
+
+Invalidation is queued only where a cached entry can exist and the IDs are
+already known or cheap to obtain:
+
+| Write path | Invalidation |
+| --- | --- |
+| ORM updates/deletes (`dao_update_notification`, status callbacks) | Automatic via `after_flush` |
+| ORM inserts (`dao_create_notification`) | Skipped (`invalidate_on_insert=False`); misses are never cached |
+| `bulk_insert_notifications` | Skipped; new rows cannot be cached |
+| `update_notification_statuses` (`bulk_save_objects`) | `queue_cache_invalidations` with IDs from the in-memory objects |
+| `_timeout_notifications` | IDs from the rows it already loads |
+| `dao_update_notifications_by_reference`, `dao_cancel_letter_job` | `RETURNING id` |
+| `dao_delete_notifications_by_id`, `dao_delete_scheduled_notification_by_id` | The single ID |
+| Retention deletion, service deletion, re-signing | Skipped; rows are far older than the TTL, or the cached (decrypted) value is unchanged |
+
+Rollback discards all queued work, and Redis failures do not undo a successful
+database commit. Unannotated bulk SQL and external database writers rely on expiry.
+
+A generation counter per notification (`cache-gen:notification:<id>`) was
+considered and rejected: it adds a Redis round trip to every read to save nothing
+on writes, since exact-key `UNLINK` is already a single pipelined command per batch.
+
 
 ## ORM model events versus bulk DML
 
@@ -332,7 +421,7 @@ the goal of implementing this caching system in the first place.
 
 - The Dogpile region is configured during application initialization regardless
 	of the flag.
-- Cached service, user, and template REST read paths are selected only when the
+- Cached service, user, template, and individual notification REST read paths are selected only when the
 	flag is enabled.
 - ORM invalidation listeners are registered only when the flag is enabled.
 
