@@ -7,7 +7,7 @@ import pytest
 from dogpile.cache import make_region
 from dogpile.cache.api import NO_VALUE
 from fakeredis import FakeRedis
-from flask import Flask jsonify
+from flask import Flask, jsonify
 from freezegun import freeze_time
 from tests import create_authorization_header
 from tests.app.db import create_notification, create_service, create_template, create_user
