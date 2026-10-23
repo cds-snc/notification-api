@@ -5,6 +5,12 @@ on:
   workflow_dispatch:
   push:
     branches: ["main"]
+    paths:
+      - ".github/workflows/build_and_push_performance_test.yml"
+      - "tests_nightly_performance/**"
+      - "pyproject.toml"
+      - "poetry.lock"
+      - "Makefile"
 
 env:
   ACCOUNT_ID: ${{ secrets.STAGING_AWS_ACCOUNT_ID }}
@@ -41,7 +47,6 @@ jobs:
       - name: Build container
         run: |
           docker build \
-            --build-arg git_sha="$GITHUB_SHA" \
             -t "$IMAGE_URI" \
             -f tests_nightly_performance/Dockerfile .
         env:
