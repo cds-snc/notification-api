@@ -69,7 +69,7 @@ jobs:
         env:
           IMAGE_URI: ${{ env.REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ steps.image-tag.outputs.tag }}
 
-      - name: Update ECS task definitions and scheduled target
+      - name: Register ECS task revisions
         env:
           IMAGE_URI: ${{ env.REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ steps.image-tag.outputs.tag }}
           NORMAL_TASK_FAMILY: ${{ env.NORMAL_TASK_FAMILY }}
@@ -122,41 +122,6 @@ jobs:
           normal_task_definition_arn="$(register_task_definition "$NORMAL_TASK_FAMILY")"
           echo "Registered failure-scenario task definition: $failure_task_definition_arn"
           echo "Registered scheduled task definition: $normal_task_definition_arn"
-
-          target_response="$(aws events list-targets-by-rule \
-            --rule perf_test_event_rule \
-            --output json)"
-          if [ "$(jq '.Targets | length' <<< "$target_response")" -ne 1 ]; then
-            echo "Expected exactly one target for perf_test_event_rule" >&2
-            exit 1
-          fi
-
-          targets="$(jq -ce --arg arn "$normal_task_definition_arn" '
-            [
-              .Targets[]
-              | .EcsParameters.TaskDefinitionArn = $arn
-              | with_entries(select(
-                  .key == "Id" or
-                  .key == "Arn" or
-                  .key == "RoleArn" or
-                  .key == "Input" or
-                  .key == "InputPath" or
-                  .key == "InputTransformer" or
-                  .key == "EcsParameters" or
-                  .key == "RetryPolicy" or
-                  .key == "DeadLetterConfig"
-                ))
-            ]
-          ' <<< "$target_response")"
-          failed_entries="$(aws events put-targets \
-            --rule perf_test_event_rule \
-            --targets "$targets" \
-            --query FailedEntryCount \
-            --output text)"
-          if [ "$failed_entries" != "0" ]; then
-            echo "Failed to update scheduled ECS target" >&2
-            exit 1
-          fi
 
       - name: Logout of Amazon ECR
         if: always() && steps.login-ecr.outcome == 'success'
