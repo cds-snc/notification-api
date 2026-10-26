@@ -54,6 +54,11 @@ register_errors(notifications)
 
 @notifications.route("/notifications/<uuid:notification_id>", methods=["GET"])
 def get_notification_by_id(notification_id):
+    if current_app.config.get("FF_USE_DOGPILE_CACHING", False) is True:
+        snapshot = notifications_dao.get_cached_notification_snapshot(authenticated_service.id, notification_id)
+        if snapshot is not None:
+            return jsonify(data={"notification": snapshot["v1"]}), 200
+        return jsonify(result="error", message="Notification not found in database"), 404
     notification = notifications_dao.get_notification_with_personalisation(
         str(authenticated_service.id), notification_id, key_type=None
     )

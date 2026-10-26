@@ -6,7 +6,8 @@ keys only after the transaction commits.
 """
 
 import logging
-from collections.abc import Iterator, Mapping
+from collections import defaultdict
+from collections.abc import Iterable, Iterator, Mapping
 from threading import Lock
 from time import perf_counter
 from typing import cast
@@ -18,7 +19,7 @@ from sqlalchemy.orm.unitofwork import UOWTransaction
 
 from app.cache.cache_dml import _CACHE_INVALIDATION_ENTITY_IDS_OPTION
 from app.cache.cache_invalidation_registry import CACHE_INVALIDATION_REGISTRY
-from app.caching import invalidate_group_keys
+from app.caching import invalidate_cache_entities
 
 _CACHE_INVALIDATIONS_KEY = "cache_invalidations_to_run"
 _EVENT_REGISTRATION_LOCK = Lock()
@@ -27,14 +28,7 @@ _EVENT_REGISTRATION_LOCK = Lock()
 logger = logging.getLogger(__name__)
 
 EntityId = UUID | str
-EntityIdValue = (
-    EntityId
-    | list[EntityId]
-    | tuple[EntityId, ...]
-    | set[EntityId]
-    | frozenset[EntityId]
-    | None
-)
+EntityIdValue = EntityId | Iterable[EntityId] | None
 EntityIds = Mapping[str, EntityIdValue]
 CacheInvalidation = tuple[str, str]
 
@@ -42,16 +36,29 @@ CacheInvalidation = tuple[str, str]
 def _as_entity_id_collection(value: EntityIdValue) -> Iterator[EntityId]:
     if value is None:
         return
-    if isinstance(value, (list, tuple, set, frozenset)):
-        yield from value
-    else:
+    if isinstance(value, (str, UUID)):
         yield value
+    else:
+        yield from value
 
 
 def _queue_cache_invalidation(session: Session, namespace: str, entity_id: EntityId) -> None:
     session.info.setdefault(_CACHE_INVALIDATIONS_KEY, set()).add(
         (namespace, str(entity_id))
     )
+
+
+def queue_cache_invalidations(session: Session, model: type[object], **entity_ids: EntityIdValue) -> None:
+    """Queue invalidations for rows the ORM does not track, resolved through the model's registry rules.
+
+    Use after ``bulk_save_objects`` or DML whose affected IDs are only known after execution
+    (e.g. ``RETURNING``). Invalidation runs after commit and is discarded on rollback.
+
+        queue_cache_invalidations(db.session, Notification, id=notification_ids)
+    """
+    if not event.contains(Session, "after_commit", _invalidate_cache_after_commit):
+        return
+    _queue_entity_invalidations(session, model, entity_ids)
 
 
 def _queue_entity_invalidations(
@@ -89,16 +96,20 @@ def _collect_cache_invalidations(
     group in one transaction.
     """
     started = perf_counter()
-    instances = session.new.union(session.dirty).union(session.deleted)
+    new_instances = set(session.new)
+    instances = new_instances.union(session.dirty).union(session.deleted)
     invalidations_before = len(session.info.get(_CACHE_INVALIDATIONS_KEY, ()))
 
     try:
         for instance in instances:
+            is_new = instance in new_instances
             for model, rules in CACHE_INVALIDATION_REGISTRY.items():
                 if not isinstance(instance, model):
                     continue
 
                 for rule in rules:
+                    if is_new and not rule.invalidate_on_insert:
+                        continue
                     entity_id = getattr(instance, rule.entity_id_attribute, None)
                     if entity_id is not None:
                         _queue_cache_invalidation(
@@ -116,19 +127,23 @@ def _collect_cache_invalidations(
 
 
 def _invalidate_cache_after_commit(session: Session) -> None:
-    """Delete grouped cache keys affected by the committed transaction."""
+    """Delete cache keys affected by the committed transaction, one batch per namespace."""
     invalidations: set[CacheInvalidation] = session.info.pop(
         _CACHE_INVALIDATIONS_KEY, set()
     )
+    entity_ids_by_namespace: dict[str, list[str]] = defaultdict(list)
     for namespace, entity_id in invalidations:
+        entity_ids_by_namespace[namespace].append(entity_id)
+
+    for namespace, entity_ids in entity_ids_by_namespace.items():
         try:
-            invalidate_group_keys(namespace, entity_id)
+            invalidate_cache_entities(namespace, entity_ids)
         except Exception:
             logger.exception(
-                "Failed to invalidate cache group",
+                "Failed to invalidate cache",
                 extra={
                     "cache_namespace": namespace,
-                    "cache_entity_id": entity_id,
+                    "cache_entity_count": len(entity_ids),
                 },
             )
 
