@@ -817,12 +817,12 @@ class TestInitDogpileCache:
         assert kwargs["arguments"]["url"] == "redis://localhost:6379/0"
 
     def test_short_lived_region_redis_ttl_tracks_freshness_window(self, mocker):
-        app = mocker.MagicMock()
-        app.config.get.side_effect = lambda key, default=None: {
-            "REDIS_URL": "redis://cache:6379/0",
-            "DOGPILE_CACHE_EXPIRATION": 600,
-            "DOGPILE_SHORT_LIVED_CACHE_EXPIRATION": 30,
-        }.get(key, default)
+        app = Flask("test")
+        app.config.update(
+            REDIS_URL="redis://cache:6379/0",
+            DOGPILE_CACHE_EXPIRATION=600,
+            DOGPILE_SHORT_LIVED_CACHE_EXPIRATION=30,
+        )
         mocker.patch("app.caching.dogpile_region.configure")
         mock_notification_configure = mocker.patch("app.caching.short_lived_region.configure")
 
