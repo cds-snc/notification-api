@@ -212,6 +212,17 @@ execution metadata to automatically handle cache invalidation. Replace them
 with modern `update(Model)` or `delete(Model)` statements executed through
 the session and wrapped with `cache_invalidating_dml`.
 
+## Implementation checklist
+
+- Add a cached DAO returning a JSON-safe value.
+- Set `namespace` and `group_by` to the cache owner's namespace and ID argument.
+- Ensure that the model <-> Cache mappings in `CACHE_INVALIDATION_REGISTRY` are up to date.
+- Wrap every relevant direct `UPDATE` and `DELETE` with
+  `cache_invalidating_dml` and use modern `update(model)` / `delete(model)` calls.
+- Test cache hits and misses, key grouping, successful-commit invalidation, and
+  rollback behavior.
+
+
 ## Cache performance metrics
 
 DAO timings, cached reads, ORM invalidation collection, and prefix invalidation
@@ -239,21 +250,8 @@ values are milliseconds. Failure diagnostics retain their exception/error logs.
 | `cache.collect_invalidations.instances` | Counter | ORM instances examined during collection passes. |
 | `cache.collect_invalidations.invalidations` | Counter | Newly queued targets after deduplication within the transaction. |
 
-Namespaces are `service`, `template`, and `user`. No entity IDs or cache keys
-are included in metric names. Invalidation counts include completed work before
-an error, if any. The original exceptions still propagate.
-
-The `log_execution_time` decorator keeps its existing name for compatibility but
-now sends a StatsD timer, not a log record. Cached DAOs are already measured by
-`cache_on_arguments` and should not also use this decorator. Collection counters
-cover work performed before commit, including transactions that later roll back;
-they are not counts of completed Redis deletions. Post-commit invalidation
-failures remain logged and do not undo the committed database transaction.
-
-The former `dao.execution_time`, `cache.collect_invalidations`, and
-`cache.invalidate_group_keys` performance log messages are no longer emitted.
-CloudWatch Logs Insights queries for those messages will only return historical
-records from before this change.
+Namespaces are `service`, `template`, `user`, etc. No entity IDs or cache keys
+are included in metric names.
 
 To evaluate cache performance:
 
@@ -268,16 +266,3 @@ To evaluate cache performance:
 - Compare equivalent request-level latency and database load with the feature
   flag off/on under the same workload. DAO timings alone have different
   serialization boundaries and cannot establish the overall request benefit.
-
-The StatsD receiver determines where these metrics can be graphed. Emitting
-StatsD metrics does not automatically create CloudWatch custom metrics.
-
-## Implementation checklist
-
-- Add a cached DAO returning a JSON-safe value.
-- Set `namespace` and `group_by` to the cache owner's namespace and ID argument.
-- Ensure that the model <-> Cache mappings in `CACHE_INVALIDATION_REGISTRY` are up to date.
-- Wrap every relevant direct `UPDATE` and `DELETE` with
-  `cache_invalidating_dml` and use modern `update(model)` / `delete(model)` calls.
-- Test cache hits and misses, key grouping, successful-commit invalidation, and
-  rollback behavior.
