@@ -19,6 +19,7 @@ from app.dao.templates_dao import dao_update_template
 from app.delivery import send_to_providers
 from app.exceptions import (
     DocumentDownloadException,
+    EmailFromHeaderTooLongException,
     InvalidUrlException,
     MalwareDetectedException,
     MalwareScanInProgressException,
@@ -557,6 +558,39 @@ def test_should_respect_custom_sending_domains(sample_service, mocker, sample_em
         attachments=[],
         extra_headers={},
     )
+
+
+@pytest.mark.parametrize(
+    "service_name, expected_length, should_send",
+    [
+        # '"=?utf-8?B?' (11) + base64 name + '?=" <' (5) + 'bbbbbbbbbb' (10) + '@' + 'notify.example.com' (18) + '>'
+        ("a" * 204, 11 + 272 + 5 + 10 + 1 + 18 + 1, True),  # 318
+        ("a" * 205, 11 + 276 + 5 + 10 + 1 + 18 + 1, False),  # 322
+        ("é" * 102, 11 + 272 + 5 + 10 + 1 + 18 + 1, True),  # 204 bytes -> 318
+        ("é" * 103, 11 + 276 + 5 + 10 + 1 + 18 + 1, False),  # 206 bytes -> 322
+    ],
+)
+def test_send_email_to_provider_raises_if_from_header_too_long(
+    sample_service, sample_email_template, mocker, service_name, expected_length, should_send
+):
+    sample_service.name = service_name
+    sample_service.email_from = "b" * 10
+    sample_service.sending_domain = "notify.example.com"
+    db_notification = save_notification(create_notification(template=sample_email_template))
+    send_mock = mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+    mocker.patch("app.delivery.send_to_providers.bounce_rate_client")
+
+    if should_send:
+        send_to_providers.send_email_to_provider(db_notification)
+        assert len(send_mock.call_args[0][0]) == expected_length
+        assert db_notification.status == "sending"
+    else:
+        with pytest.raises(EmailFromHeaderTooLongException) as e:
+            send_to_providers.send_email_to_provider(db_notification)
+        assert f"From header is {expected_length} characters long" in str(e.value)
+        assert str(sample_service.id) in str(e.value)
+        send_mock.assert_not_called()
+        assert db_notification.status == "created"
 
 
 @pytest.mark.parametrize("client_send", ["app.aws_sns_client.send_sms"])
