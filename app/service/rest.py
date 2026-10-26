@@ -563,6 +563,7 @@ def get_all_notifications_for_service(service_id):
             search_term=data["to"],
             statuses=data.get("status"),
             notification_type=notification_type,
+            include_scheduled=data.get("include_scheduled", False),
         )
     page = data["page"] if "page" in data else 1
     page_size = data["page_size"] if "page_size" in data else current_app.config.get("PAGE_SIZE")
@@ -570,6 +571,8 @@ def get_all_notifications_for_service(service_id):
     include_jobs = data.get("include_jobs", True)
     include_from_test_key = data.get("include_from_test_key", False)
     include_one_off = data.get("include_one_off", True)
+    # Scheduled notifications that haven't been sent yet aren't shown in the sent notifications lists by default.
+    include_scheduled = data.get("include_scheduled", False)
 
     count_pages = data.get("count_pages", True)
     format_for_csv = data.get("format_for_csv", False)
@@ -585,6 +588,7 @@ def get_all_notifications_for_service(service_id):
         include_from_test_key=include_from_test_key,
         include_one_off=include_one_off,
         format_for_csv=format_for_csv,
+        include_scheduled=include_scheduled,
     )
 
     kwargs = request.args.to_dict()
@@ -600,6 +604,24 @@ def get_all_notifications_for_service(service_id):
             page_size=page_size,
             total=pagination.total,
             links=pagination_links(pagination, ".get_all_notifications_for_service", **kwargs),
+        ),
+        200,
+    )
+
+
+@service_blueprint.route("/<uuid:service_id>/notifications/scheduled", methods=["GET"])
+def get_scheduled_notifications_for_service(service_id):
+    page = request.args.get("page", 1, type=int)
+    page_size = request.args.get("page_size", current_app.config.get("PAGE_SIZE"), type=int)
+    if page < 1 or page_size < 1:
+        raise InvalidRequest("page and page_size must be positive integers", status_code=400)
+
+    pagination = notifications_dao.dao_get_pending_scheduled_notifications_for_service(service_id, page=page, page_size=page_size)
+    return (
+        jsonify(
+            notifications=notification_with_template_schema.dump(pagination.items, many=True),
+            page_size=page_size,
+            total=pagination.total,
         ),
         200,
     )
@@ -637,12 +659,31 @@ def cancel_notification_for_service(service_id, notification_id):
     )
 
 
-def search_for_notification_by_to_field(service_id, search_term, statuses, notification_type):
+@service_blueprint.route("/<uuid:service_id>/notifications/<uuid:notification_id>/cancel-scheduled", methods=["POST"])
+def cancel_scheduled_notification_for_service(service_id, notification_id):
+    notification = notifications_dao.get_notification_with_personalisation(service_id, notification_id, key_type=None)
+
+    if notification is None:
+        raise InvalidRequest("Notification not found", status_code=404)
+
+    scheduled_notification = notification.scheduled_notification
+    if scheduled_notification is None:
+        raise InvalidRequest("Notification is not scheduled and cannot be cancelled", status_code=400)
+
+    if not scheduled_notification.pending or not notifications_dao.dao_delete_scheduled_notification_by_id(notification_id):
+        # The delete only removes pending notifications, so a 0 count means it was sent in the meantime.
+        raise InvalidRequest("Notification has already been sent and cannot be cancelled", status_code=400)
+
+    return jsonify(result="success"), 200
+
+
+def search_for_notification_by_to_field(service_id, search_term, statuses, notification_type, include_scheduled=True):
     results = notifications_dao.dao_get_notifications_by_to_field(
         service_id=service_id,
         search_term=search_term,
         statuses=statuses,
         notification_type=notification_type,
+        include_scheduled=include_scheduled,
     )
     return (
         jsonify(notifications=notification_with_template_schema.dump(results, many=True)),
