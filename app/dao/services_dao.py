@@ -42,7 +42,7 @@ from app.models import (
     NotificationHistory,
     Organisation,
     Permission,
-    ScheduledOneOffNotification,
+    ScheduledNotification,
     Service,
     ServicePermission,
     ServiceSmsSender,
@@ -440,7 +440,10 @@ def delete_service_and_all_associated_db_objects(service):
     _delete_commit(InvitedUser.query.filter_by(service=service))
     _delete_commit(Permission.query.filter_by(service=service))
     _delete_commit(NotificationHistory.query.filter_by(service=service))
-    _delete_commit(ScheduledOneOffNotification.query.filter_by(service_id=service.id))
+    _delete_commit(ScheduledNotification.query.filter_by(service_id=service.id))
+    # Legacy rows don't have service_id set, they're linked to the service's notifications
+    notifications_subq = db.session.query(Notification.id).filter_by(service=service)
+    _delete_commit(ScheduledNotification.query.filter(ScheduledNotification.notification_id.in_(notifications_subq)))
     _delete_commit(Notification.query.filter_by(service=service))
     _delete_commit(Job.query.filter_by(service=service))
     _delete_commit(Template.query.filter_by(service=service))
@@ -481,13 +484,13 @@ def _scheduled_one_off_notifications_for_today(service_id, midnight, notificatio
     """Filters for one-off notifications scheduled to be sent today that haven't been sent yet. Like scheduled jobs,
     they count towards the daily limit of the day they're scheduled for."""
     filters = [
-        ScheduledOneOffNotification.service_id == service_id,
-        ScheduledOneOffNotification.key_type != KEY_TYPE_TEST,
-        ScheduledOneOffNotification.scheduled_for >= midnight,
-        ScheduledOneOffNotification.scheduled_for < midnight + timedelta(days=1),
+        ScheduledNotification.service_id == service_id,
+        ScheduledNotification.key_type != KEY_TYPE_TEST,
+        ScheduledNotification.scheduled_for >= midnight,
+        ScheduledNotification.scheduled_for < midnight + timedelta(days=1),
     ]
     if notification_type:
-        filters.append(ScheduledOneOffNotification.notification_type == notification_type)
+        filters.append(ScheduledNotification.notification_type == notification_type)
     return filters
 
 
@@ -511,7 +514,7 @@ def fetch_todays_total_message_count(service_id):
     ).first()
 
     scheduled_one_off_count = (
-        db.session.query(func.count(ScheduledOneOffNotification.id))
+        db.session.query(func.count(ScheduledNotification.notification_id))
         .filter(*_scheduled_one_off_notifications_for_today(service_id, midnight))
         .scalar()
     )
@@ -532,7 +535,7 @@ def fetch_todays_total_sms_count(service_id):
         .first()
     )
     scheduled_one_off_count = (
-        db.session.query(func.count(ScheduledOneOffNotification.id))
+        db.session.query(func.count(ScheduledNotification.notification_id))
         .filter(*_scheduled_one_off_notifications_for_today(service_id, midnight, SMS_TYPE))
         .scalar()
     )
@@ -554,7 +557,7 @@ def fetch_todays_total_sms_billable_units(service_id):
         .first()
     )
     scheduled_one_off_billable_units = (
-        db.session.query(func.coalesce(func.sum(ScheduledOneOffNotification.billable_units), 0))
+        db.session.query(func.coalesce(func.sum(ScheduledNotification.billable_units), 0))
         .filter(*_scheduled_one_off_notifications_for_today(service_id, midnight, SMS_TYPE))
         .scalar()
     )
@@ -587,7 +590,7 @@ def fetch_todays_total_email_count(service_id: uuid.UUID) -> int:
     ).first()
 
     scheduled_one_off_count = (
-        db.session.query(func.count(ScheduledOneOffNotification.id))
+        db.session.query(func.count(ScheduledNotification.notification_id))
         .filter(*_scheduled_one_off_notifications_for_today(service_id, midnight, EMAIL_TYPE))
         .scalar()
     )

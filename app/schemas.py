@@ -625,8 +625,8 @@ class NotificationWithTemplateSchema(BaseSchema):
     scheduled_for = fields.Method("get_scheduled_for", dump_only=True)
 
     def get_scheduled_for(self, notification):
-        # Only set for notifications scheduled before scheduled_one_off_notifications was added. Notifications in
-        # scheduled_one_off_notifications set it when they're serialized.
+        # Only set for legacy scheduled notifications, which are in the notifications table. Other scheduled
+        # notifications aren't in the notifications table and set it when they're serialized.
         scheduled_notification = notification.scheduled_notification
         if scheduled_notification is None or not scheduled_notification.pending:
             return None

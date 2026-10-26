@@ -26,7 +26,6 @@ from app.models import (
     ApiKey,
     Notification,
     ScheduledNotification,
-    ScheduledOneOffNotification,
     ServicePermission,
     ServiceSmsSender,
 )
@@ -1131,12 +1130,11 @@ class TestSchedulingSends:
 
         # Not added to the notifications table or the sending queues until it's sent
         assert Notification.query.count() == 0
-        assert ScheduledNotification.query.count() == 0
         mock_sms_publish.assert_not_called()
         mock_email_publish.assert_not_called()
 
-        scheduled_notification = ScheduledOneOffNotification.query.one()
-        assert str(scheduled_notification.id) == resp_json["id"]
+        scheduled_notification = ScheduledNotification.query.one()
+        assert str(scheduled_notification.notification_id) == resp_json["id"]
         assert scheduled_notification.service_id == service.id
         assert scheduled_notification.template_id == template.id
         assert scheduled_notification.template_version == template.version
@@ -1180,7 +1178,7 @@ class TestSchedulingSends:
         )
         assert response.status_code == 201
         resp_json = json.loads(response.get_data(as_text=True))
-        scheduled_notification = ScheduledOneOffNotification.query.get(resp_json["id"])
+        scheduled_notification = ScheduledNotification.query.filter_by(notification_id=resp_json["id"]).one()
         assert scheduled_notification.scheduled_for == datetime(2017, 5, 14, 14, 15)
 
     @pytest.mark.parametrize(
@@ -3320,7 +3318,7 @@ class TestBillableUnitsInV2Notifications:
             assert response.status_code == 201
 
             # Get the notification that was created
-            notification = ScheduledOneOffNotification.query.filter_by(template_id=sample_template.id).first()
+            notification = ScheduledNotification.query.filter_by(template_id=sample_template.id).first()
             assert notification.billable_units == 2
 
             # Verify increment was called with billable_units=2
@@ -3364,7 +3362,7 @@ class TestBillableUnitsInV2Notifications:
             # Get the notification that was created
             # Billable units are always stored for scheduled notifications, so they're counted if the flag is enabled
             # before they're sent
-            notification = ScheduledOneOffNotification.query.filter_by(template_id=sample_template.id).first()
+            notification = ScheduledNotification.query.filter_by(template_id=sample_template.id).first()
             assert notification.billable_units == 2
 
             # Verify increment was called with count=1 despite long message
@@ -3516,7 +3514,7 @@ class TestBillableUnitsInV2Notifications:
             assert response.status_code == 201
 
             # Get the notification that was created
-            notification = ScheduledOneOffNotification.query.filter_by(template_id=template.id).first()
+            notification = ScheduledNotification.query.filter_by(template_id=template.id).first()
             # "Hello " + 200 'a's = 206 chars -> 2 fragments
             assert notification.billable_units == 2
 

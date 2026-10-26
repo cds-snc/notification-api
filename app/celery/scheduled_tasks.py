@@ -50,7 +50,7 @@ from app.models import (
     JOB_STATUS_IN_PROGRESS,
     SMS_TYPE,
     Job,
-    ScheduledOneOffNotification,
+    ScheduledNotification,
 )
 from app.notifications.process_notifications import (
     send_notification_to_queue,
@@ -110,8 +110,8 @@ def send_scheduled_notifications():
         sent_count = _send_due_scheduled_one_off_notifications()
         current_app.logger.info(f"Sent {sent_count} scheduled one-off notifications to the sending queues")
 
-        # Notifications scheduled before scheduled_one_off_notifications was added, or by an older API instance
-        # during a deploy, are in the notifications table and are linked to a ScheduledNotification.
+        # Legacy rows, written by an older API instance during a deploy: the notification is already in the
+        # notifications table and the ScheduledNotification only has notification_id and scheduled_for.
         scheduled_notifications = dao_get_scheduled_notifications()
         for notification in scheduled_notifications:
             send_notification_to_queue(notification, notification.service.research_mode)
@@ -139,7 +139,7 @@ def _send_due_scheduled_one_off_notifications() -> int:
                     sent_count += 1
                 else:
                     current_app.logger.warning(
-                        f"Scheduled notification {scheduled_notification.id} not sent, "
+                        f"Scheduled notification {scheduled_notification.notification_id} not sent, "
                         f"service {scheduled_notification.service_id} is inactive"
                     )
                 db.session.delete(scheduled_notification)
@@ -153,10 +153,10 @@ def _send_due_scheduled_one_off_notifications() -> int:
             return sent_count
 
 
-def _scheduled_one_off_notification_to_sign(scheduled_notification: ScheduledOneOffNotification) -> NotificationDictToSign:
+def _scheduled_one_off_notification_to_sign(scheduled_notification: ScheduledNotification) -> NotificationDictToSign:
     # Same fields as notifications that are sent straight away, see process_sms_or_email_notification
     notification_to_sign = {
-        "id": str(scheduled_notification.id),
+        "id": str(scheduled_notification.notification_id),
         "template": str(scheduled_notification.template_id),
         "service_id": str(scheduled_notification.service_id),
         "template_version": str(scheduled_notification.template_version),

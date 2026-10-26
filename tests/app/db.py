@@ -57,7 +57,6 @@ from app.models import (
     Permission,
     Rate,
     ScheduledNotification,
-    ScheduledOneOffNotification,
     Service,
     ServiceCallbackApi,
     ServiceEmailReplyTo,
@@ -371,8 +370,9 @@ def create_scheduled_one_off_notification(
     billable_units=0,
     created_at=None,
 ):
-    scheduled_notification = ScheduledOneOffNotification(
+    scheduled_notification = ScheduledNotification(
         id=uuid.uuid4(),
+        notification_id=uuid.uuid4(),
         service_id=template.service_id,
         template_id=template.id,
         template_version=template.version,

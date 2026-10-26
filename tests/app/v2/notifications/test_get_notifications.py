@@ -804,7 +804,7 @@ def test_get_notification_by_id_returns_scheduled_one_off_notification(client, s
     )
 
     response = client.get(
-        path="/v2/notifications/{}".format(scheduled_notification.id),
+        path="/v2/notifications/{}".format(scheduled_notification.notification_id),
         headers=[
             ("Content-Type", "application/json"),
             create_authorization_header(service_id=scheduled_notification.service_id),
@@ -813,7 +813,7 @@ def test_get_notification_by_id_returns_scheduled_one_off_notification(client, s
 
     assert response.status_code == 200
     json_response = json.loads(response.get_data(as_text=True))
-    assert json_response["id"] == str(scheduled_notification.id)
+    assert json_response["id"] == str(scheduled_notification.notification_id)
     assert json_response["reference"] == "my-ref"
     assert json_response["phone_number"] == scheduled_notification.to
     assert json_response["type"] == "sms"
@@ -830,7 +830,7 @@ def test_get_notification_by_id_doesnt_return_another_services_scheduled_one_off
     other_service = create_service(service_name="other")
 
     response = client.get(
-        path="/v2/notifications/{}".format(scheduled_notification.id),
+        path="/v2/notifications/{}".format(scheduled_notification.notification_id),
         headers=[("Content-Type", "application/json"), create_authorization_header(service_id=other_service.id)],
     )
 

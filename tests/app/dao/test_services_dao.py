@@ -63,7 +63,7 @@ from app.models import (
     NotificationHistory,
     Organisation,
     Permission,
-    ScheduledOneOffNotification,
+    ScheduledNotification,
     Service,
     ServicePermission,
     ServiceUser,
@@ -873,7 +873,7 @@ def test_delete_service_and_associated_objects(notify_db_session):
     assert TemplateHistory.query.count() == 0
     assert Job.query.count() == 0
     assert Notification.query.count() == 0
-    assert ScheduledOneOffNotification.query.count() == 0
+    assert ScheduledNotification.query.count() == 0
     assert Permission.query.count() == 0
     assert User.query.count() == 0
     assert InvitedUser.query.count() == 0
@@ -1116,7 +1116,7 @@ class TestFetchTodaysTotalSmsCount:
 
 @pytest.mark.usefixtures("notify_db_session")
 @freeze_time("2018-07-16 15:00")
-class TestTodaysTotalCountsIncludeScheduledOneOffNotifications:
+class TestTodaysTotalCountsIncludeScheduledNotifications:
     """One-off notifications scheduled for today count towards today's limits before they're sent, like scheduled jobs"""
 
     def _create_scheduled(self, template, **kwargs):

@@ -677,7 +677,7 @@ def cancel_scheduled_notification_for_service(service_id, notification_id):
     if notification is None:
         raise InvalidRequest("Notification not found", status_code=404)
 
-    # Notifications scheduled before scheduled_one_off_notifications was added are linked to a ScheduledNotification
+    # Legacy scheduled notifications are in the notifications table, linked to a ScheduledNotification
     scheduled_notification = notification.scheduled_notification
     if scheduled_notification is None:
         raise InvalidRequest("Notification is not scheduled and cannot be cancelled", status_code=400)

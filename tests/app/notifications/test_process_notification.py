@@ -22,7 +22,6 @@ from app.models import (
     Notification,
     NotificationHistory,
     ScheduledNotification,
-    ScheduledOneOffNotification,
     Template,
 )
 from app.notifications.process_notifications import (
@@ -837,9 +836,8 @@ class TestScheduledNotification:
         persist_scheduled_one_off_notification(notification, "2017-05-12 14:15")
 
         assert Notification.query.count() == 0
-        assert ScheduledNotification.query.count() == 0
-        scheduled_notification = ScheduledOneOffNotification.query.one()
-        assert scheduled_notification.id == notification.id
+        scheduled_notification = ScheduledNotification.query.one()
+        assert scheduled_notification.notification_id == notification.id
         assert scheduled_notification.service_id == sample_template.service_id
         assert scheduled_notification.template_id == sample_template.id
         assert scheduled_notification.template_version == sample_template.version
@@ -856,7 +854,7 @@ class TestScheduledNotification:
     def test_persist_scheduled_one_off_notification_accepts_full_iso8601(self, sample_template):
         persist_scheduled_one_off_notification(self._transient_notification(sample_template), "2017-05-12T14:15:00")
 
-        assert ScheduledOneOffNotification.query.one().scheduled_for == datetime.datetime(2017, 5, 12, 14, 15)
+        assert ScheduledNotification.query.one().scheduled_for == datetime.datetime(2017, 5, 12, 14, 15)
 
     @freeze_time("2017-05-12 23:00")
     @pytest.mark.parametrize(

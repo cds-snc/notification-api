@@ -49,7 +49,6 @@ from app.models import (
     NOTIFICATION_PENDING_VIRUS_CHECK,
     Notification,
     ScheduledNotification,
-    ScheduledOneOffNotification,
 )
 from app.v2.errors import JobIncompleteError
 
@@ -194,7 +193,7 @@ def test_should_send_all_scheduled_notifications_to_deliver_queue(sample_templat
     assert ScheduledNotification.query.filter_by(notification_id=message_to_deliver.id).count() == 0
 
 
-class TestSendScheduledOneOffNotifications:
+class TestSendScheduledNotifications:
     @freeze_time("2017-05-01 14:00:00")
     def test_puts_due_notifications_on_the_sending_queues(self, sample_template_with_placeholders, sample_api_key, mocker):
         mock_publish = mocker.patch("app.sms_normal_publish.publish")
@@ -213,7 +212,7 @@ class TestSendScheduledOneOffNotifications:
 
         mock_publish.assert_called_once()
         assert signer_notification.verify(mock_publish.call_args[0][0]) == {
-            "id": str(due.id),
+            "id": str(due.notification_id),
             "template": str(sample_template_with_placeholders.id),
             "service_id": str(sample_template_with_placeholders.service_id),
             "template_version": str(sample_template_with_placeholders.version),
@@ -225,7 +224,7 @@ class TestSendScheduledOneOffNotifications:
             "client_reference": "my-ref",
             "reply_to_text": "+16502532223",
         }
-        assert [n.id for n in ScheduledOneOffNotification.query.all()] == [not_due.id]
+        assert [n.notification_id for n in ScheduledNotification.query.all()] == [not_due.notification_id]
 
     @pytest.mark.parametrize(
         "template_type, process_type, queue",
@@ -256,7 +255,7 @@ class TestSendScheduledOneOffNotifications:
         send_scheduled_notifications()
 
         mock_publish.assert_not_called()
-        assert ScheduledOneOffNotification.query.count() == 0
+        assert ScheduledNotification.query.count() == 0
 
     @freeze_time("2017-05-01 14:00:00")
     def test_keeps_notifications_to_retry_if_they_cant_be_queued(self, sample_template, mocker):
@@ -266,7 +265,7 @@ class TestSendScheduledOneOffNotifications:
         with pytest.raises(Exception, match="Redis is down"):
             send_scheduled_notifications()
 
-        assert ScheduledOneOffNotification.query.count() == 1
+        assert ScheduledNotification.query.count() == 1
 
     @freeze_time("2017-05-01 14:00:00")
     def test_sends_notifications_in_batches(self, sample_template, mocker):
@@ -278,7 +277,7 @@ class TestSendScheduledOneOffNotifications:
         send_scheduled_notifications()
 
         assert mock_publish.call_count == 5
-        assert ScheduledOneOffNotification.query.count() == 0
+        assert ScheduledNotification.query.count() == 0
 
     @pytest.mark.parametrize("template_type", ["sms", "email"])
     def test_notification_is_created_when_its_sent(self, sample_service, mocker, template_type):
@@ -300,7 +299,7 @@ class TestSendScheduledOneOffNotifications:
             save_task(None, [mock_publish.call_args[0][0]], None)
 
         notification = Notification.query.one()
-        assert notification.id == scheduled_notification.id
+        assert notification.id == scheduled_notification.notification_id
         assert notification.created_at == datetime(2017, 5, 1, 14, 0, 30)
         assert notification.personalisation == {"name": "Jo"}
         assert notification.client_reference == "my-ref"

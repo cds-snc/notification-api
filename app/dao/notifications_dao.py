@@ -46,7 +46,6 @@ from app.models import (
     NotificationHistory,
     Organisation,
     ScheduledNotification,
-    ScheduledOneOffNotification,
     Service,
     ServiceDataRetention,
 )
@@ -759,14 +758,21 @@ def dao_created_scheduled_notification(scheduled_notification):
 
 
 @statsd(namespace="dao")
-def dao_create_scheduled_one_off_notification(scheduled_notification: ScheduledOneOffNotification):
+def dao_create_scheduled_one_off_notification(scheduled_notification: ScheduledNotification):
     db.session.add(scheduled_notification)
     db.session.commit()
 
 
+def _scheduled_one_off_notifications_query():
+    # Legacy rows (service_id is null) are linked to a notification in the notifications table instead
+    return ScheduledNotification.query.filter(ScheduledNotification.service_id.isnot(None))
+
+
 @statsd(namespace="dao")
 def dao_get_scheduled_one_off_notification(service_id, notification_id):
-    return ScheduledOneOffNotification.query.filter_by(service_id=service_id, id=notification_id).one_or_none()
+    return (
+        _scheduled_one_off_notifications_query().filter_by(service_id=service_id, notification_id=notification_id).one_or_none()
+    )
 
 
 @statsd(namespace="dao")
@@ -775,9 +781,10 @@ def dao_get_scheduled_one_off_notifications_for_service(service_id, page=1, page
         page_size = current_app.config["PAGE_SIZE"]
 
     return (
-        ScheduledOneOffNotification.query.filter(ScheduledOneOffNotification.service_id == service_id)
-        .options(joinedload(ScheduledOneOffNotification.template))
-        .order_by(asc(ScheduledOneOffNotification.scheduled_for), asc(ScheduledOneOffNotification.created_at))
+        _scheduled_one_off_notifications_query()
+        .filter(ScheduledNotification.service_id == service_id)
+        .options(joinedload(ScheduledNotification.template))
+        .order_by(asc(ScheduledNotification.scheduled_for), asc(ScheduledNotification.created_at))
         .paginate(page=page, per_page=page_size)
     )
 
@@ -787,8 +794,8 @@ def dao_get_scheduled_one_off_notifications_for_service(service_id, page=1, page
 def dao_delete_scheduled_one_off_notification(service_id, notification_id) -> int:
     # Returns 0 if the notification doesn't exist or has already been released for sending
     return (
-        db.session.query(ScheduledOneOffNotification)
-        .filter(ScheduledOneOffNotification.service_id == service_id, ScheduledOneOffNotification.id == notification_id)
+        db.session.query(ScheduledNotification)
+        .filter(ScheduledNotification.service_id == service_id, ScheduledNotification.notification_id == notification_id)
         .delete(synchronize_session=False)
     )
 
@@ -797,8 +804,9 @@ def dao_get_due_scheduled_one_off_notifications(limit):
     """Locks and returns scheduled one-off notifications that are due to be sent. Rows locked by another worker are
     skipped. The caller must delete the rows once they're sent and commit, which releases the locks."""
     return (
-        ScheduledOneOffNotification.query.filter(ScheduledOneOffNotification.scheduled_for <= datetime.utcnow())
-        .order_by(asc(ScheduledOneOffNotification.scheduled_for))
+        _scheduled_one_off_notifications_query()
+        .filter(ScheduledNotification.scheduled_for <= datetime.utcnow())
+        .order_by(asc(ScheduledNotification.scheduled_for))
         .limit(limit)
         .with_for_update(skip_locked=True)
         .all()
@@ -807,9 +815,11 @@ def dao_get_due_scheduled_one_off_notifications(limit):
 
 @statsd(namespace="dao")
 def dao_get_scheduled_notifications():
+    """Legacy rows, whose notification is already in the notifications table, that are due to be sent."""
     notifications = (
-        Notification.query.join(ScheduledNotification)
+        Notification.query.join(Notification.scheduled_notification)
         .filter(
+            ScheduledNotification.service_id.is_(None),
             ScheduledNotification.scheduled_for < datetime.utcnow(),
             ScheduledNotification.pending,
         )

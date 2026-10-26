@@ -1,4 +1,4 @@
-from app.models import Notification, ScheduledNotification, ScheduledOneOffNotification
+from app.models import Notification, ScheduledNotification
 from tests.app.db import (
     create_notification,
     create_scheduled_one_off_notification,
@@ -21,7 +21,7 @@ class TestGetScheduledNotificationsForService:
         )
 
         assert response["total"] == 2
-        assert [n["id"] for n in response["notifications"]] == [str(sooner.id), str(later.id)]
+        assert [n["id"] for n in response["notifications"]] == [str(sooner.notification_id), str(later.notification_id)]
         assert response["notifications"][0]["scheduled_for"] == "2099-05-12T15:15:00.000000+00:00"
         assert response["notifications"][0]["template"]["name"] == sample_template.name
         assert response["notifications"][0]["to"] == sooner.to
@@ -66,10 +66,10 @@ class TestGetScheduledNotification:
         response = admin_request.get(
             "service.get_notification_for_service",
             service_id=scheduled_notification.service_id,
-            notification_id=scheduled_notification.id,
+            notification_id=scheduled_notification.notification_id,
         )
 
-        assert response["id"] == str(scheduled_notification.id)
+        assert response["id"] == str(scheduled_notification.notification_id)
         assert response["scheduled_for"] == "2099-05-12T15:15:00.000000+00:00"
         assert response["status"] == "created"
         assert response["to"] == scheduled_notification.to
@@ -88,7 +88,7 @@ class TestGetScheduledNotification:
         admin_request.get(
             "service.get_notification_for_service",
             service_id=create_service(service_name="other").id,
-            notification_id=scheduled_notification.id,
+            notification_id=scheduled_notification.notification_id,
             _expected_status=404,
         )
 
@@ -124,11 +124,11 @@ class TestCancelScheduledNotificationForService:
         response = admin_request.post(
             "service.cancel_scheduled_notification_for_service",
             service_id=scheduled_notification.service_id,
-            notification_id=scheduled_notification.id,
+            notification_id=scheduled_notification.notification_id,
         )
 
         assert response == {"result": "success"}
-        assert ScheduledOneOffNotification.query.count() == 0
+        assert ScheduledNotification.query.count() == 0
 
     def test_cancels_legacy_scheduled_notification(self, admin_request, sample_template):
         notification = save_scheduled_notification(
@@ -162,11 +162,11 @@ class TestCancelScheduledNotificationForService:
         admin_request.post(
             "service.cancel_scheduled_notification_for_service",
             service_id=other_service.id,
-            notification_id=scheduled_notification.id,
+            notification_id=scheduled_notification.notification_id,
             _expected_status=404,
         )
 
-        assert ScheduledOneOffNotification.query.count() == 1
+        assert ScheduledNotification.query.count() == 1
 
     def test_returns_400_when_notification_is_not_scheduled(self, admin_request, sample_notification):
         # Includes scheduled notifications that have been sent, they're only in the notifications table once sent

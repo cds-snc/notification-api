@@ -45,7 +45,7 @@ from app.models import (
     ApiKeyType,
     Notification,
     NotificationType,
-    ScheduledOneOffNotification,
+    ScheduledNotification,
     Service,
 )
 from app.types import VerifiedNotification
@@ -542,10 +542,10 @@ def is_scheduled_for_a_later_day(scheduled_for: Optional[str]) -> bool:
     return parse_scheduled_for(scheduled_for).date() > datetime.utcnow().date()
 
 
-def persist_scheduled_one_off_notification(notification: Notification, scheduled_for: str) -> ScheduledOneOffNotification:
+def persist_scheduled_one_off_notification(notification: Notification, scheduled_for: str) -> ScheduledNotification:
     """Store a one-off notification to be sent later. Nothing is added to the notifications table until it is sent."""
-    scheduled_notification = ScheduledOneOffNotification(
-        id=notification.id,
+    scheduled_notification = ScheduledNotification(
+        notification_id=notification.id,
         service_id=notification.service_id,
         template_id=notification.template_id,
         template_version=notification.template_version,

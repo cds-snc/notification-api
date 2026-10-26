@@ -25,7 +25,7 @@ def delete_notification_by_id(notification_id):
     if notification is None:
         raise NotificationNotFoundError()
 
-    # Notifications scheduled before scheduled_one_off_notifications was added are linked to a ScheduledNotification
+    # Legacy scheduled notifications are in the notifications table, linked to a ScheduledNotification
     scheduled_notification = notification.scheduled_notification
     if scheduled_notification is None:
         raise BadRequestError(message="Notification is not scheduled and cannot be deleted")
