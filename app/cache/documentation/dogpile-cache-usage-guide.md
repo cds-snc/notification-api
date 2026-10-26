@@ -212,6 +212,66 @@ execution metadata to automatically handle cache invalidation. Replace them
 with modern `update(Model)` or `delete(Model)` statements executed through
 the session and wrapped with `cache_invalidating_dml`.
 
+## Cache performance metrics
+
+DAO timings, cached reads, ORM invalidation collection, and prefix invalidation
+emit StatsD metrics instead of per-call performance logs. Metrics use the
+configured StatsD client and are sent when `STATSD_ENABLED` is enabled. The
+client adds its environment/application prefix to the names below. Duration
+values are milliseconds. Failure diagnostics retain their exception/error logs.
+
+| Metric | Type | Meaning |
+| --- | --- | --- |
+| `dao.execution_time.<module>.<function>` | Timer | Duration of a DAO decorated with `log_execution_time`, including failing calls. |
+| `cache.access.<namespace>.reused` | Counter | Calls that returned without executing the creator. |
+| `cache.access.<namespace>.regenerated` | Counter | Successful calls that executed the creator. |
+| `cache.access.<namespace>.error` | Counter | Cached calls that raised an exception. |
+| `cache.access.<namespace>.<outcome>.duration` | Timer | Complete cached-call duration, separated by outcome. |
+| `cache.invalidation.<namespace>.success` | Counter | Successfully completed prefix invalidations. |
+| `cache.invalidation.<namespace>.error` | Counter | Failed prefix invalidations. |
+| `cache.invalidation.<namespace>.<outcome>.duration` | Timer | Invalidation duration, separated into success/error. |
+| `cache.invalidation.<namespace>.scans` | Counter | Completed Redis SCAN calls. |
+| `cache.invalidation.<namespace>.matched` | Counter | Keys returned by completed scans. |
+| `cache.invalidation.<namespace>.deleted` | Counter | Keys confirmed deleted by Redis. |
+| `cache.collect_invalidations.success` | Counter | Successfully completed ORM invalidation collection passes. |
+| `cache.collect_invalidations.error` | Counter | Failed ORM invalidation collection passes. |
+| `cache.collect_invalidations.<outcome>.duration` | Timer | Collection duration, separated into success/error. |
+| `cache.collect_invalidations.instances` | Counter | ORM instances examined during collection passes. |
+| `cache.collect_invalidations.invalidations` | Counter | Newly queued targets after deduplication within the transaction. |
+
+Namespaces are `service`, `template`, and `user`. No entity IDs or cache keys
+are included in metric names. Invalidation counts include completed work before
+an error, if any. The original exceptions still propagate.
+
+The `log_execution_time` decorator keeps its existing name for compatibility but
+now sends a StatsD timer, not a log record. Cached DAOs are already measured by
+`cache_on_arguments` and should not also use this decorator. Collection counters
+cover work performed before commit, including transactions that later roll back;
+they are not counts of completed Redis deletions. Post-commit invalidation
+failures remain logged and do not undo the committed database transaction.
+
+The former `dao.execution_time`, `cache.collect_invalidations`, and
+`cache.invalidate_group_keys` performance log messages are no longer emitted.
+CloudWatch Logs Insights queries for those messages will only return historical
+records from before this change.
+
+To evaluate cache performance:
+
+- Calculate reuse percentage from the reused count divided by all three read
+  outcome counts over the same interval. `reused` includes stale values served
+  during concurrent regeneration, so this is not a strict fresh-hit rate.
+- Compare reused and regenerated duration distributions for each namespace.
+  The timer covers key generation, Redis operations, lock waiting, and creator
+  execution/serialization when applicable; it does not isolate those stages.
+- Compare regeneration spikes with invalidation rates and deleted-key counts.
+- Track read and invalidation errors separately.
+- Compare equivalent request-level latency and database load with the feature
+  flag off/on under the same workload. DAO timings alone have different
+  serialization boundaries and cannot establish the overall request benefit.
+
+The StatsD receiver determines where these metrics can be graphed. Emitting
+StatsD metrics does not automatically create CloudWatch custom metrics.
+
 ## Implementation checklist
 
 - Add a cached DAO returning a JSON-safe value.
