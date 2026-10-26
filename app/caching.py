@@ -346,7 +346,7 @@ def init_dogpile_cache(app):
         cache_logger.handlers = app.logger.handlers[:]
         cache_logger.setLevel(app.logger.getEffectiveLevel())
         cache_logger.propagate = False
-        
+
     redis_url = app.config.get("REDIS_URL") or "redis://localhost:6379/0"
     expiration_time = app.config.get("DOGPILE_CACHE_EXPIRATION", 600)
     _configure_region(dogpile_region, app, redis_url, expiration_time, expiration_time)
