@@ -46,6 +46,7 @@ from app.models import (
     NotificationHistory,
     Organisation,
     ScheduledNotification,
+    ScheduledOneOffNotification,
     Service,
     ServiceDataRetention,
 )
@@ -755,6 +756,53 @@ def dao_get_notifications_by_references(references):
 def dao_created_scheduled_notification(scheduled_notification):
     db.session.add(scheduled_notification)
     db.session.commit()
+
+
+@statsd(namespace="dao")
+def dao_create_scheduled_one_off_notification(scheduled_notification: ScheduledOneOffNotification):
+    db.session.add(scheduled_notification)
+    db.session.commit()
+
+
+@statsd(namespace="dao")
+def dao_get_scheduled_one_off_notification(service_id, notification_id):
+    return ScheduledOneOffNotification.query.filter_by(service_id=service_id, id=notification_id).one_or_none()
+
+
+@statsd(namespace="dao")
+def dao_get_scheduled_one_off_notifications_for_service(service_id, page=1, page_size=None):
+    if page_size is None:
+        page_size = current_app.config["PAGE_SIZE"]
+
+    return (
+        ScheduledOneOffNotification.query.filter(ScheduledOneOffNotification.service_id == service_id)
+        .options(joinedload(ScheduledOneOffNotification.template))
+        .order_by(asc(ScheduledOneOffNotification.scheduled_for), asc(ScheduledOneOffNotification.created_at))
+        .paginate(page=page, per_page=page_size)
+    )
+
+
+@statsd(namespace="dao")
+@transactional
+def dao_delete_scheduled_one_off_notification(service_id, notification_id) -> int:
+    # Returns 0 if the notification doesn't exist or has already been released for sending
+    return (
+        db.session.query(ScheduledOneOffNotification)
+        .filter(ScheduledOneOffNotification.service_id == service_id, ScheduledOneOffNotification.id == notification_id)
+        .delete(synchronize_session=False)
+    )
+
+
+def dao_get_due_scheduled_one_off_notifications(limit):
+    """Locks and returns scheduled one-off notifications that are due to be sent. Rows locked by another worker are
+    skipped. The caller must delete the rows once they're sent and commit, which releases the locks."""
+    return (
+        ScheduledOneOffNotification.query.filter(ScheduledOneOffNotification.scheduled_for <= datetime.utcnow())
+        .order_by(asc(ScheduledOneOffNotification.scheduled_for))
+        .limit(limit)
+        .with_for_update(skip_locked=True)
+        .all()
+    )
 
 
 @statsd(namespace="dao")

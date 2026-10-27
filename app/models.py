@@ -2262,6 +2262,85 @@ class ScheduledNotification(BaseModel):
     pending = db.Column(db.Boolean, nullable=False, default=True)
 
 
+class ScheduledOneOffNotification(BaseModel):
+    """A one-off (API) notification that is scheduled to be sent in the future.
+
+    Like scheduled bulk jobs, nothing is written to the notifications table until the scheduled time. The
+    send-scheduled-notifications task then puts it on the normal sending queues, where a notification with the same id
+    is created, so it is counted (stats, billing, limits) on the day it is actually sent.
+    """
+
+    __tablename__ = "scheduled_one_off_notifications"
+
+    # Becomes the id of the notification once it is sent
+    id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    service_id = db.Column(UUID(as_uuid=True), db.ForeignKey("services.id"), nullable=False)
+    service = db.relationship("Service")
+    template_id = db.Column(UUID(as_uuid=True), nullable=False)
+    template_version = db.Column(db.Integer, nullable=False)
+    template = db.relationship("TemplateHistory")
+    notification_type = db.Column(notification_types, nullable=False)
+    to = db.Column(db.SensitiveString, nullable=False)
+    _personalisation = db.Column(db.SensitiveString, nullable=True)
+    api_key_id = db.Column(UUID(as_uuid=True), db.ForeignKey("api_keys.id"), nullable=True)
+    api_key = db.relationship("ApiKey")
+    key_type = db.Column(db.String, db.ForeignKey("key_types.name"), nullable=False)
+    client_reference = db.Column(db.String, nullable=True)
+    reply_to_text = db.Column(db.String, nullable=True)
+    billable_units = db.Column(db.Integer, nullable=False, default=0)
+    scheduled_for = db.Column(db.DateTime, nullable=False, index=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
+
+    __table_args__: Iterable[Any] = (
+        db.ForeignKeyConstraint(
+            ["template_id", "template_version"],
+            ["templates_history.id", "templates_history.version"],
+        ),
+        Index("ix_scheduled_one_off_notifications_service_id_scheduled_for", "service_id", "scheduled_for"),
+        {},
+    )
+
+    @property
+    def personalisation(self):
+        if self._personalisation:
+            return signer_personalisation.verify(self._personalisation)
+        return {}
+
+    @personalisation.setter
+    def personalisation(self, personalisation):
+        self._personalisation = signer_personalisation.sign(personalisation or {})
+
+    def as_notification(self) -> "Notification":
+        """A transient (never persisted) Notification with this message's data, used to serialize it in the same
+        format as a notification that has been sent."""
+        notification = Notification(
+            id=self.id,
+            service_id=self.service_id,
+            template_id=self.template_id,
+            template_version=self.template_version,
+            notification_type=self.notification_type,
+            to=self.to,
+            api_key_id=self.api_key_id,
+            key_type=self.key_type,
+            client_reference=self.client_reference,
+            reply_to_text=self.reply_to_text,
+            billable_units=self.billable_units,
+            created_at=self.created_at,
+            status=NOTIFICATION_CREATED,
+        )
+        notification._personalisation = self._personalisation
+        # These relationships have no backrefs, so setting them won't cascade the transient notification into the session
+        notification.service = self.service
+        notification.template = self.template
+        notification.api_key = self.api_key
+        return notification
+
+    def serialize(self) -> dict:
+        serialized = self.as_notification().serialize()
+        serialized["scheduled_for"] = self.scheduled_for.strftime(DATETIME_FORMAT)
+        return serialized
+
+
 INVITE_PENDING = "pending"
 INVITE_ACCEPTED = "accepted"
 INVITE_CANCELLED = "cancelled"
