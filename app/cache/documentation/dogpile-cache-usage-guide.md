@@ -229,7 +229,7 @@ DAO timings, cached reads, ORM invalidation collection, and prefix invalidation
 emit StatsD metrics instead of per-call performance logs. Metrics use the
 configured StatsD client and are sent when `STATSD_ENABLED` is enabled. The
 client adds its environment/application prefix to the names below. Duration
-values are milliseconds. Failure diagnostics retain their exception/error logs.
+values are milliseconds.
 
 | Metric | Type | Meaning |
 | --- | --- | --- |
@@ -250,8 +250,17 @@ values are milliseconds. Failure diagnostics retain their exception/error logs.
 | `cache.collect_invalidations.instances` | Counter | ORM instances examined during collection passes. |
 | `cache.collect_invalidations.invalidations` | Counter | Newly queued targets after deduplication within the transaction. |
 
-Namespaces are `service`, `template`, `user`, etc. No entity IDs or cache keys
-are included in metric names.
+Namespaces are `service`, `template`, and `user`. No entity IDs or cache keys
+are included in metric names. Invalidation counts include completed work before
+an error, if any.
+
+The `log_execution_time` decorator keeps its existing name for compatibility but
+now sends a StatsD timer, not a log record. Cached DAOs are already measured by
+`cache_on_arguments` and should not also use this decorator. Collection counters
+cover work performed before commit, including transactions that later roll back;
+they are not counts of completed Redis deletions. Post-commit invalidation
+failures remain logged and do not undo the committed database transaction.
+
 
 To evaluate cache performance:
 
@@ -260,7 +269,7 @@ To evaluate cache performance:
   during concurrent regeneration, so this is not a strict fresh-hit rate.
 - Compare reused and regenerated duration distributions for each namespace.
   The timer covers key generation, Redis operations, lock waiting, and creator
-  execution/serialization when applicable; it does not isolate those stages.
+  execution/serialization when applicable; it does not currently isolate those stages.
 - Compare regeneration spikes with invalidation rates and deleted-key counts.
 - Track read and invalidation errors separately.
 - Compare equivalent request-level latency and database load with the feature
