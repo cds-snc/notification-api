@@ -16,6 +16,7 @@ from sqlalchemy import event
 from sqlalchemy.orm import ORMExecuteState, Session
 from sqlalchemy.orm.unitofwork import UOWTransaction
 
+from app import statsd_client
 from app.cache.cache_dml import _CACHE_INVALIDATION_ENTITY_IDS_OPTION
 from app.cache.cache_invalidation_registry import CACHE_INVALIDATION_REGISTRY
 from app.caching import invalidate_group_keys
@@ -91,6 +92,7 @@ def _collect_cache_invalidations(
     started = perf_counter()
     instances = session.new.union(session.dirty).union(session.deleted)
     invalidations_before = len(session.info.get(_CACHE_INVALIDATIONS_KEY, ()))
+    outcome = "error"
 
     try:
         for instance in instances:
@@ -104,15 +106,17 @@ def _collect_cache_invalidations(
                         _queue_cache_invalidation(
                             session, rule.namespace, entity_id
                         )
+        outcome = "success"
     finally:
         invalidations_after = len(
             session.info.get(_CACHE_INVALIDATIONS_KEY, ())
         )
         elapsed_ms = (perf_counter() - started) * 1000
-        logger.info(
-            f"cache.collect_invalidations instances={len(instances)} "
-            f"invalidations={invalidations_after - invalidations_before} elapsed_ms={elapsed_ms:.2f}"
-        )
+        metric = "cache.collect_invalidations"
+        statsd_client.incr(f"{metric}.{outcome}")
+        statsd_client.timing(f"{metric}.{outcome}.duration", elapsed_ms)
+        statsd_client.incr(f"{metric}.instances", count=len(instances))
+        statsd_client.incr(f"{metric}.invalidations", count=invalidations_after - invalidations_before)
 
 
 def _invalidate_cache_after_commit(session: Session) -> None:
