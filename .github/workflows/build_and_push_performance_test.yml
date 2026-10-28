@@ -117,8 +117,9 @@ jobs:
                   )
               ' <<< "$definition")"
 
+            printf '%s' "$input" > "$RUNNER_TEMP/${family}.json"
             aws ecs register-task-definition \
-              --cli-input-json "$input" \
+              --cli-input-json "file://$RUNNER_TEMP/${family}.json" \
               --query 'taskDefinition.taskDefinitionArn' \
               --output text
           }
