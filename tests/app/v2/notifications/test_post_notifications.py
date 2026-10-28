@@ -1101,16 +1101,20 @@ class TestSchedulingSends:
     )
     @freeze_time("2017-05-14 14:00:00")
     def test_post_notification_with_scheduled_for(
-        self, client, notify_db_session, notification_type, key_send_to, send_to, mock_annual_limits
+        self, client, notify_db_session, mocker, notification_type, key_send_to, send_to, mock_annual_limits
     ):
+        mock_sms_publish = mocker.patch("app.sms_normal_publish.publish")
+        mock_email_publish = mocker.patch("app.email_normal_publish.publish")
         service = create_service(
             service_name=str(uuid.uuid4()),
             service_permissions=[EMAIL_TYPE, SMS_TYPE],
         )
-        template = create_template(service=service, template_type=notification_type)
+        template = create_template(service=service, template_type=notification_type, content="Hello ((name))")
         data = {
             key_send_to: send_to,
-            "template_id": str(template.id) if notification_type == EMAIL_TYPE else str(template.id),
+            "template_id": str(template.id),
+            "personalisation": {"name": "Jo"},
+            "reference": "my-ref",
             "scheduled_for": "2017-05-14 14:15",
         }
         auth_header = create_authorization_header(service_id=service.id)
@@ -1122,10 +1126,26 @@ class TestSchedulingSends:
         )
         assert response.status_code == 201
         resp_json = json.loads(response.get_data(as_text=True))
-        scheduled_notification = ScheduledNotification.query.filter_by(notification_id=resp_json["id"]).all()
-        assert len(scheduled_notification) == 1
-        assert resp_json["id"] == str(scheduled_notification[0].notification_id)
         assert resp_json["scheduled_for"] == "2017-05-14 14:15"
+
+        # Not added to the notifications table or the sending queues until it's sent
+        assert Notification.query.count() == 0
+        mock_sms_publish.assert_not_called()
+        mock_email_publish.assert_not_called()
+
+        scheduled_notification = ScheduledNotification.query.one()
+        assert str(scheduled_notification.notification_id) == resp_json["id"]
+        assert scheduled_notification.service_id == service.id
+        assert scheduled_notification.template_id == template.id
+        assert scheduled_notification.template_version == template.version
+        assert scheduled_notification.notification_type == notification_type
+        assert scheduled_notification.to == send_to
+        assert scheduled_notification.personalisation == {"name": "Jo"}
+        assert scheduled_notification.client_reference == "my-ref"
+        assert scheduled_notification.key_type == KEY_TYPE_NORMAL
+        assert scheduled_notification.scheduled_for == datetime(2017, 5, 14, 14, 15)
+        assert scheduled_notification.created_at == datetime(2017, 5, 14, 14, 0)
+        assert scheduled_notification.billable_units == (1 if notification_type == SMS_TYPE else 0)
 
     @pytest.mark.parametrize(
         "notification_type, key_send_to, send_to",
@@ -1158,8 +1178,8 @@ class TestSchedulingSends:
         )
         assert response.status_code == 201
         resp_json = json.loads(response.get_data(as_text=True))
-        scheduled_notification = ScheduledNotification.query.filter_by(notification_id=resp_json["id"]).all()
-        assert len(scheduled_notification) == 1
+        scheduled_notification = ScheduledNotification.query.filter_by(notification_id=resp_json["id"]).one()
+        assert scheduled_notification.scheduled_for == datetime(2017, 5, 14, 14, 15)
 
     @pytest.mark.parametrize(
         "notification_type, key_send_to, send_to",
@@ -1194,6 +1214,58 @@ class TestSchedulingSends:
         assert response.status_code == 201
         resp_json = json.loads(response.get_data(as_text=True))
         assert resp_json["scheduled_for"] == "2017-05-14 14:15"
+
+    @pytest.mark.parametrize(
+        "scheduled_for, expect_daily_count_incremented",
+        [
+            ("2017-05-14 23:59", True),
+            ("2017-05-15 00:00", False),
+            ("2017-05-17 14:00", False),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "notification_type, key_send_to, send_to",
+        [
+            ("sms", "phone_number", "6502532222"),
+            ("email", "email_address", "sample@email.com"),
+        ],
+    )
+    @freeze_time("2017-05-14 14:00:00")
+    def test_post_scheduled_notification_only_counts_towards_todays_limit_if_scheduled_for_today(
+        self,
+        client,
+        notify_db_session,
+        mocker,
+        notification_type,
+        key_send_to,
+        send_to,
+        scheduled_for,
+        expect_daily_count_incremented,
+        mock_annual_limits,
+    ):
+        mock_increment_email = mocker.patch(
+            "app.v2.notifications.post_notifications.increment_email_daily_count_send_warnings_if_needed"
+        )
+        mock_increment_sms = mocker.patch(
+            "app.v2.notifications.post_notifications.increment_sms_daily_count_send_warnings_if_needed"
+        )
+        mock_check_email = mocker.patch("app.v2.notifications.post_notifications.check_email_daily_limit")
+        mock_check_sms = mocker.patch("app.v2.notifications.post_notifications.check_sms_daily_limit")
+        service = create_service(service_name=str(uuid.uuid4()), service_permissions=[EMAIL_TYPE, SMS_TYPE])
+        template = create_template(service=service, template_type=notification_type)
+
+        response = client.post(
+            "/v2/notifications/{}".format(notification_type),
+            data=json.dumps({key_send_to: send_to, "template_id": str(template.id), "scheduled_for": scheduled_for}),
+            headers=[("Content-Type", "application/json"), create_authorization_header(service_id=service.id)],
+        )
+
+        assert response.status_code == 201
+        # Limits are always checked when the notification is requested, like scheduled bulk jobs
+        mock_check = mock_check_sms if notification_type == SMS_TYPE else mock_check_email
+        mock_check.assert_called_once()
+        mock_increment = mock_increment_sms if notification_type == SMS_TYPE else mock_increment_email
+        assert mock_increment.called is expect_daily_count_incremented
 
 
 class TestSendingDocuments:
@@ -3208,6 +3280,7 @@ def test_post_bulk_returns_403_if_service_suspended(client, notify_db_session, m
 class TestBillableUnitsInV2Notifications:
     """Tests for billable_units in v2 notifications API"""
 
+    @freeze_time("2017-05-14 14:00:00")
     def test_post_sms_notification_uses_billable_units_for_daily_count_when_flag_enabled(
         self, notify_api, client, sample_template, mocker, mock_annual_limits
     ):
@@ -3227,7 +3300,7 @@ class TestBillableUnitsInV2Notifications:
             mocker.patch("app.notifications.process_notifications.dao_get_template_by_id", return_value=sample_template)
             ensure_service_has_permission(sample_template.service_id, SCHEDULE_NOTIFICATIONS)
 
-            # Use scheduled_for so notification is persisted immediately
+            # Use scheduled_for (later today) so the notification is persisted immediately
             scheduled_time = (datetime.utcnow() + timedelta(hours=1)).strftime("%Y-%m-%d %H:%M")
             data = {
                 "phone_number": "+16502532222",
@@ -3245,12 +3318,13 @@ class TestBillableUnitsInV2Notifications:
             assert response.status_code == 201
 
             # Get the notification that was created
-            notification = Notification.query.filter_by(template_id=sample_template.id).first()
+            notification = ScheduledNotification.query.filter_by(template_id=sample_template.id).first()
             assert notification.billable_units == 2
 
             # Verify increment was called with billable_units=2
             mock_increment.assert_called_once_with(sample_template.service, 2)
 
+    @freeze_time("2017-05-14 14:00:00")
     def test_post_sms_notification_uses_count_of_1_when_flag_disabled(
         self, notify_api, client, sample_template, mocker, mock_annual_limits
     ):
@@ -3268,7 +3342,7 @@ class TestBillableUnitsInV2Notifications:
             mocker.patch("app.sms_fragment_utils.fetch_todays_total_sms_billable_units", return_value=0)
             ensure_service_has_permission(sample_template.service_id, SCHEDULE_NOTIFICATIONS)
 
-            # Use scheduled_for so notification is persisted immediately
+            # Use scheduled_for (later today) so the notification is persisted immediately
             scheduled_time = (datetime.utcnow() + timedelta(hours=1)).strftime("%Y-%m-%d %H:%M")
             data = {
                 "phone_number": "+16502532222",
@@ -3286,8 +3360,10 @@ class TestBillableUnitsInV2Notifications:
             assert response.status_code == 201
 
             # Get the notification that was created
-            notification = Notification.query.filter_by(template_id=sample_template.id).first()
-            assert notification.billable_units == 0
+            # Billable units are always stored for scheduled notifications, so they're counted if the flag is enabled
+            # before they're sent
+            notification = ScheduledNotification.query.filter_by(template_id=sample_template.id).first()
+            assert notification.billable_units == 2
 
             # Verify increment was called with count=1 despite long message
             mock_increment.assert_called_once_with(sample_template.service, 1)
@@ -3354,6 +3430,7 @@ class TestBillableUnitsInV2Notifications:
             # Simulated recipient should not increment daily count
             mock_increment.assert_not_called()
 
+    @freeze_time("2017-05-14 14:00:00")
     def test_post_email_notification_always_uses_count_of_1(
         self, notify_api, client, sample_email_template, mocker, mock_annual_limits
     ):
@@ -3367,7 +3444,7 @@ class TestBillableUnitsInV2Notifications:
             mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=0)
             ensure_service_has_permission(sample_email_template.service_id, SCHEDULE_NOTIFICATIONS)
 
-            # Use scheduled_for so notification is persisted immediately
+            # Use scheduled_for (later today) so the notification is persisted immediately
             scheduled_time = (datetime.utcnow() + timedelta(hours=1)).strftime("%Y-%m-%d %H:%M")
             data = {
                 "email_address": "test@example.com",
@@ -3396,6 +3473,7 @@ class TestBillableUnitsInV2Notifications:
             # Verify increment was called with count=1
             mock_increment.assert_called_once_with(sample_email_template.service, 1)
 
+    @freeze_time("2017-05-14 14:00:00")
     def test_post_sms_with_personalisation_calculates_billable_units_correctly(
         self, notify_api, client, mocker, mock_annual_limits
     ):
@@ -3416,7 +3494,7 @@ class TestBillableUnitsInV2Notifications:
             mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
             mocker.patch("app.sms_fragment_utils.fetch_todays_total_sms_billable_units", return_value=0)
 
-            # Use scheduled_for so notification is persisted immediately
+            # Use scheduled_for (later today) so the notification is persisted immediately
             scheduled_time = (datetime.utcnow() + timedelta(hours=1)).strftime("%Y-%m-%d %H:%M")
             # Long personalisation value makes message require 2 fragments
             data = {
@@ -3436,7 +3514,7 @@ class TestBillableUnitsInV2Notifications:
             assert response.status_code == 201
 
             # Get the notification that was created
-            notification = Notification.query.filter_by(template_id=template.id).first()
+            notification = ScheduledNotification.query.filter_by(template_id=template.id).first()
             # "Hello " + 200 'a's = 206 chars -> 2 fragments
             assert notification.billable_units == 2
 
