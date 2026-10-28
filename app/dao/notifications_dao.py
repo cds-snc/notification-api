@@ -757,6 +757,24 @@ def dao_created_scheduled_notification(scheduled_notification):
     db.session.commit()
 
 
+def _scheduled_one_off_notifications_query():
+    # Legacy rows (service_id is null) are linked to a notification in the notifications table instead
+    return ScheduledNotification.query.filter(ScheduledNotification.service_id.isnot(None))
+
+
+def dao_get_due_scheduled_one_off_notifications(limit):
+    """Locks and returns scheduled one-off notifications that are due to be sent. Rows locked by another worker are
+    skipped. The caller must delete the rows once they're sent and commit, which releases the locks."""
+    return (
+        _scheduled_one_off_notifications_query()
+        .filter(ScheduledNotification.scheduled_for <= datetime.utcnow())
+        .order_by(asc(ScheduledNotification.scheduled_for))
+        .limit(limit)
+        .with_for_update(skip_locked=True)
+        .all()
+    )
+
+
 @statsd(namespace="dao")
 def dao_get_scheduled_notifications():
     """Legacy rows, whose notification is already in the notifications table, that are due to be sent."""

@@ -7,12 +7,13 @@ from tests.app.conftest import create_sample_job
 from tests.app.db import (
     create_job,
     create_notification,
+    create_scheduled_one_off_notification,
     create_template,
     save_notification,
     save_scheduled_notification,
 )
 
-from app import db
+from app import db, signer_notification
 from app.celery import scheduled_tasks, tasks
 from app.celery.scheduled_tasks import (
     beat_inbox_email_bulk,
@@ -46,6 +47,7 @@ from app.models import (
     JOB_STATUS_IN_PROGRESS,
     NOTIFICATION_DELIVERED,
     NOTIFICATION_PENDING_VIRUS_CHECK,
+    Notification,
     ScheduledNotification,
 )
 from app.v2.errors import JobIncompleteError
@@ -189,6 +191,132 @@ def test_should_send_all_scheduled_notifications_to_deliver_queue(sample_templat
     scheduled_notifications = dao_get_scheduled_notifications()
     assert not scheduled_notifications
     assert ScheduledNotification.query.filter_by(notification_id=message_to_deliver.id).count() == 0
+
+
+class TestSendScheduledNotifications:
+    @freeze_time("2017-05-01 14:00:00")
+    def test_puts_due_notifications_on_the_sending_queues(self, sample_template_with_placeholders, sample_api_key, mocker):
+        mock_publish = mocker.patch("app.sms_normal_publish.publish")
+        due = create_scheduled_one_off_notification(
+            sample_template_with_placeholders,
+            scheduled_for="2017-05-01 14:00",
+            personalisation={"name": "Jo"},
+            api_key=sample_api_key,
+            client_reference="my-ref",
+            reply_to_text="+16502532223",
+            created_at=datetime(2017, 4, 28, 9, 0),
+        )
+        not_due = create_scheduled_one_off_notification(sample_template_with_placeholders, scheduled_for="2017-05-01 14:01")
+
+        send_scheduled_notifications()
+
+        mock_publish.assert_called_once()
+        assert signer_notification.verify(mock_publish.call_args[0][0]) == {
+            "id": str(due.notification_id),
+            "template": str(sample_template_with_placeholders.id),
+            "service_id": str(sample_template_with_placeholders.service_id),
+            "template_version": str(sample_template_with_placeholders.version),
+            "to": due.to,
+            "personalisation": {"name": "Jo"},
+            "simulated": False,
+            "api_key": str(sample_api_key.id),
+            "key_type": "normal",
+            "client_reference": "my-ref",
+            "reply_to_text": "+16502532223",
+        }
+        assert [n.notification_id for n in ScheduledNotification.query.all()] == [not_due.notification_id]
+
+    @pytest.mark.parametrize(
+        "template_type, process_type, queue",
+        [
+            ("sms", "priority", "sms_priority_publish"),
+            ("sms", "bulk", "sms_bulk_publish"),
+            ("email", "normal", "email_normal_publish"),
+            ("email", "priority", "email_priority_publish"),
+        ],
+    )
+    @freeze_time("2017-05-01 14:00:00")
+    def test_uses_the_queue_for_the_template_process_type(self, sample_service, mocker, template_type, process_type, queue):
+        mock_publish = mocker.patch(f"app.{queue}.publish")
+        template = create_template(service=sample_service, template_type=template_type, process_type=process_type)
+        create_scheduled_one_off_notification(template, scheduled_for="2017-05-01 13:00")
+
+        send_scheduled_notifications()
+
+        mock_publish.assert_called_once()
+
+    @freeze_time("2017-05-01 14:00:00")
+    def test_doesnt_send_notifications_for_inactive_services(self, sample_template, mocker):
+        mock_publish = mocker.patch("app.sms_normal_publish.publish")
+        create_scheduled_one_off_notification(sample_template, scheduled_for="2017-05-01 13:00")
+        sample_template.service.active = False
+        db.session.commit()
+
+        send_scheduled_notifications()
+
+        mock_publish.assert_not_called()
+        assert ScheduledNotification.query.count() == 0
+
+    @freeze_time("2017-05-01 14:00:00")
+    def test_keeps_notifications_to_retry_if_they_cant_be_queued(self, sample_template, mocker):
+        mocker.patch("app.sms_normal_publish.publish", side_effect=Exception("Redis is down"))
+        create_scheduled_one_off_notification(sample_template, scheduled_for="2017-05-01 13:00")
+
+        with pytest.raises(Exception, match="Redis is down"):
+            send_scheduled_notifications()
+
+        assert ScheduledNotification.query.count() == 1
+
+    @freeze_time("2017-05-01 14:00:00")
+    def test_sends_notifications_in_batches(self, sample_template, mocker):
+        mocker.patch("app.celery.scheduled_tasks.SCHEDULED_ONE_OFF_NOTIFICATIONS_BATCH_SIZE", 2)
+        mock_publish = mocker.patch("app.sms_normal_publish.publish")
+        for _ in range(5):
+            create_scheduled_one_off_notification(sample_template, scheduled_for="2017-05-01 13:00")
+
+        send_scheduled_notifications()
+
+        assert mock_publish.call_count == 5
+        assert ScheduledNotification.query.count() == 0
+
+    @pytest.mark.parametrize("template_type", ["sms", "email"])
+    def test_notification_is_created_when_its_sent(self, sample_service, mocker, template_type):
+        # The notification should be created (and counted) on the day it's sent, not the day it was requested
+        mock_publish = mocker.patch(f"app.{template_type}_normal_publish.publish")
+        mocker.patch(f"app.celery.provider_tasks.deliver_{template_type}.apply_async")
+        template = create_template(service=sample_service, template_type=template_type, content="Hi ((name))")
+        with freeze_time("2017-04-28 09:00:00"):
+            scheduled_notification = create_scheduled_one_off_notification(
+                template,
+                scheduled_for="2017-05-01 14:00",
+                personalisation={"name": "Jo"},
+                client_reference="my-ref",
+            )
+
+        with freeze_time("2017-05-01 14:00:30"):
+            send_scheduled_notifications()
+            save_task = tasks.save_smss if template_type == "sms" else tasks.save_emails
+            save_task(None, [mock_publish.call_args[0][0]], None)
+
+        notification = Notification.query.one()
+        assert notification.id == scheduled_notification.notification_id
+        assert notification.created_at == datetime(2017, 5, 1, 14, 0, 30)
+        assert notification.personalisation == {"name": "Jo"}
+        assert notification.client_reference == "my-ref"
+        assert notification.to == scheduled_notification.to
+        assert notification.template_id == template.id
+
+    @freeze_time("2017-05-01 14:00:00")
+    def test_still_sends_legacy_scheduled_notifications(self, sample_template, mocker):
+        mock_deliver = mocker.patch("app.celery.provider_tasks.deliver_sms")
+        mock_publish = mocker.patch("app.sms_normal_publish.publish")
+        legacy = save_scheduled_notification(create_notification(template=sample_template), scheduled_for="2017-05-01 13:15")
+        create_scheduled_one_off_notification(sample_template, scheduled_for="2017-05-01 13:00")
+
+        send_scheduled_notifications()
+
+        mock_deliver.apply_async.assert_called_once_with([str(legacy.id)], queue=QueueNames.SEND_SMS_MEDIUM, MessageGroupId=ANY)
+        mock_publish.assert_called_once()
 
 
 def test_check_job_status_task_raises_job_incomplete_error(mocker, sample_template):
