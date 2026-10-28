@@ -762,6 +762,24 @@ def _scheduled_one_off_notifications_query():
     return ScheduledNotification.query.filter(ScheduledNotification.service_id.isnot(None))
 
 
+@statsd(namespace="dao")
+def dao_get_scheduled_one_off_notification(service_id, notification_id):
+    return (
+        _scheduled_one_off_notifications_query().filter_by(service_id=service_id, notification_id=notification_id).one_or_none()
+    )
+
+
+@statsd(namespace="dao")
+@transactional
+def dao_delete_scheduled_one_off_notification(service_id, notification_id) -> int:
+    # Returns 0 if the notification doesn't exist or has already been released for sending
+    return (
+        db.session.query(ScheduledNotification)
+        .filter(ScheduledNotification.service_id == service_id, ScheduledNotification.notification_id == notification_id)
+        .delete(synchronize_session=False)
+    )
+
+
 def dao_get_due_scheduled_one_off_notifications(limit):
     """Locks and returns scheduled one-off notifications that are due to be sent. Rows locked by another worker are
     skipped. The caller must delete the rows once they're sent and commit, which releases the locks."""

@@ -13,6 +13,9 @@ def delete_notification_by_id(notification_id):
     _data = {"notification_id": notification_id}
     validate(_data, notification_by_id)
 
+    if notifications_dao.dao_delete_scheduled_one_off_notification(authenticated_service.id, notification_id):
+        return jsonify(result="success"), 200
+
     # Read from the writer bind: this is a prelude to a delete, so a stale reader-replica
     # row must not cause an incorrect 404 or a stale scheduled_notification.pending check.
     notification = notifications_dao.get_notification_with_personalisation(
@@ -22,6 +25,7 @@ def delete_notification_by_id(notification_id):
     if notification is None:
         raise NotificationNotFoundError()
 
+    # Legacy scheduled notifications are in the notifications table, linked to a ScheduledNotification
     scheduled_notification = notification.scheduled_notification
     if scheduled_notification is None:
         raise BadRequestError(message="Notification is not scheduled and cannot be deleted")
