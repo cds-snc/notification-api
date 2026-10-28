@@ -21,6 +21,8 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     name: Build and push
+    env:
+      STAGING_ACCOUNT_ID: "239043911459"
     steps:
     - name: Prepare Ubuntu CA trust
       uses: route06/actions/prepare-ubuntu-ca@aa6b218e4bc5445f54d3649a04297af5e1ce7458 # temporary CA mitigation
@@ -128,6 +130,19 @@ jobs:
     - uses: cds-snc/notification-pr-bot@main # zizmor: ignore[unpinned-uses] First-party bot intentionally tracks main (see renovate.json ignoreDeps) - can't hash-pin without losing that.
       env:
         TOKEN: ${{ steps.notify-pr-bot.outputs.token }}
+
+    - name: Configure AWS credentials for public ECR using OIDC
+      uses: aws-actions/configure-aws-credentials@ececac1a45f3b08a01d2dd070d28d111c5fe6722 # v4.1.0
+      with:
+        role-to-assume: arn:aws:iam::${{ env.STAGING_ACCOUNT_ID }}:role/notification-admin-apply
+        role-session-name: NotifyAdminGitHubActions
+        aws-region: "us-east-1"
+
+    - name: Login to public ECR
+      id: login-ecr-trivy
+      uses: aws-actions/amazon-ecr-login@5a88a04c91d5c6f97aae0d9be790e64d9b1d47b7 # v1.7.1
+      with:
+        registry-type: public
 
     - name: Generate docker SBOM
       uses: cds-snc/security-tools/.github/actions/generate-sbom@12a0cdea1c5a515dfcbe353693db804a1793c0ed # v4.0.1
