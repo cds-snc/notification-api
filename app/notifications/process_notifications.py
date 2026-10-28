@@ -12,7 +12,15 @@ from notifications_utils.recipients import (
     validate_and_format_phone_number,
 )
 
-from app import redis_store
+from app import (
+    email_bulk_publish,
+    email_normal_publish,
+    email_priority_publish,
+    redis_store,
+    sms_bulk_publish,
+    sms_normal_publish,
+    sms_priority_publish,
+)
 from app.celery import provider_tasks
 from app.celery.letters_pdf_tasks import create_letters_pdf
 from app.config import QueueNames
@@ -26,16 +34,20 @@ from app.dao.notifications_dao import (
 from app.dao.services_dao import dao_fetch_service_by_id
 from app.dao.templates_dao import dao_get_template_by_id
 from app.models import (
+    BULK,
     EMAIL_TYPE,
     KEY_TYPE_TEST,
     LETTER_TYPE,
+    NORMAL,
     NOTIFICATION_CREATED,
+    PRIORITY,
     SMS_TYPE,
     ApiKeyType,
     Notification,
     NotificationType,
     ScheduledNotification,
     Service,
+    TemplateBase,
 )
 from app.types import VerifiedNotification
 from app.utils import get_delivery_queue_for_template, get_template_instance
@@ -490,6 +502,33 @@ def simulated_recipient(to_address: str, notification_type: NotificationType) ->
         return to_address in formatted_simulated_numbers
     else:
         return to_address in current_app.config["SIMULATED_EMAIL_ADDRESSES"]
+
+
+def triage_notification_to_queues(notification_type: NotificationType, signed_notification_data, template: TemplateBase):
+    """Determine which queue to use based on notification_type and process_type
+
+    Args:
+        notification_type: Type of notification being sent; either SMS_TYPE or EMAIL_TYPE
+        signed_notification_data: Encrypted notification data
+        template: Template used to send notification
+    Returns:
+        None
+
+    """
+    if notification_type == SMS_TYPE:
+        if template.process_type == PRIORITY:
+            sms_priority_publish.publish(signed_notification_data)
+        elif template.process_type == NORMAL:
+            sms_normal_publish.publish(signed_notification_data)
+        elif template.process_type == BULK:
+            sms_bulk_publish.publish(signed_notification_data)
+    elif notification_type == EMAIL_TYPE:
+        if template.process_type == PRIORITY:
+            email_priority_publish.publish(signed_notification_data)
+        elif template.process_type == NORMAL:
+            email_normal_publish.publish(signed_notification_data)
+        elif template.process_type == BULK:
+            email_bulk_publish.publish(signed_notification_data)
 
 
 def persist_scheduled_notification(notification_id, scheduled_for):
