@@ -1872,7 +1872,12 @@ class Notification(BaseModel):
     client_reference = db.Column(db.String, index=True, nullable=True)
     _personalisation = db.Column(db.SensitiveString, nullable=True)
 
-    scheduled_notification = db.relationship("ScheduledNotification", uselist=False, back_populates="notification")
+    scheduled_notification = db.relationship(
+        "ScheduledNotification",
+        uselist=False,
+        back_populates="notification",
+        primaryjoin="Notification.id == foreign(ScheduledNotification.notification_id)",
+    )
 
     client_reference = db.Column(db.String, index=True, nullable=True)
 
@@ -2248,18 +2253,95 @@ class NotificationHistory(BaseModel, HistoryModel):
 
 
 class ScheduledNotification(BaseModel):
+    """A one-off (API) notification that is scheduled to be sent in the future.
+
+    Like scheduled bulk jobs, nothing is written to the notifications table until the scheduled time. The
+    send-scheduled-notifications task then puts it on the normal sending queues, where a notification with id
+    notification_id is created, so it is counted (stats, billing, limits) on the day it is actually sent.
+
+    Legacy rows, written by API instances older than migration 0526 during a deploy, only have notification_id,
+    scheduled_for and pending set (service_id is null): their data is in the notifications table.
+    TODO: once no legacy rows are left, make the notification columns non-nullable and remove pending.
+    """
+
     __tablename__ = "scheduled_notifications"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    notification_id = db.Column(
-        UUID(as_uuid=True),
-        db.ForeignKey("notifications.id"),
-        index=True,
-        nullable=False,
+    # Becomes the id of the notification once it is sent. No foreign key: the notification doesn't exist until then.
+    notification_id = db.Column(UUID(as_uuid=True), index=True, nullable=False, default=uuid.uuid4)
+    notification = db.relationship(
+        "Notification",
+        uselist=False,
+        back_populates="scheduled_notification",
+        primaryjoin="Notification.id == foreign(ScheduledNotification.notification_id)",
     )
-    notification = db.relationship("Notification", uselist=False, back_populates="scheduled_notification")
-    scheduled_for = db.Column(db.DateTime, index=False, nullable=False)
+    scheduled_for = db.Column(db.DateTime, index=True, nullable=False)
     pending = db.Column(db.Boolean, nullable=False, default=True)
+
+    service_id = db.Column(UUID(as_uuid=True), db.ForeignKey("services.id"), nullable=True)
+    service = db.relationship("Service")
+    template_id = db.Column(UUID(as_uuid=True), nullable=True)
+    template_version = db.Column(db.Integer, nullable=True)
+    template = db.relationship("TemplateHistory")
+    notification_type = db.Column(notification_types, nullable=True)
+    to = db.Column(db.SensitiveString, nullable=True)
+    _personalisation = db.Column(db.SensitiveString, nullable=True)
+    api_key_id = db.Column(UUID(as_uuid=True), db.ForeignKey("api_keys.id"), nullable=True)
+    api_key = db.relationship("ApiKey")
+    key_type = db.Column(db.String, db.ForeignKey("key_types.name"), nullable=True)
+    client_reference = db.Column(db.String, nullable=True)
+    reply_to_text = db.Column(db.String, nullable=True)
+    billable_units = db.Column(db.Integer, nullable=False, default=0, server_default="0")
+    created_at = db.Column(db.DateTime, nullable=True, default=datetime.datetime.utcnow)
+
+    __table_args__: Iterable[Any] = (
+        db.ForeignKeyConstraint(
+            ["template_id", "template_version"],
+            ["templates_history.id", "templates_history.version"],
+        ),
+        Index("ix_scheduled_notifications_service_id_scheduled_for", "service_id", "scheduled_for"),
+        {},
+    )
+
+    @property
+    def personalisation(self):
+        if self._personalisation:
+            return signer_personalisation.verify(self._personalisation)
+        return {}
+
+    @personalisation.setter
+    def personalisation(self, personalisation):
+        self._personalisation = signer_personalisation.sign(personalisation or {})
+
+    def as_notification(self) -> "Notification":
+        """A transient (never persisted) Notification with this message's data, used to serialize it in the same
+        format as a notification that has been sent."""
+        notification = Notification(
+            id=self.notification_id,
+            service_id=self.service_id,
+            template_id=self.template_id,
+            template_version=self.template_version,
+            notification_type=self.notification_type,
+            to=self.to,
+            api_key_id=self.api_key_id,
+            key_type=self.key_type,
+            client_reference=self.client_reference,
+            reply_to_text=self.reply_to_text,
+            billable_units=self.billable_units,
+            created_at=self.created_at,
+            status=NOTIFICATION_CREATED,
+        )
+        notification._personalisation = self._personalisation
+        # These relationships have no backrefs, so setting them won't cascade the transient notification into the session
+        notification.service = self.service
+        notification.template = self.template
+        notification.api_key = self.api_key
+        return notification
+
+    def serialize(self) -> dict:
+        serialized = self.as_notification().serialize()
+        serialized["scheduled_for"] = self.scheduled_for.strftime(DATETIME_FORMAT)
+        return serialized
 
 
 INVITE_PENDING = "pending"
