@@ -39,6 +39,7 @@ from app.dao.services_dao import (
     dao_update_service,
     delete_service_and_all_associated_db_objects,
     fetch_service_email_limit,
+    fetch_todays_total_email_count,
     fetch_todays_total_message_count,
     fetch_todays_total_sms_billable_units,
     fetch_todays_total_sms_count,
@@ -1111,6 +1112,59 @@ class TestFetchTodaysTotalSmsCount:
         yesterday = today - timedelta(days=1)
         save_notification(create_notification(created_at=yesterday, template=sms_template))
         assert fetch_todays_total_sms_count(service.id) == 0
+
+
+@pytest.mark.usefixtures("notify_db_session")
+@freeze_time("2018-07-16 15:00")
+class TestTodaysTotalCountsIncludeScheduledNotifications:
+    """One-off notifications scheduled for today count towards today's limits before they're sent, like scheduled jobs"""
+
+    def _create_scheduled(self, template, **kwargs):
+        today = create_scheduled_one_off_notification(template, scheduled_for="2018-07-16 23:59", billable_units=2, **kwargs)
+        create_scheduled_one_off_notification(template, scheduled_for="2018-07-17 00:00", billable_units=4, **kwargs)
+        create_scheduled_one_off_notification(template, scheduled_for="2018-07-18 12:00", billable_units=8, **kwargs)
+        return today
+
+    def test_fetch_todays_total_message_count(self):
+        service = create_service()
+        save_notification(create_notification(template=create_template(service=service)))
+        self._create_scheduled(create_template(service=service, template_type=EMAIL_TYPE))
+        self._create_scheduled(create_template(service=service, template_type=SMS_TYPE))
+
+        assert fetch_todays_total_message_count(service.id) == 3
+
+    def test_fetch_todays_total_sms_count(self):
+        service = create_service()
+        save_notification(create_notification(template=create_template(service=service, template_type=SMS_TYPE)))
+        self._create_scheduled(create_template(service=service, template_type=SMS_TYPE))
+        self._create_scheduled(create_template(service=service, template_type=EMAIL_TYPE))
+
+        assert fetch_todays_total_sms_count(service.id) == 2
+
+    def test_fetch_todays_total_sms_billable_units(self):
+        service = create_service()
+        sms_template = create_template(service=service, template_type=SMS_TYPE)
+        save_notification(create_notification(template=sms_template, billable_units=1))
+        self._create_scheduled(sms_template)
+
+        assert fetch_todays_total_sms_billable_units(service.id) == 3
+
+    def test_fetch_todays_total_email_count(self):
+        service = create_service()
+        email_template = create_template(service=service, template_type=EMAIL_TYPE)
+        save_notification(create_notification(template=email_template))
+        self._create_scheduled(email_template)
+        self._create_scheduled(create_template(service=service, template_type=SMS_TYPE))
+
+        assert fetch_todays_total_email_count(service.id) == 2
+
+    def test_doesnt_count_test_key_or_other_services_notifications(self):
+        service = create_service()
+        self._create_scheduled(create_template(service=service, template_type=EMAIL_TYPE), key_type=KEY_TYPE_TEST)
+        self._create_scheduled(create_template(service=create_service(service_name="other"), template_type=EMAIL_TYPE))
+
+        assert fetch_todays_total_email_count(service.id) == 0
+        assert fetch_todays_total_message_count(service.id) == 0
 
 
 def test_dao_fetch_todays_stats_for_all_services_includes_all_services(
