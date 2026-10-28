@@ -759,9 +759,11 @@ def dao_created_scheduled_notification(scheduled_notification):
 
 @statsd(namespace="dao")
 def dao_get_scheduled_notifications():
+    """Legacy rows, whose notification is already in the notifications table, that are due to be sent."""
     notifications = (
-        Notification.query.join(ScheduledNotification)
+        Notification.query.join(Notification.scheduled_notification)
         .filter(
+            ScheduledNotification.service_id.is_(None),
             ScheduledNotification.scheduled_for < datetime.utcnow(),
             ScheduledNotification.pending,
         )
