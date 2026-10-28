@@ -8,7 +8,7 @@ from uuid import UUID
 
 from dogpile.cache import make_region
 
-logger = logging.getLogger(__name__)
+from app import statsd_client
 
 
 def _as_uuid_string(value):
@@ -134,6 +134,7 @@ def invalidate_group_keys(group_name, group_id, batch_size=500, namespace=None):
     deleted = 0
     matched = 0
     scans = 0
+    outcome = "error"
 
     try:
         redis_client = _get_redis_client_from_region()
@@ -145,12 +146,15 @@ def invalidate_group_keys(group_name, group_id, batch_size=500, namespace=None):
                 deleted += redis_client.delete(*keys)
             if cursor == 0:
                 break
+        outcome = "success"
     finally:
         elapsed_ms = (perf_counter() - started) * 1000
-        logger.info(
-            f"cache.invalidate_group_keys namespace={ns} batch_size={batch_size} scans={scans} "
-            f"matched={matched} deleted={deleted} elapsed_ms={elapsed_ms:.2f}"
-        )
+        metric = f"cache.invalidation.{ns}"
+        statsd_client.incr(f"{metric}.{outcome}")
+        statsd_client.timing(f"{metric}.{outcome}.duration", elapsed_ms)
+        statsd_client.incr(f"{metric}.scans", count=scans)
+        statsd_client.incr(f"{metric}.matched", count=matched)
+        statsd_client.incr(f"{metric}.deleted", count=deleted)
 
     return deleted
 
@@ -199,10 +203,9 @@ def cache_on_arguments(*, namespace, group_by):
             finally:
                 elapsed_ms = (perf_counter() - started) * 1000
                 invocation.reset(token)
-                logger.info(
-                    f"dao.execution_time function={fn.__module__}.{fn.__qualname__} elapsed_ms={elapsed_ms:.2f} "
-                    f"cache_namespace={namespace} cache_outcome={outcome}"
-                )
+                metric = f"cache.access.{namespace}.{outcome}"
+                statsd_client.incr(metric)
+                statsd_client.timing(f"{metric}.duration", elapsed_ms)
 
         return wrapper
 
@@ -218,11 +221,10 @@ dogpile_region = make_region(
 
 def init_dogpile_cache(app):
     # Module loggers do not inherit handlers from Flask's "api" or "celery" logger.
-    for name in (__name__, "app.cache.cache_events"):
-        cache_logger = logging.getLogger(name)
-        cache_logger.handlers = app.logger.handlers[:]
-        cache_logger.setLevel(app.logger.getEffectiveLevel())
-        cache_logger.propagate = False
+    cache_logger = logging.getLogger("app.cache.cache_events")
+    cache_logger.handlers = app.logger.handlers[:]
+    cache_logger.setLevel(app.logger.getEffectiveLevel())
+    cache_logger.propagate = False
 
     redis_url = app.config.get("REDIS_URL") or "redis://localhost:6379/0"
     expiration_time = app.config.get("DOGPILE_CACHE_EXPIRATION", 600)

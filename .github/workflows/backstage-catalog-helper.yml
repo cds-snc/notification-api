@@ -6,10 +6,17 @@ permissions:
   contents: write
   pull-requests: write
 
+env: # temporary CA mitigation
+  NODE_OPTIONS: --use-openssl-ca
+  SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
+  SSL_CERT_DIR: /etc/ssl/certs
+
 jobs:
   update-catalog-info:
     runs-on: ubuntu-latest
     steps:
+      - name: Prepare Ubuntu CA trust
+        uses: route06/actions/prepare-ubuntu-ca@aa6b218e4bc5445f54d3649a04297af5e1ce7458 # temporary CA mitigation
       - name: Audit DNS requests
         uses: cds-snc/dns-proxy-action@f0796e7f3d6bec5d40aecb0321ed8012f5602f84 # v1.0.2
         env:

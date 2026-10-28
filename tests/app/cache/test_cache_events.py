@@ -33,9 +33,18 @@ from app.models import (
 )
 
 
+@pytest.fixture(autouse=True)
+def cache_statsd(mocker):
+    statsd = mocker.patch("app.caching.statsd_client")
+    mocker.patch("app.cache.cache_events.statsd_client", statsd)
+    return statsd
+
+
 @pytest.mark.parametrize("app_name", ["api", "celery"])
 @pytest.mark.parametrize("log_level", ["INFO", "WARNING"])
-def test_cache_logs_use_application_stdout_handlers_without_app_context(mocker, monkeypatch, app_name, log_level):
+def test_only_cache_errors_use_application_stdout_handlers_without_app_context(
+    mocker, monkeypatch, app_name, log_level, cache_statsd
+):
     app = Flask(app_name)
     app.config.update(DEBUG=False, NOTIFY_APP_NAME=app_name, NOTIFY_LOG_LEVEL=log_level, NOTIFY_LOG_PATH="")
     output = StringIO()
@@ -66,20 +75,19 @@ def test_cache_logs_use_application_stdout_handlers_without_app_context(mocker, 
     cache_events._collect_cache_invalidations(session, mocker.Mock())
     assert invalidate_group_keys("template", "entity-id") == 1
 
+    assert output.getvalue() == ""
+    cache_statsd.incr.assert_any_call("cache.collect_invalidations.success")
+    cache_statsd.incr.assert_any_call("cache.invalidation.template.success")
+    mocker.patch("app.cache.cache_events.invalidate_group_keys", side_effect=RuntimeError("Redis unavailable"))
+    cache_events._invalidate_cache_after_commit(session)
+
     records = [json.loads(line) for line in output.getvalue().splitlines()]
-    if log_level == "WARNING":
-        assert records == []
-    else:
-        assert len(records) == 2
-        assert [record["name"] for record in records] == [
-            "app.cache.cache_events", "app.caching"
-        ]
-        assert all(record["application"] == app_name for record in records)
-        assert all(record["levelname"] == "INFO" for record in records)
-        assert all(record["requestId"] == "no-request-id" for record in records)
-        assert "cache.collect_invalidations instances=1 invalidations=1" in records[0]["message"]
-        assert "cache.invalidate_group_keys namespace=template" in records[1]["message"]
-        assert "matched=1 deleted=1" in records[1]["message"]
+    assert len(records) == 1
+    assert records[0]["name"] == "app.cache.cache_events"
+    assert records[0]["application"] == app_name
+    assert records[0]["levelname"] == "ERROR"
+    assert records[0]["requestId"] == "no-request-id"
+    assert "Failed to invalidate cache group" in records[0]["message"]
 
 
 def test_register_cache_orm_events_is_thread_safe(mocker):
@@ -108,28 +116,54 @@ def test_register_cache_orm_events_is_thread_safe(mocker):
     assert mocked_listen.call_count == 4
 
 
-def test_collect_cache_invalidations_logs_performance(mocker):
+@pytest.mark.parametrize("already_queued", [False, True])
+def test_collect_cache_invalidations_records_performance(mocker, cache_statsd, already_queued):
     class CachedModel:
         pass
 
     instance = CachedModel()
     instance.id = "entity-id"
     session = SimpleNamespace(new={instance}, dirty=set(), deleted=set(), info={})
+    if already_queued:
+        session.info[cache_events._CACHE_INVALIDATIONS_KEY] = {("service", "entity-id")}
     rule = SimpleNamespace(namespace="service", entity_id_attribute="id")
     mocker.patch.object(
         cache_events, "CACHE_INVALIDATION_REGISTRY", {CachedModel: (rule,)}
     )
     mocker.patch("app.cache.cache_events.perf_counter", side_effect=[10, 10.125])
-    mocked_logger = mocker.patch("app.cache.cache_events.logger")
 
     cache_events._collect_cache_invalidations(session, mocker.Mock())
 
-    mocked_logger.info.assert_called_once_with(
-        "cache.collect_invalidations instances=1 invalidations=1 elapsed_ms=125.00"
+    assert cache_statsd.incr.call_args_list == [
+        call("cache.collect_invalidations.success"),
+        call("cache.collect_invalidations.instances", count=1),
+        call("cache.collect_invalidations.invalidations", count=0 if already_queued else 1),
+    ]
+    cache_statsd.timing.assert_called_once_with(
+        "cache.collect_invalidations.success.duration", pytest.approx(125.00)
     )
 
 
-def test_invalidate_group_keys_logs_performance(mocker):
+def test_collect_cache_invalidations_records_failure(mocker, cache_statsd):
+    instance = Template(id="entity-id")
+    session = SimpleNamespace(new={instance}, dirty=set(), deleted=set(), info={})
+    mocker.patch("app.cache.cache_events._queue_cache_invalidation", side_effect=ValueError("collection failed"))
+    mocker.patch("app.cache.cache_events.perf_counter", side_effect=[10, 10.025])
+
+    with pytest.raises(ValueError, match="collection failed"):
+        cache_events._collect_cache_invalidations(session, mocker.Mock())
+
+    assert cache_statsd.incr.call_args_list == [
+        call("cache.collect_invalidations.error"),
+        call("cache.collect_invalidations.instances", count=1),
+        call("cache.collect_invalidations.invalidations", count=0),
+    ]
+    cache_statsd.timing.assert_called_once_with(
+        "cache.collect_invalidations.error.duration", pytest.approx(25.00)
+    )
+
+
+def test_invalidate_group_keys_records_performance(mocker, cache_statsd):
     redis_client = mocker.Mock()
     redis_client.scan.side_effect = [
         (1, [b"service:entity-id:first", b"service:entity-id:second"]),
@@ -140,13 +174,18 @@ def test_invalidate_group_keys_logs_performance(mocker):
         "app.caching._get_redis_client_from_region", return_value=redis_client
     )
     mocker.patch("app.caching.perf_counter", side_effect=[20, 20.125])
-    mocked_logger = mocker.patch("app.caching.logger")
 
     deleted = invalidate_group_keys("service", "entity-id")
 
     assert deleted == 3
-    mocked_logger.info.assert_called_once_with(
-        "cache.invalidate_group_keys namespace=service batch_size=500 scans=2 matched=3 deleted=3 elapsed_ms=125.00"
+    assert cache_statsd.incr.call_args_list == [
+        call("cache.invalidation.service.success"),
+        call("cache.invalidation.service.scans", count=2),
+        call("cache.invalidation.service.matched", count=3),
+        call("cache.invalidation.service.deleted", count=3),
+    ]
+    cache_statsd.timing.assert_called_once_with(
+        "cache.invalidation.service.success.duration", pytest.approx(125.00)
     )
 
 
