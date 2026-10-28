@@ -47,6 +47,7 @@ from app.models import (
     NotificationType,
     ScheduledNotification,
     Service,
+    TemplateBase,
 )
 from app.types import VerifiedNotification
 from app.utils import get_delivery_queue_for_template, get_template_instance
@@ -503,7 +504,7 @@ def simulated_recipient(to_address: str, notification_type: NotificationType) ->
         return to_address in current_app.config["SIMULATED_EMAIL_ADDRESSES"]
 
 
-def triage_notification_to_queues(notification_type: NotificationType, signed_notification_data, template):
+def triage_notification_to_queues(notification_type: NotificationType, signed_notification_data, template: TemplateBase):
     """Determine which queue to use based on notification_type and process_type
 
     Args:
