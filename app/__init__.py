@@ -21,7 +21,6 @@ from werkzeug.exceptions import HTTPException as WerkzeugHTTPException
 from werkzeug.local import LocalProxy
 
 from app.aws.metrics_logger import MetricsLogger
-from app.caching import init_dogpile_cache
 from app.celery.celery import NotifyCelery
 from app.clients import Clients
 from app.clients.airtable.airtable_client import AirtableClient
@@ -95,6 +94,7 @@ email_priority_publish = RedisQueue("email", process_type="priority")
 
 
 def create_app(application, config=None):
+    from app.caching import init_dogpile_cache
     from app.config import configs
 
     if config is None:

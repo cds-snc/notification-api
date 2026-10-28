@@ -18,6 +18,11 @@ on:
 permissions:
   contents: read
 
+env: # temporary CA mitigation
+  NODE_OPTIONS: --use-openssl-ca
+  SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
+  SSL_CERT_DIR: /etc/ssl/certs
+
 jobs:
   renovate-agent:
     name: Run Renovate Agent
@@ -40,6 +45,8 @@ jobs:
           --health-retries 5
 
     steps:
+      - name: Prepare Ubuntu CA trust
+        uses: route06/actions/prepare-ubuntu-ca@aa6b218e4bc5445f54d3649a04297af5e1ce7458 # temporary CA mitigation
       # -----------------------------------------------------------------------
       # 1. Generate a bot token (needed to create branches + PRs)
       # -----------------------------------------------------------------------

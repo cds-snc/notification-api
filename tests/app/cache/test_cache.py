@@ -19,6 +19,7 @@ from app.caching import (
     cache_key_generator,
     cache_on_arguments,
     init_dogpile_cache,
+    invalidate_group_keys,
 )
 from app.dao.permissions_dao import permission_dao
 from app.dao.service_permissions_dao import (
@@ -49,11 +50,15 @@ def _make_memory_region(expiration_time=600):
     )
 
 
-class TestCacheAccessLogging:
-    def test_logs_regeneration_and_cache_reuse(self, mocker):
+@pytest.fixture(autouse=True)
+def cache_statsd(mocker):
+    return mocker.patch("app.caching.statsd_client")
+
+
+class TestCacheAccessMetrics:
+    def test_records_regeneration_and_cache_reuse(self, mocker, cache_statsd):
         mocker.patch("app.caching.dogpile_region", _make_memory_region())
         mocker.patch("app.caching.perf_counter", side_effect=[10, 10.01234, 20, 20.001])
-        logger = mocker.patch("app.caching.logger")
         creator_calls = []
 
         @cache_on_arguments(namespace="service", group_by="service_id")
@@ -65,24 +70,20 @@ class TestCacheAccessLogging:
         assert fetch(service_id="abc-123") == {"id": "abc-123"}
         assert creator_calls == ["abc-123"]
         assert fetch.__name__ == "fetch"
-        function = f"{fetch.__module__}.{fetch.__qualname__}"
-        assert logger.info.call_args_list == [
-            call(
-                f"dao.execution_time function={function} elapsed_ms=12.34 "
-                "cache_namespace=service cache_outcome=regenerated"
-            ),
-            call(
-                f"dao.execution_time function={function} elapsed_ms=1.00 "
-                "cache_namespace=service cache_outcome=reused"
-            ),
-        ]
         fetch.invalidate("abc-123")
         assert fetch.get("abc-123") is NO_VALUE
+        assert cache_statsd.incr.call_args_list == [
+            call("cache.access.service.regenerated"),
+            call("cache.access.service.reused"),
+        ]
+        assert cache_statsd.timing.call_args_list == [
+            call("cache.access.service.regenerated.duration", pytest.approx(12.34)),
+            call("cache.access.service.reused.duration", pytest.approx(1.00)),
+        ]
 
-    def test_logs_error_and_recovers_on_next_call(self, mocker):
+    def test_records_error_and_recovers_on_next_call(self, mocker, cache_statsd):
         mocker.patch("app.caching.dogpile_region", _make_memory_region())
         mocker.patch("app.caching.perf_counter", side_effect=[10, 10.002, 20, 20.003])
-        logger = mocker.patch("app.caching.logger")
 
         @cache_on_arguments(namespace="service", group_by="service_id")
         def fetch(service_id):
@@ -93,17 +94,52 @@ class TestCacheAccessLogging:
         with pytest.raises(ValueError, match="failed"):
             fetch("failed")
         assert fetch("abc-123") == {"id": "abc-123"}
-        function = f"{fetch.__module__}.{fetch.__qualname__}"
-        assert logger.info.call_args_list == [
-            call(
-                f"dao.execution_time function={function} elapsed_ms=2.00 "
-                "cache_namespace=service cache_outcome=error"
-            ),
-            call(
-                f"dao.execution_time function={function} elapsed_ms=3.00 "
-                "cache_namespace=service cache_outcome=regenerated"
-            ),
+        assert cache_statsd.incr.call_args_list == [
+            call("cache.access.service.error"),
+            call("cache.access.service.regenerated"),
         ]
+        assert cache_statsd.timing.call_args_list == [
+            call("cache.access.service.error.duration", pytest.approx(2.00)),
+            call("cache.access.service.regenerated.duration", pytest.approx(3.00)),
+        ]
+
+
+class TestCacheInvalidationMetrics:
+    def test_records_success_and_deleted_key_counts(self, mocker, cache_statsd):
+        redis_client = mocker.patch("app.caching._get_redis_client_from_region").return_value
+        redis_client.scan.side_effect = [(1, [b"service:abc:one"]), (0, [b"service:abc:two"])]
+        redis_client.delete.return_value = 1
+        mocker.patch("app.caching.perf_counter", side_effect=[10, 10.005])
+
+        assert invalidate_group_keys("service", "abc") == 2
+
+        assert cache_statsd.incr.call_args_list == [
+            call("cache.invalidation.service.success"),
+            call("cache.invalidation.service.scans", count=2),
+            call("cache.invalidation.service.matched", count=2),
+            call("cache.invalidation.service.deleted", count=2),
+        ]
+        cache_statsd.timing.assert_called_once_with(
+            "cache.invalidation.service.success.duration", pytest.approx(5.00)
+        )
+
+    def test_records_failure_and_preserves_exception(self, mocker, cache_statsd):
+        redis_client = mocker.patch("app.caching._get_redis_client_from_region").return_value
+        redis_client.scan.side_effect = RuntimeError("Redis unavailable")
+        mocker.patch("app.caching.perf_counter", side_effect=[10, 10.002])
+
+        with pytest.raises(RuntimeError, match="Redis unavailable"):
+            invalidate_group_keys("template", "abc")
+
+        assert cache_statsd.incr.call_args_list == [
+            call("cache.invalidation.template.error"),
+            call("cache.invalidation.template.scans", count=0),
+            call("cache.invalidation.template.matched", count=0),
+            call("cache.invalidation.template.deleted", count=0),
+        ]
+        cache_statsd.timing.assert_called_once_with(
+            "cache.invalidation.template.error.duration", pytest.approx(2.00)
+        )
 
 
 class TestCacheEvents:

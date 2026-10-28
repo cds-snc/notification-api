@@ -223,7 +223,7 @@ def determine_pinpoint_status(status: str, provider_response: str, isFinal: bool
         return NOTIFICATION_PERMANENT_FAILURE
     elif "unhandled provider" in response_lower:
         return NOTIFICATION_PERMANENT_FAILURE
-    elif "delivery TTL has expired" in response_lower:
+    elif "delivery ttl has expired" in response_lower:
         return NOTIFICATION_PERMANENT_FAILURE
     else:
         return None
