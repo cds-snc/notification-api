@@ -770,6 +770,20 @@ def dao_get_scheduled_one_off_notification(service_id, notification_id):
 
 
 @statsd(namespace="dao")
+def dao_get_scheduled_one_off_notifications_for_service(service_id, page=1, page_size=None):
+    if page_size is None:
+        page_size = current_app.config["PAGE_SIZE"]
+
+    return (
+        _scheduled_one_off_notifications_query()
+        .filter(ScheduledNotification.service_id == service_id)
+        .options(joinedload(ScheduledNotification.template))
+        .order_by(asc(ScheduledNotification.scheduled_for), asc(ScheduledNotification.created_at))
+        .paginate(page=page, per_page=page_size)
+    )
+
+
+@statsd(namespace="dao")
 @transactional
 def dao_delete_scheduled_one_off_notification(service_id, notification_id) -> int:
     # Returns 0 if the notification doesn't exist or has already been released for sending
