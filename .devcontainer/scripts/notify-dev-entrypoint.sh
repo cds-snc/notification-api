@@ -21,10 +21,10 @@ fi
 echo -e "\n\n# User's Aliases" >> ~/.zshrc
 echo -e "alias fd=fdfind" >> ~/.zshrc
 echo -e "alias l='ls -al --color'" >> ~/.zshrc
-echo -e "alias ls='exa'" >> ~/.zshrc
-echo -e "alias l='exa -alh'" >> ~/.zshrc
-echo -e "alias ll='exa -alh@ --git'" >> ~/.zshrc
-echo -e "alias lt='exa -al -T -L 2'" >> ~/.zshrc
+echo -e "alias ls='eza'" >> ~/.zshrc
+echo -e "alias l='eza -alh'" >> ~/.zshrc
+echo -e "alias ll='eza -alh@ --git'" >> ~/.zshrc
+echo -e "alias lt='eza -al -T -L 2'" >> ~/.zshrc
 
 # Kubectl aliases and command autocomplete
 echo -e "alias k='kubectl'" >> ~/.zshrc
