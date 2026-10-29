@@ -1,3 +1,4 @@
+import secrets
 import time
 from contextlib import contextmanager
 from unittest import mock
@@ -7,7 +8,7 @@ import pytest
 from flask import Flask
 from pytest_mock_resources import create_redis_fixture
 
-from app import create_app, flask_redis, metrics_logger
+from app import create_app, flask_redis, metrics_logger, signer_notification
 from app.config import Config, Test
 from app.queue import Buffer, MockQueue, RedisQueue, generate_element
 
@@ -70,13 +71,13 @@ class TestRedisQueue:
     @pytest.fixture()
     def redis_queue(self, app):
         q = RedisQueue(QNAME_SUFFIX, expire_inflight_after_seconds=1)
-        q.init_app(flask_redis, metrics_logger)
+        q.init_app(flask_redis, metrics_logger, signer_notification)
         return q
 
     @pytest.fixture()
     def redis_queue_with_process(self, app):
         q = RedisQueue(QNAME_SUFFIX, expire_inflight_after_seconds=1, process_type=PROCESS_TYPE)
-        q.init_app(flask_redis, metrics_logger)
+        q.init_app(flask_redis, metrics_logger, signer_notification)
         return q
 
     @contextmanager
@@ -357,22 +358,60 @@ class TestRedisQueue:
             self.delete_all_list(redis)
 
     @pytest.mark.serial
-    def test_polling_allows_single_oversized_head_entry_and_does_not_block_later_entries(self, redis, redis_queue):
+    def test_polling_logs_single_oversized_head_entry_and_does_not_block_later_entries(self, redis, redis_queue, caplog):
         self.delete_all_list(redis)
-        oversized = "a" * (RedisQueue.MAX_POLL_BYTES + 1)
+        oversized = signer_notification.sign(
+            {
+                "id": "oversized-notification-id",
+                "service_id": "oversized-service-id",
+                "padding": secrets.token_urlsafe(RedisQueue.MAX_POLL_BYTES),
+            }
+        )
+        assert len(oversized.encode("utf-8")) > RedisQueue.MAX_POLL_BYTES
         normal = "normal notification"
         try:
             redis_queue.publish(oversized)
             redis_queue.publish(normal)
 
-            receipt, elements = redis_queue.poll()
+            with mock.patch.object(signer_notification, "verify", wraps=signer_notification.verify) as verify:
+                receipt, elements = redis_queue.poll()
+
+                assert elements == [oversized]
+                assert redis.lrange(Buffer.INBOX.inbox_name(QNAME_SUFFIX), 0, -1) == [normal.encode()]
+                assert redis.lrange(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX), 0, -1) == [oversized.encode()]
+                assert verify.call_count == 1
+                assert any(
+                    record.levelname == "ERROR"
+                    and "exceeds MAX_POLL_BYTES" in record.message
+                    and f"limit: {RedisQueue.MAX_POLL_BYTES} bytes" in record.message
+                    and "notification_id=oversized-notification-id" in record.message
+                    and "service_id=oversized-service-id" in record.message
+                    for record in caplog.records
+                )
+
+                _, next_elements = redis_queue.poll()
+                assert next_elements == [normal]
+                assert verify.call_count == 1
+        finally:
+            self.delete_all_list(redis)
+
+    @pytest.mark.serial
+    def test_polling_logs_unknown_ids_for_oversized_unverified_message(self, redis, redis_queue, caplog):
+        self.delete_all_list(redis)
+        oversized = "a" * (RedisQueue.MAX_POLL_BYTES + 1)
+        try:
+            redis_queue.publish(oversized)
+
+            _, elements = redis_queue.poll()
 
             assert elements == [oversized]
-            assert redis.lrange(Buffer.INBOX.inbox_name(QNAME_SUFFIX), 0, -1) == [normal.encode()]
-            assert redis.lrange(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX), 0, -1) == [oversized.encode()]
-
-            _, next_elements = redis_queue.poll()
-            assert next_elements == [normal]
+            assert any(
+                record.levelname == "ERROR"
+                and "exceeds MAX_POLL_BYTES" in record.message
+                and "notification_id=unknown" in record.message
+                and "service_id=unknown" in record.message
+                for record in caplog.records
+            )
         finally:
             self.delete_all_list(redis)
 

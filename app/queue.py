@@ -7,6 +7,7 @@ from typing import Any, Dict, Optional
 from uuid import UUID, uuid4
 
 from flask import current_app
+from itsdangerous import BadSignature
 from redis import Redis
 
 from app.aws.metrics import (
@@ -16,6 +17,7 @@ from app.aws.metrics import (
     put_batch_saving_metric,
 )
 from app.aws.metrics_logger import MetricsLogger
+from app.encryption import CryptoSigner
 
 
 def generate_element(length=10) -> str:
@@ -153,11 +155,13 @@ class RedisQueue(Queue):
         self._expire_inflight_after_seconds = expire_inflight_after_seconds
         self._scripts: Dict[str, Any] = {}
         self._scripts_lock = Lock()
+        self._signer: Optional[CryptoSigner] = None
 
-    def init_app(self, redis: Redis, metrics_logger: MetricsLogger):
+    def init_app(self, redis: Redis, metrics_logger: MetricsLogger, signer: Optional[CryptoSigner] = None):
         self._redis_client = redis
         self.__register_scripts()
         self.__metrics_logger = metrics_logger
+        self._signer = signer
 
     def poll(self, count=10) -> tuple[UUID, list[str]]:
         receipt = uuid4()
@@ -214,6 +218,25 @@ class RedisQueue(Queue):
         move_script = self.__get_script(self.LUA_MOVE_TO_INFLIGHT)
         results = move_script(args=[self._inbox, in_flight_key, max(0, min(count, self.MAX_POLL_COUNT)), self.MAX_POLL_BYTES])
         decoded = [result.decode("utf-8") for result in results]
+        for result, message in zip(results, decoded):
+            message_bytes = len(result)
+            if message_bytes > self.MAX_POLL_BYTES:
+                notification_id = None
+                service_id = None
+                if self._signer:
+                    try:
+                        notification = self._signer.verify(message)
+                    except BadSignature:
+                        notification = None
+                    if isinstance(notification, dict):
+                        notification_id = notification.get("id")
+                        service_id = notification.get("service_id")
+                current_app.logger.error(
+                    f"Message in {in_flight_key} exceeds MAX_POLL_BYTES: "
+                    f"{message_bytes} bytes (limit: {self.MAX_POLL_BYTES} bytes), "
+                    f"notification_id={notification_id or 'unknown'}, "
+                    f"service_id={service_id or 'unknown'}"
+                )
         return decoded
 
     def __get_script(self, script_name: str):
