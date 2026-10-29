@@ -257,6 +257,21 @@ class TestSendScheduledNotifications:
         mock_publish.assert_not_called()
         assert ScheduledNotification.query.count() == 0
 
+    @pytest.mark.parametrize(
+        "template_type, to", [("sms", "+16132532222"), ("email", "simulate-delivered@notification.canada.ca")]
+    )
+    @freeze_time("2017-05-01 14:00:00")
+    def test_doesnt_send_notifications_to_simulated_recipients(self, sample_service, mocker, template_type, to):
+        mock_publish = mocker.patch(f"app.{template_type}_normal_publish.publish")
+        template = create_template(service=sample_service, template_type=template_type)
+        create_scheduled_one_off_notification(template, scheduled_for="2017-05-01 13:00", to=to)
+
+        send_scheduled_notifications()
+
+        mock_publish.assert_not_called()
+        assert ScheduledNotification.query.count() == 0
+        assert Notification.query.count() == 0
+
     @freeze_time("2017-05-01 14:00:00")
     def test_keeps_notifications_to_retry_if_they_cant_be_queued(self, sample_template, mocker):
         mocker.patch("app.sms_normal_publish.publish", side_effect=Exception("Redis is down"))

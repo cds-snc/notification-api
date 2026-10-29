@@ -130,18 +130,24 @@ def _send_due_scheduled_one_off_notifications() -> int:
         due_notifications = dao_get_due_scheduled_one_off_notifications(SCHEDULED_ONE_OFF_NOTIFICATIONS_BATCH_SIZE)
         try:
             for scheduled_notification in due_notifications:
-                if scheduled_notification.service.active:
-                    triage_notification_to_queues(
-                        scheduled_notification.notification_type,
-                        signer_notification.sign(_scheduled_one_off_notification_to_sign(scheduled_notification)),
-                        scheduled_notification.template,
-                    )
-                    sent_count += 1
-                else:
+                notification_to_sign = _scheduled_one_off_notification_to_sign(scheduled_notification)
+                if not scheduled_notification.service.active:
                     current_app.logger.warning(
                         f"Scheduled notification {scheduled_notification.notification_id} not sent, "
                         f"service {scheduled_notification.service_id} is inactive"
                     )
+                elif notification_to_sign["simulated"]:
+                    # Same as notifications sent straight away: simulated recipients aren't persisted or sent
+                    current_app.logger.debug(
+                        f"Scheduled notification {scheduled_notification.notification_id} not sent, simulated recipient"
+                    )
+                else:
+                    triage_notification_to_queues(
+                        scheduled_notification.notification_type,
+                        signer_notification.sign(notification_to_sign),
+                        scheduled_notification.template,
+                    )
+                    sent_count += 1
                 db.session.delete(scheduled_notification)
             # Also releases the row locks. If publishing fails, the rows are kept and retried on the next run.
             db.session.commit()
