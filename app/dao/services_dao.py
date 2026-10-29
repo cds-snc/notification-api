@@ -480,6 +480,20 @@ def dao_fetch_todays_stats_for_service(service_id):
     return _stats_for_service_query(service_id).filter(func.date(Notification.created_at) == date.today()).all()
 
 
+def _scheduled_one_off_notifications_for_today(service_id, midnight, notification_type=None):
+    """Filters for one-off notifications scheduled to be sent today that haven't been sent yet. Like scheduled jobs,
+    they count towards the daily limit of the day they're scheduled for."""
+    filters = [
+        ScheduledNotification.service_id == service_id,
+        ScheduledNotification.key_type != KEY_TYPE_TEST,
+        ScheduledNotification.scheduled_for >= midnight,
+        ScheduledNotification.scheduled_for < midnight + timedelta(days=1),
+    ]
+    if notification_type:
+        filters.append(ScheduledNotification.notification_type == notification_type)
+    return filters
+
+
 def fetch_todays_total_message_count(service_id):
     midnight = get_midnight(datetime.now(tz=pytz.utc))
     scheduled = (
@@ -499,7 +513,13 @@ def fetch_todays_total_message_count(service_id):
         )
     ).first()
 
-    return result.count + scheduled.count
+    scheduled_one_off_count = (
+        db.session.query(func.count(ScheduledNotification.notification_id))
+        .filter(*_scheduled_one_off_notifications_for_today(service_id, midnight))
+        .scalar()
+    )
+
+    return result.count + scheduled.count + scheduled_one_off_count
 
 
 def fetch_todays_total_sms_count(service_id):
@@ -514,7 +534,13 @@ def fetch_todays_total_sms_count(service_id):
         )
         .first()
     )
-    return 0 if result is None or result.total_sms_notifications is None else result.total_sms_notifications
+    scheduled_one_off_count = (
+        db.session.query(func.count(ScheduledNotification.notification_id))
+        .filter(*_scheduled_one_off_notifications_for_today(service_id, midnight, SMS_TYPE))
+        .scalar()
+    )
+    sent_count = 0 if result is None or result.total_sms_notifications is None else result.total_sms_notifications
+    return sent_count + scheduled_one_off_count
 
 
 def fetch_todays_total_sms_billable_units(service_id):
@@ -530,7 +556,13 @@ def fetch_todays_total_sms_billable_units(service_id):
         )
         .first()
     )
-    return 0 if result is None or result.total_sms_billable_units is None else result.total_sms_billable_units
+    scheduled_one_off_billable_units = (
+        db.session.query(func.coalesce(func.sum(ScheduledNotification.billable_units), 0))
+        .filter(*_scheduled_one_off_notifications_for_today(service_id, midnight, SMS_TYPE))
+        .scalar()
+    )
+    sent_billable_units = 0 if result is None or result.total_sms_billable_units is None else result.total_sms_billable_units
+    return sent_billable_units + scheduled_one_off_billable_units
 
 
 def fetch_service_email_limit(service_id: uuid.UUID) -> int:
@@ -557,7 +589,13 @@ def fetch_todays_total_email_count(service_id: uuid.UUID) -> int:
         )
     ).first()
 
-    return result.total_email_notifications + scheduled.total_scheduled_notifications
+    scheduled_one_off_count = (
+        db.session.query(func.count(ScheduledNotification.notification_id))
+        .filter(*_scheduled_one_off_notifications_for_today(service_id, midnight, EMAIL_TYPE))
+        .scalar()
+    )
+
+    return result.total_email_notifications + scheduled.total_scheduled_notifications + scheduled_one_off_count
 
 
 def _stats_for_service_query(service_id):
