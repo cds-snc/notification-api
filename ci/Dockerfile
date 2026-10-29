@@ -1,4 +1,4 @@
-FROM python:3.12-alpine3.20@sha256:5049c050bdc68575a10bcb1885baa0689b6c15152d8a56a7e399fb49f783bf98
+FROM python:3.12-alpine3.24@sha256:5789aa194f757888f41fa3d48e14b6feaa1b57c0af0b56fcb1372d6474d3bff0
 
 ENV PYTHONDONTWRITEBYTECODE 1
 ENV APP_VENV="/app/.venv"
@@ -24,14 +24,6 @@ RUN apk add --no-cache bash \
     rust \
     cargo && \
     rm -rf /var/cache/apk/*
-
-# -- Install CA certificates and update them to disable emSign ECC Root CA - G3 --
-RUN apk add --no-cache ca-certificates && \
-    sed -i \
-      -e 's|^mozilla/emSign_ECC_Root_CA_-_G3.crt|!&|' \
-      -e 's|^mozilla/Comodo_AAA_Services_root.crt|!&|' \
-      /etc/ca-certificates.conf && \
-    update-ca-certificates --fresh
 
 RUN set -ex && mkdir /app
 WORKDIR /app
