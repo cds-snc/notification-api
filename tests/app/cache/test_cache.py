@@ -58,7 +58,7 @@ def cache_statsd(mocker):
 class TestCacheAccessMetrics:
     def test_records_regeneration_and_cache_reuse(self, mocker, cache_statsd):
         mocker.patch("app.caching.dogpile_region", _make_memory_region())
-        mocker.patch("app.caching.perf_counter", side_effect=[10, 10.01234, 20, 20.001])
+        mocker.patch("app.caching.perf_counter", side_effect=[10, 10.001, 10.010, 10.01234, 20, 20.001])
         creator_calls = []
 
         @cache_on_arguments(namespace="service", group_by="service_id")
@@ -77,13 +77,17 @@ class TestCacheAccessMetrics:
             call("cache.access.service.reused"),
         ]
         assert cache_statsd.timing.call_args_list == [
+            call("cache.creator.service.success.duration", pytest.approx(9.00)),
             call("cache.access.service.regenerated.duration", pytest.approx(12.34)),
             call("cache.access.service.reused.duration", pytest.approx(1.00)),
         ]
 
     def test_records_error_and_recovers_on_next_call(self, mocker, cache_statsd):
         mocker.patch("app.caching.dogpile_region", _make_memory_region())
-        mocker.patch("app.caching.perf_counter", side_effect=[10, 10.002, 20, 20.003])
+        mocker.patch(
+            "app.caching.perf_counter",
+            side_effect=[10, 10.0005, 10.0015, 10.002, 20, 20.0005, 20.0025, 20.003],
+        )
 
         @cache_on_arguments(namespace="service", group_by="service_id")
         def fetch(service_id):
@@ -99,7 +103,9 @@ class TestCacheAccessMetrics:
             call("cache.access.service.regenerated"),
         ]
         assert cache_statsd.timing.call_args_list == [
+            call("cache.creator.service.error.duration", pytest.approx(1.00)),
             call("cache.access.service.error.duration", pytest.approx(2.00)),
+            call("cache.creator.service.success.duration", pytest.approx(2.00)),
             call("cache.access.service.regenerated.duration", pytest.approx(3.00)),
         ]
 
