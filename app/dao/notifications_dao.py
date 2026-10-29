@@ -757,6 +757,12 @@ def dao_created_scheduled_notification(scheduled_notification):
     db.session.commit()
 
 
+@statsd(namespace="dao")
+def dao_create_scheduled_one_off_notification(scheduled_notification: ScheduledNotification):
+    db.session.add(scheduled_notification)
+    db.session.commit()
+
+
 def _scheduled_one_off_notifications_query():
     # Legacy rows (service_id is null) are linked to a notification in the notifications table instead
     return ScheduledNotification.query.filter(ScheduledNotification.service_id.isnot(None))

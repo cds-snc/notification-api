@@ -28,7 +28,7 @@ from app.dao.api_key_dao import update_last_used_api_key
 from app.dao.notifications_dao import (
     bulk_insert_notifications,
     dao_create_notification,
-    dao_created_scheduled_notification,
+    dao_create_scheduled_one_off_notification,
     dao_delete_notifications_by_id,
 )
 from app.dao.services_dao import dao_fetch_service_by_id
@@ -534,8 +534,35 @@ def triage_notification_to_queues(notification_type: NotificationType, signed_no
             email_bulk_publish.publish(signed_notification_data)
 
 
-def persist_scheduled_notification(notification_id, scheduled_for):
+def parse_scheduled_for(scheduled_for: str) -> datetime:
     # scheduled_for is UTC already, same as the bulk/job scheduling endpoint - accepts full ISO 8601
-    scheduled_datetime = parse_date(scheduled_for).replace(tzinfo=None)
-    scheduled_notification = ScheduledNotification(notification_id=notification_id, scheduled_for=scheduled_datetime)
-    dao_created_scheduled_notification(scheduled_notification)
+    return parse_date(scheduled_for).replace(tzinfo=None)
+
+
+def is_scheduled_for_a_later_day(scheduled_for: Optional[str]) -> bool:
+    """True if a notification is scheduled to be sent after today (UTC, same as the daily limit counts)."""
+    if not scheduled_for:
+        return False
+    return parse_scheduled_for(scheduled_for).date() > datetime.utcnow().date()
+
+
+def persist_scheduled_one_off_notification(notification: Notification, scheduled_for: str) -> ScheduledNotification:
+    """Store a one-off notification to be sent later. Nothing is added to the notifications table until it is sent."""
+    scheduled_notification = ScheduledNotification(
+        notification_id=notification.id,
+        service_id=notification.service_id,
+        template_id=notification.template_id,
+        template_version=notification.template_version,
+        notification_type=notification.notification_type,
+        to=notification.to,
+        api_key_id=notification.api_key_id,
+        key_type=notification.key_type,
+        client_reference=notification.client_reference,
+        reply_to_text=notification.reply_to_text,
+        billable_units=notification.billable_units or 0,
+        scheduled_for=parse_scheduled_for(scheduled_for),
+        created_at=notification.created_at,
+    )
+    scheduled_notification._personalisation = notification._personalisation
+    dao_create_scheduled_one_off_notification(scheduled_notification)
+    return scheduled_notification
