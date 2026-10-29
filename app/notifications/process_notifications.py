@@ -352,7 +352,10 @@ def send_notification_to_queue(notification, research_mode, queue=None):
     try:
         deliver_task.apply_async(celery_params, queue=queue, MessageGroupId=message_group_id)
     except Exception:
-        dao_delete_notifications_by_id(notification.id)
+        # Keep legacy scheduled notifications so send-scheduled-notifications retries them on its next run.
+        scheduled_notification = notification.scheduled_notification
+        if not (scheduled_notification and scheduled_notification.pending):
+            dao_delete_notifications_by_id(notification.id)
         raise
 
     current_app.logger.info(
