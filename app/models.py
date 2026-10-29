@@ -2313,6 +2313,36 @@ class ScheduledNotification(BaseModel):
     def personalisation(self, personalisation):
         self._personalisation = signer_personalisation.sign(personalisation or {})
 
+    def as_notification(self) -> "Notification":
+        """A transient (never persisted) Notification with this message's data, used to serialize it in the same
+        format as a notification that has been sent."""
+        notification = Notification(
+            id=self.notification_id,
+            service_id=self.service_id,
+            template_id=self.template_id,
+            template_version=self.template_version,
+            notification_type=self.notification_type,
+            to=self.to,
+            api_key_id=self.api_key_id,
+            key_type=self.key_type,
+            client_reference=self.client_reference,
+            reply_to_text=self.reply_to_text,
+            billable_units=self.billable_units,
+            created_at=self.created_at,
+            status=NOTIFICATION_CREATED,
+        )
+        notification._personalisation = self._personalisation
+        # These relationships have no backrefs, so setting them won't cascade the transient notification into the session
+        notification.service = self.service
+        notification.template = self.template
+        notification.api_key = self.api_key
+        return notification
+
+    def serialize(self) -> dict:
+        serialized = self.as_notification().serialize()
+        serialized["scheduled_for"] = self.scheduled_for.strftime(DATETIME_FORMAT)
+        return serialized
+
 
 INVITE_PENDING = "pending"
 INVITE_ACCEPTED = "accepted"
