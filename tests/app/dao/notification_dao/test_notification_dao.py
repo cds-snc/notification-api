@@ -64,6 +64,7 @@ from tests.app.db import (
     create_job,
     create_notification,
     create_notification_history,
+    create_scheduled_one_off_notification,
     create_service,
     create_template,
     save_notification,
@@ -1493,6 +1494,18 @@ def test_dao_get_scheduled_notifications(sample_template):
     assert len(scheduled_notifications) == 1
     assert scheduled_notifications[0].id == notification_1.id
     assert scheduled_notifications[0].scheduled_notification.pending
+
+
+def test_dao_get_scheduled_notifications_ignores_rows_not_in_the_notifications_table(sample_template):
+    legacy = save_scheduled_notification(
+        create_notification(template=sample_template, status="created"),
+        scheduled_for="2017-05-05 14:15",
+    )
+    create_scheduled_one_off_notification(sample_template, scheduled_for="2017-05-05 14:15")
+
+    scheduled_notifications = dao_get_scheduled_notifications()
+
+    assert [n.id for n in scheduled_notifications] == [legacy.id]
 
 
 def test_dao_delete_scheduled_notification_by_notification_id(sample_template):

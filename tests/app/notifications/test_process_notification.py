@@ -13,6 +13,7 @@ from sqlalchemy.exc import SQLAlchemyError
 
 from app.celery.utils import CeleryParams
 from app.config import QueueNames
+from app.dao.notifications_dao import dao_get_scheduled_notifications
 from app.dao.service_sms_sender_dao import dao_update_service_sms_sender
 from app.models import (
     BULK,
@@ -37,7 +38,7 @@ from app.notifications.process_notifications import (
 )
 from app.v2.errors import BadRequestError
 from tests.app.conftest import create_sample_api_key
-from tests.app.db import create_service_sms_sender
+from tests.app.db import create_service_sms_sender, save_scheduled_notification
 from tests.conftest import set_config, set_config_values
 
 
@@ -642,6 +643,21 @@ class TestSendNotificationQueue:
 
         assert Notification.query.count() == 0
         assert NotificationHistory.query.count() == 0
+
+    def test_send_notification_to_queue_throws_exception_keeps_pending_legacy_scheduled_notification(
+        self, sample_notification, mocker
+    ):
+        save_scheduled_notification(sample_notification, scheduled_for="2017-05-05 14:15")
+        mocker.patch(
+            "app.celery.provider_tasks.deliver_sms.apply_async",
+            side_effect=Boto3Error("EXPECTED"),
+        )
+        with pytest.raises(Boto3Error):
+            send_notification_to_queue(sample_notification, False)
+
+        assert Notification.query.count() == 1
+        assert ScheduledNotification.query.one().pending
+        assert dao_get_scheduled_notifications() == [sample_notification]
 
     @pytest.mark.parametrize(
         ("incoming_queue, expected_queue"),
