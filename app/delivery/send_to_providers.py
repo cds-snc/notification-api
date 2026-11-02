@@ -537,6 +537,7 @@ def send_email_to_provider(notification: Notification):
         values=personalisation_data,
         jinja_path=debug_template_path,
         allow_html=is_service_allowed_html(service),
+        asset_domain=current_app.config["ASSET_DOMAIN"],
         **get_html_email_options(service),
     )
 

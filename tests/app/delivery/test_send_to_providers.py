@@ -519,6 +519,19 @@ def test_should_send_personalised_template_with_html_enabled(sample_email_templa
     )
 
 
+def test_send_email_uses_the_environments_asset_domain_for_default_branding(sample_email_template, mocker, notify_api):
+    db_notification = save_notification(create_notification(template=sample_email_template))
+    mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+
+    with set_config_values(notify_api, {"ASSET_DOMAIN": "assets.staging.example.com"}):
+        send_to_providers.send_email_to_provider(db_notification)
+
+    html_body = app.aws_ses_client.send_email.call_args[1]["html_body"]
+    assert "https://assets.staging.example.com/email-assets/gc-logo-en-" in html_body
+    assert "https://assets.staging.example.com/email-assets/canada-logo-" in html_body
+    assert "assets.notification.canada.ca" not in html_body
+
+
 def test_should_not_send_email_message_when_service_is_inactive_notifcation_is_in_tech_failure(
     sample_service, sample_notification, mocker
 ):
