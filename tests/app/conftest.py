@@ -92,7 +92,12 @@ def rmock():
 @pytest.fixture(scope="session")
 def pmr_redis_config():
     parsed_uri = urlparse(getenv("REDIS_URL"))
-    return RedisConfig(image="redis:6.2", host=parsed_uri.hostname, port="6380", ci_port="6380")
+    return RedisConfig(
+        image="redis:6.2@sha256:71075871d0c318a0a835648a954e32d2b88d7b2a75c89a034ad0aa404e0319c9",
+        host=parsed_uri.hostname,
+        port="6380",
+        ci_port="6380",
+    )
 
 
 @pytest.fixture(scope="function")
