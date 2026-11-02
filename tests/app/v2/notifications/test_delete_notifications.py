@@ -6,6 +6,7 @@ from app.models import Notification, ScheduledNotification
 from tests import create_authorization_header
 from tests.app.db import (
     create_notification,
+    create_scheduled_one_off_notification,
     create_service,
     create_template,
     save_notification,
@@ -156,3 +157,29 @@ def test_delete_notification_invalid_id_returns_400(client, sample_notification,
     assert response.status_code == 400
     json_response = json.loads(response.get_data(as_text=True))
     assert json_response["errors"] == [{"error": "ValidationError", "message": "notification_id is not a valid UUID"}]
+
+
+def test_delete_scheduled_one_off_notification_returns_200(client, sample_template):
+    scheduled_notification = create_scheduled_one_off_notification(sample_template)
+
+    response = client.delete(
+        path="/v2/notifications/{}".format(scheduled_notification.notification_id),
+        headers=[("Content-Type", "application/json"), create_authorization_header(service_id=sample_template.service_id)],
+    )
+
+    assert response.status_code == 200
+    assert json.loads(response.get_data(as_text=True)) == {"result": "success"}
+    assert ScheduledNotification.query.count() == 0
+
+
+def test_delete_scheduled_one_off_notification_for_another_service_returns_404(client, sample_template):
+    scheduled_notification = create_scheduled_one_off_notification(sample_template)
+    other_service = create_service(service_name="other")
+
+    response = client.delete(
+        path="/v2/notifications/{}".format(scheduled_notification.notification_id),
+        headers=[("Content-Type", "application/json"), create_authorization_header(service_id=other_service.id)],
+    )
+
+    assert response.status_code == 404
+    assert ScheduledNotification.query.count() == 1
