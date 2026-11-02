@@ -46,6 +46,7 @@ from app.dao.templates_dao import dao_get_template_by_id
 from app.delivery.bounce_rate import check_service_over_bounce_rate
 from app.exceptions import (
     DocumentDownloadException,
+    EmailFromHeaderTooLongException,
     InvalidUrlException,
     MalwareDetectedException,
     MalwareScanInProgressException,
@@ -367,6 +368,15 @@ def check_for_malware_errors(document_download_response_code, notification):
         document_download_internal_error(notification=notification)
 
 
+# AWS SES rejects a From header (Source) longer than this.
+# The admin validates service name + email address + sending domain against the same limit.
+MAX_FROM_HEADER_LENGTH = 320
+FROM_HEADER_TOO_LONG_PROVIDER_RESPONSE = (
+    "The service name and sending email address are too long to send email. "
+    "Shorten the service name or email address in service settings."
+)
+
+
 def mime_encoded_word_syntax(encoded_text="", charset="utf-8", encoding="B") -> str:
     """MIME encoded-word syntax is a way to encode non-ASCII characters in email headers.
     It is described here:
@@ -574,6 +584,11 @@ def send_email_to_provider(notification: Notification):
             sending_domain = service.sending_domain
 
         from_address = get_from_address(friendly_from=service.name, email_from=service.email_from, sending_domain=sending_domain)
+        if len(from_address) > MAX_FROM_HEADER_LENGTH:
+            raise EmailFromHeaderTooLongException(
+                f"From header is {len(from_address)} characters long, which exceeds the SES maximum of "
+                f"{MAX_FROM_HEADER_LENGTH} (service {service.id}, sending domain {sending_domain})"
+            )
         email_reply_to = notification.reply_to_text
 
         reference = provider.send_email(

@@ -265,7 +265,7 @@ def update_notification_statuses(notifications):
 
 @statsd(namespace="dao")
 @transactional
-def update_notification_status_by_id(notification_id, status, sent_by=None, feedback_reason=None):
+def update_notification_status_by_id(notification_id, status, sent_by=None, feedback_reason=None, provider_response=None):
     notification = Notification.query.with_for_update().filter(Notification.id == notification_id).first()
 
     if not notification:
@@ -286,7 +286,9 @@ def update_notification_status_by_id(notification_id, status, sent_by=None, feed
         return None
     if not notification.sent_by and sent_by:
         notification.sent_by = sent_by
-    return _update_notification_status(notification=notification, status=status, feedback_reason=feedback_reason)
+    return _update_notification_status(
+        notification=notification, status=status, feedback_reason=feedback_reason, provider_response=provider_response
+    )
 
 
 @statsd(namespace="dao")

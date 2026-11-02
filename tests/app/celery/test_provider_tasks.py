@@ -16,7 +16,9 @@ from app.celery.provider_tasks import (
 )
 from app.clients.email.aws_ses import AwsSesClientException
 from app.config import QueueNames
+from app.delivery import send_to_providers
 from app.exceptions import (
+    EmailFromHeaderTooLongException,
     NotificationTechnicalFailureException,
     PinpointValidationException,
 )
@@ -215,6 +217,27 @@ def test_should_technical_error_and_not_retry_if_invalid_email(sample_notificati
     assert (
         call(f"Cannot send notification {sample_notification.id}, got an invalid email address: bad email.")
         in logger.call_args_list
+    )
+    queued_callback.assert_called_once_with(sample_notification)
+
+
+def test_should_technical_error_with_provider_response_and_not_retry_if_from_header_too_long(sample_notification, mocker):
+    mocker.patch(
+        "app.delivery.send_to_providers.send_email_to_provider",
+        side_effect=EmailFromHeaderTooLongException("From header is 353 characters long"),
+    )
+    mocker.patch("app.celery.provider_tasks.deliver_email.retry")
+    logger = mocker.patch("app.celery.provider_tasks.current_app.logger.warning")
+    queued_callback = mocker.patch("app.celery.provider_tasks._check_and_queue_callback_task")
+
+    deliver_email(sample_notification.id)
+
+    assert provider_tasks.deliver_email.retry.called is False
+    assert sample_notification.status == "technical-failure"
+    assert sample_notification.provider_response == send_to_providers.FROM_HEADER_TOO_LONG_PROVIDER_RESPONSE
+    logger.assert_called_once_with(
+        f"Cannot send notification {sample_notification.id}, the service name and email address are too long "
+        "for the From header: From header is 353 characters long."
     )
     queued_callback.assert_called_once_with(sample_notification)
 
