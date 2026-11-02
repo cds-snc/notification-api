@@ -186,7 +186,15 @@ def cache_on_arguments(*, namespace, group_by):
             state = invocation.get()
             if state is not None:
                 state["creator_executed"] = True
-            return fn(*args, **kwargs)
+            started = perf_counter()
+            outcome = "error"
+            try:
+                result = fn(*args, **kwargs)
+                outcome = "success"
+                return result
+            finally:
+                elapsed_ms = (perf_counter() - started) * 1000
+                statsd_client.timing(f"cache.creator.{namespace}.{outcome}.duration", elapsed_ms)
 
         cached_fn = dogpile_region.cache_on_arguments(namespace=namespace)(creator)
 

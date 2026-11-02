@@ -33,7 +33,6 @@ from app.dao.jobs_dao import dao_create_job
 from app.dao.notifications_dao import update_notification_status_by_reference
 from app.dao.templates_dao import get_precompiled_letter_template
 from app.email_limit_utils import fetch_todays_email_count
-from app.encryption import NotificationDictToSign
 from app.models import (
     EMAIL_TYPE,
     JOB_STATUS_PENDING,
@@ -53,6 +52,7 @@ from app.models import (
 )
 from app.notifications.process_letter_notifications import create_letter_notification
 from app.notifications.process_notifications import (
+    build_notification_to_sign,
     choose_queue,
     csv_has_simulated_and_non_simulated_recipients,
     db_save_and_send_notification,
@@ -408,19 +408,19 @@ def process_sms_or_email_notification(
 
     personalisation = process_document_uploads(form.get("personalisation"), service, simulated, template.id)
 
-    _notification: NotificationDictToSign = {
-        "id": create_uuid(),
-        "template": str(template.id),
-        "service_id": str(service.id),
-        "template_version": str(template.version),  # type: ignore
-        "to": form_send_to,
-        "personalisation": personalisation,
-        "simulated": simulated,
-        "api_key": str(api_key.id),
-        "key_type": str(api_key.key_type),
-        "client_reference": form.get("reference", None),
-        "reply_to_text": reply_to_text,
-    }
+    _notification = build_notification_to_sign(
+        notification_id=create_uuid(),
+        template_id=str(template.id),
+        service_id=str(service.id),
+        template_version=str(template.version),  # type: ignore
+        to=form_send_to,
+        personalisation=personalisation,
+        simulated=simulated,
+        api_key_id=str(api_key.id),
+        key_type=str(api_key.key_type),
+        client_reference=form.get("reference", None),
+        reply_to_text=reply_to_text,
+    )
 
     signed_notification_data = signer_notification.sign(_notification)
     notification = {**_notification}

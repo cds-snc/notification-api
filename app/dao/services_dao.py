@@ -42,6 +42,7 @@ from app.models import (
     NotificationHistory,
     Organisation,
     Permission,
+    ScheduledNotification,
     Service,
     ServicePermission,
     ServiceSmsSender,
@@ -439,6 +440,10 @@ def delete_service_and_all_associated_db_objects(service):
     _delete_commit(InvitedUser.query.filter_by(service=service))
     _delete_commit(Permission.query.filter_by(service=service))
     _delete_commit(NotificationHistory.query.filter_by(service=service))
+    _delete_commit(ScheduledNotification.query.filter_by(service_id=service.id))
+    # Legacy rows don't have service_id set, they're linked to the service's notifications
+    notifications_subq = db.session.query(Notification.id).filter_by(service=service)
+    _delete_commit(ScheduledNotification.query.filter(ScheduledNotification.notification_id.in_(notifications_subq)))
     _delete_commit(Notification.query.filter_by(service=service))
     _delete_commit(Job.query.filter_by(service=service))
     _delete_commit(Template.query.filter_by(service=service))
