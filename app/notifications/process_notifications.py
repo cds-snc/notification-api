@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, cast
 
 from flask import current_app
 from iso8601 import parse_date
@@ -33,6 +33,7 @@ from app.dao.notifications_dao import (
 )
 from app.dao.services_dao import dao_fetch_service_by_id
 from app.dao.templates_dao import dao_get_template_by_id
+from app.encryption import NotificationDictToSign
 from app.models import (
     BULK,
     EMAIL_TYPE,
@@ -505,6 +506,38 @@ def simulated_recipient(to_address: str, notification_type: NotificationType) ->
         return to_address in formatted_simulated_numbers
     else:
         return to_address in current_app.config["SIMULATED_EMAIL_ADDRESSES"]
+
+
+def build_notification_to_sign(
+    *,
+    notification_id: str,
+    template_id: str,
+    service_id: str,
+    template_version: int,
+    to: str,
+    personalisation: Optional[dict],
+    simulated: bool,
+    api_key_id: Optional[str],
+    key_type: str,
+    client_reference: Optional[str],
+    reply_to_text: Optional[str],
+) -> NotificationDictToSign:
+    """Builds the notification dict that is signed and put on the save_smss / save_emails queues for one-off
+    notifications, whether sent straight away or scheduled."""
+    notification_to_sign = {
+        "id": notification_id,
+        "template": template_id,
+        "service_id": service_id,
+        "template_version": template_version,
+        "to": to,
+        "personalisation": personalisation,
+        "simulated": simulated,
+        "api_key": api_key_id,
+        "key_type": key_type,
+        "client_reference": client_reference,
+        "reply_to_text": reply_to_text,
+    }
+    return cast(NotificationDictToSign, notification_to_sign)
 
 
 def triage_notification_to_queues(notification_type: NotificationType, signed_notification_data, template: TemplateBase):

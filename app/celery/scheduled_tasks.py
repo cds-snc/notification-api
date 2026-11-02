@@ -53,6 +53,7 @@ from app.models import (
     ScheduledNotification,
 )
 from app.notifications.process_notifications import (
+    build_notification_to_sign,
     send_notification_to_queue,
     simulated_recipient,
     triage_notification_to_queues,
@@ -160,21 +161,19 @@ def _send_due_scheduled_one_off_notifications() -> int:
 
 
 def _scheduled_one_off_notification_to_sign(scheduled_notification: ScheduledNotification) -> NotificationDictToSign:
-    # Same fields as notifications that are sent straight away, see process_sms_or_email_notification
-    notification_to_sign = {
-        "id": str(scheduled_notification.notification_id),
-        "template": str(scheduled_notification.template_id),
-        "service_id": str(scheduled_notification.service_id),
-        "template_version": str(scheduled_notification.template_version),
-        "to": str(scheduled_notification.to),
-        "personalisation": scheduled_notification.personalisation,
-        "simulated": simulated_recipient(scheduled_notification.to, scheduled_notification.notification_type),
-        "api_key": str(scheduled_notification.api_key_id) if scheduled_notification.api_key_id else None,
-        "key_type": scheduled_notification.key_type,
-        "client_reference": scheduled_notification.client_reference,
-        "reply_to_text": scheduled_notification.reply_to_text,
-    }
-    return cast(NotificationDictToSign, notification_to_sign)
+    return build_notification_to_sign(
+        notification_id=str(scheduled_notification.notification_id),
+        template_id=str(scheduled_notification.template_id),
+        service_id=str(scheduled_notification.service_id),
+        template_version=str(scheduled_notification.template_version),  # type: ignore
+        to=str(scheduled_notification.to),
+        personalisation=scheduled_notification.personalisation,
+        simulated=simulated_recipient(scheduled_notification.to, scheduled_notification.notification_type),
+        api_key_id=str(scheduled_notification.api_key_id) if scheduled_notification.api_key_id else None,
+        key_type=scheduled_notification.key_type,
+        client_reference=scheduled_notification.client_reference,
+        reply_to_text=scheduled_notification.reply_to_text,
+    )
 
 
 @notify_celery.task(name="delete-verify-codes")
