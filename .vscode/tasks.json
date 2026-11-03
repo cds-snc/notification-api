@@ -1,0 +1,15 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+        "label": "AWS SSO login",
+        "type": "process",
+        "command": "make",
+        "args": ["aws-login", "AWS_PROFILE=notify-staging"],
+        "options": {
+            "cwd": "${workspaceFolder}"
+        },
+        "problemMatcher": []
+        }
+    ]
+}

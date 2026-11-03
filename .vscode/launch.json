@@ -27,18 +27,27 @@
             "type": "debugpy",
             "request": "launch",
             "module": "flask",
+            "cwd": "${workspaceFolder}",
+            "envFile": "${workspaceFolder}/.env",
             "env": {
-                "FLASK_APP": "application.py",
-                "FLASK_ENV": "development"
+                "FLASK_APP": "application",
+                "AWS_PROFILE": "notify-staging",
+                "AWS_ACCESS_KEY_ID": null,
+                "AWS_SECRET_ACCESS_KEY": null,
+                "AWS_SESSION_TOKEN": null
             },
             "args": [
                 "run",
+                "--port=6011",
+                "--host=0.0.0.0",
                 "--no-debugger",
-                "-p 6011",
-                "--host=0.0.0.0"
+                "--no-reload"
             ],
             "jinja": true,
-            "justMyCode": false
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "preLaunchTask": "AWS SSO login",
+            "consoleTitle": "API"
         },
         {
             "name": "Python: Celery",
@@ -46,8 +55,18 @@
             "request": "launch",
             "python": "${command:python.interpreterPath}",
             "module": "celery",
+            "cwd": "${workspaceFolder}",
+            "envFile": "${workspaceFolder}/.env",
+            "env": {
+                "AWS_PROFILE": "notify-staging",
+                "AWS_ACCESS_KEY_ID": null,
+                "AWS_SECRET_ACCESS_KEY": null,
+                "AWS_SESSION_TOKEN": null
+            },
             "console": "integratedTerminal",
             "justMyCode": false,
+            "preLaunchTask": "AWS SSO login",
+            "consoleTitle": "Celery",
             "args": [
                 "-A",
                 "run_celery.notify_celery",
