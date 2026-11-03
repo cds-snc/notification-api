@@ -5,6 +5,7 @@ from typing import Union
 
 from flask import current_app
 from notifications_utils.clients.redis import template_version_cache_key
+from redis.exceptions import RedisError
 from sqlalchemy import asc, desc, update
 from sqlalchemy.orm import attributes, joinedload
 
@@ -22,7 +23,7 @@ from app.models import (
     TemplateHistory,
     TemplateRedacted,
 )
-from app.schemas import template_schema
+from app.schemas import template_history_schema, template_schema
 
 
 def _create_template_history_row(template):
@@ -192,10 +193,23 @@ def dao_redact_template(template, user_id):
 
 
 @log_execution_time
-def dao_get_template_by_id_and_service_id(template_id, service_id, version=None):
+def dao_get_template_by_id_and_service_id(template_id, service_id, version=None, *, use_dogpile=False):
+    """Return an ORM template, or dictionary data when use_dogpile is requested.
+
+    Only current templates use the existing cache. Explicit historical versions
+    stay database-backed and are serialized when dictionary data is requested.
+    """
+    if use_dogpile and version is None and current_app.config.get("FF_USE_DOGPILE_CACHING", False) is True:
+        try:
+            return dao_get_template_by_id_cached(template_id, service_id)
+        except RedisError:
+            current_app.logger.warning("Template cache unavailable; falling back to database")
     if version is not None:
-        return TemplateHistory.query.filter_by(id=template_id, hidden=False, service_id=service_id, version=version).one()
-    return db.on_reader().query(Template).filter_by(id=template_id, hidden=False, service_id=service_id).one()
+        template = TemplateHistory.query.filter_by(id=template_id, hidden=False, service_id=service_id, version=version).one()
+        return template_history_schema.dump(template) if use_dogpile else template
+    else:
+        template = db.on_reader().query(Template).filter_by(id=template_id, hidden=False, service_id=service_id).one()
+    return template_schema.dump(template) if use_dogpile else template
 
 
 def dao_get_template_by_id(template_id, version=None, use_cache=False) -> Union[Template, TemplateHistory]:

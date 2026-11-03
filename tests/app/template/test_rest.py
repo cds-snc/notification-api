@@ -921,7 +921,7 @@ def test_get_template_with_dogpile_cache_returns_cached_payload(notify_api, admi
     cached_data = {"id": str(template.id), "name": template.name}
 
     with set_config(notify_api, "FF_USE_DOGPILE_CACHING", True):
-        mocked_cached_fetch = mocker.patch("app.template.rest.dao_get_template_by_id_cached", return_value=cached_data)
+        mocked_cached_fetch = mocker.patch("app.dao.templates_dao.dao_get_template_by_id_cached", return_value=cached_data)
         json_resp = admin_request.get(
             "template.get_template_by_id_and_service_id",
             service_id=sample_service.id,
