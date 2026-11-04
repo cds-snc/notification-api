@@ -1,20 +1,27 @@
 import datetime
 import uuid
+from types import SimpleNamespace
 from unittest.mock import ANY, call
 
 import pytest
 from boto3.exceptions import Boto3Error
+from dogpile.cache import make_region
 from freezegun import freeze_time
 from notifications_utils.recipients import (
     validate_and_format_email_address,
     validate_and_format_phone_number,
 )
+from redis.exceptions import RedisError
+from sqlalchemy import event
 from sqlalchemy.exc import SQLAlchemyError
 
+from app import db
+from app.caching import dogpile_region
 from app.celery.utils import CeleryParams
 from app.config import QueueNames
 from app.dao.notifications_dao import dao_get_scheduled_notifications
 from app.dao.service_sms_sender_dao import dao_update_service_sms_sender
+from app.dao.services_dao import dao_fetch_service_by_id_cached
 from app.models import (
     BULK,
     NORMAL,
@@ -74,6 +81,93 @@ class TestContentCreation:
 
 
 class TestPersistNotification:
+    @pytest.mark.parametrize("research_mode", [False, True])
+    @pytest.mark.parametrize("cache_enabled", [False, True])
+    def test_persist_notifications_warm_service_cache_avoids_service_select(
+        self, notify_api, sample_template, sample_api_key, mocker, research_mode, cache_enabled
+    ):
+        mocker.patch.object(dogpile_region, "backend", make_region().configure("dogpile.cache.memory").backend)
+        mocker.patch("app.notifications.process_notifications.redis_store.get", return_value=None)
+        mocker.patch("app.notifications.process_notifications.dao_get_template_by_id", return_value=sample_template)
+        queue = mocker.patch("app.notifications.process_notifications.choose_queue", wraps=choose_queue)
+        service = sample_template.service
+        service.research_mode = research_mode
+        db.session.commit()
+        service_id = service.id
+        notification_data = dict(
+            template_id=sample_template.id,
+            template_version=sample_template.version,
+            recipient="+16502532222",
+            service=SimpleNamespace(id=service_id),
+            personalisation={},
+            notification_type=sample_template.template_type,
+            api_key_id=sample_api_key.id,
+            key_type=sample_api_key.key_type,
+        )
+        assert dao_fetch_service_by_id_cached(service_id)["research_mode"] is research_mode
+        db.session.remove()
+        statements = []
+
+        def record_statement(_connection, _cursor, statement, _parameters, _context, _executemany):
+            if statement.lstrip().upper().startswith("SELECT") and "FROM services" in statement:
+                statements.append(statement)
+
+        engines = {db.get_engine(bind="writer"), db.get_engine(bind="reader")}
+        for engine in engines:
+            event.listen(engine, "before_cursor_execute", record_statement)
+        try:
+            with set_config(notify_api, "FF_USE_DOGPILE_CACHING", cache_enabled):
+                notifications = persist_notifications([notification_data])
+            assert len(statements) == (0 if cache_enabled else 1)
+        finally:
+            for engine in engines:
+                event.remove(engine, "before_cursor_execute", record_statement)
+        assert queue.call_args.kwargs["research_mode"] is research_mode
+        persisted = Notification.query.filter_by(id=notifications[0].id).one()
+        assert persisted.queue_name == notifications[0].queue_name
+        assert (persisted.queue_name == QueueNames.RESEARCH_MODE) is research_mode
+
+    @pytest.mark.parametrize("research_mode", [False, True])
+    @pytest.mark.parametrize("cache_state", ["disabled", "enabled", "unavailable"])
+    def test_persist_notifications_reads_existing_service_cache(
+        self, notify_api, sample_template, sample_api_key, mocker, research_mode, cache_state
+    ):
+        service = sample_template.service
+        service.research_mode = research_mode
+        mocker.patch("app.notifications.process_notifications.redis_store.get", return_value=None)
+        mocker.patch("app.notifications.process_notifications.dao_get_template_by_id", return_value=sample_template)
+        cached_read = mocker.patch(
+            "app.dao.services_dao.dao_fetch_service_by_id_cached",
+            return_value={"research_mode": research_mode},
+        )
+        if cache_state == "unavailable":
+            cached_read.side_effect = RedisError("unavailable")
+        queue = mocker.patch("app.notifications.process_notifications.choose_queue", return_value="sms_normal_queue")
+        with set_config(notify_api, "FF_USE_DOGPILE_CACHING", cache_state != "disabled"):
+            notifications = persist_notifications(
+                [
+                    dict(
+                        template_id=sample_template.id,
+                        template_version=sample_template.version,
+                        recipient="+16502532222",
+                        service=service,
+                        personalisation={},
+                        notification_type="sms",
+                        api_key_id=sample_api_key.id,
+                        key_type=sample_api_key.key_type,
+                    )
+                ]
+            )
+        assert queue.call_args.kwargs["research_mode"] is research_mode
+        assert Notification.query.filter_by(id=notifications[0].id).one().queue_name == "sms_normal_queue"
+        if cache_state == "enabled":
+            cached_read.assert_called_once_with(service.id, only_active=False)
+        else:
+            if cache_state == "disabled":
+                cached_read.assert_not_called()
+            else:
+                cached_read.assert_called_once_with(service.id, only_active=False)
+
     def test_persists_notification_throws_exception_when_missing_template(self, sample_api_key):
         assert Notification.query.count() == 0
         assert NotificationHistory.query.count() == 0
@@ -112,7 +206,10 @@ class TestPersistNotification:
         daily_limit_cache = mocker.patch("app.notifications.process_notifications.redis_store.incr")
         template_usage_cache = mocker.patch("app.notifications.process_notifications.redis_store.increment_hash_value")
         mocker.patch("app.notifications.process_notifications.dao_get_template_by_id", return_value=sample_template)
-        mocker.patch("app.notifications.process_notifications.dao_fetch_service_by_id", return_value=sample_template.service)
+        mocker.patch(
+            "app.notifications.process_notifications.dao_fetch_service_by_id",
+            return_value={"research_mode": sample_template.service.research_mode},
+        )
         mocker.patch("app.notifications.process_notifications.choose_queue", return_value="sms_normal_queue")
 
         assert Notification.query.count() == 0
@@ -145,7 +242,10 @@ class TestPersistNotification:
 
         mocked_redis = mocker.patch("app.notifications.process_notifications.redis_store.get")
         mocker.patch("app.notifications.process_notifications.dao_get_template_by_id", return_value=sample_template)
-        mocker.patch("app.notifications.process_notifications.dao_fetch_service_by_id", return_value=sample_template.service)
+        mocker.patch(
+            "app.notifications.process_notifications.dao_fetch_service_by_id",
+            return_value={"research_mode": sample_template.service.research_mode},
+        )
         mocker.patch("app.notifications.process_notifications.choose_queue", return_value="sms_normal_queue")
         n_id = uuid.uuid4()
         created_at = datetime.datetime(2016, 11, 11, 16, 8, 18)
@@ -200,7 +300,10 @@ class TestPersistNotification:
             return_value=None,
         )
         mocker.patch("app.notifications.process_notifications.dao_get_template_by_id", return_value=sample_template)
-        mocker.patch("app.notifications.process_notifications.dao_fetch_service_by_id", return_value=sample_template.service)
+        mocker.patch(
+            "app.notifications.process_notifications.dao_fetch_service_by_id",
+            return_value={"research_mode": sample_template.service.research_mode},
+        )
         persist_notifications(
             [
                 dict(
@@ -227,7 +330,10 @@ class TestPersistNotification:
             return_value={sample_template.id, 1},
         )
         mocker.patch("app.notifications.process_notifications.dao_get_template_by_id", return_value=sample_template)
-        mocker.patch("app.notifications.process_notifications.dao_fetch_service_by_id", return_value=sample_template.service)
+        mocker.patch(
+            "app.notifications.process_notifications.dao_fetch_service_by_id",
+            return_value={"research_mode": sample_template.service.research_mode},
+        )
         mocker.patch("app.notifications.process_notifications.choose_queue", return_value="sms_normal_queue")
 
         persist_notifications(
@@ -416,7 +522,10 @@ class TestPersistNotification:
         # explicitly on the notification object inside persist_notifications for downstream consumers.
         mocker.patch("app.notifications.process_notifications.redis_store.get", return_value=None)
         mocker.patch("app.notifications.process_notifications.dao_get_template_by_id", return_value=sample_template)
-        mocker.patch("app.notifications.process_notifications.dao_fetch_service_by_id", return_value=sample_template.service)
+        mocker.patch(
+            "app.notifications.process_notifications.dao_fetch_service_by_id",
+            return_value={"research_mode": sample_template.service.research_mode},
+        )
         mocker.patch("app.notifications.process_notifications.choose_queue", return_value="sms_normal_queue")
 
         notifications = persist_notifications(
@@ -444,7 +553,10 @@ class TestPersistNotification:
         with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
             mocker.patch("app.notifications.process_notifications.redis_store.get", return_value=None)
             mocker.patch("app.notifications.process_notifications.dao_get_template_by_id", return_value=sample_template)
-            mocker.patch("app.notifications.process_notifications.dao_fetch_service_by_id", return_value=sample_template.service)
+            mocker.patch(
+                "app.notifications.process_notifications.dao_fetch_service_by_id",
+                return_value={"research_mode": sample_template.service.research_mode},
+            )
             mocker.patch("app.notifications.process_notifications.choose_queue", return_value="sms_normal_queue")
             mock_fragments = mocker.patch("app.notifications.process_notifications.number_of_sms_fragments", return_value=2)
 
@@ -477,7 +589,10 @@ class TestPersistNotification:
             return_value={sample_template.id, 1},
         )
         mocker.patch("app.notifications.process_notifications.dao_get_template_by_id", return_value=sample_template)
-        mocker.patch("app.notifications.process_notifications.dao_fetch_service_by_id", return_value=sample_template.service)
+        mocker.patch(
+            "app.notifications.process_notifications.dao_fetch_service_by_id",
+            return_value={"research_mode": sample_template.service.research_mode},
+        )
         mocker.patch("app.notifications.process_notifications.choose_queue", return_value="sms_normal_queue")
 
         sms_sender = create_service_sms_sender(service=sample_template.service, sms_sender="123456", is_default=False)
