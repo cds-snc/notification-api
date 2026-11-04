@@ -452,13 +452,14 @@ def test_notification_snapshot_supports_dogpile_helpers(notification_cache, samp
     assert not notification_cache.exists(exact_cache_key("notification", sample_notification.id))
 
 
-def test_notification_snapshot_logs_cache_outcome(notification_cache, sample_notification, mocker):
-    logger = mocker.patch("app.caching.logger")
+def test_notification_snapshot_records_cache_outcome(notification_cache, sample_notification, cache_statsd):
+    cache_statsd.reset_mock()
     notifications_dao.dao_get_notification_snapshot_cached(sample_notification.id)
     notifications_dao.dao_get_notification_snapshot_cached(sample_notification.id)
-    messages = [c.args[0] for c in logger.info.call_args_list if c.args[0].startswith("dao.execution_time")]
-    assert [m.split("cache_outcome=")[1] for m in messages] == ["regenerated", "reused"]
-    assert all("function=app.dao.notifications_dao.dao_get_notification_snapshot_cached" in m for m in messages)
+    assert cache_statsd.incr.call_args_list == [
+        call("cache.access.notification.regenerated"),
+        call("cache.access.notification.reused"),
+    ]
 
 
 class TestCacheNamespaces:

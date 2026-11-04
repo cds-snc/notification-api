@@ -79,8 +79,11 @@ def test_only_cache_errors_use_application_stdout_handlers_without_app_context(
     assert output.getvalue() == ""
     cache_statsd.incr.assert_any_call("cache.collect_invalidations.success")
     cache_statsd.incr.assert_any_call("cache.invalidation.template.success")
-    mocker.patch("app.cache.cache_events.invalidate_group_keys", side_effect=RuntimeError("Redis unavailable"))
+    invalidate = mocker.patch(
+        "app.cache.cache_events.invalidate_cache_entities", side_effect=RuntimeError("Redis unavailable")
+    )
     cache_events._invalidate_cache_after_commit(session)
+    invalidate.assert_called_once_with("template", ["entity-id"])
 
     records = [json.loads(line) for line in output.getvalue().splitlines()]
     assert len(records) == 1
@@ -88,7 +91,7 @@ def test_only_cache_errors_use_application_stdout_handlers_without_app_context(
     assert records[0]["application"] == app_name
     assert records[0]["levelname"] == "ERROR"
     assert records[0]["requestId"] == "no-request-id"
-    assert "Failed to invalidate cache group" in records[0]["message"]
+    assert "Failed to invalidate cache" in records[0]["message"]
 
 
 def test_register_cache_orm_events_is_thread_safe(mocker):
