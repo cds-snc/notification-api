@@ -12,9 +12,6 @@ down_revision = "0044_jobs_to_notification_hist"
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.orm.session import Session
-
-from app.models import Service
 
 
 def upgrade():
@@ -32,7 +29,7 @@ def upgrade():
     # caveats
     # only adjusts notifications for services that have never been in research mode. On live, research mode was
     # limited to only services that we have set up ourselves so deemed this acceptable.
-    billable_services = conn.execute(
+    billable_services = conn.exec_driver_sql(
         """
         SELECT id FROM services_history WHERE id not in (select id from services_history where research_mode)
     """
@@ -54,8 +51,8 @@ def upgrade():
     """
 
     conn = op.get_bind()
-    conn.execute(update_statement.format("notifications", service_ids))
-    conn.execute(update_statement.format("notification_history", service_ids))
+    conn.exec_driver_sql(update_statement.format("notifications", service_ids))
+    conn.exec_driver_sql(update_statement.format("notification_history", service_ids))
     op.drop_column("notifications", "content_char_count")
     op.drop_column("notification_history", "content_char_count")
 
@@ -75,7 +72,7 @@ def downgrade():
     # caveats
     # only adjusts notifications for services that have never been in research mode. On live, research mode was
     # limited to only services that we have set up ourselves
-    billable_services = conn.execute(
+    billable_services = conn.exec_driver_sql(
         """
         SELECT id FROM services_history WHERE id not in (select id from services_history where research_mode)
     """
@@ -94,7 +91,7 @@ def downgrade():
     """
 
     conn = op.get_bind()
-    conn.execute(update_statement.format("notifications", service_ids))
-    conn.execute(update_statement.format("notification_history", service_ids))
+    conn.exec_driver_sql(update_statement.format("notifications", service_ids))
+    conn.exec_driver_sql(update_statement.format("notification_history", service_ids))
     op.drop_column("notifications", "billable_units")
     op.drop_column("notification_history", "billable_units")

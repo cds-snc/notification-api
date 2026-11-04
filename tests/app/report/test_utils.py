@@ -2,6 +2,7 @@ import csv
 import io
 from datetime import datetime, timedelta
 from unittest.mock import patch
+from uuid import UUID
 
 from app.report.utils import (
     Translate,
@@ -62,7 +63,7 @@ class TestGenerateCsvFromNotifications:
 
     def test_build_notifications_query_with_status_filter(self, notify_api):
         # Given
-        service_id = "service-id-1"
+        service_id = UUID("00000000-0000-0000-0000-000000000001")
         notification_type = "email"
         language = "en"
         notification_statuses = ["delivered", "failed"]
@@ -96,7 +97,7 @@ class TestGenerateCsvFromNotifications:
 
     def test_build_notifications_query_with_empty_status_filter(self, notify_api):
         # Given
-        service_id = "service-id-1"
+        service_id = UUID("00000000-0000-0000-0000-000000000001")
         notification_type = "email"
         language = "en"
         notification_statuses = []
@@ -115,10 +116,10 @@ class TestGenerateCsvFromNotifications:
 
     def test_build_notifications_query_with_job_id_filter(self, notify_api):
         # Given
-        service_id = "service-id-1"
+        service_id = UUID("00000000-0000-0000-0000-000000000001")
         notification_type = "email"
         language = "en"
-        job_id = "job-id-1"
+        job_id = UUID("00000000-0000-0000-0000-000000000002")
 
         # When
         query = build_notifications_query(
@@ -131,7 +132,7 @@ class TestGenerateCsvFromNotifications:
         # Then
         # Convert query to string to check the SQL
         sql_str = str(query.statement.compile(compile_kwargs={"literal_binds": True}))
-        assert f".job_id = '{job_id}'" in sql_str
+        assert job_id.hex in sql_str
 
 
 class TestEmails:
