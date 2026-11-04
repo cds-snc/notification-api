@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, cast
 
 from flask import current_app
 from iso8601 import parse_date
@@ -12,7 +12,15 @@ from notifications_utils.recipients import (
     validate_and_format_phone_number,
 )
 
-from app import redis_store
+from app import (
+    email_bulk_publish,
+    email_normal_publish,
+    email_priority_publish,
+    redis_store,
+    sms_bulk_publish,
+    sms_normal_publish,
+    sms_priority_publish,
+)
 from app.celery import provider_tasks
 from app.celery.letters_pdf_tasks import create_letters_pdf
 from app.config import QueueNames
@@ -25,17 +33,22 @@ from app.dao.notifications_dao import (
 )
 from app.dao.services_dao import dao_fetch_service_by_id
 from app.dao.templates_dao import dao_get_template_by_id
+from app.encryption import NotificationDictToSign
 from app.models import (
+    BULK,
     EMAIL_TYPE,
     KEY_TYPE_TEST,
     LETTER_TYPE,
+    NORMAL,
     NOTIFICATION_CREATED,
+    PRIORITY,
     SMS_TYPE,
     ApiKeyType,
     Notification,
     NotificationType,
     ScheduledNotification,
     Service,
+    TemplateBase,
 )
 from app.types import VerifiedNotification
 from app.utils import get_delivery_queue_for_template, get_template_instance
@@ -340,7 +353,10 @@ def send_notification_to_queue(notification, research_mode, queue=None):
     try:
         deliver_task.apply_async(celery_params, queue=queue, MessageGroupId=message_group_id)
     except Exception:
-        dao_delete_notifications_by_id(notification.id)
+        # Keep legacy scheduled notifications so send-scheduled-notifications retries them on its next run.
+        scheduled_notification = notification.scheduled_notification
+        if not (scheduled_notification and scheduled_notification.pending):
+            dao_delete_notifications_by_id(notification.id)
         raise
 
     current_app.logger.info(
@@ -397,10 +413,12 @@ def persist_notifications(notifications: List[VerifiedNotification]) -> List[Not
             and notification.get("notification_type") == SMS_TYPE
         ):
             notification_obj.billable_units = number_of_sms_fragments(template, notification.get("personalisation"))
-        service = dao_fetch_service_by_id(service_id, use_cache=True)
+
+        service_data = dao_fetch_service_by_id(service_id, use_dogpile=True)
+
         notification_obj.queue_name = choose_queue(
             notification=notification_obj,
-            research_mode=service.research_mode,
+            research_mode=service_data["research_mode"],
             priority_queue=get_delivery_queue_for_template(template),
         )
 
@@ -490,6 +508,65 @@ def simulated_recipient(to_address: str, notification_type: NotificationType) ->
         return to_address in formatted_simulated_numbers
     else:
         return to_address in current_app.config["SIMULATED_EMAIL_ADDRESSES"]
+
+
+def build_notification_to_sign(
+    *,
+    notification_id: str,
+    template_id: str,
+    service_id: str,
+    template_version: int,
+    to: str,
+    personalisation: Optional[dict],
+    simulated: bool,
+    api_key_id: Optional[str],
+    key_type: str,
+    client_reference: Optional[str],
+    reply_to_text: Optional[str],
+) -> NotificationDictToSign:
+    """Builds the notification dict that is signed and put on the save_smss / save_emails queues for one-off
+    notifications, whether sent straight away or scheduled."""
+    notification_to_sign = {
+        "id": notification_id,
+        "template": template_id,
+        "service_id": service_id,
+        "template_version": template_version,
+        "to": to,
+        "personalisation": personalisation,
+        "simulated": simulated,
+        "api_key": api_key_id,
+        "key_type": key_type,
+        "client_reference": client_reference,
+        "reply_to_text": reply_to_text,
+    }
+    return cast(NotificationDictToSign, notification_to_sign)
+
+
+def triage_notification_to_queues(notification_type: NotificationType, signed_notification_data, template: TemplateBase):
+    """Determine which queue to use based on notification_type and process_type
+
+    Args:
+        notification_type: Type of notification being sent; either SMS_TYPE or EMAIL_TYPE
+        signed_notification_data: Encrypted notification data
+        template: Template used to send notification
+    Returns:
+        None
+
+    """
+    if notification_type == SMS_TYPE:
+        if template.process_type == PRIORITY:
+            sms_priority_publish.publish(signed_notification_data)
+        elif template.process_type == NORMAL:
+            sms_normal_publish.publish(signed_notification_data)
+        elif template.process_type == BULK:
+            sms_bulk_publish.publish(signed_notification_data)
+    elif notification_type == EMAIL_TYPE:
+        if template.process_type == PRIORITY:
+            email_priority_publish.publish(signed_notification_data)
+        elif template.process_type == NORMAL:
+            email_normal_publish.publish(signed_notification_data)
+        elif template.process_type == BULK:
+            email_bulk_publish.publish(signed_notification_data)
 
 
 def persist_scheduled_notification(notification_id, scheduled_for):

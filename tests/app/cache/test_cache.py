@@ -9,9 +9,13 @@ from dogpile.cache.api import NO_VALUE
 from fakeredis import FakeRedis
 from flask import Flask, jsonify
 from freezegun import freeze_time
+from redis.exceptions import RedisError
+from sqlalchemy import event
+from sqlalchemy.orm.exc import NoResultFound
 from tests import create_authorization_header
 from tests.app.db import create_notification, create_service, create_template, create_user
 from tests.conftest import set_config
+
 from app import db
 from app.cache import cache_events
 from app.cache.cache_events import register_cache_orm_events
@@ -21,12 +25,14 @@ from app.caching import (
     _json_cache_serializer,
     cache_key_generator,
     cache_on_arguments,
+    dogpile_region,
     exact_cache_key,
     init_dogpile_cache,
     invalidate_cache_entities,
+    invalidate_group_keys,
     short_lived_region,
 )
-from app.dao import notifications_dao
+from app.dao import notifications_dao, services_dao, templates_dao, users_dao
 from app.dao.permissions_dao import permission_dao
 from app.dao.service_permissions_dao import (
     dao_add_service_permission,
@@ -45,6 +51,7 @@ from app.models import (
     TemplateRedacted,
     User,
 )
+from app.schemas import service_schema, template_history_schema, template_schema
 
 
 def _make_memory_region(expiration_time=600):
@@ -58,11 +65,141 @@ def _make_memory_region(expiration_time=600):
     )
 
 
-class TestCacheAccessLogging:
-    def test_logs_regeneration_and_cache_reuse(self, mocker):
+@pytest.fixture(autouse=True)
+def cache_statsd(mocker):
+    return mocker.patch("app.caching.statsd_client")
+
+
+@pytest.mark.parametrize("entity", ["service", "user", "template"])
+@pytest.mark.parametrize("mode", ["flag_off", "opt_out", "explicit_opt_out", "hit", "redis_error", "missing"])
+def test_original_daos_own_cache_selection_and_fallback(notify_api, request, mocker, entity, mode):
+    if entity == "service":
+        record = request.getfixturevalue("sample_service")
+        module = services_dao
+        read = module.dao_fetch_service_by_id
+        cached_name = "dao_fetch_service_by_id_cached"
+        args, cached_kwargs = (record.id,), {"only_active": False}
+        expected = service_schema.dump(record)
+    elif entity == "template":
+        record = request.getfixturevalue("sample_template")
+        module = templates_dao
+        read = module.dao_get_template_by_id_and_service_id
+        cached_name = "dao_get_template_by_id_cached"
+        args, cached_kwargs = (record.id, record.service_id), {}
+        expected = template_schema.dump(record)
+    else:
+        record = request.getfixturevalue("sample_user")
+        module = users_dao
+        read = module.get_user_by_id
+        cached_name = "dao_get_user_by_id_cached"
+        args, cached_kwargs = (record.id,), {}
+        expected = record.serialize()
+    mocker.patch.dict(notify_api.config, FF_USE_DOGPILE_CACHING=mode != "flag_off")
+    cached = mocker.patch.object(module, cached_name, return_value=expected)
+    if mode == "redis_error":
+        cached.side_effect = RedisError("unavailable")
+    elif mode == "missing":
+        cached.side_effect = NoResultFound()
+        with pytest.raises(NoResultFound):
+            read(*args, use_dogpile=True)
+        return
+    result = read(*args) if mode == "opt_out" else read(*args, use_dogpile=mode != "explicit_opt_out")
+    if mode in {"opt_out", "explicit_opt_out"}:
+        assert result is record
+        cached.assert_not_called()
+        return
+    assert isinstance(result, dict)
+    assert _json_cache_deserializer(_json_cache_serializer(result)) == _json_cache_deserializer(
+        _json_cache_serializer(expected)
+    )
+    if mode in {"hit", "redis_error"}:
+        cached.assert_called_once_with(*args, **cached_kwargs)
+    else:
+        cached.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "module,read_name,cached_name,fixture_name",
+    [
+        (services_dao, "dao_fetch_service_by_id", "dao_fetch_service_by_id_cached", "sample_service"),
+        (users_dao, "get_user_by_id", "dao_get_user_by_id_cached", "sample_user"),
+        (templates_dao, "dao_get_template_by_id_and_service_id", "dao_get_template_by_id_cached", "sample_template"),
+    ],
+)
+def test_original_daos_reuse_existing_warm_entries_without_sql(
+    notify_api, request, mocker, module, read_name, cached_name, fixture_name
+):
+    record = request.getfixturevalue(fixture_name)
+    args = (record.id, record.service_id) if module is templates_dao else (record.id,)
+    mocker.patch.object(dogpile_region, "backend", _make_memory_region().backend)
+    mocker.patch.dict(notify_api.config, FF_USE_DOGPILE_CACHING=True)
+    expected = getattr(module, cached_name)(*args)
+    db.session.remove()
+    statements = []
+
+    def record_statement(_connection, _cursor, statement, _parameters, _context, _executemany):
+        statements.append(statement)
+
+    engines = {db.get_engine(bind="writer"), db.get_engine(bind="reader")}
+    for engine in engines:
+        event.listen(engine, "before_cursor_execute", record_statement)
+    try:
+        result = getattr(module, read_name)(*args, use_dogpile=True)
+        assert statements == []
+        assert _json_cache_deserializer(_json_cache_serializer(result)) == _json_cache_deserializer(
+            _json_cache_serializer(expected)
+        )
+    finally:
+        for engine in engines:
+            event.remove(engine, "before_cursor_execute", record_statement)
+
+
+@pytest.mark.parametrize("cache_enabled", [False, True])
+def test_service_data_dao_preserves_active_filter(notify_api, sample_service, mocker, cache_enabled):
+    mocker.patch.dict(notify_api.config, FF_USE_DOGPILE_CACHING=cache_enabled)
+    sample_service.active = False
+    db.session.commit()
+    with pytest.raises(NoResultFound):
+        services_dao.dao_fetch_service_by_id(sample_service.id, only_active=True, use_dogpile=True)
+
+
+@pytest.mark.parametrize("cache_enabled", [False, True])
+def test_template_data_dao_preserves_service_scope(notify_api, sample_template, mocker, cache_enabled):
+    mocker.patch.dict(notify_api.config, FF_USE_DOGPILE_CACHING=cache_enabled)
+    with pytest.raises(NoResultFound):
+        templates_dao.dao_get_template_by_id_and_service_id(sample_template.id, UUID(int=0), use_dogpile=True)
+
+
+def test_user_listing_remains_orm_only(sample_user, mocker):
+    cached = mocker.patch.object(users_dao, "dao_get_user_by_id_cached")
+    assert sample_user in users_dao.get_user_by_id()
+    assert all(isinstance(user, User) for user in users_dao.get_user_by_id(use_dogpile=False))
+    with pytest.raises(ValueError, match="require a user ID"):
+        users_dao.get_user_by_id(use_dogpile=True)
+    cached.assert_not_called()
+
+
+@pytest.mark.parametrize("use_dogpile", [False, True])
+def test_explicit_template_version_bypasses_current_cache(notify_api, sample_template, mocker, use_dogpile):
+    mocker.patch.dict(notify_api.config, FF_USE_DOGPILE_CACHING=True)
+    cached = mocker.patch.object(templates_dao, "dao_get_template_by_id_cached")
+    original = templates_dao.dao_get_template_by_id_and_service_id(
+        sample_template.id, sample_template.service_id, version=sample_template.version
+    )
+    result = templates_dao.dao_get_template_by_id_and_service_id(
+        sample_template.id, sample_template.service_id, version=sample_template.version, use_dogpile=use_dogpile
+    )
+    if use_dogpile:
+        assert result == template_history_schema.dump(original)
+    else:
+        assert result is original
+    cached.assert_not_called()
+
+
+class TestCacheAccessMetrics:
+    def test_records_regeneration_and_cache_reuse(self, mocker, cache_statsd):
         mocker.patch("app.caching.dogpile_region", _make_memory_region())
-        mocker.patch("app.caching.perf_counter", side_effect=[10, 10.01234, 20, 20.001])
-        logger = mocker.patch("app.caching.logger")
+        mocker.patch("app.caching.perf_counter", side_effect=[10, 10.001, 10.010, 10.01234, 20, 20.001])
         creator_calls = []
 
         @cache_on_arguments(namespace="service", group_by="service_id")
@@ -74,24 +211,24 @@ class TestCacheAccessLogging:
         assert fetch(service_id="abc-123") == {"id": "abc-123"}
         assert creator_calls == ["abc-123"]
         assert fetch.__name__ == "fetch"
-        function = f"{fetch.__module__}.{fetch.__qualname__}"
-        assert logger.info.call_args_list == [
-            call(
-                f"dao.execution_time function={function} elapsed_ms=12.34 "
-                "cache_namespace=service cache_outcome=regenerated"
-            ),
-            call(
-                f"dao.execution_time function={function} elapsed_ms=1.00 "
-                "cache_namespace=service cache_outcome=reused"
-            ),
-        ]
         fetch.invalidate("abc-123")
         assert fetch.get("abc-123") is NO_VALUE
+        assert cache_statsd.incr.call_args_list == [
+            call("cache.access.service.regenerated"),
+            call("cache.access.service.reused"),
+        ]
+        assert cache_statsd.timing.call_args_list == [
+            call("cache.creator.service.success.duration", pytest.approx(9.00)),
+            call("cache.access.service.regenerated.duration", pytest.approx(12.34)),
+            call("cache.access.service.reused.duration", pytest.approx(1.00)),
+        ]
 
-    def test_logs_error_and_recovers_on_next_call(self, mocker):
+    def test_records_error_and_recovers_on_next_call(self, mocker, cache_statsd):
         mocker.patch("app.caching.dogpile_region", _make_memory_region())
-        mocker.patch("app.caching.perf_counter", side_effect=[10, 10.002, 20, 20.003])
-        logger = mocker.patch("app.caching.logger")
+        mocker.patch(
+            "app.caching.perf_counter",
+            side_effect=[10, 10.0005, 10.0015, 10.002, 20, 20.0005, 20.0025, 20.003],
+        )
 
         @cache_on_arguments(namespace="service", group_by="service_id")
         def fetch(service_id):
@@ -102,17 +239,54 @@ class TestCacheAccessLogging:
         with pytest.raises(ValueError, match="failed"):
             fetch("failed")
         assert fetch("abc-123") == {"id": "abc-123"}
-        function = f"{fetch.__module__}.{fetch.__qualname__}"
-        assert logger.info.call_args_list == [
-            call(
-                f"dao.execution_time function={function} elapsed_ms=2.00 "
-                "cache_namespace=service cache_outcome=error"
-            ),
-            call(
-                f"dao.execution_time function={function} elapsed_ms=3.00 "
-                "cache_namespace=service cache_outcome=regenerated"
-            ),
+        assert cache_statsd.incr.call_args_list == [
+            call("cache.access.service.error"),
+            call("cache.access.service.regenerated"),
         ]
+        assert cache_statsd.timing.call_args_list == [
+            call("cache.creator.service.error.duration", pytest.approx(1.00)),
+            call("cache.access.service.error.duration", pytest.approx(2.00)),
+            call("cache.creator.service.success.duration", pytest.approx(2.00)),
+            call("cache.access.service.regenerated.duration", pytest.approx(3.00)),
+        ]
+
+
+class TestCacheInvalidationMetrics:
+    def test_records_success_and_deleted_key_counts(self, mocker, cache_statsd):
+        redis_client = mocker.patch("app.caching._get_redis_client_from_region").return_value
+        redis_client.scan.side_effect = [(1, [b"service:abc:one"]), (0, [b"service:abc:two"])]
+        redis_client.delete.return_value = 1
+        mocker.patch("app.caching.perf_counter", side_effect=[10, 10.005])
+
+        assert invalidate_group_keys("service", "abc") == 2
+
+        assert cache_statsd.incr.call_args_list == [
+            call("cache.invalidation.service.success"),
+            call("cache.invalidation.service.scans", count=2),
+            call("cache.invalidation.service.matched", count=2),
+            call("cache.invalidation.service.deleted", count=2),
+        ]
+        cache_statsd.timing.assert_called_once_with(
+            "cache.invalidation.service.success.duration", pytest.approx(5.00)
+        )
+
+    def test_records_failure_and_preserves_exception(self, mocker, cache_statsd):
+        redis_client = mocker.patch("app.caching._get_redis_client_from_region").return_value
+        redis_client.scan.side_effect = RuntimeError("Redis unavailable")
+        mocker.patch("app.caching.perf_counter", side_effect=[10, 10.002])
+
+        with pytest.raises(RuntimeError, match="Redis unavailable"):
+            invalidate_group_keys("template", "abc")
+
+        assert cache_statsd.incr.call_args_list == [
+            call("cache.invalidation.template.error"),
+            call("cache.invalidation.template.scans", count=0),
+            call("cache.invalidation.template.matched", count=0),
+            call("cache.invalidation.template.deleted", count=0),
+        ]
+        cache_statsd.timing.assert_called_once_with(
+            "cache.invalidation.template.error.duration", pytest.approx(2.00)
+        )
 
 
 @pytest.fixture

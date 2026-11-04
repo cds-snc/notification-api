@@ -9,6 +9,8 @@ from uuid import UUID
 
 from dogpile.cache import make_region
 
+from app import statsd_client
+
 logger = logging.getLogger(__name__)
 
 KEY_STRATEGY_PREFIX = "prefix"
@@ -218,6 +220,7 @@ def invalidate_group_keys(group_name, group_id, batch_size=500, namespace=None):
     deleted = 0
     matched = 0
     scans = 0
+    outcome = "error"
 
     try:
         redis_client = _get_redis_client_from_region(_get_region(get_cache_namespace(ns).region))
@@ -229,12 +232,15 @@ def invalidate_group_keys(group_name, group_id, batch_size=500, namespace=None):
                 deleted += redis_client.delete(*keys)
             if cursor == 0:
                 break
+        outcome = "success"
     finally:
         elapsed_ms = (perf_counter() - started) * 1000
-        logger.info(
-            f"cache.invalidate_group_keys namespace={ns} batch_size={batch_size} scans={scans} "
-            f"matched={matched} deleted={deleted} elapsed_ms={elapsed_ms:.2f}"
-        )
+        metric = f"cache.invalidation.{ns}"
+        statsd_client.incr(f"{metric}.{outcome}")
+        statsd_client.timing(f"{metric}.{outcome}.duration", elapsed_ms)
+        statsd_client.incr(f"{metric}.scans", count=scans)
+        statsd_client.incr(f"{metric}.matched", count=matched)
+        statsd_client.incr(f"{metric}.deleted", count=deleted)
 
     return deleted
 
@@ -280,7 +286,15 @@ def cache_on_arguments(*, namespace, group_by, should_cache_fn=None):
             state = invocation.get()
             if state is not None:
                 state["creator_executed"] = True
-            return fn(*args, **kwargs)
+            started = perf_counter()
+            outcome = "error"
+            try:
+                result = fn(*args, **kwargs)
+                outcome = "success"
+                return result
+            finally:
+                elapsed_ms = (perf_counter() - started) * 1000
+                statsd_client.timing(f"cache.creator.{namespace}.{outcome}.duration", elapsed_ms)
 
         options = {"namespace": namespace}
         if should_cache_fn is not None:
@@ -300,10 +314,9 @@ def cache_on_arguments(*, namespace, group_by, should_cache_fn=None):
             finally:
                 elapsed_ms = (perf_counter() - started) * 1000
                 invocation.reset(token)
-                logger.info(
-                    f"dao.execution_time function={fn.__module__}.{fn.__qualname__} elapsed_ms={elapsed_ms:.2f} "
-                    f"cache_namespace={namespace} cache_outcome={outcome}"
-                )
+                metric = f"cache.access.{namespace}.{outcome}"
+                statsd_client.incr(metric)
+                statsd_client.timing(f"{metric}.duration", elapsed_ms)
 
         return wrapper
 
@@ -341,11 +354,10 @@ def _configure_region(region, app, redis_url, expiration_time, redis_expiration_
 
 def init_dogpile_cache(app):
     # Module loggers do not inherit handlers from Flask's "api" or "celery" logger.
-    for name in (__name__, "app.cache.cache_events"):
-        cache_logger = logging.getLogger(name)
-        cache_logger.handlers = app.logger.handlers[:]
-        cache_logger.setLevel(app.logger.getEffectiveLevel())
-        cache_logger.propagate = False
+    cache_logger = logging.getLogger("app.cache.cache_events")
+    cache_logger.handlers = app.logger.handlers[:]
+    cache_logger.setLevel(app.logger.getEffectiveLevel())
+    cache_logger.propagate = False
 
     redis_url = app.config.get("REDIS_URL") or "redis://localhost:6379/0"
     expiration_time = app.config.get("DOGPILE_CACHE_EXPIRATION", 600)

@@ -18,13 +18,7 @@ from app import (
     authenticated_service,
     create_uuid,
     document_download_client,
-    email_bulk_publish,
-    email_normal_publish,
-    email_priority_publish,
     signer_notification,
-    sms_bulk_publish,
-    sms_normal_publish,
-    sms_priority_publish,
     statsd_client,
 )
 from app.annual_limit_utils import get_annual_limit_notifications_v2
@@ -39,20 +33,16 @@ from app.dao.jobs_dao import dao_create_job
 from app.dao.notifications_dao import update_notification_status_by_reference
 from app.dao.templates_dao import get_precompiled_letter_template
 from app.email_limit_utils import fetch_todays_email_count
-from app.encryption import NotificationDictToSign
 from app.models import (
-    BULK,
     EMAIL_TYPE,
     JOB_STATUS_PENDING,
     JOB_STATUS_SCHEDULED,
     KEY_TYPE_TEAM,
     KEY_TYPE_TEST,
     LETTER_TYPE,
-    NORMAL,
     NOTIFICATION_CREATED,
     NOTIFICATION_DELIVERED,
     NOTIFICATION_SENDING,
-    PRIORITY,
     SMS_TYPE,
     UPLOAD_DOCUMENT,
     ApiKey,
@@ -62,6 +52,7 @@ from app.models import (
 )
 from app.notifications.process_letter_notifications import create_letter_notification
 from app.notifications.process_notifications import (
+    build_notification_to_sign,
     choose_queue,
     csv_has_simulated_and_non_simulated_recipients,
     db_save_and_send_notification,
@@ -70,6 +61,7 @@ from app.notifications.process_notifications import (
     persist_scheduled_notification,
     simulated_recipient,
     transform_notification,
+    triage_notification_to_queues,
 )
 from app.notifications.validators import (
     check_email_annual_limit,
@@ -399,33 +391,6 @@ def post_notification(notification_type: NotificationType):
     return jsonify(resp), 201
 
 
-def triage_notification_to_queues(notification_type: NotificationType, signed_notification_data, template: Template):
-    """Determine which queue to use based on notification_type and process_type
-
-    Args:
-        notification_type: Type of notification being sent; either SMS_TYPE or EMAIL_TYPE
-        signed_notification_data: Encrypted notification data
-        template: Template used to send notification
-    Returns:
-        None
-
-    """
-    if notification_type == SMS_TYPE:
-        if template.process_type == PRIORITY:
-            sms_priority_publish.publish(signed_notification_data)
-        elif template.process_type == NORMAL:
-            sms_normal_publish.publish(signed_notification_data)
-        elif template.process_type == BULK:
-            sms_bulk_publish.publish(signed_notification_data)
-    elif notification_type == EMAIL_TYPE:
-        if template.process_type == PRIORITY:
-            email_priority_publish.publish(signed_notification_data)
-        elif template.process_type == NORMAL:
-            email_normal_publish.publish(signed_notification_data)
-        elif template.process_type == BULK:
-            email_bulk_publish.publish(signed_notification_data)
-
-
 def process_sms_or_email_notification(
     *, form, notification_type: NotificationType, api_key: ApiKey, template: Template, service: Service, reply_to_text=None
 ) -> Notification:
@@ -443,19 +408,19 @@ def process_sms_or_email_notification(
 
     personalisation = process_document_uploads(form.get("personalisation"), service, simulated, template.id)
 
-    _notification: NotificationDictToSign = {
-        "id": create_uuid(),
-        "template": str(template.id),
-        "service_id": str(service.id),
-        "template_version": str(template.version),  # type: ignore
-        "to": form_send_to,
-        "personalisation": personalisation,
-        "simulated": simulated,
-        "api_key": str(api_key.id),
-        "key_type": str(api_key.key_type),
-        "client_reference": form.get("reference", None),
-        "reply_to_text": reply_to_text,
-    }
+    _notification = build_notification_to_sign(
+        notification_id=create_uuid(),
+        template_id=str(template.id),
+        service_id=str(service.id),
+        template_version=str(template.version),  # type: ignore
+        to=form_send_to,
+        personalisation=personalisation,
+        simulated=simulated,
+        api_key_id=str(api_key.id),
+        key_type=str(api_key.key_type),
+        client_reference=form.get("reference", None),
+        reply_to_text=reply_to_text,
+    )
 
     signed_notification_data = signer_notification.sign(_notification)
     notification = {**_notification}

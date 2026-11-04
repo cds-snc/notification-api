@@ -3,10 +3,17 @@ name: Notify Performance / Load Tests
 on:
   workflow_dispatch:
 
+env: # temporary CA mitigation
+  NODE_OPTIONS: --use-openssl-ca
+  SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
+  SSL_CERT_DIR: /etc/ssl/certs
+
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
+      - name: Prepare Ubuntu CA trust
+        uses: route06/actions/prepare-ubuntu-ca@aa6b218e4bc5445f54d3649a04297af5e1ce7458 # temporary CA mitigation
       - name: Install libcurl
         run: sudo apt-get update && sudo apt-get install libssl-dev libcurl4-openssl-dev
 

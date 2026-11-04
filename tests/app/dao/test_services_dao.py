@@ -62,6 +62,7 @@ from app.models import (
     NotificationHistory,
     Organisation,
     Permission,
+    ScheduledNotification,
     Service,
     ServicePermission,
     ServiceUser,
@@ -84,6 +85,7 @@ from tests.app.db import (
     create_notification,
     create_notification_history,
     create_organisation,
+    create_scheduled_one_off_notification,
     create_service,
     create_service_with_defined_sms_sender,
     create_service_with_inbound_number,
@@ -850,6 +852,7 @@ def test_delete_service_and_associated_objects(notify_db_session):
     template = create_template(service=service)
     api_key = create_api_key(service=service)
     save_notification(create_notification(template=template, api_key=api_key))
+    create_scheduled_one_off_notification(template, api_key=api_key)
     create_invited_user(service=service)
 
     assert ServicePermission.query.count() == len(
@@ -869,6 +872,7 @@ def test_delete_service_and_associated_objects(notify_db_session):
     assert TemplateHistory.query.count() == 0
     assert Job.query.count() == 0
     assert Notification.query.count() == 0
+    assert ScheduledNotification.query.count() == 0
     assert Permission.query.count() == 0
     assert User.query.count() == 0
     assert InvitedUser.query.count() == 0

@@ -208,6 +208,12 @@ def test_process_pinpoint_results_missing_sms_data(notify_api, sample_template, 
             False,
             True,
         ),
+        (
+            "Message delivery TTL has expired",
+            NOTIFICATION_PERMANENT_FAILURE,
+            False,
+            True,
+        ),
         ("This is not a real response", NOTIFICATION_PERMANENT_FAILURE, True, True),
     ],
 )
