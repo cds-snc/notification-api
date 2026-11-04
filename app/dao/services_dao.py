@@ -7,6 +7,7 @@ from flask import current_app
 from notifications_utils.clients.redis import service_cache_key
 from notifications_utils.statsd_decorators import statsd
 from notifications_utils.timezones import convert_utc_to_local_timezone
+from redis.exceptions import RedisError
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.expression import and_, asc, case, func
 
@@ -213,8 +214,18 @@ def dao_fetch_service_by_id_cached(service_id: str, only_active=False) -> dict:
 
 
 @log_execution_time
-def dao_fetch_service_by_id(service_id, only_active=False, use_cache=False) -> Service:
-    if use_cache:
+def dao_fetch_service_by_id(service_id, only_active=False, use_cache=False, *, use_dogpile=False) -> Service | dict:
+    """Return an ORM service, or dictionary data when use_dogpile is requested.
+
+    Opted-in reads return dictionaries even with the feature disabled or Redis
+    unavailable. Legacy use_cache behavior is retained for ORM reads only.
+    """
+    if use_dogpile and current_app.config.get("FF_USE_DOGPILE_CACHING", False) is True:
+        try:
+            return dao_fetch_service_by_id_cached(service_id, only_active=only_active)
+        except RedisError:
+            current_app.logger.warning("Service cache unavailable; falling back to database")
+    if use_cache and not use_dogpile:
         service_cache = redis_store.get(service_cache_key(service_id))
         if service_cache:
             service_cache_decoded = json.loads(service_cache.decode("utf-8"))["data"]
@@ -223,7 +234,8 @@ def dao_fetch_service_by_id(service_id, only_active=False, use_cache=False) -> S
     query = Service.query.filter_by(id=service_id).options(joinedload("users"))
     if only_active:
         query = query.filter(Service.active)
-    return query.one()
+    service = query.one()
+    return service_schema.dump(service) if use_dogpile else service
 
 
 def dao_fetch_service_by_inbound_number(number):
