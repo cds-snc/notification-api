@@ -5,8 +5,8 @@ apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
   name: notification-api-service
-  title: GC Notify API | GC Notification API
-  description: REST API service for GC Notification
+  title: Notification API
+  description: REST API service for GC Notification.
   annotations:
     github.com/project-slug: cds-snc/notification-api
     backstage.io/source-location: url:https://github.com/cds-snc/notification-api/tree/main/
