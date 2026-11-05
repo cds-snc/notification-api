@@ -41,7 +41,7 @@ jobs:
       - name: Prepare Ubuntu CA trust
         uses: route06/actions/prepare-ubuntu-ca@aa6b218e4bc5445f54d3649a04297af5e1ce7458 # temporary CA mitigation
       - name: Checkout
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Set image tag
         id: image-tag
@@ -59,7 +59,7 @@ jobs:
           IMAGE_URI: ${{ env.REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ steps.image-tag.outputs.tag }}
 
       - name: Configure staging AWS credentials using OIDC
-        uses: aws-actions/configure-aws-credentials@ececac1a45f3b08a01d2dd070d28d111c5fe6722 # v4.1.0
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: arn:aws:iam::${{ env.ACCOUNT_ID }}:role/notification-api-build-push-performance-test
           role-session-name: NotifyApiPerformanceTestDeploy
