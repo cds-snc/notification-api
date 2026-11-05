@@ -1,0 +1,14 @@
+name: QA Mutable Tag Validation
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  qa-mutable-tag-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Intentionally mutable action ref for QA validation
+        uses: actions/checkout@v4
+      - name: No-op step
+        run: echo "This workflow exists only to test SHA pinning validation."
