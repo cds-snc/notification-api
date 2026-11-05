@@ -545,6 +545,12 @@ class NotificationSchema(Schema):
     status = fields.String(required=False)
     personalisation = fields.Dict(required=False)
 
+    @validates("personalisation")
+    def validate_personalisation(self, value):
+        # Document objects are only ever created server-side by the v2 upload flow
+        if any(isinstance(v, dict) and "document" in v for v in value.values()):
+            raise ValidationError("File attachments are not supported by this endpoint")
+
 
 class SmsNotificationSchema(NotificationSchema):
     to = fields.Str(required=True)

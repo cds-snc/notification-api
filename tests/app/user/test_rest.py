@@ -5,17 +5,24 @@ from unittest.mock import ANY
 from uuid import UUID
 
 import pytest
+from dogpile.cache import make_region
 from flask import current_app, url_for
 from freezegun import freeze_time
+from redis.exceptions import RedisError
+from sqlalchemy import event
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import db
+from app.caching import dogpile_region
+from app.config import QueueNames
 from app.dao.fido2_key_dao import create_fido2_session, save_fido2_key
 from app.dao.login_event_dao import save_login_event
 from app.dao.permissions_dao import default_service_permissions
 from app.dao.service_user_dao import dao_get_service_user, dao_update_service_user
+from app.dao.users_dao import dao_get_user_by_id_cached
 from app.models import (
     EMAIL_AUTH_TYPE,
+    KEY_TYPE_NORMAL,
     MANAGE_SETTINGS,
     MANAGE_TEMPLATES,
     SMS_AUTH_TYPE,
@@ -27,6 +34,7 @@ from app.models import (
     User,
 )
 from app.user.contact_request import ContactRequest
+from app.user.rest import send_annual_usage_data
 from tests import create_authorization_header
 from tests.app.db import (
     create_organisation,
@@ -86,11 +94,99 @@ def test_get_user_with_dogpile_cache_returns_cached_payload(notify_api, admin_re
     cached_data = {"id": str(sample_user.id), "name": sample_user.name}
 
     with set_config(notify_api, "FF_USE_DOGPILE_CACHING", True):
-        mocked_cached_fetch = mocker.patch("app.user.rest.dao_get_user_by_id_cached", return_value=cached_data)
+        mocked_cached_fetch = mocker.patch("app.dao.users_dao.dao_get_user_by_id_cached", return_value=cached_data)
         json_resp = admin_request.get("user.get_user", user_id=sample_user.id)
 
     mocked_cached_fetch.assert_called_once_with(sample_user.id)
     assert json_resp["data"] == cached_data
+
+
+@pytest.mark.parametrize("cache_state", ["disabled", "enabled", "unavailable"])
+def test_send_annual_usage_data_uses_existing_user_cache(notify_api, sample_user, sample_email_template, mocker, cache_state):
+    service = sample_email_template.service
+    mocker.patch.dict(
+        notify_api.config,
+        NOTIFY_SERVICE_ID=str(service.id),
+        ANNUAL_LIMIT_QUARTERLY_USAGE_TEMPLATE_ID=str(sample_email_template.id),
+        FF_USE_DOGPILE_CACHING=cache_state != "disabled",
+    )
+    cached_data = {"name": "Cached name", "email_address": "cached@example.com"}
+    cached_read = mocker.patch("app.dao.users_dao.dao_get_user_by_id_cached", return_value=cached_data)
+    if cache_state == "unavailable":
+        cached_read.side_effect = RedisError("unavailable")
+    persisted = mocker.patch("app.user.rest.persist_notification")
+    send = mocker.patch("app.user.rest.send_notification_to_queue")
+    reply_to = service.get_default_reply_to_email_address()
+
+    response, status_code = send_annual_usage_data(sample_user.id, 2025, 2026, "English usage", "French usage")
+
+    expected_user = (
+        cached_data if cache_state == "enabled" else {"name": sample_user.name, "email_address": sample_user.email_address}
+    )
+    persisted.assert_called_once_with(
+        template_id=sample_email_template.id,
+        template_version=sample_email_template.version,
+        recipient=expected_user["email_address"],
+        service=service,
+        personalisation={
+            "name": expected_user["name"],
+            "start_year": 2025,
+            "end_year": 2026,
+            "data_for_each_service_en": "English usage",
+            "data_for_each_service_fr": "French usage",
+        },
+        notification_type=sample_email_template.template_type,
+        api_key_id=None,
+        key_type=KEY_TYPE_NORMAL,
+        reply_to_text=reply_to,
+    )
+    send.assert_called_once_with(persisted.return_value, False, queue=QueueNames.NOTIFY)
+    assert status_code == 204
+    assert response.get_json() == {}
+    if cache_state == "enabled":
+        cached_read.assert_called_once_with(sample_user.id)
+    else:
+        if cache_state == "disabled":
+            cached_read.assert_not_called()
+        else:
+            cached_read.assert_called_once_with(sample_user.id)
+
+
+@pytest.mark.parametrize("cache_enabled", [False, True])
+def test_send_annual_usage_data_warm_cache_avoids_user_select(
+    notify_api, sample_user, sample_email_template, mocker, cache_enabled
+):
+    mocker.patch.object(dogpile_region, "backend", make_region().configure("dogpile.cache.memory").backend)
+    mocker.patch.dict(
+        notify_api.config,
+        NOTIFY_SERVICE_ID=str(sample_email_template.service_id),
+        ANNUAL_LIMIT_QUARTERLY_USAGE_TEMPLATE_ID=str(sample_email_template.id),
+        FF_USE_DOGPILE_CACHING=cache_enabled,
+    )
+    persisted = mocker.patch("app.user.rest.persist_notification")
+    mocker.patch("app.user.rest.send_notification_to_queue")
+    user_id = sample_user.id
+    cached_user = dao_get_user_by_id_cached(user_id)
+    db.session.remove()
+    statements = []
+
+    def record_statement(_connection, _cursor, statement, _parameters, _context, _executemany):
+        if statement.lstrip().upper().startswith("SELECT") and "FROM users" in statement:
+            statements.append(statement)
+
+    engines = {db.get_engine(bind="writer"), db.get_engine(bind="reader")}
+    for engine in engines:
+        event.listen(engine, "before_cursor_execute", record_statement)
+    try:
+        response, status_code = send_annual_usage_data(user_id, 2025, 2026, "English usage", "French usage")
+        assert len(statements) == (0 if cache_enabled else 1)
+    finally:
+        for engine in engines:
+            event.remove(engine, "before_cursor_execute", record_statement)
+    assert status_code == 204
+    assert response.get_json() == {}
+    assert persisted.call_args.kwargs["recipient"] == cached_user["email_address"]
+    assert persisted.call_args.kwargs["personalisation"]["name"] == cached_user["name"]
 
 
 def test_get_user_doesnt_return_inactive_services_and_orgs(admin_request, sample_service, sample_organisation):

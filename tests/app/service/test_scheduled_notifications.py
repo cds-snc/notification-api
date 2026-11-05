@@ -1,3 +1,5 @@
+import pytest
+
 from app.models import Notification, ScheduledNotification
 from tests.app.db import (
     create_notification,
@@ -44,12 +46,13 @@ class TestGetScheduledNotificationsForService:
         assert response["page_size"] == 2
         assert len(response["notifications"]) == 2
 
-    def test_rejects_invalid_page_size(self, admin_request, sample_template):
+    @pytest.mark.parametrize("params", [{"page_size": 0}, {"page": 0}, {"page_size": "abc"}, {"page": "abc"}])
+    def test_rejects_invalid_pagination_params(self, admin_request, sample_template, params):
         admin_request.get(
             "service.get_scheduled_notifications_for_service",
             service_id=sample_template.service_id,
-            page_size=0,
             _expected_status=400,
+            **params,
         )
 
 

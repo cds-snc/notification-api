@@ -1305,7 +1305,7 @@ paths:
       description: |
         Créer un nouveau dossier de gabarits, à la racine du service ou dans un dossier parent.
 
-        Les dossiers racine sont partagés avec tous les utilisateurs actifs du service. Les sous-dossiers héritent de l’accès des utilisateurs de leur dossier parent.
+        Les dossiers racines sont partagés avec tous les membres de l'équipe du service. Les sous-dossiers héritent de l’accès de leur dossier parent.
 
         Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_templates.
       operationId: postManageTemplateFolder
@@ -1335,7 +1335,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ManageTemplateFolder'
         '400':
-          description: Mauvaise requête - erreurs de validation ou dossier parent introuvable
+          description: Requête non valide - erreurs de validation ou dossier parent introuvable
           content:
             application/json:
               schema:
@@ -1349,7 +1349,7 @@ paths:
                       - error: "ValidationError"
                         message: "name is a required property"
                 empty_name:
-                  summary: Le nom du dossier est vide
+                  summary: Le nom du dossier ne peut pas être vide
                   value:
                     status_code: 400
                     errors:
@@ -1403,7 +1403,7 @@ paths:
     get:
       summary: Obtenir un dossier de gabarits par ID
       description: |
-        Récupérer un dossier de gabarits précis par ID.
+        Récupérer un dossier de gabarits spécifique par son ID.
 
         Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_templates.
       operationId: getManageTemplateFolderById
@@ -1424,7 +1424,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ManageTemplateFolder'
         '400':
-          description: Mauvaise requête - format d’ID de dossier de gabarits invalide
+          description: Requête non valide - format d’ID de dossier de gabarits non valide
           content:
             application/json:
               schema:
@@ -1477,9 +1477,9 @@ paths:
     patch:
       summary: Mettre à jour un dossier de gabarits
       description: |
-        Renommer un dossier de gabarits ou le déplacer vers un autre dossier parent, ou les deux. Définissez parent_folder_id à null pour déplacer le dossier à la racine du service.
+        Renommer un dossier de gabarits et/ou le déplacer vers un autre dossier parent. Attribuez la valeur null à parent_folder_id pour déplacer le dossier à la racine du service.
 
-        Lorsqu’un dossier est déplacé dans un dossier parent, lui et ses sous-dossiers sont visibles uniquement par les utilisateurs qui ont aussi accès au nouveau dossier parent.
+        Lorsqu’un dossier est déplacé dans un dossier parent, ce dossier ainsi que ses sous-dossiers ne sont visibles que par les membres de l'équipe ayant aussi accès au nouveau dossier parent.
 
         Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_templates.
       operationId: patchManageTemplateFolder
@@ -1519,21 +1519,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/ManageTemplateFolder'
         '400':
-          description: Mauvaise requête - erreurs de validation ou dossier parent invalide
+          description: Requête non valide - erreurs de validation ou dossier parent non valide
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
               examples:
                 invalid_template_folder_id:
-                  summary: Format d’ID de dossier de gabarits invalide
+                  summary: Format d’ID de dossier de gabarits non valide
                   value:
                     status_code: 400
                     errors:
                       - error: "ValidationError"
                         message: "id is not a valid UUID"
                 empty_name:
-                  summary: Le nom du dossier est vide
+                  summary: Le nom du dossier ne peut pas être vide
                   value:
                     status_code: 400
                     errors:
@@ -1631,14 +1631,14 @@ paths:
               schema:
                 $ref: '#/components/schemas/ManageTemplateFolder'
         '400':
-          description: Mauvaise requête - ID invalide ou dossier non vide
+          description: Requête non valide - ID non valide ou dossier non vide
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
               examples:
                 invalid_template_folder_id:
-                  summary: Format d’ID de dossier de gabarits invalide
+                  summary: Format d’ID de dossier de gabarits non valide
                   value:
                     status_code: 400
                     errors:
@@ -2866,7 +2866,7 @@ components:
           nullable: true
         users_with_permission:
           type: array
-          description: ID des utilisateurs du service qui peuvent accéder à ce dossier
+          description: ID des membres de l'équipe du service qui peuvent accéder à ce dossier
           items:
             $ref: '#/components/schemas/UUID'
       required:
