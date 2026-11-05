@@ -437,7 +437,7 @@ def process_sms_or_email_notification(
             api_key_last_used = datetime.utcnow()
             update_last_used_api_key(api_key_id, api_key_last_used)
 
-    if scheduled_for:
+    if scheduled_for and not simulated:
         # Not added to the notifications table or the sending queues until it's sent, see send_scheduled_notifications
         notification = transform_notification(
             template_id=template.id,
