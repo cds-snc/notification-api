@@ -4,7 +4,7 @@ import os
 import re
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlencode, urlparse
 from uuid import UUID
 
 import phonenumbers
@@ -333,6 +333,31 @@ def check_file_url(file_info: Dict[str, str], notification_id: UUID):
         raise InvalidUrlException
 
 
+def get_attachment_download_url(file_info: Dict[str, Any], service_id: UUID, notification_id: UUID) -> str:
+    """
+    Build the document-download-api URL to fetch an attached file from.
+
+    The stored direct_file_url comes from notification personalisation and must not be used as a
+    fetch target (SSRF). Only the decryption key is taken from it; the host, service id and
+    document id are fixed so the bytes fetched belong to the same document whose scan verdict
+    was checked.
+    """
+    try:
+        document_id = UUID(str(file_info["id"]))
+        key = parse_qs(urlparse(file_info["direct_file_url"]).query)["key"][0]
+    except (KeyError, IndexError, TypeError, ValueError, AttributeError):
+        current_app.logger.error(f"Notification {notification_id} contains an invalid attachment document reference")
+        raise InvalidUrlException
+
+    if not re.fullmatch(r"[A-Za-z0-9_\-]+={0,2}", key):
+        current_app.logger.error(f"Notification {notification_id} contains an invalid attachment decryption key")
+        raise InvalidUrlException
+
+    host = current_app.config["DOCUMENT_DOWNLOAD_API_HOST"].rstrip("/")
+    query = urlencode({"key": key, "sending_method": "attach"})
+    return f"{host}/services/{service_id}/documents/{document_id}?{query}"
+
+
 def check_for_malware_errors(document_download_response_code, notification):
     """
     Check verdict and download calls to the document-download-api will
@@ -485,7 +510,8 @@ def send_email_to_provider(notification: Notification):
         for key in file_keys:
             check_file_url(personalisation_data[key]["document"], notification.id)
             sending_method = personalisation_data[key]["document"].get("sending_method")
-            direct_file_url = personalisation_data[key]["document"]["direct_file_url"]
+            if sending_method == "attach":
+                download_url = get_attachment_download_url(personalisation_data[key]["document"], service.id, notification.id)
             filename = personalisation_data[key]["document"].get("filename")
             mime_type = personalisation_data[key]["document"].get("mime_type")
             document_id = personalisation_data[key]["document"]["id"]
@@ -500,7 +526,7 @@ def send_email_to_provider(notification: Notification):
                     retries = Retry(total=5)
                     http = PoolManager(retries=retries)
 
-                    response = http.request("GET", url=direct_file_url)
+                    response = http.request("GET", url=download_url)
                     attachments.append(
                         {
                             "name": filename,
@@ -509,7 +535,7 @@ def send_email_to_provider(notification: Notification):
                         }
                     )
                 except Exception as e:
-                    current_app.logger.error(f"Could not download and attach {direct_file_url}\nException: {e}")
+                    current_app.logger.error(f"Could not download and attach document {document_id}\nException: {e}")
                     del personalisation_data[key]
 
             else:
@@ -537,6 +563,7 @@ def send_email_to_provider(notification: Notification):
         values=personalisation_data,
         jinja_path=debug_template_path,
         allow_html=is_service_allowed_html(service),
+        asset_domain=current_app.config["ASSET_DOMAIN"],
         **get_html_email_options(service),
     )
 

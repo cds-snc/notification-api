@@ -413,10 +413,12 @@ def persist_notifications(notifications: List[VerifiedNotification]) -> List[Not
             and notification.get("notification_type") == SMS_TYPE
         ):
             notification_obj.billable_units = number_of_sms_fragments(template, notification.get("personalisation"))
-        service = dao_fetch_service_by_id(service_id, use_cache=True)
+
+        service_data = dao_fetch_service_by_id(service_id, use_dogpile=True)
+
         notification_obj.queue_name = choose_queue(
             notification=notification_obj,
-            research_mode=service.research_mode,
+            research_mode=service_data["research_mode"],
             priority_queue=get_delivery_queue_for_template(template),
         )
 

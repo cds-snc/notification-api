@@ -75,7 +75,6 @@ from app.dao.services_dao import (
     dao_fetch_all_services_by_user,
     dao_fetch_live_services_data,
     dao_fetch_service_by_id,
-    dao_fetch_service_by_id_cached,
     dao_fetch_service_ids_of_sensitive_services,
     dao_fetch_todays_stats_for_all_services,
     dao_fetch_todays_stats_for_service,
@@ -223,11 +222,7 @@ def get_service_by_id(service_id):
     if request.args.get("detailed") == "True":
         data = get_detailed_service(service_id, today_only=request.args.get("today_only") == "True")
     else:
-        if current_app.config.get("FF_USE_DOGPILE_CACHING", False) is True:
-            data = dao_fetch_service_by_id_cached(service_id)
-        else:
-            fetched = dao_fetch_service_by_id(service_id)
-            data = service_schema.dump(fetched)
+        data = dao_fetch_service_by_id(service_id, use_dogpile=True)
 
     return jsonify(data=data)
 
@@ -608,10 +603,9 @@ def get_all_notifications_for_service(service_id):
 
 @service_blueprint.route("/<uuid:service_id>/notifications/scheduled", methods=["GET"])
 def get_scheduled_notifications_for_service(service_id):
-    page = request.args.get("page", 1, type=int)
-    page_size = request.args.get("page_size", current_app.config.get("PAGE_SIZE"), type=int)
-    if page < 1 or page_size < 1:
-        raise InvalidRequest("page and page_size must be positive integers", status_code=400)
+    data = notifications_filter_schema.load(request.args)
+    page = data.get("page", 1)
+    page_size = data.get("page_size", current_app.config.get("PAGE_SIZE"))
 
     pagination = notifications_dao.dao_get_scheduled_one_off_notifications_for_service(service_id, page=page, page_size=page_size)
     return (

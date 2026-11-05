@@ -2,6 +2,8 @@ import uuid
 from datetime import datetime, timedelta
 from random import SystemRandom
 
+from flask import current_app
+from redis.exceptions import RedisError
 from sqlalchemy import func, update
 from sqlalchemy.orm import joinedload
 
@@ -116,9 +118,23 @@ def verify_within_time(user, age=timedelta(seconds=30)):
 
 
 @log_execution_time
-def get_user_by_id(user_id=None) -> User:
+def get_user_by_id(user_id=None, *, use_dogpile=False) -> User | list[User] | dict:
+    """Return ORM users by default, or a single user's data when opted in.
+
+    Dictionary reads retain their return type when caching is disabled or Redis
+    fails. Listing users remains an ORM-only operation.
+    """
+    if use_dogpile:
+        if not user_id:
+            raise ValueError("Dogpile user reads require a user ID")
+        if current_app.config.get("FF_USE_DOGPILE_CACHING", False) is True:
+            try:
+                return dao_get_user_by_id_cached(user_id)
+            except RedisError:
+                current_app.logger.warning("User cache unavailable; falling back to database")
     if user_id:
-        return User.query.filter_by(id=user_id).one()
+        user = User.query.filter_by(id=user_id).one()
+        return user.serialize() if use_dogpile else user
     return User.query.filter_by().all()
 
 

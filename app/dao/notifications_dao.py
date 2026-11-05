@@ -723,7 +723,13 @@ def dao_get_notifications_by_to_field(service_id, search_term, notification_type
     if notification_type:
         filters.append(Notification.notification_type == notification_type)
 
-    results = db.session.query(Notification).filter(*filters).order_by(desc(Notification.created_at)).all()
+    results = (
+        db.session.query(Notification)
+        .filter(*filters)
+        .options(joinedload(Notification.scheduled_notification))
+        .order_by(desc(Notification.created_at))
+        .all()
+    )
     return results
 
 
@@ -783,7 +789,11 @@ def dao_get_scheduled_one_off_notifications_for_service(service_id, page=1, page
     return (
         _scheduled_one_off_notifications_query()
         .filter(ScheduledNotification.service_id == service_id)
-        .options(joinedload(ScheduledNotification.template))
+        .options(
+            joinedload(ScheduledNotification.template),
+            joinedload(ScheduledNotification.service),
+            joinedload(ScheduledNotification.api_key),
+        )
         .order_by(asc(ScheduledNotification.scheduled_for), asc(ScheduledNotification.created_at))
         .paginate(page=page, per_page=page_size)
     )

@@ -46,8 +46,8 @@ def load_translations(lang: str) -> dict[str, str]:
     return table
 
 
-def generate(lang: str) -> None:
-    """Render the Jinja2 template for *lang* and write the output YAML file."""
+def render(lang: str) -> str:
+    """Render the Jinja2 template for *lang* and return the YAML text."""
     env = jinja2.Environment(
         loader=jinja2.FileSystemLoader(str(OPENAPI_DIR)),
         keep_trailing_newline=True,
@@ -69,10 +69,13 @@ def generate(lang: str) -> None:
     env.globals["t"] = lambda key: table.get(key, key)
 
     template = env.get_template(TEMPLATE_FILE.name)
-    output = template.render()
+    return template.render()
 
+
+def generate(lang: str) -> None:
+    """Render the Jinja2 template for *lang* and write the output YAML file."""
     out_file = OPENAPI_DIR / f"v2-notifications-api-{lang}.yaml"
-    out_file.write_text(output, encoding="utf-8")
+    out_file.write_text(render(lang), encoding="utf-8")
     print(f"Generated: {out_file}")
 
 

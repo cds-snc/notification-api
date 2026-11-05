@@ -22,7 +22,6 @@ from app.dao.templates_dao import (
     dao_get_all_templates_for_service,
     dao_get_template_by_id,
     dao_get_template_by_id_and_service_id,
-    dao_get_template_by_id_cached,
     dao_get_template_versions,
     dao_redact_template,
     dao_update_template,
@@ -235,11 +234,7 @@ def get_all_templates_for_service(service_id):
 
 @template_blueprint.route("/<uuid:template_id>", methods=["GET"])
 def get_template_by_id_and_service_id(service_id, template_id):
-    if current_app.config.get("FF_USE_DOGPILE_CACHING", False) is True:
-        return jsonify(data=dao_get_template_by_id_cached(template_id, service_id))
-
-    fetched_template = dao_get_template_by_id_and_service_id(template_id=template_id, service_id=service_id)
-    data = template_schema.dump(fetched_template)
+    data = dao_get_template_by_id_and_service_id(template_id, service_id, use_dogpile=True)
     return jsonify(data=data)
 
 
