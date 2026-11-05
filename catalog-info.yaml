@@ -9,7 +9,6 @@ metadata:
   description: REST API service for GC Notification.
   annotations:
     github.com/project-slug: cds-snc/notification-api
-    backstage.io/source-location: url:https://github.com/cds-snc/notification-api/tree/main/
   labels:
     license: MIT
 spec:
