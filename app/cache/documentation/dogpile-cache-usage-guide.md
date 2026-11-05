@@ -19,7 +19,7 @@ def dao_fetch_service_by_id_cached(service_id: str, only_active=False) -> dict:
 Rules:
 
 - Return JSON-serializable data (dictionaries, lists, strings, numbers), never ORM objects.
-- `group_by` must be a parameter of the function. Decoration fails with a `TypeError` otherwise.
+- `group_by` should name the function parameter whose value identifies the cache group.
 - The namespace decides the key style, region and removal method. You do not choose them in the decorator.
 - Use `should_cache_fn` to skip caching some results, for example `lambda value: value is not None` so misses are not cached.
 

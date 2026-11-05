@@ -55,7 +55,7 @@ Two helpers matter for tests and deletion:
 - `group_by` must be a parameter of the function, otherwise `TypeError`.
 - An exact namespace requires the function to take only the `group_by` parameter, otherwise `TypeError`.
 
-It also stamps `fn.__cache_group__ = (namespace, group_by)`, which the key generator uses to compose they cache keys.
+It also stamps `fn.__cache_group__ = (namespace, group_by)`, which the key generator uses to compose the cache keys.
 
 Two wrappers sit around your function:
 
@@ -258,7 +258,7 @@ Other details worth knowing:
 - Deletion happens after commit and is not retried. A Redis outage at that moment leaves stale entries until their freshness window ends.
 - The lock timeout is 5 seconds. A creator slower than that can run in more than one worker.
 
-## Where to make changes what
+## Where to make changes
 
 | To change | Edit |
 |---|---|

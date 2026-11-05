@@ -24,7 +24,7 @@ flowchart LR
     F --> D
 ```
 
-The cache stores plain dictionaries (as JSON), not ORM objects, because ORM objects cannot be shared between processes without complex cache -> session rehydration any synchronization machinery. DAO functions that opt in, via the `use_dogpile` parameter, always return a dictionary when asked for Dogpile data. This holds true even when `FF_USE_DOGPILE_CACHING` is off or Redis is unavailable, in which case they read the database and return the same dictionary shape. Calls that do not opt in keep returning ORM objects.
+The cache stores plain dictionaries (as JSON), not ORM objects, because ORM objects cannot be shared between processes without complex cache-to-session rehydration and synchronization machinery. DAO functions that opt in, via the `use_dogpile` parameter, always return a dictionary when asked for Dogpile data. This holds true even when `FF_USE_DOGPILE_CACHING` is off or Redis is unavailable, in which case they read the database and return the same dictionary shape. Calls that do not opt in keep returning ORM objects.
 
 ## What we store
 
