@@ -10,7 +10,7 @@ def test_save_login_event_should_create_new_login_event(sample_user):
 
 
 def test_list_login_events(sample_login_event):
-    LoginEvent(**{"user": sample_login_event.user, "data": {}})
+    save_login_event(LoginEvent(**{"user": sample_login_event.user, "data": {}}))
 
     keys = list_login_events(sample_login_event.user.id)
     assert len(keys) == 2
