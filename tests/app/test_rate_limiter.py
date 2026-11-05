@@ -395,10 +395,11 @@ class TestRedisTokenBucketRateLimiter:
     def test_acquire_lease_exceeding_capacity_fails(self, client, limiter):
         # Fill the bucket then request 1 more — must be denied
         with client.application.app_context():
-            limiter.acquire_lease(16)
-            allow_send, wait_seconds = limiter.acquire_lease(1)
-            assert allow_send is False
-            assert wait_seconds > 0
+            with patch("app.rate_limiter.time", return_value=100.0):
+                limiter.acquire_lease(16)
+                allow_send, wait_seconds = limiter.acquire_lease(1)
+                assert allow_send is False
+                assert wait_seconds > 0
 
     def test_acquire_with_zero_parts_raises_error(self, client, limiter):
         with client.application.app_context():

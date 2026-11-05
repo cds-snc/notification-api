@@ -13,7 +13,7 @@ down_revision = '0498_add_table_metadata'
 
 def index_exists(name):
     connection = op.get_bind()
-    result = connection.execute(
+    result = connection.exec_driver_sql(
         "SELECT exists(SELECT 1 from pg_indexes where indexname = '{}') as ix_exists;".format(name)
     ).first()
     return result.ix_exists

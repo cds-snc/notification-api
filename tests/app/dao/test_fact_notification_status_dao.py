@@ -892,7 +892,7 @@ class TestFetchDeliveredNotificationStatsbyMonth:
 
         assert len(results) == 5
 
-        assert results[0].keys() == ["month", "notification_type", "count"]
+        assert list(results[0]._mapping.keys()) == ["month", "notification_type", "count"]
 
         assert results[0].month.startswith("2020-04-01")
         assert results[0].notification_type == "email"

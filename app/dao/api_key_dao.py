@@ -102,7 +102,7 @@ def get_api_key_by_secret(secret, service_id=None):
     signed_with_all_keys = signer_api_key.sign_with_all_keys(str(token))
     for signed_secret in signed_with_all_keys:
         try:
-            api_key = db.on_reader().query(ApiKey).filter_by(_secret=signed_secret).options(joinedload("service")).one()
+            api_key = db.on_reader().query(ApiKey).filter_by(_secret=signed_secret).options(joinedload(ApiKey.service)).one()
         except NoResultFound:
             raise NoResultFound()
 
