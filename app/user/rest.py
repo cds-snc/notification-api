@@ -36,7 +36,6 @@ from app.dao.users_dao import (
     create_user_code,
     dao_archive_user,
     dao_deactivate_user,
-    dao_get_user_by_id_cached,
     get_user_and_accounts,
     get_user_by_email,
     get_user_by_id,
@@ -605,8 +604,8 @@ def send_new_template_category_request(user_id):
 @user_blueprint.route("/<uuid:user_id>", methods=["GET"])
 @user_blueprint.route("", methods=["GET"])
 def get_user(user_id=None):
-    if user_id and current_app.config.get("FF_USE_DOGPILE_CACHING", False) is True:
-        return jsonify(data=dao_get_user_by_id_cached(user_id))
+    if user_id:
+        return jsonify(data=get_user_by_id(user_id, use_dogpile=True))
 
     users = get_user_by_id(user_id=user_id)
     result = [x.serialize() for x in users] if isinstance(users, list) else users.serialize()
@@ -1009,17 +1008,17 @@ def send_annual_usage_data(user_id, start_year, end_year, markdown_en, markdown_
     per service.
 
     """
-    user = get_user_by_id(user_id=user_id)
+    user_data = get_user_by_id(user_id, use_dogpile=True)
     template = dao_get_template_by_id(current_app.config["ANNUAL_LIMIT_QUARTERLY_USAGE_TEMPLATE_ID"])
     service = Service.query.get(current_app.config["NOTIFY_SERVICE_ID"])
 
     saved_notification = persist_notification(
         template_id=template.id,
         template_version=template.version,
-        recipient=user.email_address,
+        recipient=user_data["email_address"],
         service=service,
         personalisation={
-            "name": user.name,
+            "name": user_data["name"],
             "start_year": start_year,
             "end_year": end_year,
             "data_for_each_service_en": markdown_en,
