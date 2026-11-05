@@ -603,10 +603,9 @@ def get_all_notifications_for_service(service_id):
 
 @service_blueprint.route("/<uuid:service_id>/notifications/scheduled", methods=["GET"])
 def get_scheduled_notifications_for_service(service_id):
-    page = request.args.get("page", 1, type=int)
-    page_size = request.args.get("page_size", current_app.config.get("PAGE_SIZE"), type=int)
-    if page < 1 or page_size < 1:
-        raise InvalidRequest("page and page_size must be positive integers", status_code=400)
+    data = notifications_filter_schema.load(request.args)
+    page = data.get("page", 1)
+    page_size = data.get("page_size", current_app.config.get("PAGE_SIZE"))
 
     pagination = notifications_dao.dao_get_scheduled_one_off_notifications_for_service(service_id, page=page, page_size=page_size)
     return (
