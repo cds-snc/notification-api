@@ -1,12 +1,13 @@
-from functools import cached_property, partial
+from functools import cached_property
 from time import perf_counter
 from typing import Any, Optional
 
 import greenlet  # type: ignore
 import sqlalchemy.types as types
-from flask import Flask
-from flask_sqlalchemy import BaseQuery, SignallingSession, SQLAlchemy, get_state
-from sqlalchemy import event, orm
+from flask import Flask, current_app
+from flask_sqlalchemy import SQLAlchemy
+from flask_sqlalchemy.session import Session
+from sqlalchemy import event
 
 
 # adapted from https://r2c.dev/blog/2020/fixing-leaky-logs-how-to-find-a-bug-and-ensure-it-never-returns/
@@ -29,35 +30,33 @@ class SensitiveString(types.TypeDecorator):
         return str(value) if value else None
 
 
-class ExplicitRoutingSession(SignallingSession):
+class ExplicitRoutingSession(Session):
     """
     This session implementation will route to explicitly named bind.
     If no bind is mentioned with the session via the `using_bind` function,
     then the `reader` bind will get returned instead.
     """
 
-    _name: Optional[str] = None
+    def __init__(self, db, **kwargs):
+        super().__init__(db, **kwargs)
+        self._name: Optional[str] = None
 
-    def get_bind(self, mapper=None, clause=None):
+    def get_bind(self, mapper=None, clause=None, bind=None, **kwargs):
         # If reader and writer binds are not configured,
         # connect using the default SQLALCHEMY_DATABASE_URI
         if not self.binds_setup:
-            return super().get_bind(mapper, clause)
+            return super().get_bind(mapper=mapper, clause=clause, bind=bind, **kwargs)
 
-        return self.load_balance(mapper, clause)
-
-    def load_balance(self, mapper=None, clause=None):
         # Use the explicit name if present
         if self._name and not self._flushing:
-            bind = self._name
+            bind_name = self._name
             self._name = None
-            self.app.logger.debug(f"Connecting -> {bind}")
-            return get_state(self.app).db.get_engine(self.app, bind=bind)
+            current_app.logger.debug(f"Connecting -> {bind_name}")
+            return self._db.engines[bind_name]
 
         # Everything else goes to the writer engine
-        else:
-            self.app.logger.debug("Connecting -> writer")
-            return get_state(self.app).db.get_engine(self.app, bind="writer")
+        current_app.logger.debug("Connecting -> writer")
+        return self._db.engines["writer"]
 
     def using_bind(self, name: str):
         self._name = name
@@ -65,21 +64,21 @@ class ExplicitRoutingSession(SignallingSession):
 
     @cached_property
     def binds_setup(self):
-        binds = self.app.config["SQLALCHEMY_BINDS"] or {}
+        binds = current_app.config["SQLALCHEMY_BINDS"] or {}
         return all([k in binds for k in ["reader", "writer"]])
 
 
 class RoutingSQLAlchemy(SQLAlchemy):
     SensitiveString = SensitiveString
 
+    def __init__(self, *args, **kwargs):
+        session_options = dict(kwargs.pop("session_options", {}) or {})
+        session_options.setdefault("class_", ExplicitRoutingSession)
+        session_options.setdefault("scopefunc", greenlet.getcurrent)
+        super().__init__(*args, session_options=session_options, **kwargs)
+
     def on_reader(self):
         return self.session().using_bind("reader")
-
-    def create_scoped_session(self, options=None):
-        options = options or {}
-        options.setdefault("query_cls", BaseQuery)
-
-        return orm.scoped_session(partial(ExplicitRoutingSession, self, **options), scopefunc=greenlet.getcurrent)
 
 
 def enable_sqlalchemy_debug_logging(app: Flask, db: RoutingSQLAlchemy) -> None:
@@ -90,7 +89,7 @@ def enable_sqlalchemy_debug_logging(app: Flask, db: RoutingSQLAlchemy) -> None:
     bind_names = list(binds.keys()) if binds else [None]
 
     for bind in bind_names:
-        engine = db.get_engine(app, bind=bind)
+        engine = db.engines[bind]
 
         if getattr(engine, "_notify_debug_events_attached", False):
             continue

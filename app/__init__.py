@@ -104,6 +104,17 @@ def create_app(application, config=None):
     else:
         application.config.from_object(config)
 
+    def use_psycopg2(uri):
+        if uri and uri.startswith("postgresql://"):
+            return uri.replace("postgresql://", "postgresql+psycopg2://", 1)
+        return uri
+
+    for key in ("SQLALCHEMY_DATABASE_URI", "SQLALCHEMY_DATABASE_READER_URI"):
+        application.config[key] = use_psycopg2(application.config.get(key))
+    for bind, uri in (application.config.get("SQLALCHEMY_BINDS") or {}).items():
+        if isinstance(uri, str):
+            application.config["SQLALCHEMY_BINDS"][bind] = use_psycopg2(uri)
+
     application.config["NOTIFY_APP_NAME"] = application.name
     init_app(application)
     application.json = NotifyJSONProvider(application)
