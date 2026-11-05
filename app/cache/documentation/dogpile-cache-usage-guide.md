@@ -61,6 +61,52 @@ def dao_get_template_by_id_cached(template_id, service_id) -> dict:
   become part of the cache fingerprint automatically.
 - Use the same namespace in the decorator and the corresponding invalidation
   registry rules.
+- Pass `should_cache_fn` to skip caching some results, for example
+  `should_cache_fn=lambda value: value is not None` to avoid caching misses.
+- Do not choose a region or key strategy in the decorator; they come from the
+  namespace's entry in `CACHE_NAMESPACES`.
+
+### High-churn entities (exact keys)
+
+For entities that change often or are written in bulk, register the namespace
+as exact and short-lived with one line in `CACHE_NAMESPACES` (`app/caching.py`):
+
+```python
+"notification": CacheNamespace(key_strategy=KEY_STRATEGY_EXACT, region=REGION_SHORT_LIVED),
+```
+
+The decorator usage is unchanged, but the function may only take the
+`group_by` argument (enforced at import time) because the key is exactly
+`<namespace>:<id>`. Do any extra scoping, such as an ownership check, in a
+wrapper after the cached read:
+
+```python
+@cache_on_arguments(namespace="notification", group_by="notification_id",
+                    should_cache_fn=lambda snapshot: snapshot is not None)
+def dao_get_notification_snapshot_cached(notification_id): ...
+
+
+def get_cached_notification_snapshot(service_id, notification_id):
+    snapshot = dao_get_notification_snapshot_cached(notification_id)
+    if snapshot is None or snapshot["service_id"] != str(service_id):
+        return None
+    return snapshot
+```
+
+Invalidation is a batched `UNLINK` instead of a prefix scan. The short TTL
+(`DOGPILE_SHORT_LIVED_CACHE_EXPIRATION`) is the freshness guarantee, and
+invalidation is a best-effort shortcut. For bulk paths that bypass ORM events
+(`bulk_save_objects`, `UPDATE ... RETURNING id`), queue the affected IDs
+explicitly so they are invalidated after commit:
+
+```python
+from app.cache.cache_events import queue_cache_invalidations
+
+queue_cache_invalidations(db.session, Notification, id=notification_ids)
+```
+
+Cached dogpile helpers such as `.invalidate()`, `.refresh()`, `.get()`, and
+`.set()` work on every decorated function regardless of strategy.
 
 ## Using and updating the invalidation registry
 
@@ -212,10 +258,53 @@ execution metadata to automatically handle cache invalidation. Replace them
 with modern `update(Model)` or `delete(Model)` statements executed through
 the session and wrapped with `cache_invalidating_dml`.
 
+## Timing cached reads (WIP, need to finish the analysis jupyter notebook and document it here)
+
+`cache_on_arguments` automatically emits one `dao.execution_time` record per
+call, including calls that reuse a cached value without executing the DAO body.
+Do not also apply `log_execution_time` to the cached DAO: that would emit
+duplicate timings. The function name and `elapsed_ms` prefix remain compatible
+with the cache performance analysis notebook.
+
+Records include `cache_namespace` and `cache_outcome`:
+
+- `regenerated`: this call executed the creator and returned successfully.
+- `reused`: this call returned without executing the creator. This includes
+  stale values served while another caller regenerates; it is not necessarily
+  a fresh hit.
+- `error`: the cache call failed; the original exception is propagated.
+
+Elapsed time covers the complete cached call, including key generation, cache
+access, lock waiting, and serialization or DAO execution where applicable.
+No extra Redis lookup is made to classify the outcome. Keys, IDs, and payloads
+are not logged.
+
+For CloudWatch Logs Insights exports, include all DAO timing records rather
+than selecting only uncached function names:
+
+```text
+fields @timestamp, @message
+| filter @message like /dao\.execution_time/
+| sort @timestamp asc
+| limit 10000
+```
+
+Use matching time windows and check whether the result limit truncates either
+environment. Cached service and template calls should appear under
+`dao_fetch_service_by_id_cached` and `dao_get_template_by_id_cached` respectively.
+If they remain absent, confirm the deployed version, effective
+`FF_USE_DOGPILE_CACHING` value, and traffic to the flag-controlled GET routes.
+Enabling the flag does not redirect other callers of the uncached DAOs.
+
+Notification snapshot reads appear under `dao_get_notification_snapshot_cached`
+with `cache_namespace=notification`.
+
 ## Implementation checklist
 
 - Add a cached DAO returning a JSON-safe value.
 - Set `namespace` and `group_by` to the cache owner's namespace and ID argument.
+- For high-churn entities, register the namespace as exact/short-lived in
+  `CACHE_NAMESPACES` and keep the function's only argument the `group_by` ID.
 - Ensure that the model <-> Cache mappings in `CACHE_INVALIDATION_REGISTRY` are up to date.
 - Wrap every relevant direct `UPDATE` and `DELETE` with
   `cache_invalidating_dml` and use modern `update(model)` / `delete(model)` calls.

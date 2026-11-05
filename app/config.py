@@ -228,6 +228,7 @@ class Config(object):
 
     # Dogpile caching
     DOGPILE_CACHE_EXPIRATION = 600
+    DOGPILE_SHORT_LIVED_CACHE_EXPIRATION = env.int("DOGPILE_SHORT_LIVED_CACHE_EXPIRATION", 60)
     DOGPILE_CACHE_BACKEND = "dogpile.cache.redis"
 
     # Performance platform

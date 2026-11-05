@@ -7,9 +7,10 @@ from notifications_utils.letter_timings import (
     letter_can_be_cancelled,
 )
 from notifications_utils.statsd_decorators import statsd
-from sqlalchemy import asc, desc, func
+from sqlalchemy import asc, desc, func, update
 
 from app import db
+from app.cache.cache_events import queue_cache_invalidations
 from app.dao.dao_utils import transactional
 from app.dao.date_util import get_query_date_based_on_retention_period
 from app.dao.fact_notification_status_dao import fetch_notification_statuses_for_job_batch
@@ -257,13 +258,23 @@ def dao_get_jobs_older_than_data_retention(notification_types, limit=None):
 
 @transactional
 def dao_cancel_letter_job(job):
-    number_of_notifications_cancelled = Notification.query.filter(Notification.job_id == job.id).update(
-        {
-            "status": NOTIFICATION_CANCELLED,
-            "updated_at": datetime.utcnow(),
-            "billable_units": 0,
-        }
+    notification_ids = (
+        db.session.execute(
+            update(Notification)
+            .where(Notification.job_id == job.id)
+            .values(
+                status=NOTIFICATION_CANCELLED,
+                updated_at=datetime.utcnow(),
+                billable_units=0,
+            )
+            .returning(Notification.id)
+            .execution_options(synchronize_session=False)
+        )
+        .scalars()
+        .all()
     )
+    queue_cache_invalidations(db.session, Notification, id=notification_ids)
+    number_of_notifications_cancelled = len(notification_ids)
     job.job_status = JOB_STATUS_CANCELLED
     dao_update_job(job)
     return number_of_notifications_cancelled
