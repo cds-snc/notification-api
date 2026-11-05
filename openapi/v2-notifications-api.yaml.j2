@@ -1305,7 +1305,7 @@ paths:
       description: |
         {{ t("Create a new template folder, either at the root of the service or inside a parent folder.") }}
 
-        {{ t("Root folders are shared with all active users on the service. Subfolders inherit user access from their parent folder.") }}
+        {{ t("Root folders are shared with all team members on the service. Subfolders inherit access from their parent folder.") }}
 
         {{ t("This endpoint requires a NEW API key with the manage_templates permission.") }}
       operationId: postManageTemplateFolder
@@ -1349,7 +1349,7 @@ paths:
                       - error: "ValidationError"
                         message: "name is a required property"
                 empty_name:
-                  summary: {{ t("Folder name is empty") }}
+                  summary: {{ t("Folder name cannot be empty") }}
                   value:
                     status_code: 400
                     errors:
@@ -1479,7 +1479,7 @@ paths:
       description: |
         {{ t("Rename a template folder and/or move it to a different parent folder. Set parent_folder_id to null to move the folder to the root of the service.") }}
 
-        {{ t("When a folder is moved into a parent folder, it and its subfolders are only visible to users who also have access to the new parent folder.") }}
+        {{ t("When a folder is moved into a parent folder, it and its subfolders are only visible to team members who also have access to the new parent folder.") }}
 
         {{ t("This endpoint requires a NEW API key with the manage_templates permission.") }}
       operationId: patchManageTemplateFolder
@@ -1533,7 +1533,7 @@ paths:
                       - error: "ValidationError"
                         message: "id is not a valid UUID"
                 empty_name:
-                  summary: {{ t("Folder name is empty") }}
+                  summary: {{ t("Folder name cannot be empty") }}
                   value:
                     status_code: 400
                     errors:
@@ -2866,7 +2866,7 @@ components:
           nullable: true
         users_with_permission:
           type: array
-          description: {{ t("IDs of the service users who can access this folder") }}
+          description: {{ t("IDs of the service team members who can access this folder") }}
           items:
             $ref: '#/components/schemas/UUID'
       required:
