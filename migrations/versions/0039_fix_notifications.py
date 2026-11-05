@@ -10,7 +10,6 @@ Create Date: 2016-07-06 13:28:48.381278
 revision = "0039_fix_notifications"
 down_revision = "0038_test_api_key_type"
 
-import sqlalchemy as sa
 from alembic import op
 
 
@@ -26,7 +25,7 @@ def upgrade():
     op.execute(reset_counts)
     all_notifications = "select * from notifications where date(created_at) > '2016-06-30' order by created_at;"
 
-    results = conn.execute(all_notifications)
+    results = conn.exec_driver_sql(all_notifications)
     res = results.fetchall()
 
     for x in res:
@@ -81,7 +80,7 @@ def upgrade():
                 " where day = date('{}') and service_id = '{}'".format(created, x.service_id)
             )
         print(sql)
-        conn.execute(sql)
+        conn.exec_driver_sql(sql)
 
 
 def downgrade():

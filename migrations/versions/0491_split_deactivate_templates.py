@@ -119,7 +119,7 @@ def upgrade():
 
     # bump versions for updates
     for t in templates_to_update:
-        current_version = conn.execute("select version from templates where id='{}'".format(t["id"])).fetchone()
+        current_version = conn.exec_driver_sql("select version from templates where id='{}'".format(t["id"])).fetchone()
         t["version"] = (current_version[0] if current_version and current_version[0] is not None else 0) + 1
 
     template_update = """
