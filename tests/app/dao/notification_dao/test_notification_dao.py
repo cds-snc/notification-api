@@ -1641,9 +1641,9 @@ def test_dao_get_last_notification_added_for_job_id_valid_job_id(sample_template
         processing_started=datetime.utcnow() - timedelta(minutes=31),
         job_status=JOB_STATUS_IN_PROGRESS,
     )
-    create_notification(sample_template, job, 0)
-    create_notification(sample_template, job, 1)
-    last = create_notification(sample_template, job, 2)
+    save_notification(create_notification(sample_template, job, 0))
+    save_notification(create_notification(sample_template, job, 1))
+    last = save_notification(create_notification(sample_template, job, 2))
 
     assert dao_get_last_notification_added_for_job_id(job.id) == last
 
