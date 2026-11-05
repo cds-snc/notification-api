@@ -5,7 +5,6 @@ Revises: 0302_add_org_id_to_services
 Create Date: 2019-08-06 09:43:57.993510
 
 """
-import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.sql import text
 
@@ -15,7 +14,7 @@ down_revision = "0302_add_org_id_to_services"
 
 def upgrade():
     conn = op.get_bind()
-    results = conn.execute("select service_id, organisation_id from organisation_to_service")
+    results = conn.exec_driver_sql("select service_id, organisation_id from organisation_to_service")
     org_to_service = results.fetchall()
     for x in org_to_service:
         sql = """
@@ -25,28 +24,26 @@ def upgrade():
         """
         conn.execute(
             text(sql),
-            service_id=str(x.service_id),
-            organisation_id=str(x.organisation_id),
+            {"service_id": str(x.service_id), "organisation_id": str(x.organisation_id)},
         )
         history_sql = """
             UPDATE services_history
                SET organisation_id = :organisation_id
             WHERE id = :service_id
-              AND version = (select max(version) from services_history sh2 where id = services_history.id); 
+              AND version = (select max(version) from services_history sh2 where id = services_history.id);
         """
         conn.execute(
             text(history_sql),
-            service_id=str(x.service_id),
-            organisation_id=str(x.organisation_id),
+            {"service_id": str(x.service_id), "organisation_id": str(x.organisation_id)},
         )
 
 
 def downgrade():
     conn = op.get_bind()
 
-    results = conn.execute("select id, organisation_id from services where organisation_id is not null")
+    results = conn.exec_driver_sql("select id, organisation_id from services where organisation_id is not null")
     services = results.fetchall()
-    results_2 = conn.execute("select service_id, organisation_id from organisation_to_service")
+    results_2 = conn.exec_driver_sql("select service_id, organisation_id from organisation_to_service")
     org_to_service = results_2.fetchall()
 
     for x in services:
@@ -59,8 +56,7 @@ def downgrade():
             """
             conn.execute(
                 text(update_sql),
-                service_id=str(x.id),
-                organisation_id=str(x.organisation_id),
+                {"service_id": str(x.id), "organisation_id": str(x.organisation_id)},
             )
         elif len(os) == 0:
             insert_sql = """
@@ -68,8 +64,7 @@ def downgrade():
             """
             conn.execute(
                 text(insert_sql),
-                service_id=str(x.id),
-                organisation_id=str(x.organisation_id),
+                {"service_id": str(x.id), "organisation_id": str(x.organisation_id)},
             )
         else:
             raise Exception("should only have 1 row. Service_id {},  orgid: {}".format(x.id, x.organisation_id))

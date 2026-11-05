@@ -10,9 +10,7 @@ Create Date: 2017-06-08 15:46:49.637642
 revision = "0096_update_job_stats"
 down_revision = "0095_migrate_existing_svc_perms"
 
-import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.dialects import postgresql
 
 
 def upgrade():
@@ -24,11 +22,11 @@ def upgrade():
     )
 
     conn = op.get_bind()
-    conn.execute(query)
+    conn.exec_driver_sql(query)
 
 
 def downgrade():
     query = "UPDATE job_statistics  " "set sent = 0, " " delivered = 0, " " failed = 0 "
 
     conn = op.get_bind()
-    conn.execute(query)
+    conn.exec_driver_sql(query)
