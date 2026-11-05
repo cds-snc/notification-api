@@ -412,6 +412,42 @@ def test_should_reject_email_notification_with_bad_email(notify_api, sample_emai
             assert data["message"]["to"][0] == "Not a valid email address"
 
 
+def test_should_reject_email_notification_with_document_personalisation(
+    notify_api, sample_email_template, mocker, mock_annual_limits
+):
+    with notify_api.test_request_context():
+        with notify_api.test_client() as client:
+            mocked = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
+            data = {
+                "to": "ok@ok.com",
+                "template": str(sample_email_template.id),
+                "personalisation": {
+                    "name": {
+                        "document": {
+                            "id": "11111111-2222-3333-4444-555555555555",
+                            "direct_file_url": "http://169.254.169.254/latest/meta-data/",
+                            "sending_method": "attach",
+                            "filename": "x",
+                            "mime_type": "text/plain",
+                        }
+                    }
+                },
+            }
+            auth_header = create_authorization_header(service_id=sample_email_template.service_id)
+
+            response = client.post(
+                path="/notifications/email",
+                data=json.dumps(data),
+                headers=[("Content-Type", "application/json"), auth_header],
+            )
+
+            data = json.loads(response.get_data(as_text=True))
+            mocked.assert_not_called()
+            assert response.status_code == 400
+            assert data["message"]["personalisation"][0] == "File attachments are not supported by this endpoint"
+            assert Notification.query.count() == 0
+
+
 @freeze_time("2016-01-01 11:09:00.061258")
 def test_should_allow_valid_email_notification(notify_api, sample_email_template, mocker):
     with notify_api.test_request_context():

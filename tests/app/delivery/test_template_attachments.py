@@ -422,10 +422,10 @@ class TestSendEmailToProviderWithTemplateAttachments:
                     "document": {
                         "document": {
                             "sending_method": "attach",
-                            "direct_file_url": "http://example.com/payload.pdf",
+                            "direct_file_url": "http://example.com/payload.pdf?key=abc-123_XYZ&sending_method=attach",
                             "filename": "payload.pdf",
                             "mime_type": "application/pdf",
-                            "id": "payload-doc-123",
+                            "id": str(uuid.uuid4()),
                         }
                     }
                 },
