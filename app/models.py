@@ -1289,10 +1289,8 @@ class TemplateBase(BaseModel):
     @process_type.expression
     def _process_type(self):
         return db.case(
-            [
-                (self.template_type == "sms", db.coalesce(self.process_type_column, self.template_category.sms_process_type)),
-                (self.template_type == "email", db.coalesce(self.process_type_column, self.template_category.email_process_type)),
-            ],
+            (self.template_type == "sms", db.coalesce(self.process_type_column, self.template_category.sms_process_type)),
+            (self.template_type == "email", db.coalesce(self.process_type_column, self.template_category.email_process_type)),
             else_=self.process_type_column,
         )
 
