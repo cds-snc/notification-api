@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gcnotify"
+version = "1.0.0"
+description = "GC Notify API Python client layer"
+readme = "README.md"
+requires-python = ">=3.10,<3.15"
+dependencies = [
+    "httpx>=0.28.1",
+    "pandas>=3.1.0"  # required for JSON Safety function
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
