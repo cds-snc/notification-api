@@ -569,7 +569,7 @@ def triage_notification_to_queues(notification_type: NotificationType, signed_no
             email_bulk_publish.publish(signed_notification_data)
 
 
-def parse_scheduled_for(scheduled_for: str) -> datetime:
+def parse_scheduled_datetime(scheduled_for: str) -> datetime:
     # scheduled_for is UTC already, same as the bulk/job scheduling endpoint - accepts full ISO 8601
     return parse_date(scheduled_for).replace(tzinfo=None)
 
@@ -578,7 +578,7 @@ def is_scheduled_for_a_later_day(scheduled_for: Optional[str]) -> bool:
     """True if a notification is scheduled to be sent after today (UTC, same as the daily limit counts)."""
     if not scheduled_for:
         return False
-    return parse_scheduled_for(scheduled_for).date() > datetime.utcnow().date()
+    return parse_scheduled_datetime(scheduled_for).date() > datetime.utcnow().date()
 
 
 def persist_scheduled_one_off_notification(notification: Notification, scheduled_for: str) -> ScheduledNotification:
@@ -595,7 +595,7 @@ def persist_scheduled_one_off_notification(notification: Notification, scheduled
         client_reference=notification.client_reference,
         reply_to_text=notification.reply_to_text,
         billable_units=notification.billable_units or 0,
-        scheduled_for=parse_scheduled_for(scheduled_for),
+        scheduled_for=parse_scheduled_datetime(scheduled_for),
         created_at=notification.created_at,
     )
     scheduled_notification._personalisation = notification._personalisation
