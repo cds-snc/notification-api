@@ -701,7 +701,7 @@ def validate_personalisation_size(json_personalisation):
         errors.append(
             {
                 "error": "ValidationError",
-                "message": f"Personalisation variables size of {size_all_values} bytes is greater than allowed limit of {size_limit} characters.",
+                "message": f"Personalisation variables size of {size_all_values} characters is greater than allowed limit of {size_limit} characters.",
             }
         )
 
