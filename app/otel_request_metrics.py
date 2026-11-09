@@ -120,7 +120,8 @@ def init_otel_request_metrics(app: Flask) -> None:
 
         for bind in bind_names:
             try:
-                engine = _db.engines[bind if bind != "default" else None]
+                with app.app_context():
+                    engine = _db.engines[bind if bind != "default" else None]
                 bind_stats = {}
                 for stat in stat_names:
                     fn = getattr(engine.pool, stat, None)

@@ -89,7 +89,8 @@ def enable_sqlalchemy_debug_logging(app: Flask, db: RoutingSQLAlchemy) -> None:
     bind_names = list(binds.keys()) if binds else [None]
 
     for bind in bind_names:
-        engine = db.engines[bind]
+        with app.app_context():
+            engine = db.engines[bind]
 
         if getattr(engine, "_notify_debug_events_attached", False):
             continue
