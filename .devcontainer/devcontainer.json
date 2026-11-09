@@ -52,7 +52,7 @@
 	},
 	"features": {
 		"docker-from-docker": {
-			"moby": true
+			"moby": false
 		},
 		"kubectl-helm-minikube": {
 			"version": "v1.35.1",
