@@ -1512,6 +1512,7 @@ def create_email_sms_letter_template():
     return template_one, template_three, template_two
 
 
+@pytest.mark.usefixtures("notify_db_session")
 class TestServiceEmailLimits:
     def test_get_email_count_for_service(self):
         active_user_1 = create_user(email="active1@foo.com", state="active")
