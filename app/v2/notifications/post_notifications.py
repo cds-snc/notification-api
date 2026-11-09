@@ -65,6 +65,7 @@ from app.notifications.process_notifications import (
 )
 from app.notifications.validators import (
     check_email_annual_limit,
+    check_email_csv_rows_size,
     check_email_daily_limit,
     check_rate_limiting,
     check_service_email_reply_to_id,
@@ -214,6 +215,7 @@ def post_bulk():
         raise BadRequestError(message=f"Error converting to CSV: {str(e)}", status_code=400)
 
     check_for_csv_errors(recipient_csv, max_rows, remaining_daily_messages, remaining_annual_messages)
+    check_email_csv_rows_size(recipient_csv, template)
     notification_count_requested = len(recipient_csv.rows)
 
     # Pre-seed annual limit data in Redis to avoid slow database queries during limit checks

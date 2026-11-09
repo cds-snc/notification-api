@@ -1,10 +1,16 @@
+from types import SimpleNamespace
+
 import pytest
 from flask import current_app, json
 from notifications_python_client.authentication import create_jwt_token
+from notifications_utils.template import HTMLEmailTemplate
 
 from app.authentication.auth import AUTH_TYPES
 from app.models import EMAIL_TYPE
+from app.notifications.validators import _rendered_email_length_upper_bound, check_email_csv_rows_size
+from app.v2.errors import BadRequestError
 from tests import create_authorization_header
+from tests.app.conftest import create_sample_job
 from tests.app.db import create_template
 
 SIMULATED_EMAIL = "simulate-delivered@notification.canada.ca"
@@ -225,3 +231,168 @@ class TestEmailSizeLimits:
 
         assert response.status_code == 201
         assert mock_admin_send.called
+
+    # Bulk send (POST /v2/notifications/bulk) runs the same limits per CSV row
+
+    @pytest.fixture
+    def mock_bulk_job(self, mocker, notify_db, notify_db_session):
+        job = create_sample_job(notify_db=notify_db, notify_db_session=notify_db_session)
+        return mocker.patch("app.v2.notifications.post_notifications.create_bulk_job", return_value=job)
+
+    @staticmethod
+    def _post_bulk(client, service, template_id, rows):
+        return client.post(
+            "/v2/notifications/bulk",
+            data=json.dumps({"name": "job", "template_id": str(template_id), "rows": rows}),
+            headers=[("Content-Type", "application/json"), create_authorization_header(service_id=service.id)],
+        )
+
+    def test_bulk_row_rendered_body_over_50000_returns_400(self, client, sample_service, mock_bulk_job):
+        template = create_template(sample_service, template_type=EMAIL_TYPE, content="((payload))\nX\n((payload))")
+
+        response = self._post_bulk(
+            client, sample_service, template.id, [["email address", "payload"], ["a@example.ca", "A" * 26_000]]
+        )
+
+        assert response.status_code == 400
+        assert "Row 1" in response.get_data(as_text=True)
+        assert not mock_bulk_job.called
+
+    def test_bulk_row_personalisation_over_50000_returns_400(self, client, sample_service, mock_bulk_job):
+        template = create_template(sample_service, template_type=EMAIL_TYPE, content="((a))((b))")
+
+        response = self._post_bulk(
+            client,
+            sample_service,
+            template.id,
+            [["email address", "a", "b"], ["a@example.ca", "A" * 26_000, "B" * 26_000]],
+        )
+
+        assert response.status_code == 400
+        assert "Row 1" in response.get_data(as_text=True)
+        assert not mock_bulk_job.called
+
+    def test_bulk_rows_at_50000_returns_200(self, client, sample_service, mock_bulk_job):
+        template = create_template(sample_service, template_type=EMAIL_TYPE, content="((payload))")
+
+        address = "a@example.ca"
+        response = self._post_bulk(
+            client,
+            sample_service,
+            template.id,
+            [["email address", "payload"], [address, "A" * (STATIC_LIMIT - len(address))]],
+        )
+
+        assert response.status_code == 201, response.get_data(as_text=True)
+        assert mock_bulk_job.called
+
+    # CSV job route (POST /service/<id>/job) reads an uploaded file from S3
+
+    @staticmethod
+    def _create_job_from_csv(client, mocker, service, template, csv_text):
+        mocker.patch(
+            "app.job.rest.get_job_metadata_from_s3",
+            return_value={
+                "template_id": str(template.id),
+                "original_file_name": "big.csv",
+                "notification_count": "1",
+                "valid": "True",
+            },
+        )
+        mocker.patch("app.job.rest.get_job_from_s3", return_value=csv_text)
+        mocker.patch(
+            "app.notifications.validators.get_annual_limit_notifications_v2",
+            return_value={"total_email_fiscal_year_to_yesterday": 0, "total_sms_fiscal_year_to_yesterday": 0},
+        )
+        return client.post(
+            f"/service/{service.id}/job",
+            data=json.dumps({"id": "7b2f8a52-3c1e-4d7a-9e51-2f6a0c9d4b10", "created_by": str(service.users[0].id)}),
+            headers=[("Content-Type", "application/json"), create_authorization_header()],
+        )
+
+    def test_csv_job_row_rendered_body_over_50000_returns_400(self, client, mocker, sample_service):
+        template = create_template(sample_service, template_type=EMAIL_TYPE, content="((payload))\nX\n((payload))")
+        mock_create = mocker.patch("app.job.rest.dao_create_job")
+        csv_text = f"email address,payload\na@example.ca,{'A' * 26_000}\n"
+
+        response = self._create_job_from_csv(client, mocker, sample_service, template, csv_text)
+
+        assert response.status_code == 400
+        assert "Row 1" in response.get_data(as_text=True)
+        assert not mock_create.called
+
+    def test_csv_job_row_at_50000_is_accepted(self, client, mocker, sample_service):
+        template = create_template(sample_service, template_type=EMAIL_TYPE, content="((payload))")
+        mock_create = mocker.patch("app.job.rest.dao_create_job")
+        mocker.patch("app.celery.tasks.process_job.apply_async")
+        address = "a@example.ca"
+        csv_text = f"email address,payload\n{address},{'A' * (STATIC_LIMIT - len(address))}\n"
+
+        response = self._create_job_from_csv(client, mocker, sample_service, template, csv_text)
+
+        assert response.status_code == 201, response.get_data(as_text=True)
+        assert mock_create.called
+
+    # Bulk row check: a cheap upper bound skips rendering; rendering happens only near the limit.
+
+    @pytest.fixture
+    def app_ctx(self, notify_api):
+        with notify_api.app_context():
+            yield
+
+    @staticmethod
+    def _csv_stub(content, rows):
+        template = SimpleNamespace(template_type=EMAIL_TYPE, content=content, subject="Subject")
+        recipient_csv = SimpleNamespace(rows=[SimpleNamespace(index=i, personalisation=values) for i, values in enumerate(rows)])
+        return recipient_csv, template
+
+    @pytest.mark.parametrize(
+        "content, values",
+        [
+            ("((a))((a))((b))", {"a": "x" * 1000, "b": "y" * 500}),
+            ("Hi ((name))\n\n* ((item))\n* ((item))", {"name": "Bob", "item": "pen"}),
+            ("[link](https://example.ca/((path)))((path))", {"path": "abc"}),
+            ("((cond??line one\nline two))", {"cond": "yes"}),
+            ("((cond??line one\nline two))", {"cond": ""}),
+            ("é((a))🙂", {"a": "ü" * 300}),
+            ("((a))", {"a": ""}),
+        ],
+    )
+    def test_rendered_bound_is_never_below_exact_render(self, app_ctx, content, values):
+        bound = _rendered_email_length_upper_bound(content, values)
+        exact = HTMLEmailTemplate({"content": content, "subject": "s", "template_type": EMAIL_TYPE}, values=values).content_count
+
+        assert bound is not None
+        assert bound >= exact
+
+    def test_rendered_bound_is_none_when_value_missing(self):
+        assert _rendered_email_length_upper_bound("Hi ((name))", {}) is None
+
+    def test_csv_rows_under_limit_are_not_rendered(self, app_ctx, mocker):
+        spy = mocker.patch("app.notifications.validators.HTMLEmailTemplate", wraps=HTMLEmailTemplate)
+        recipient_csv, template = self._csv_stub(
+            "Hi ((name)), your order is ((order))",
+            [{"name": f"user{i}", "order": str(i)} for i in range(50_000)],
+        )
+
+        check_email_csv_rows_size(recipient_csv, template)
+
+        assert spy.call_count == 0
+
+    def test_csv_row_near_limit_is_rendered_and_rejected(self, app_ctx, mocker):
+        # Personalisation stays under 50,000 but the repeated variable pushes the rendered body over it.
+        spy = mocker.patch("app.notifications.validators.HTMLEmailTemplate", wraps=HTMLEmailTemplate)
+        recipient_csv, template = self._csv_stub("((a))((a))((a))", [{"a": "x" * 20_000}, {"a": "x" * 20_000}])
+
+        with pytest.raises(BadRequestError) as exc:
+            check_email_csv_rows_size(recipient_csv, template)
+
+        assert "Row 1" in exc.value.message
+        assert spy.call_count == 1
+
+    def test_csv_row_bound_over_limit_but_exact_under_is_accepted(self, app_ctx, mocker):
+        body = "B" * 49_999
+        recipient_csv, template = self._csv_stub(f"((a??{body}))", [{"a": "x"}])
+        assert len(template.content) > STATIC_LIMIT
+
+        check_email_csv_rows_size(recipient_csv, template)

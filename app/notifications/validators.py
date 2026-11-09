@@ -18,6 +18,7 @@ from notifications_utils.clients.redis.annual_limit import (
     TOTAL_SMS_BILLABLE_UNITS_FISCAL_YEAR_TO_YESTERDAY,
     TOTAL_SMS_FISCAL_YEAR_TO_YESTERDAY,
 )
+from notifications_utils.field import Field, Placeholder
 from notifications_utils.recipients import (
     get_international_phone_info,
     validate_and_format_email_address,
@@ -611,6 +612,40 @@ def check_email_content_char_count(content_count):
     if content_count > EMAIL_CHAR_COUNT_LIMIT:
         message = "Content for template has a character count greater than the limit of {}".format(EMAIL_CHAR_COUNT_LIMIT)
         raise BadRequestError(message=message)
+
+
+def _rendered_email_length_upper_bound(content, values):
+    """Overestimate the rendered length without rendering; None if a placeholder has no value to measure."""
+    # Multi-line conditional bodies turn each newline into "<br>" (+3 characters).
+    total = len(content) + 3 * content.count("\n")
+    for match in Field.placeholder_pattern.finditer(content):
+        name = Placeholder(match.group(1)).name
+        if name not in values:
+            return None
+        total += len(str(values[name]))
+    return total
+
+
+def check_email_csv_rows_size(recipient_csv, template):
+    """Apply the single-send email limits (personalisation and rendered body) to every CSV row."""
+    if template.template_type != EMAIL_TYPE:
+        return
+    for row in recipient_csv.rows:
+        values = {k: v for k, v in dict(row.personalisation).items() if v is not None}
+        _, errors = validate_personalisation_size(values)
+        if errors:
+            raise BadRequestError(message=f"Row {row.index + 1} - {errors[0]['message']}")
+        bound = _rendered_email_length_upper_bound(template.content, values)
+        if bound is not None and bound <= EMAIL_CHAR_COUNT_LIMIT:
+            continue
+        rendered_email = HTMLEmailTemplate(
+            {"content": template.content, "subject": template.subject, "template_type": EMAIL_TYPE},
+            values=values,
+        )
+        if rendered_email.content_count > EMAIL_CHAR_COUNT_LIMIT:
+            raise BadRequestError(
+                message=f"Row {row.index + 1} - has a character count greater than the limit of {EMAIL_CHAR_COUNT_LIMIT}"
+            )
 
 
 def validate_template(template_id, personalisation, service: Service, notification_type: NotificationType):
