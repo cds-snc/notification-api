@@ -311,8 +311,8 @@ class Config(object):
     OTEL_REQUEST_METRICS_ENABLED = env.bool("OTEL_REQUEST_METRICS_ENABLED", False)
     PAGE_SIZE = 50
     PERSONALISATION_SIZE_LIMIT = env.int(
-        "PERSONALISATION_SIZE_LIMIT", 1024 * 50
-    )  # 50k bytes limit by default for personalisation data per notification
+        "PERSONALISATION_SIZE_LIMIT", 50_000
+    )  # 50k character limit by default for personalisation data per notification, matching EMAIL_CHAR_COUNT_LIMIT
     API_PAGE_SIZE = 250
     MAX_VERIFY_CODE_COUNT = 10
     JOBS_MAX_SCHEDULE_HOURS_AHEAD = 96
