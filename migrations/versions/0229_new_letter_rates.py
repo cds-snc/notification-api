@@ -52,7 +52,7 @@ def upgrade():
             rate != 0.30
     """
         ),
-        start=START,
+        {"start": START},
     )
 
     for id, start_date, sheet_count, rate, crown, post_class in NEW_RATES:
@@ -63,12 +63,14 @@ def upgrade():
                 VALUES (:id, :start_date, :sheet_count, :rate, :crown, :post_class)
         """
             ),
-            id=id,
-            start_date=start_date,
-            sheet_count=sheet_count,
-            rate=rate,
-            crown=crown,
-            post_class=post_class,
+            {
+                "id": id,
+                "start_date": start_date,
+                "sheet_count": sheet_count,
+                "rate": rate,
+                "crown": crown,
+                "post_class": post_class,
+            },
         )
 
 
@@ -83,7 +85,7 @@ def downgrade():
             start_date = :start
     """
         ),
-        start=START,
+        {"start": START},
     )
 
     conn.execute(
@@ -97,5 +99,5 @@ def downgrade():
             end_date = :start
     """
         ),
-        start=START,
+        {"start": START},
     )
