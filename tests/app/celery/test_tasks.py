@@ -1643,7 +1643,7 @@ class TestSaveSmss:
 
         notification = _notification_json(template, to="6502532222")
         notification["sender_id"] = str(new_sender.id)
-        mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
+        mocker.patch("app.celery.provider_tasks.deliver_throttled_sms.apply_async")
 
         notification_id = uuid.uuid4()
         save_smss(service.id, [signer_notification.sign(notification)], notification_id)
