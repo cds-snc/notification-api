@@ -145,10 +145,10 @@ class TestEmailSizeLimits:
         assert mock_send_limits.called
 
     def test_send_single_variable_rendered_over_50000_chars_returns_400(self, client, sample_service, mock_send_limits):
-        # Value (50,001) is under the 51,200 personalisation limit, but the rendered body exceeds 50,000.
-        template = create_template(sample_service, template_type=EMAIL_TYPE, content="((payload))")
+        # Personalisation is at its limit, but one static character puts the rendered body over it.
+        template = create_template(sample_service, template_type=EMAIL_TYPE, content="S((payload))")
 
-        response = self._send(client, sample_service, template.id, {"payload": "A" * (STATIC_LIMIT + 1)})
+        response = self._send(client, sample_service, template.id, {"payload": "A" * PERSONALISATION_LIMIT})
 
         assert response.status_code == 400
         assert not mock_send_limits.called
