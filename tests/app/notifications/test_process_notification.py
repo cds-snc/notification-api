@@ -1568,7 +1568,7 @@ class TestDBSaveAndSendNotification:
             "app.notifications.process_notifications.redis_store.get_all_from_hash",
             return_value="cache",
         )
-        mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
+        mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
         daily_limit_cache = mocker.patch("app.notifications.process_notifications.redis_store.incr")
         template_usage_cache = mocker.patch("app.notifications.process_notifications.redis_store.increment_hash_value")
 

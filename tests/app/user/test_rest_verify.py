@@ -186,7 +186,7 @@ def test_send_user_sms_code(client, sample_user, sms_code_template, mocker, rese
 
     auth_header = create_authorization_header()
     mocked = mocker.patch("app.user.rest.create_secret_code", return_value="11111")
-    mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
+    mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
 
     resp = client.post(
         url_for("user.send_user_2fa_code", code_type="sms", user_id=sample_user.id),
@@ -204,8 +204,8 @@ def test_send_user_sms_code(client, sample_user, sms_code_template, mocker, rese
     assert str(notification.service_id) == current_app.config["NOTIFY_SERVICE_ID"]
     assert notification.reply_to_text == notify_service.get_default_sms_sender()
 
-    app.celery.provider_tasks.deliver_sms.apply_async.assert_called_once_with(
-        ([str(notification.id)]), queue="notify-internal-tasks", MessageGroupId=ANY
+    app.celery.provider_tasks.deliver_sms_rate_limited.apply_async.assert_called_once_with(
+        [str(notification.id), 1], queue="notify-internal-tasks", MessageGroupId=ANY
     )
 
 
@@ -216,7 +216,7 @@ def test_send_user_code_for_sms_with_optional_to_field(client, sample_user, sms_
     """
     to_number = "+447119876757"
     mocked = mocker.patch("app.user.rest.create_secret_code", return_value="11111")
-    mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
+    mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
     auth_header = create_authorization_header()
 
     resp = client.post(
@@ -229,8 +229,8 @@ def test_send_user_code_for_sms_with_optional_to_field(client, sample_user, sms_
     assert mocked.call_count == 1
     notification = Notification.query.first()
     assert notification.to == to_number
-    app.celery.provider_tasks.deliver_sms.apply_async.assert_called_once_with(
-        ([str(notification.id)]), queue="notify-internal-tasks", MessageGroupId=ANY
+    app.celery.provider_tasks.deliver_sms_rate_limited.apply_async.assert_called_once_with(
+        [str(notification.id), 1], queue="notify-internal-tasks", MessageGroupId=ANY
     )
 
 
@@ -241,7 +241,7 @@ def test_send_user_code_for_sms_respects_a_retry_time_delta(client, sample_user,
     """
     to_number = "+447119876757"
     mocked = mocker.patch("app.user.rest.create_secret_code", return_value="11111")
-    mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
+    mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
     auth_header = create_authorization_header()
 
     resp = client.post(
