@@ -7,7 +7,7 @@ from notifications_utils.template import HTMLEmailTemplate
 
 from app.authentication.auth import AUTH_TYPES
 from app.models import EMAIL_TYPE
-from app.notifications.validators import _rendered_email_length_upper_bound, check_email_csv_rows_size
+from app.notifications.validators import check_email_csv_rows_size
 from app.v2.errors import BadRequestError
 from tests import create_authorization_header
 from tests.app.conftest import create_sample_job
@@ -333,7 +333,7 @@ class TestEmailSizeLimits:
         assert response.status_code == 201, response.get_data(as_text=True)
         assert mock_create.called
 
-    # Bulk row check: a cheap upper bound skips rendering; rendering happens only near the limit.
+    # Bulk row check counts each row like HTMLEmailTemplate.content_count without building the template.
 
     @pytest.fixture
     def app_ctx(self, notify_api):
@@ -349,46 +349,56 @@ class TestEmailSizeLimits:
     @pytest.mark.parametrize(
         "content, values",
         [
-            ("((a))((a))((b))", {"a": "x" * 1000, "b": "y" * 500}),
-            ("Hi ((name))\n\n* ((item))\n* ((item))", {"name": "Bob", "item": "pen"}),
-            ("[link](https://example.ca/((path)))((path))", {"path": "abc"}),
-            ("((cond??line one\nline two))", {"cond": "yes"}),
-            ("((cond??line one\nline two))", {"cond": ""}),
-            ("é((a))🙂", {"a": "ü" * 300}),
-            ("((a))", {"a": ""}),
+            ("((a))((a))((b))", {"a": "x" * 20_000, "b": "y" * 10_001}),
+            ("Hi ((name))\n\n* ((item))\n* ((item))", {"name": "x" * 25_000, "item": "y" * 12_500}),
+            ("((cond??line one\nline two))" + "S" * 49_990, {"cond": "yes"}),
         ],
     )
-    def test_rendered_bound_is_never_below_exact_render(self, app_ctx, content, values):
-        bound = _rendered_email_length_upper_bound(content, values)
+    def test_csv_row_limit_matches_html_email_template_count(self, app_ctx, content, values):
         exact = HTMLEmailTemplate({"content": content, "subject": "s", "template_type": EMAIL_TYPE}, values=values).content_count
+        recipient_csv, template = self._csv_stub(content, [values])
 
-        assert bound is not None
-        assert bound >= exact
+        if exact > STATIC_LIMIT:
+            with pytest.raises(BadRequestError):
+                check_email_csv_rows_size(recipient_csv, template)
+        else:
+            check_email_csv_rows_size(recipient_csv, template)
 
-    def test_rendered_bound_is_none_when_value_missing(self):
-        assert _rendered_email_length_upper_bound("Hi ((name))", {}) is None
-
-    def test_csv_rows_under_limit_are_not_rendered(self, app_ctx, mocker):
+    def test_csv_rows_do_not_build_html_email_template(self, app_ctx, mocker):
         spy = mocker.patch("app.notifications.validators.HTMLEmailTemplate", wraps=HTMLEmailTemplate)
         recipient_csv, template = self._csv_stub(
-            "Hi ((name)), your order is ((order))",
-            [{"name": f"user{i}", "order": str(i)} for i in range(50_000)],
+            "Hi ((First Name)), your order is ((order))\n\n((opt??extra))",
+            [{"firstname": f"user{i}", "order": str(i), "opt": None} for i in range(50_000)],
         )
 
         check_email_csv_rows_size(recipient_csv, template)
 
         assert spy.call_count == 0
 
-    def test_csv_row_near_limit_is_rendered_and_rejected(self, app_ctx, mocker):
+    def test_csv_row_over_limit_is_rejected(self, app_ctx):
         # Personalisation stays under 50,000 but the repeated variable pushes the rendered body over it.
-        spy = mocker.patch("app.notifications.validators.HTMLEmailTemplate", wraps=HTMLEmailTemplate)
-        recipient_csv, template = self._csv_stub("((a))((a))((a))", [{"a": "x" * 20_000}, {"a": "x" * 20_000}])
+        recipient_csv, template = self._csv_stub("((a))((a))((a))", [{"a": "x" * 10}, {"a": "x" * 20_000}])
 
         with pytest.raises(BadRequestError) as exc:
             check_email_csv_rows_size(recipient_csv, template)
 
-        assert "Row 1" in exc.value.message
-        assert spy.call_count == 1
+        assert "Row 2" in exc.value.message
+
+    def test_csv_row_with_blank_cell_is_still_measured(self, app_ctx):
+        # A blank optional cell must not cause the row to be measured as the bare template.
+        recipient_csv, template = self._csv_stub(
+            "S" * 30_000 + "((name))\n\n((opt??extra))", [{"name": "x" * 25_000, "opt": None}]
+        )
+
+        with pytest.raises(BadRequestError):
+            check_email_csv_rows_size(recipient_csv, template)
+
+    def test_csv_row_with_mixed_case_placeholder_is_measured(self, app_ctx):
+        # RecipientCSV normalises keys ("First Name" -> "firstname").
+        recipient_csv, template = self._csv_stub("S" * 30_000 + "((First Name))", [{"firstname": "x" * 25_000}])
+
+        with pytest.raises(BadRequestError):
+            check_email_csv_rows_size(recipient_csv, template)
 
     def test_csv_row_bound_over_limit_but_exact_under_is_accepted(self, app_ctx, mocker):
         body = "B" * 49_999
