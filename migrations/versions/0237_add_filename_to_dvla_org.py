@@ -52,8 +52,7 @@ def upgrade():
             UPDATE dvla_organisation SET filename = :filename WHERE id = :id
         """
             ),
-            filename=org_filename,
-            id=org_id,
+            {"filename": org_filename, "id": org_id},
         )
 
 
