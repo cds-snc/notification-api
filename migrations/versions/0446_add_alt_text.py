@@ -12,17 +12,18 @@ down_revision = "0445_add_org_id_branding"
 
 
 def upgrade():
-    table_description = op.get_bind().execute(
-        text("SELECT * FROM information_schema.columns WHERE table_name = 'email_branding'")
+    existing_columns = set(
+        op.get_bind()
+        .execute(text("SELECT column_name FROM information_schema.columns WHERE table_name = 'email_branding'"))
+        .scalars()
     )
 
-    # Check if the column exists
-    if "alt_text_en" not in [column["column_name"] for column in table_description]:
+    if "alt_text_en" not in existing_columns:
         op.add_column(
             "email_branding",
             sa.Column("alt_text_en", sa.String(), nullable=True),
         )
-    if "alt_text_fr" not in [column["column_name"] for column in table_description]:
+    if "alt_text_fr" not in existing_columns:
         op.add_column(
             "email_branding",
             sa.Column("alt_text_fr", sa.String(), nullable=True),

@@ -20,7 +20,7 @@ def upgrade():
     conn = op.get_bind()
     conn.execute(
         text("""UPDATE letter_rates SET start_date = :start_date WHERE post_class = 'first'"""),
-        start_date=START_DATE,
+        {"start_date": START_DATE},
     )
 
 
