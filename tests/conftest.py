@@ -1,4 +1,5 @@
 import os
+import warnings
 from contextlib import contextmanager
 from typing import List
 from urllib.parse import urlparse
@@ -96,8 +97,11 @@ def grant_test_db(writer_uri, uri_db_reader):
                 for statement in statements:
                     try:
                         postgres_db.execute(sqlalchemy.sql.text(statement)).close()
-                    except (sqlalchemy.exc.ProgrammingError, sqlalchemy.exc.IntegrityError):
-                        pass
+                    except (sqlalchemy.exc.ProgrammingError, sqlalchemy.exc.IntegrityError) as exc:
+                        warnings.warn(
+                            f"grant_test_db ignored SQL error for statement: {statement!r}; error: {exc}",
+                            RuntimeWarning,
+                        )
             finally:
                 lock_connection.execute(
                     sqlalchemy.sql.text("SELECT pg_advisory_unlock(:lock_id)"),
