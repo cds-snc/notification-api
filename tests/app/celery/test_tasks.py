@@ -1643,12 +1643,17 @@ class TestSaveSmss:
 
         notification = _notification_json(template, to="6502532222")
         notification["sender_id"] = str(new_sender.id)
-        mocker.patch("app.celery.provider_tasks.deliver_throttled_sms.apply_async")
+        deliver_sms = mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
 
         notification_id = uuid.uuid4()
         save_smss(service.id, [signer_notification.sign(notification)], notification_id)
         persisted_notification = Notification.query.one()
         assert persisted_notification.reply_to_text == "new-sender"
+        deliver_sms.assert_called_once_with(
+            [str(persisted_notification.id), 1],
+            queue=QueueNames.SEND_SMS_MEDIUM,
+            MessageGroupId=str(service.id),
+        )
 
 
 class TestSaveErrorHandling:
