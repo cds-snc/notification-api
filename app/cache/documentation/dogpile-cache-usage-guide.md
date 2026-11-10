@@ -1,235 +1,144 @@
-# Dogpile cache usage guide (WIP - will evolve along with implementation)
+# Dogpile cache usage guide
 
-This guide explains how to add a cached DAO read and keep it consistent when
-the underlying data changes. For the design and transaction lifecycle, see
-[Dogpile cache architecture](dogpile-cache-architecture.md).
+Practical steps for working with the Dogpile cache. For the reasoning behind it, read the architecture guide first: [dogpile-cache-architecture-overview.md](./dogpile-cache-architecture-overview.md).
 
-## Before adding a cached read
+## Cache a DAO function
 
-Identify:
-
-1. The entity that owns the cached result, such as a service, user, or template.
-2. Every ORM model whose writes can change that result.
-3. Every write path for those models, including direct SQLAlchemy `UPDATE` and
-   `DELETE` statements.
-
-The cache is read-through. A miss executes the DAO function and stores its
-result; a hit returns the stored result. The database remains the source of
-truth, so every relevant successful write must invalidate the cached group.
-
-## Using the cache decorator
-
-Import and apply the application's cache wrapper:
+Decorate the function with `cache_on_arguments` ([app/caching.py:263](../../caching.py#L263)), naming the namespace and the argument that identifies the entity:
 
 ```python
 from app.caching import cache_on_arguments
 
-
 @cache_on_arguments(namespace="service", group_by="service_id")
 def dao_fetch_service_by_id_cached(service_id: str, only_active=False) -> dict:
-    service = Service.query.filter_by(id=service_id).one()
-    return service_schema.dump(service)
+    query = Service.query.filter_by(id=service_id).options(joinedload("users"))
+    ...
+    return service_schema.dump(query.one())
 ```
 
-`namespace` identifies the kind of cache owner. `group_by` must be the name of
-a function argument containing that owner's ID. The generated keys begin with:
+Rules:
 
-```text
-<namespace>:<group-id>:
-```
+- Return JSON-serializable data (dictionaries, lists, strings, numbers), never ORM objects.
+- `group_by` should name the function parameter whose value identifies the cache group.
+- The namespace decides the key style, region and removal method. You do not choose them in the decorator.
+- Use `should_cache_fn` to skip caching some results, for example `lambda value: value is not None` so misses are not cached.
 
-All other arguments are included in the key fingerprint. This permits several
-argument combinations in one group and allows a write to invalidate the
-entire group.
+### Expose it to callers
 
-Choose the group owner based on what should invalidate all variants. 
+Keep a public DAO function that picks between the cache and the database, as `dao_fetch_service_by_id` does in [services_dao.py:217](../../dao/services_dao.py#L217):
+
+- Only use the cached path when `FF_USE_DOGPILE_CACHING` is true and the caller passed `use_dogpile=True`.
+- Catch `RedisError` from the cached call and fall back to the database.
+- When `use_dogpile=True`, always return the same dictionary shape, even on the fallback path. Calls without it keep returning ORM objects.
+
+## Add a new namespace
+
+1. Decide how the namespace's cache entries will be invalidated. This is a choice between two strategies, and it also sets which region stores the entries. Declare it in `CACHE_NAMESPACES` ([app/caching.py:38](../../caching.py#L38)). Namespaces that are not listed get the default strategy.
+
+   | | Prefix invalidation (default) | Exact-key invalidation |
+   |---|---|---|
+   | `CacheNamespace` setting | `key_strategy="prefix"`, `region="default"` | `key_strategy="exact"`, `region="short_lived"` |
+   | Key | `<namespace>:<id>:<function>:<args>` | `<namespace>:<id>` |
+   | Cached functions per entity | Any number, with any arguments | One, taking only the ID |
+   | How entries are removed | Redis `SCAN` for the `<namespace>:<id>:` prefix, then delete | Batched `UNLINK` of the one known key, no scan |
+   | Freshness | 600 s | 60 s (Redis keeps values for 120 s) |
+   | Choose it for | Rarely changing entities (services, users, templates) | Frequently changing entities (notifications) |
+
+   Choose exact keys when the entity changes so often that scanning Redis on every change is too costly. The short-lived region goes with it so that an entry that is missed by invalidation is only stale for a short time. Today only `notification` is declared this way; see `CacheNamespace` ([app/caching.py:23](../../caching.py#L23)) for the full definition.
+2. If you chose exact keys, the namespace allows only one cached function per entity, and it must take only the `group_by` argument. Apply other filters to the returned data (see `dao_get_notification_snapshot_cached` in [notifications_dao.py:381](../../dao/notifications_dao.py#L381)).
+3. Register the models that should clear it in [cache_invalidation_registry.py:48](../cache_invalidation_registry.py#L48) (the `Template` rule is shown):
 
 ```python
-@cache_on_arguments(namespace="template", group_by="template_id")
-def dao_get_template_by_id_cached(template_id, service_id) -> dict:
-    template = dao_get_template_by_id_and_service_id(template_id, service_id)
-    return template_schema.dump(template)
+Template: [
+    CacheInvalidationRule(namespace="template", entity_id_attribute="id"),
+],
 ```
 
-### Requirements and cautions
+Set `invalidate_on_insert=False` ([cache_invalidation_registry.py:25](../cache_invalidation_registry.py#L25)) only when a new row cannot already be cached.
 
-- Return JSON-serializable values such as dictionaries, lists, strings,
-  numbers, ect. Do not cache SQLAlchemy model instances.
-- Use a stable entity ID as `group_by`; the named argument must exist in the
-  decorated function's signature.
-- Include query options that can change the result as function arguments. They
-  become part of the cache fingerprint automatically.
-- Use the same namespace in the decorator and the corresponding invalidation
-  registry rules.
+## Invalidate after bulk writes
 
-## Using and updating the invalidation registry
+Normal ORM changes (add, update, delete through the session) are tracked automatically. When you change an object, the session knows which row changed and the cache listeners can look up its ID.
 
-`CACHE_INVALIDATION_REGISTRY` in
-`app/cache/cache_invalidation_registry.py` maps a changed ORM model to the
-cache groups affected by that change:
+A bulk write is different. It sends SQL straight to the database and never loads the rows as objects, so the session cannot tell which entities changed. You have to hand the cache the affected IDs yourself, or the old entries stay in Redis until they expire.
+
+"Affected IDs" are the values the registry rules read from the model. Each rule in [cache_invalidation_registry.py:28](../cache_invalidation_registry.py#L28) has an `entity_id_attribute`, and you pass one keyword argument per attribute, using the same name. For example:
+
+| Model | Keyword arguments to pass | Entries cleared |
+|---|---|---|
+| `User` | `id` | user |
+| `Notification` | `id` | notification |
+| `ServiceUser` | `service_id` **and** `user_id` | service and user |
+
+If you leave out an attribute that a rule needs, the call raises `ValueError` rather than silently leaving one cache stale. Each value can be a single ID or a list of IDs.
+
+Both options below clear the cache only after the transaction commits, and discard it on rollback.
+
+### When you know the IDs before the statement runs
+
+Wrap the statement with `cache_invalidating_dml` ([cache_dml.py:8](../cache_dml.py#L8)). This works for bulk `update` and `delete` statements. The real call in [users_dao.py:41](../../dao/users_dao.py#L41) updates one user:
 
 ```python
-ServiceUser: [
-    CacheInvalidationRule(namespace="service", entity_id_attribute="service_id"),
-    CacheInvalidationRule(namespace="user", entity_id_attribute="user_id"),
-]
+statement = update(User).where(User.id == usr.id).values(**updates).execution_options(synchronize_session="fetch")
+db.session.execute(cache_invalidating_dml(statement, id=usr.id))
 ```
 
-Each rule has two fields:
-
-- `namespace`: the cached namespace to invalidate.
-- `entity_id_attribute`: a direct attribute on the changed model containing the
-  cache owner's ID.
-
-For ordinary ORM changes, the event listeners: 
-- Inspect new, dirty, and deleted instances after flush. 
-- They read the configured attributes and queue each `(namespace, entity ID)` pair. 
-- The groups are deleted from Redis only after a
-successful commit 
-- A rollback discards the queued invalidations.
-
-### When to add or update a rule
-
-Add a registry entry when a write to a model can change a cached payload. This
-includes related models whose fields are serialized into the payload. For
-example, changing `TemplateRedacted` affects a cached template even though the
-`Template` row itself may not change:
+A bulk delete of a user's membership on a service must name both sides, because a `ServiceUser` change clears the service cache and the user cache:
 
 ```python
-TemplateRedacted: [
-    CacheInvalidationRule(
-        namespace="template",
-        entity_id_attribute="template_id",
-    ),
-]
+statement = delete(ServiceUser).where(ServiceUser.service_id == service_id, ServiceUser.user_id == user_id)
+db.session.execute(cache_invalidating_dml(statement, service_id=service_id, user_id=user_id))
 ```
 
-Add multiple rules when one changed row affects multiple owners. A
-`ServiceUser` change affects both the service and user cache groups, so both IDs
-must be represented.
+If a statement matches many rows, pass a list: `cache_invalidating_dml(statement, id=[id_1, id_2])`.
 
+### When you only learn the IDs afterwards
 
-When changing the registry:
-1. Confirm that every rule's `entity_id_attribute` exists on the mapped model.
-2. Confirm that its `namespace` exactly matches the cached DAO decorator.
-3. Review create, update, and delete paths for the model.
-4. Update the registry assertions and commit/rollback invalidation tests in
-   `tests/app/cache/test_cache_events.py`.
-5. Check bulk DML paths for all attributes required by the model's rules.
-
-## When not to use the registry
-
-Use registry rules only when the model has a direct attribute identifying the
-cache owner. If determining affected owners requires a query, unusual fan-out,
-or domain-specific logic, queue invalidation explicitly in the method that
-already knows those owners rather than hiding that logic in the registry.
-
-For example, 
-
-Changing a `TemplateCategory` can change the `process_type` of every template assigned 
-to that category. A `TemplateCategory` has its own `id`, but is associated with many 
-`Templates` that could be used in a registry rule. Mapping its `id` to the `template` 
-namespace would incorrectly invalidate `template:<category-id>:*` instead of the cache
-groups belonging to the affected templates.
-
-The category update operation instead finds the IDs of the templates using
-that category and queue one `("template", template_id)` invalidation for each
-of them. This fan-out belongs in the operation because it understands the
-category-to-template relationship and can collect the IDs within the same
-transaction.
-
-> TODO: expose and document a public helper for queuing an arbitrary invalidation.
-
-## Wrapping DML with `cache_invalidating_dml`
-
-Normal mutations made against models loaded into the SQLAlchemy session are discovered automatically:
+Use `queue_cache_invalidations` ([cache_events.py:52](../cache_events.py#L52)) for `bulk_save_objects` or when the statement itself selects the rows. Collect the IDs first, then queue them. For example, `update_notification_statuses` ([notifications_dao.py:269](../../dao/notifications_dao.py#L269)) saves a list of objects in one call:
 
 ```python
-service.name = "New name"
-db.session.add(service)
-db.session.commit()
+db.session.bulk_save_objects(notifications)
+queue_cache_invalidations(db.session, Notification, id=[notification.id for notification in notifications])
 ```
 
-However, direct `UPDATE` and `DELETE` statements bypass changed-instance tracking. Wrap
-these statements with `cache_invalidating_dml` and supply the entity IDs named
-by the target model's registry rules:
+When one statement both changes and selects the rows, use `RETURNING` to get the IDs, as [jobs_dao.py:276](../../dao/jobs_dao.py#L276) does when cancelling a job:
 
 ```python
-from sqlalchemy import delete
-
-from app.cache.cache_dml import cache_invalidating_dml
-
-
-statement = delete(ServicePermission).where(
-    ServicePermission.service_id == service_id,
-    ServicePermission.permission == permission,
-)
-result = db.session.execute(
-    cache_invalidating_dml(statement, service_id=service_id)
-)
-db.session.commit()
+notification_ids = db.session.execute(
+    update(Notification).where(Notification.job_id == job.id).values(...).returning(Notification.id)
+).scalars().all()
+queue_cache_invalidations(db.session, Notification, id=notification_ids)
 ```
 
-The keyword names passed to `cache_invalidating_dml` must match the registry's
-`entity_id_attribute` values, not necessarily the SQL filter parameter names.
-For a model with more than one required attribute, provide all of them:
+## Configuration
 
-```python
-statement = delete(ServiceUser).where(
-    ServiceUser.service_id == service_id,
-    ServiceUser.user_id == user_id,
-)
-db.session.execute(
-    cache_invalidating_dml(
-        statement,
-        service_id=service_id,
-        user_id=user_id,
-    )
-)
-```
+| Setting | Default | Meaning |
+|---|---|---|
+| `FF_USE_DOGPILE_CACHING` | `False` | Env flag. Turns on the cached path for opted-in DAO calls. |
+| `DOGPILE_CACHE_EXPIRATION` | `600` | Default region freshness and Redis lifetime, in seconds. |
+| `DOGPILE_SHORT_LIVED_CACHE_EXPIRATION` | `60` | Short-lived region freshness, in seconds. Redis keeps values for twice this. |
+| `DOGPILE_CACHE_BACKEND` | `dogpile.cache.redis` | Dogpile backend. |
 
-An ID value may be a UUID, string, or collection of IDs. Collections
-are useful when one statement affects several known cache owners:
-
-```python
-db.session.execute(
-    cache_invalidating_dml(statement, user_id=user_ids)
-)
-```
-
-### When wrapping is required
-
-Wrap a statement when all of the following are true:
-
-- It is a SQLAlchemy ORM `UPDATE` or `DELETE` executed with
-  `db.session.execute(...)`.
-- Its mapped model appears in the `CACHE_INVALIDATION_REGISTRY`.
-- The affected owner IDs are known by the caller.
-
-Avoid legacy `Query.update()` and `Query.delete()` for registered models. They
-these methods are legacy 1.x SQLAlchemy APIs and do not provide the necessary 
-execution metadata to automatically handle cache invalidation. Replace them 
-with modern `update(Model)` or `delete(Model)` statements executed through
-the session and wrapped with `cache_invalidating_dml`.
-
-## Implementation checklist
-
-- Add a cached DAO returning a JSON-safe value.
-- Set `namespace` and `group_by` to the cache owner's namespace and ID argument.
-- Ensure that the model <-> Cache mappings in `CACHE_INVALIDATION_REGISTRY` are up to date.
-- Wrap every relevant direct `UPDATE` and `DELETE` with
-  `cache_invalidating_dml` and use modern `update(model)` / `delete(model)` calls.
-- Test cache hits and misses, key grouping, successful-commit invalidation, and
-  rollback behavior.
+Redis uses `REDIS_URL`. Both regions are set up in `init_dogpile_cache` ([app/caching.py:355](../../caching.py#L355)).
 
 
-## Cache performance metrics
+## Testing
 
-DAO timings, cached reads, ORM invalidation collection, and prefix invalidation
-emit StatsD metrics instead of per-call performance logs. Metrics use the
-configured StatsD client and are sent when `STATSD_ENABLED` is enabled. The
-client adds its environment/application prefix to the names below. Duration
-values are milliseconds.
+- Cache tests live in `tests/app/cache/`: `test_cache.py` (keys, regions, decorator) and `test_cache_events.py` (invalidation events).
+- Patch the module-level regions or the Redis client rather than relying on a live Redis for unit tests.
+- When you add a registry rule, add a test in `tests/app/cache/test_cache_events.py` showing the rule queues the expected namespace and ID.
+- When you add a cached DAO function, test both the cached path and the Redis-error fallback returning the same shape.
+
+## Metrics
+
+Emitted through statsd:
+
+- `cache.access.<namespace>.<reused|regenerated|error>`, plus `.duration`: how each read was served.
+- `cache.creator.<namespace>.<success|error>.duration`: time spent loading from the database on a miss.
+- `cache.invalidation.<namespace>.<success|error>`, plus `.duration`, `.scans`, `.matched`, `.deleted`: prefix invalidation work.
+
+
+### Detailed metrics breakdown
 
 | Metric | Type | Meaning |
 | --- | --- | --- |
@@ -250,28 +159,4 @@ values are milliseconds.
 | `cache.collect_invalidations.instances` | Counter | ORM instances examined during collection passes. |
 | `cache.collect_invalidations.invalidations` | Counter | Newly queued targets after deduplication within the transaction. |
 
-Namespaces are `service`, `template`, and `user`. No entity IDs or cache keys
-are included in metric names. Invalidation counts include completed work before
-an error, if any.
-
-The `log_execution_time` decorator keeps its existing name for compatibility but
-now sends a StatsD timer, not a log record. Cached DAOs are already measured by
-`cache_on_arguments` and should not also use this decorator. Collection counters
-cover work performed before commit, including transactions that later roll back;
-they are not counts of completed Redis deletions. Post-commit invalidation
-failures remain logged and do not undo the committed database transaction.
-
-
-To evaluate cache performance:
-
-- Calculate reuse percentage from the reused count divided by all three read
-  outcome counts over the same interval. `reused` includes stale values served
-  during concurrent regeneration, so this is not a strict fresh-hit rate.
-- Compare reused and regenerated duration distributions for each namespace.
-  The timer covers key generation, Redis operations, lock waiting, and creator
-  execution/serialization when applicable; it does not currently isolate those stages.
-- Compare regeneration spikes with invalidation rates and deleted-key counts.
-- Track read and invalidation errors separately.
-- Compare equivalent request-level latency and database load with the feature
-  flag off/on under the same workload. DAO timings alone have different
-  serialization boundaries and cannot establish the overall request benefit.
+A cloudwatch dashboard named `Notify-Dogpile-{staging|production}` is available with analysis and charts based on these metrics.  
