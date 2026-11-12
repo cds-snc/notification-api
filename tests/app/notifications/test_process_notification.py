@@ -47,7 +47,7 @@ from app.notifications.process_notifications import (
 from app.v2.errors import BadRequestError
 from tests.app.conftest import create_sample_api_key
 from tests.app.db import create_service_sms_sender, save_scheduled_notification
-from tests.conftest import set_config, set_config_values
+from tests.conftest import set_config
 
 
 class TestContentCreation:
@@ -736,6 +736,9 @@ class TestSendNotificationQueue:
         if "." not in expected_task:
             expected_task = f"provider_tasks.{expected_task}"
         mocked = mocker.patch(f"app.celery.{expected_task}.apply_async")
+        if expected_task == "provider_tasks.deliver_sms":
+            mocker.patch("app.notifications.process_notifications.dao_get_template_by_id")
+            mocker.patch("app.notifications.process_notifications.number_of_sms_fragments", return_value=1)
         notification = Notification(
             id=uuid.uuid4(),
             key_type=key_type,
@@ -746,16 +749,22 @@ class TestSendNotificationQueue:
 
         send_notification_to_queue(notification=notification, research_mode=research_mode, queue=requested_queue)
 
-        mocked.assert_called_once_with([str(notification.id)], queue=expected_queue, MessageGroupId=ANY)
+        params = (
+            [str(notification.id), 1]
+            if expected_task == "provider_tasks.deliver_sms" and expected_queue != QueueNames.RESEARCH_MODE
+            else [str(notification.id)]
+        )
+        mocked.assert_called_once_with(params, queue=expected_queue, MessageGroupId=ANY)
 
     def test_send_notification_to_queue_throws_exception_deletes_notification(self, sample_notification, mocker):
         mocked = mocker.patch(
             "app.celery.provider_tasks.deliver_sms.apply_async",
             side_effect=Boto3Error("EXPECTED"),
         )
+        mocker.patch("app.notifications.process_notifications.number_of_sms_fragments", return_value=1)
         with pytest.raises(Boto3Error):
             send_notification_to_queue(sample_notification, False)
-        mocked.assert_called_once_with([(str(sample_notification.id))], queue=QueueNames.SEND_SMS_MEDIUM, MessageGroupId=ANY)
+        mocked.assert_called_once_with([str(sample_notification.id), 1], queue=QueueNames.SEND_SMS_MEDIUM, MessageGroupId=ANY)
 
         assert Notification.query.count() == 0
         assert NotificationHistory.query.count() == 0
@@ -768,6 +777,7 @@ class TestSendNotificationQueue:
             "app.celery.provider_tasks.deliver_sms.apply_async",
             side_effect=Boto3Error("EXPECTED"),
         )
+        mocker.patch("app.notifications.process_notifications.number_of_sms_fragments", return_value=1)
         with pytest.raises(Boto3Error):
             send_notification_to_queue(sample_notification, False)
 
@@ -789,17 +799,15 @@ class TestSendNotificationQueue:
             (QueueNames.SEND_SMS_HIGH, QueueNames.SEND_SMS_HIGH),
         ],
     )
-    def test_send_notification_to_queue_with_ff_sms_ratelimit_routes_to_sms_queue(
-        self, notify_api, mocker, incoming_queue, expected_queue
-    ):
-        with set_config(notify_api, "FF_SMS_RATELIMIT", True):
+    def test_send_notification_to_queue_routes_sms_through_rate_limiter(self, notify_api, mocker, incoming_queue, expected_queue):
+        with notify_api.app_context():
             notification = Notification(
                 id=uuid.uuid4(),
                 key_type="normal",
                 notification_type="sms",
                 created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
             )
-            mock_apply = mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+            mock_apply = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
             mocker.patch("app.notifications.process_notifications.dao_get_template_by_id")
             mocker.patch("app.notifications.process_notifications.number_of_sms_fragments", return_value=2)
 
@@ -811,15 +819,15 @@ class TestSendNotificationQueue:
                 MessageGroupId=ANY,
             )
 
-    def test_send_notification_to_queue_with_ff_sms_ratelimit_bypasses_for_research_mode(self, notify_api, mocker):
-        with set_config(notify_api, "FF_SMS_RATELIMIT", True):
+    def test_send_notification_to_queue_bypasses_rate_limiter_for_research_mode(self, notify_api, mocker):
+        with notify_api.app_context():
             notification = Notification(
                 id=uuid.uuid4(),
                 key_type="normal",
                 notification_type="sms",
                 created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
             )
-            mock_rate_limited = mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+            mock_rate_limited = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
             mock_deliver_sms = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
 
             send_notification_to_queue(notification=notification, research_mode=True, queue=None)
@@ -831,8 +839,8 @@ class TestSendNotificationQueue:
             )
             mock_rate_limited.assert_not_called()
 
-    def test_send_notification_to_queue_with_ff_sms_ratelimit_throttled_sms_takes_priority(self, notify_api, mocker):
-        with set_config(notify_api, "FF_SMS_RATELIMIT", True):
+    def test_send_notification_to_queue_throttled_sms_takes_priority(self, notify_api, mocker):
+        with notify_api.app_context():
             notification = Notification(
                 id=uuid.uuid4(),
                 key_type="normal",
@@ -840,7 +848,7 @@ class TestSendNotificationQueue:
                 reply_to_text="+14383898585",
                 created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
             )
-            mock_rate_limited = mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+            mock_rate_limited = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
             mock_throttled = mocker.patch("app.celery.provider_tasks.deliver_throttled_sms.apply_async")
 
             send_notification_to_queue(notification=notification, research_mode=False, queue=None)
@@ -852,9 +860,9 @@ class TestSendNotificationQueue:
             )
             mock_rate_limited.assert_not_called()
 
-    def test_send_notification_to_queue_with_ff_sms_ratelimit_skips_dao_when_template_already_set(self, notify_api, mocker):
+    def test_send_notification_to_queue_skips_dao_when_template_already_set(self, notify_api, mocker):
         # When notification.template is already populated the DAO lookup should be skipped entirely.
-        with set_config(notify_api, "FF_SMS_RATELIMIT", True):
+        with notify_api.app_context():
             mock_template = mocker.MagicMock()
             notification = Notification(
                 id=uuid.uuid4(),
@@ -863,7 +871,7 @@ class TestSendNotificationQueue:
                 created_at=datetime.datetime(2016, 11, 11, 16, 8, 18),
             )
             notification.template = mock_template
-            mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+            mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
             mock_dao = mocker.patch("app.notifications.process_notifications.dao_get_template_by_id")
             mocker.patch(
                 "app.notifications.process_notifications.get_delivery_queue_for_template",
@@ -875,9 +883,9 @@ class TestSendNotificationQueue:
 
             mock_dao.assert_not_called()
 
-    def test_send_notification_to_queue_with_ff_sms_ratelimit_uses_precomputed_billable_units(self, notify_api, mocker):
+    def test_send_notification_to_queue_uses_precomputed_billable_units(self, notify_api, mocker):
         # When FF_USE_BILLABLE_UNITS is on and billable_units is already set, number_of_sms_fragments must not be called.
-        with set_config(notify_api, "FF_SMS_RATELIMIT", True), set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
+        with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
             mock_template = mocker.MagicMock()
             notification = Notification(
                 id=uuid.uuid4(),
@@ -887,7 +895,7 @@ class TestSendNotificationQueue:
                 billable_units=4,
             )
             notification.template = mock_template
-            mock_apply = mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+            mock_apply = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
             mocker.patch("app.notifications.process_notifications.dao_get_template_by_id")
             mocker.patch(
                 "app.notifications.process_notifications.get_delivery_queue_for_template",
@@ -1121,25 +1129,25 @@ class TestChooseQueue:
     @pytest.mark.parametrize(
         ("research_mode, priority_queue, key_type, reply_to_text, expected_queue"),
         [
-            # FF on: normal SMS with no explicit priority queue → routes to SEND_SMS_MEDIUM
+            # Normal SMS with no explicit priority queue → routes to SEND_SMS_MEDIUM
             (False, None, "normal", None, QueueNames.SEND_SMS_MEDIUM),
-            # FF on: research mode still returns RESEARCH_MODE
+            # Research mode still returns RESEARCH_MODE
             (True, None, "normal", None, QueueNames.RESEARCH_MODE),
-            # FF on: test key still returns RESEARCH_MODE
+            # Test key still returns RESEARCH_MODE
             (False, None, "test", None, QueueNames.RESEARCH_MODE),
-            # FF on: custom number (dedicated sender) routes to throttled queue
+            # Custom number (dedicated sender) routes to throttled queue
             (False, None, "normal", "+14383898585", QueueNames.SEND_THROTTLED_SMS),
-            # FF on: explicit priority_queue is preserved (arbitrary non-SMS-tier queue name)
+            # Explicit priority_queue is preserved (arbitrary non-SMS-tier queue name)
             (False, "notify-internal-tasks", "normal", None, "notify-internal-tasks"),
-            # FF on: SEND_SMS_LOW (bulk template) is preserved
+            # SEND_SMS_LOW (bulk template) is preserved
             (False, QueueNames.SEND_SMS_LOW, "normal", None, QueueNames.SEND_SMS_LOW),
-            # FF on: SEND_SMS_MEDIUM (normal template) is preserved
+            # SEND_SMS_MEDIUM (normal template) is preserved
             (False, QueueNames.SEND_SMS_MEDIUM, "normal", None, QueueNames.SEND_SMS_MEDIUM),
-            # FF on: SEND_SMS_HIGH (priority template) is preserved
+            # SEND_SMS_HIGH (priority template) is preserved
             (False, QueueNames.SEND_SMS_HIGH, "normal", None, QueueNames.SEND_SMS_HIGH),
         ],
     )
-    def test_choose_queue_with_ff_sms_ratelimit(
+    def test_choose_queue_for_sms(
         self,
         notify_api,
         research_mode,
@@ -1148,7 +1156,7 @@ class TestChooseQueue:
         reply_to_text,
         expected_queue,
     ):
-        with set_config(notify_api, "FF_SMS_RATELIMIT", True):
+        with notify_api.app_context():
             notification = Notification(
                 id=uuid.uuid4(),
                 notification_type="sms",
@@ -1428,6 +1436,8 @@ class TestDBSaveAndSendNotification:
         if "." not in expected_task:
             expected_task = f"provider_tasks.{expected_task}"
         mocked = mocker.patch(f"app.celery.{expected_task}.apply_async")
+        if expected_task == "provider_tasks.deliver_sms":
+            mocker.patch("app.notifications.process_notifications.number_of_sms_fragments", return_value=1)
         notification = Notification(
             id=uuid.uuid4(),
             to="joe@blow.com",
@@ -1442,7 +1452,12 @@ class TestDBSaveAndSendNotification:
 
         db_save_and_send_notification(notification=notification)
 
-        mocked.assert_called_once_with([str(notification.id)], queue=expected_queue, MessageGroupId=ANY)
+        params = (
+            [str(notification.id), 1]
+            if expected_task == "provider_tasks.deliver_sms" and expected_queue != QueueNames.RESEARCH_MODE
+            else [str(notification.id)]
+        )
+        mocked.assert_called_once_with(params, queue=expected_queue, MessageGroupId=ANY)
 
     def test_db_save_and_send_notification_throws_exception_deletes_notification(
         self, sample_template, sample_api_key, sample_job, mocker
@@ -1451,6 +1466,7 @@ class TestDBSaveAndSendNotification:
             "app.celery.provider_tasks.deliver_sms.apply_async",
             side_effect=Boto3Error("EXPECTED"),
         )
+        mocker.patch("app.notifications.process_notifications.number_of_sms_fragments", return_value=1)
         notification = Notification(
             id=uuid.uuid4(),
             template_id=sample_template.id,
@@ -1471,7 +1487,7 @@ class TestDBSaveAndSendNotification:
 
         with pytest.raises(Boto3Error):
             db_save_and_send_notification(notification)
-        mocked.assert_called_once_with([(str(notification.id))], queue=QueueNames.SEND_SMS_MEDIUM, MessageGroupId=ANY)
+        mocked.assert_called_once_with([str(notification.id), 1], queue=QueueNames.SEND_SMS_MEDIUM, MessageGroupId=ANY)
 
         assert Notification.query.count() == 0
         assert NotificationHistory.query.count() == 0
@@ -1651,11 +1667,11 @@ class TestDBSaveAndSendNotification:
             QueueNames.SEND_SMS_HIGH,
         ],
     )
-    def test_db_save_and_send_with_ff_sms_ratelimit_routes_sms_to_priority_tier(
+    def test_db_save_and_send_routes_sms_to_priority_tier(
         self, notify_api, sample_template, notify_db, notify_db_session, mocker, queue_name
     ):
-        with set_config(notify_api, "FF_SMS_RATELIMIT", True):
-            mock_apply = mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+        with notify_api.app_context():
+            mock_apply = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
             mocker.patch("app.notifications.process_notifications.number_of_sms_fragments", return_value=3)
 
             notification = Notification(
@@ -1676,11 +1692,9 @@ class TestDBSaveAndSendNotification:
                 MessageGroupId=ANY,
             )
 
-    def test_db_save_and_send_with_ff_sms_ratelimit_uses_stored_billable_units(
-        self, notify_api, sample_template, notify_db, notify_db_session, mocker
-    ):
-        with set_config_values(notify_api, {"FF_SMS_RATELIMIT": True, "FF_USE_BILLABLE_UNITS": True}):
-            mock_apply = mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+    def test_db_save_and_send_uses_stored_billable_units(self, notify_api, sample_template, notify_db, notify_db_session, mocker):
+        with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
+            mock_apply = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
             mock_fragments = mocker.patch("app.notifications.process_notifications.number_of_sms_fragments")
 
             notification = Notification(
@@ -1703,11 +1717,11 @@ class TestDBSaveAndSendNotification:
             )
             mock_fragments.assert_not_called()
 
-    def test_db_save_and_send_with_ff_sms_ratelimit_bypasses_for_research_mode(
+    def test_db_save_and_send_bypasses_rate_limiter_for_research_mode(
         self, notify_api, sample_template, notify_db, notify_db_session, mocker
     ):
-        with set_config(notify_api, "FF_SMS_RATELIMIT", True):
-            mock_rate_limited = mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+        with notify_api.app_context():
+            mock_rate_limited = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
             mock_deliver_sms = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
 
             notification = Notification(
@@ -1729,11 +1743,11 @@ class TestDBSaveAndSendNotification:
             )
             mock_rate_limited.assert_not_called()
 
-    def test_db_save_and_send_with_ff_sms_ratelimit_email_unaffected(
+    def test_db_save_and_send_email_is_unaffected_by_sms_rate_limiter(
         self, notify_api, sample_email_template, notify_db, notify_db_session, mocker
     ):
-        with set_config(notify_api, "FF_SMS_RATELIMIT", True):
-            mock_rate_limited = mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+        with notify_api.app_context():
+            mock_rate_limited = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
             mock_deliver_email = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
 
             notification = Notification(

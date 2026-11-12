@@ -240,7 +240,6 @@ def db_save_and_send_notification(notification: Notification):
         and not notification.sends_with_custom_number()
         # We don't want to send test notifications to the rate limited queue.
         and notification.queue_name != QueueNames.RESEARCH_MODE
-        and current_app.config.get("FF_SMS_RATELIMIT")
     ):
         if current_app.config.get("FF_USE_BILLABLE_UNITS") and notification.billable_units:
             celery_params.append(notification.billable_units)
@@ -301,8 +300,6 @@ def choose_deliver_task(notification):
         deliver_task = provider_tasks.deliver_sms
         if notification.sends_with_custom_number() and notification.queue_name != QueueNames.RESEARCH_MODE:
             deliver_task = provider_tasks.deliver_throttled_sms
-        elif current_app.config.get("FF_SMS_RATELIMIT") and notification.queue_name != QueueNames.RESEARCH_MODE:
-            deliver_task = provider_tasks.deliver_sms_rate_limited
     if notification.notification_type == EMAIL_TYPE:
         deliver_task = provider_tasks.deliver_email
     if notification.notification_type == LETTER_TYPE:
@@ -325,8 +322,7 @@ def send_notification_to_queue(notification, research_mode, queue=None):
         if notification.sends_with_custom_number() and queue != QueueNames.RESEARCH_MODE:
             deliver_task = provider_tasks.deliver_throttled_sms
             queue = QueueNames.SEND_THROTTLED_SMS
-        elif current_app.config.get("FF_SMS_RATELIMIT") and queue != QueueNames.RESEARCH_MODE:
-            deliver_task = provider_tasks.deliver_sms_rate_limited
+        elif queue != QueueNames.RESEARCH_MODE:
             template = notification.template or dao_get_template_by_id(
                 notification.template_id, notification.template_version, use_cache=True
             )
@@ -337,8 +333,6 @@ def send_notification_to_queue(notification, research_mode, queue=None):
                 celery_params.append(billable_units)
             if not queue or queue == QueueNames.NORMAL:
                 queue = QueueNames.SEND_SMS_MEDIUM
-        elif not queue or queue == QueueNames.NORMAL:
-            queue = QueueNames.SEND_SMS_MEDIUM
     elif notification.notification_type == EMAIL_TYPE:
         if not queue or queue == QueueNames.NORMAL:
             queue = QueueNames.SEND_EMAIL_MEDIUM

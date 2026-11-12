@@ -1373,7 +1373,7 @@ class TestSaveSmss:
         assert persisted_notification._personalisation == signer_personalisation.sign({"name": "Jo"})
         assert persisted_notification.notification_type == "sms"
         mocked_deliver_sms.assert_called_once_with(
-            [str(persisted_notification.id)], queue=QueueNames.SEND_SMS_MEDIUM, MessageGroupId=ANY
+            [str(persisted_notification.id), ANY], queue=QueueNames.SEND_SMS_MEDIUM, MessageGroupId=ANY
         )
 
     @pytest.mark.parametrize("sender_id", [None, "996958a8-0c06-43be-a40e-56e4a2d1655c"])
@@ -1429,7 +1429,7 @@ class TestSaveSmss:
         assert persisted_notification.reply_to_text == (f"+1{sms_sender.sms_sender}" if sender_id else None)
 
         mocked_deliver_sms.assert_called_once_with(
-            [str(persisted_notification.id)],
+            [str(persisted_notification.id)] if sender_id else [str(persisted_notification.id), ANY],
             queue="send-throttled-sms-tasks" if sender_id else "sms_queue",
             MessageGroupId=ANY,
         )
@@ -1476,11 +1476,11 @@ class TestSaveSmss:
         persisted_notification = Notification.query.one()
         if process_type == "priority":
             provider_tasks.deliver_sms.apply_async.assert_called_once_with(
-                [str(persisted_notification.id)], queue=QueueNames.SEND_SMS_HIGH, MessageGroupId=ANY
+                [str(persisted_notification.id), ANY], queue=QueueNames.SEND_SMS_HIGH, MessageGroupId=ANY
             )
         else:
             provider_tasks.deliver_sms.apply_async.assert_called_once_with(
-                [str(persisted_notification.id)], queue=QueueNames.SEND_SMS_LOW, MessageGroupId=ANY
+                [str(persisted_notification.id), ANY], queue=QueueNames.SEND_SMS_LOW, MessageGroupId=ANY
             )
         assert mocked_deliver_sms.called
 
@@ -1500,7 +1500,7 @@ class TestSaveSmss:
         )
         persisted_notification = Notification.query.one()
         provider_tasks.deliver_sms.apply_async.assert_called_once_with(
-            [str(persisted_notification.id)], queue=QueueNames.SEND_SMS_LOW, MessageGroupId=ANY
+            [str(persisted_notification.id), ANY], queue=QueueNames.SEND_SMS_LOW, MessageGroupId=ANY
         )
         assert mocked_deliver_sms.called
 
@@ -1548,7 +1548,7 @@ class TestSaveSmss:
         assert not persisted_notification.personalisation
         assert persisted_notification.notification_type == "sms"
         provider_tasks.deliver_sms.apply_async.assert_called_once_with(
-            [str(persisted_notification.id)], queue=QueueNames.SEND_SMS_MEDIUM, MessageGroupId=ANY
+            [str(persisted_notification.id), ANY], queue=QueueNames.SEND_SMS_MEDIUM, MessageGroupId=ANY
         )
 
     def test_save_sms_should_save_default_smm_sender_notification_reply_to_text_on(self, notify_db_session, mocker):
@@ -1586,7 +1586,7 @@ class TestSaveSmss:
         assert persisted_notification.notification_type == "sms"
 
         provider_tasks.deliver_sms.apply_async.assert_called_once_with(
-            [str(persisted_notification.id)], queue=QueueNames.SEND_SMS_MEDIUM, MessageGroupId=ANY
+            [str(persisted_notification.id), ANY], queue=QueueNames.SEND_SMS_MEDIUM, MessageGroupId=ANY
         )
 
     def test_save_sms_should_go_to_retry_queue_if_database_errors(self, sample_template, mocker):
@@ -1643,12 +1643,17 @@ class TestSaveSmss:
 
         notification = _notification_json(template, to="6502532222")
         notification["sender_id"] = str(new_sender.id)
-        mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
+        deliver_sms = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
 
         notification_id = uuid.uuid4()
         save_smss(service.id, [signer_notification.sign(notification)], notification_id)
         persisted_notification = Notification.query.one()
         assert persisted_notification.reply_to_text == "new-sender"
+        deliver_sms.assert_called_once_with(
+            [str(persisted_notification.id), 1],
+            queue=QueueNames.SEND_SMS_MEDIUM,
+            MessageGroupId=str(service.id),
+        )
 
 
 class TestSaveErrorHandling:

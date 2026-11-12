@@ -205,7 +205,7 @@ def test_send_user_sms_code(client, sample_user, sms_code_template, mocker, rese
     assert notification.reply_to_text == notify_service.get_default_sms_sender()
 
     app.celery.provider_tasks.deliver_sms.apply_async.assert_called_once_with(
-        ([str(notification.id)]), queue="notify-internal-tasks", MessageGroupId=ANY
+        [str(notification.id), 1], queue="notify-internal-tasks", MessageGroupId=ANY
     )
 
 
@@ -230,7 +230,7 @@ def test_send_user_code_for_sms_with_optional_to_field(client, sample_user, sms_
     notification = Notification.query.first()
     assert notification.to == to_number
     app.celery.provider_tasks.deliver_sms.apply_async.assert_called_once_with(
-        ([str(notification.id)]), queue="notify-internal-tasks", MessageGroupId=ANY
+        [str(notification.id), 1], queue="notify-internal-tasks", MessageGroupId=ANY
     )
 
 

@@ -187,7 +187,9 @@ def test_should_send_all_scheduled_notifications_to_deliver_queue(sample_templat
 
     send_scheduled_notifications()
 
-    mocked.apply_async.assert_called_once_with([str(message_to_deliver.id)], queue=QueueNames.SEND_SMS_MEDIUM, MessageGroupId=ANY)
+    mocked.apply_async.assert_called_once_with(
+        [str(message_to_deliver.id), ANY], queue=QueueNames.SEND_SMS_MEDIUM, MessageGroupId=ANY
+    )
     scheduled_notifications = dao_get_scheduled_notifications()
     assert not scheduled_notifications
     assert ScheduledNotification.query.filter_by(notification_id=message_to_deliver.id).count() == 0
@@ -298,7 +300,8 @@ class TestSendScheduledNotifications:
     def test_notification_is_created_when_its_sent(self, sample_service, mocker, template_type):
         # The notification should be created (and counted) on the day it's sent, not the day it was requested
         mock_publish = mocker.patch(f"app.{template_type}_normal_publish.publish")
-        mocker.patch(f"app.celery.provider_tasks.deliver_{template_type}.apply_async")
+        delivery_task = "deliver_sms" if template_type == "sms" else "deliver_email"
+        mocker.patch(f"app.celery.provider_tasks.{delivery_task}.apply_async")
         template = create_template(service=sample_service, template_type=template_type, content="Hi ((name))")
         with freeze_time("2017-04-28 09:00:00"):
             scheduled_notification = create_scheduled_one_off_notification(
@@ -330,7 +333,9 @@ class TestSendScheduledNotifications:
 
         send_scheduled_notifications()
 
-        mock_deliver.apply_async.assert_called_once_with([str(legacy.id)], queue=QueueNames.SEND_SMS_MEDIUM, MessageGroupId=ANY)
+        mock_deliver.apply_async.assert_called_once_with(
+            [str(legacy.id), ANY], queue=QueueNames.SEND_SMS_MEDIUM, MessageGroupId=ANY
+        )
         mock_publish.assert_called_once()
 
 
@@ -509,7 +514,7 @@ def test_replay_created_notifications(notify_db_session, sample_service, mocker)
 
     replay_created_notifications()
     email_delivery_queue.assert_called_once_with([str(old_email.id)], queue=QueueNames.SEND_EMAIL_MEDIUM, MessageGroupId=ANY)
-    sms_delivery_queue.assert_called_once_with([str(old_sms.id)], queue=QueueNames.SEND_SMS_MEDIUM, MessageGroupId=ANY)
+    sms_delivery_queue.assert_called_once_with([str(old_sms.id), ANY], queue=QueueNames.SEND_SMS_MEDIUM, MessageGroupId=ANY)
 
 
 def test_check_job_status_task_does_not_raise_error(sample_template):
