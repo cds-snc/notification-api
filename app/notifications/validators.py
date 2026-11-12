@@ -3,7 +3,7 @@ import functools
 from datetime import datetime, time, timedelta
 
 from flask import current_app
-from notifications_utils import SMS_CHAR_COUNT_LIMIT
+from notifications_utils import EMAIL_CHAR_COUNT_LIMIT, SMS_CHAR_COUNT_LIMIT
 from notifications_utils.clients.redis import (
     near_billable_units_sms_daily_limit_cache_key,
     near_email_daily_limit_cache_key,
@@ -18,12 +18,14 @@ from notifications_utils.clients.redis.annual_limit import (
     TOTAL_SMS_BILLABLE_UNITS_FISCAL_YEAR_TO_YESTERDAY,
     TOTAL_SMS_FISCAL_YEAR_TO_YESTERDAY,
 )
+from notifications_utils.field import Field
 from notifications_utils.recipients import (
     get_international_phone_info,
     validate_and_format_email_address,
     validate_and_format_phone_number,
 )
 from notifications_utils.statsd_decorators import statsd_catch
+from notifications_utils.template import HTMLEmailTemplate
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import annual_limit_client, redis_store
@@ -606,6 +608,47 @@ def validate_template_exists(template_id, service: Service):
     return template
 
 
+def check_email_content_char_count(content_count):
+    if content_count > EMAIL_CHAR_COUNT_LIMIT:
+        message = "Content for template has a character count greater than the limit of {}".format(EMAIL_CHAR_COUNT_LIMIT)
+        raise BadRequestError(message=message)
+
+
+def _email_content_segments(content):
+    segments = []
+    last_end = 0
+    for match in Field.placeholder_pattern.finditer(content):
+        segments.append((len(content[last_end : match.start()]), match))
+        last_end = match.end()
+    return segments, len(content[last_end:])
+
+
+def _rendered_email_content_count(segments, trailing_length, values):
+    if not segments:
+        return trailing_length
+
+    field = Field("", values, html="passthrough", markdown_lists=True)
+    return trailing_length + sum(literal_length + len(field.replace_match(match)) for literal_length, match in segments)
+
+
+def check_email_csv_rows_size(recipient_csv, template):
+    """Apply the single-send email limits (personalisation and rendered body) to every CSV row."""
+    if template.template_type != EMAIL_TYPE:
+        return
+    segments, trailing_length = _email_content_segments(template.content)
+    for row in recipient_csv.rows:
+        # Blank cells render as empty; None would be counted as highlighted placeholder markup.
+        values = {k: v if v is not None else "" for k, v in dict(row.personalisation).items()}
+        _, errors = validate_personalisation_size(values)
+        if errors:
+            raise BadRequestError(message=f"Row {row.index + 1} - {errors[0]['message']}")
+        content_count = _rendered_email_content_count(segments, trailing_length, values)
+        if content_count > EMAIL_CHAR_COUNT_LIMIT:
+            raise BadRequestError(
+                message=f"Row {row.index + 1} - has a character count greater than the limit of {EMAIL_CHAR_COUNT_LIMIT}"
+            )
+
+
 def validate_template(template_id, personalisation, service: Service, notification_type: NotificationType):
     template = check_template_exists_by_id_and_service(template_id, service)
     check_template_is_for_notification_type(notification_type, template.template_type)
@@ -614,6 +657,14 @@ def validate_template(template_id, personalisation, service: Service, notificati
     template_with_content: Template = create_content_for_notification(template, personalisation)
     if template.template_type == SMS_TYPE:
         check_sms_content_char_count(template_with_content.content_count, service.name, service.prefix_sms)
+    elif template.template_type == EMAIL_TYPE:
+        # Document attachments (dict values) are still base64 here and are replaced by short URLs later, so skip them.
+        text_values = {k: v for k, v in (personalisation or {}).items() if not isinstance(v, dict)}
+        rendered_email = HTMLEmailTemplate(
+            {"content": template.content, "subject": template.subject, "template_type": EMAIL_TYPE},
+            values=text_values,
+        )
+        check_email_content_char_count(rendered_email.content_count)
 
     check_content_is_not_blank(template_with_content)
 
@@ -681,12 +732,12 @@ def validate_personalisation_size(json_personalisation):
     concat_values = functools.reduce(lambda v1, v2: f"{v1}{v2}", values, "")
     size_all_values = len(concat_values)
     size_limit = current_app.config["PERSONALISATION_SIZE_LIMIT"]
-    current_app.logger.debug(f"Personalization size of variables detected at {size_all_values} bytes.")
+    current_app.logger.debug(f"Personalization size of variables detected at {size_all_values} characters.")
     if size_all_values > size_limit:
         errors.append(
             {
                 "error": "ValidationError",
-                "message": f"Personalisation variables size of {size_all_values} bytes is greater than allowed limit of {size_limit} bytes.",
+                "message": f"Personalisation variables size of {size_all_values} characters is greater than allowed limit of {size_limit} characters.",
             }
         )
 

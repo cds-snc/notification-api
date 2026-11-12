@@ -837,8 +837,8 @@ class TestPostNotificationsErrors:
     @pytest.mark.parametrize(
         "personalisation_size, expected_success",
         [
-            (1024 * 50 + 100, False),
-            (1024 * 50 - 100, True),
+            (50_000 + 100, False),
+            (50_000 - 100, True),
         ],
     )
     def test_post_email_notification_with_personalisation_too_large(
@@ -876,7 +876,7 @@ class TestPostNotificationsErrors:
             assert response.status_code == 400
             assert "ValidationError" in resp_json["errors"][0]["error"]
             assert (
-                f"Personalisation variables size of {personalisation_size} bytes is greater than allowed limit of 51200 bytes"
+                f"Personalisation variables size of {personalisation_size} characters is greater than allowed limit of 50000 characters"
                 in resp_json["errors"][0]["message"]
             )
 

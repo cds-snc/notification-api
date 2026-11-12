@@ -39,6 +39,7 @@ from app.notifications.process_notifications import (
 )
 from app.notifications.validators import (
     check_email_annual_limit,
+    check_email_csv_rows_size,
     check_email_daily_limit,
     check_sms_annual_limit,
     check_sms_daily_limit,
@@ -189,6 +190,8 @@ def create_job(service_id):
 
     # Pre-seed annual limit data in Redis to avoid slow database queries during limit checks
     get_annual_limit_notifications_v2(service_id)
+
+    check_email_csv_rows_size(recipient_csv, template)
 
     if template.template_type == SMS_TYPE:
         # set sender_id if missing
