@@ -271,10 +271,10 @@ def test_get_service_by_id_with_dogpile_cache_returns_cached_payload(notify_api,
     }
 
     with set_config(notify_api, "FF_USE_DOGPILE_CACHING", True):
-        mocked_cached_fetch = mocker.patch("app.service.rest.dao_fetch_service_by_id_cached", return_value=cached_data)
+        mocked_cached_fetch = mocker.patch("app.dao.services_dao.dao_fetch_service_by_id_cached", return_value=cached_data)
         json_resp = admin_request.get("service.get_service_by_id", service_id=sample_service.id)
 
-    mocked_cached_fetch.assert_called_once_with(sample_service.id)
+    mocked_cached_fetch.assert_called_once_with(sample_service.id, only_active=False)
     assert json_resp["data"]["id"] == str(sample_service.id)
     assert json_resp["data"]["name"] == sample_service.name
 

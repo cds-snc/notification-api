@@ -545,6 +545,12 @@ class NotificationSchema(Schema):
     status = fields.String(required=False)
     personalisation = fields.Dict(required=False)
 
+    @validates("personalisation")
+    def validate_personalisation(self, value):
+        # Document objects are only ever created server-side by the v2 upload flow
+        if any(isinstance(v, dict) and "document" in v for v in value.values()):
+            raise ValidationError("File attachments are not supported by this endpoint")
+
 
 class SmsNotificationSchema(NotificationSchema):
     to = fields.Str(required=True)
@@ -622,6 +628,15 @@ class NotificationWithTemplateSchema(BaseSchema):
     created_at = FlexibleDateTime()
     updated_at = FlexibleDateTime()
     sent_at = FlexibleDateTime()
+    scheduled_for = fields.Method("get_scheduled_for", dump_only=True)
+
+    def get_scheduled_for(self, notification):
+        # Only set for legacy scheduled notifications, which are in the notifications table. Other scheduled
+        # notifications aren't in the notifications table and set it when they're serialized.
+        scheduled_notification = notification.scheduled_notification
+        if scheduled_notification is None or not scheduled_notification.pending:
+            return None
+        return scheduled_notification.scheduled_for.strftime(FlexibleDateTime.OLD_MARSHMALLOW_FORMAT)
 
     @pre_dump
     def add_api_key_name(self, in_data, **kwargs):

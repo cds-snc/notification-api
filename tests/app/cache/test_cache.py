@@ -7,6 +7,9 @@ import pytest
 from dogpile.cache import make_region
 from dogpile.cache.api import NO_VALUE
 from flask import Flask
+from redis.exceptions import RedisError
+from sqlalchemy import event
+from sqlalchemy.orm.exc import NoResultFound
 from tests.app.db import create_service, create_template, create_user
 
 from app import db
@@ -18,9 +21,11 @@ from app.caching import (
     _json_cache_serializer,
     cache_key_generator,
     cache_on_arguments,
+    dogpile_region,
     init_dogpile_cache,
     invalidate_group_keys,
 )
+from app.dao import services_dao, templates_dao, users_dao
 from app.dao.permissions_dao import permission_dao
 from app.dao.service_permissions_dao import (
     dao_add_service_permission,
@@ -37,6 +42,7 @@ from app.models import (
     TemplateRedacted,
     User,
 )
+from app.schemas import service_schema, template_history_schema, template_schema
 
 
 def _make_memory_region(expiration_time=600):
@@ -53,6 +59,132 @@ def _make_memory_region(expiration_time=600):
 @pytest.fixture(autouse=True)
 def cache_statsd(mocker):
     return mocker.patch("app.caching.statsd_client")
+
+
+@pytest.mark.parametrize("entity", ["service", "user", "template"])
+@pytest.mark.parametrize("mode", ["flag_off", "opt_out", "explicit_opt_out", "hit", "redis_error", "missing"])
+def test_original_daos_own_cache_selection_and_fallback(notify_api, request, mocker, entity, mode):
+    if entity == "service":
+        record = request.getfixturevalue("sample_service")
+        module = services_dao
+        read = module.dao_fetch_service_by_id
+        cached_name = "dao_fetch_service_by_id_cached"
+        args, cached_kwargs = (record.id,), {"only_active": False}
+        expected = service_schema.dump(record)
+    elif entity == "template":
+        record = request.getfixturevalue("sample_template")
+        module = templates_dao
+        read = module.dao_get_template_by_id_and_service_id
+        cached_name = "dao_get_template_by_id_cached"
+        args, cached_kwargs = (record.id, record.service_id), {}
+        expected = template_schema.dump(record)
+    else:
+        record = request.getfixturevalue("sample_user")
+        module = users_dao
+        read = module.get_user_by_id
+        cached_name = "dao_get_user_by_id_cached"
+        args, cached_kwargs = (record.id,), {}
+        expected = record.serialize()
+    mocker.patch.dict(notify_api.config, FF_USE_DOGPILE_CACHING=mode != "flag_off")
+    cached = mocker.patch.object(module, cached_name, return_value=expected)
+    if mode == "redis_error":
+        cached.side_effect = RedisError("unavailable")
+    elif mode == "missing":
+        cached.side_effect = NoResultFound()
+        with pytest.raises(NoResultFound):
+            read(*args, use_dogpile=True)
+        return
+    result = read(*args) if mode == "opt_out" else read(*args, use_dogpile=mode != "explicit_opt_out")
+    if mode in {"opt_out", "explicit_opt_out"}:
+        assert result is record
+        cached.assert_not_called()
+        return
+    assert isinstance(result, dict)
+    assert _json_cache_deserializer(_json_cache_serializer(result)) == _json_cache_deserializer(
+        _json_cache_serializer(expected)
+    )
+    if mode in {"hit", "redis_error"}:
+        cached.assert_called_once_with(*args, **cached_kwargs)
+    else:
+        cached.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "module,read_name,cached_name,fixture_name",
+    [
+        (services_dao, "dao_fetch_service_by_id", "dao_fetch_service_by_id_cached", "sample_service"),
+        (users_dao, "get_user_by_id", "dao_get_user_by_id_cached", "sample_user"),
+        (templates_dao, "dao_get_template_by_id_and_service_id", "dao_get_template_by_id_cached", "sample_template"),
+    ],
+)
+def test_original_daos_reuse_existing_warm_entries_without_sql(
+    notify_api, request, mocker, module, read_name, cached_name, fixture_name
+):
+    record = request.getfixturevalue(fixture_name)
+    args = (record.id, record.service_id) if module is templates_dao else (record.id,)
+    mocker.patch.object(dogpile_region, "backend", _make_memory_region().backend)
+    mocker.patch.dict(notify_api.config, FF_USE_DOGPILE_CACHING=True)
+    expected = getattr(module, cached_name)(*args)
+    db.session.remove()
+    statements = []
+
+    def record_statement(_connection, _cursor, statement, _parameters, _context, _executemany):
+        statements.append(statement)
+
+    engines = {db.get_engine(bind="writer"), db.get_engine(bind="reader")}
+    for engine in engines:
+        event.listen(engine, "before_cursor_execute", record_statement)
+    try:
+        result = getattr(module, read_name)(*args, use_dogpile=True)
+        assert statements == []
+        assert _json_cache_deserializer(_json_cache_serializer(result)) == _json_cache_deserializer(
+            _json_cache_serializer(expected)
+        )
+    finally:
+        for engine in engines:
+            event.remove(engine, "before_cursor_execute", record_statement)
+
+
+@pytest.mark.parametrize("cache_enabled", [False, True])
+def test_service_data_dao_preserves_active_filter(notify_api, sample_service, mocker, cache_enabled):
+    mocker.patch.dict(notify_api.config, FF_USE_DOGPILE_CACHING=cache_enabled)
+    sample_service.active = False
+    db.session.commit()
+    with pytest.raises(NoResultFound):
+        services_dao.dao_fetch_service_by_id(sample_service.id, only_active=True, use_dogpile=True)
+
+
+@pytest.mark.parametrize("cache_enabled", [False, True])
+def test_template_data_dao_preserves_service_scope(notify_api, sample_template, mocker, cache_enabled):
+    mocker.patch.dict(notify_api.config, FF_USE_DOGPILE_CACHING=cache_enabled)
+    with pytest.raises(NoResultFound):
+        templates_dao.dao_get_template_by_id_and_service_id(sample_template.id, UUID(int=0), use_dogpile=True)
+
+
+def test_user_listing_remains_orm_only(sample_user, mocker):
+    cached = mocker.patch.object(users_dao, "dao_get_user_by_id_cached")
+    assert sample_user in users_dao.get_user_by_id()
+    assert all(isinstance(user, User) for user in users_dao.get_user_by_id(use_dogpile=False))
+    with pytest.raises(ValueError, match="require a user ID"):
+        users_dao.get_user_by_id(use_dogpile=True)
+    cached.assert_not_called()
+
+
+@pytest.mark.parametrize("use_dogpile", [False, True])
+def test_explicit_template_version_bypasses_current_cache(notify_api, sample_template, mocker, use_dogpile):
+    mocker.patch.dict(notify_api.config, FF_USE_DOGPILE_CACHING=True)
+    cached = mocker.patch.object(templates_dao, "dao_get_template_by_id_cached")
+    original = templates_dao.dao_get_template_by_id_and_service_id(
+        sample_template.id, sample_template.service_id, version=sample_template.version
+    )
+    result = templates_dao.dao_get_template_by_id_and_service_id(
+        sample_template.id, sample_template.service_id, version=sample_template.version, use_dogpile=use_dogpile
+    )
+    if use_dogpile:
+        assert result == template_history_schema.dump(original)
+    else:
+        assert result is original
+    cached.assert_not_called()
 
 
 class TestCacheAccessMetrics:

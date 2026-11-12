@@ -13,9 +13,9 @@ down_revision = "0245_archived_flag_jobs"
 
 def upgrade():
     conn = op.get_bind()
-    conn.execute("CREATE INDEX IF NOT EXISTS ix_notifications_service_created_at ON notifications (service_id, created_at)")
+    conn.exec_driver_sql("CREATE INDEX IF NOT EXISTS ix_notifications_service_created_at ON notifications (service_id, created_at)")
 
 
 def downgrade():
     conn = op.get_bind()
-    conn.execute("DROP INDEX IF EXISTS ix_notifications_service_created_at")
+    conn.exec_driver_sql("DROP INDEX IF EXISTS ix_notifications_service_created_at")

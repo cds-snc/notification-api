@@ -7,6 +7,7 @@ from flask import current_app
 from notifications_utils.clients.redis import service_cache_key
 from notifications_utils.statsd_decorators import statsd
 from notifications_utils.timezones import convert_utc_to_local_timezone
+from redis.exceptions import RedisError
 from sqlalchemy.orm import joinedload
 from sqlalchemy.sql.expression import and_, asc, case, func
 
@@ -213,8 +214,18 @@ def dao_fetch_service_by_id_cached(service_id: str, only_active=False) -> dict:
 
 
 @log_execution_time
-def dao_fetch_service_by_id(service_id, only_active=False, use_cache=False) -> Service:
-    if use_cache:
+def dao_fetch_service_by_id(service_id, only_active=False, use_cache=False, *, use_dogpile=False) -> Service | dict:
+    """Return an ORM service, or dictionary data when use_dogpile is requested.
+
+    Opted-in reads return dictionaries even with the feature disabled or Redis
+    unavailable. Legacy use_cache behavior is retained for ORM reads only.
+    """
+    if use_dogpile and current_app.config.get("FF_USE_DOGPILE_CACHING", False) is True:
+        try:
+            return dao_fetch_service_by_id_cached(service_id, only_active=only_active)
+        except RedisError:
+            current_app.logger.warning("Service cache unavailable; falling back to database")
+    if use_cache and not use_dogpile:
         service_cache = redis_store.get(service_cache_key(service_id))
         if service_cache:
             service_cache_decoded = json.loads(service_cache.decode("utf-8"))["data"]
@@ -223,7 +234,8 @@ def dao_fetch_service_by_id(service_id, only_active=False, use_cache=False) -> S
     query = Service.query.filter_by(id=service_id).options(joinedload("users"))
     if only_active:
         query = query.filter(Service.active)
-    return query.one()
+    service = query.one()
+    return service_schema.dump(service) if use_dogpile else service
 
 
 def dao_fetch_service_by_inbound_number(number):
@@ -480,6 +492,20 @@ def dao_fetch_todays_stats_for_service(service_id):
     return _stats_for_service_query(service_id).filter(func.date(Notification.created_at) == date.today()).all()
 
 
+def _scheduled_one_off_notifications_for_today(service_id, midnight, notification_type=None):
+    """Filters for one-off notifications scheduled to be sent today that haven't been sent yet. Like scheduled jobs,
+    they count towards the daily limit of the day they're scheduled for."""
+    filters = [
+        ScheduledNotification.service_id == service_id,
+        ScheduledNotification.key_type != KEY_TYPE_TEST,
+        ScheduledNotification.scheduled_for >= midnight,
+        ScheduledNotification.scheduled_for < midnight + timedelta(days=1),
+    ]
+    if notification_type:
+        filters.append(ScheduledNotification.notification_type == notification_type)
+    return filters
+
+
 def fetch_todays_total_message_count(service_id):
     midnight = get_midnight(datetime.now(tz=pytz.utc))
     scheduled = (
@@ -499,7 +525,13 @@ def fetch_todays_total_message_count(service_id):
         )
     ).first()
 
-    return result.count + scheduled.count
+    scheduled_one_off_count = (
+        db.session.query(func.count(ScheduledNotification.notification_id))
+        .filter(*_scheduled_one_off_notifications_for_today(service_id, midnight))
+        .scalar()
+    )
+
+    return result.count + scheduled.count + scheduled_one_off_count
 
 
 def fetch_todays_total_sms_count(service_id):
@@ -514,7 +546,13 @@ def fetch_todays_total_sms_count(service_id):
         )
         .first()
     )
-    return 0 if result is None or result.total_sms_notifications is None else result.total_sms_notifications
+    scheduled_one_off_count = (
+        db.session.query(func.count(ScheduledNotification.notification_id))
+        .filter(*_scheduled_one_off_notifications_for_today(service_id, midnight, SMS_TYPE))
+        .scalar()
+    )
+    sent_count = 0 if result is None or result.total_sms_notifications is None else result.total_sms_notifications
+    return sent_count + scheduled_one_off_count
 
 
 def fetch_todays_total_sms_billable_units(service_id):
@@ -530,7 +568,13 @@ def fetch_todays_total_sms_billable_units(service_id):
         )
         .first()
     )
-    return 0 if result is None or result.total_sms_billable_units is None else result.total_sms_billable_units
+    scheduled_one_off_billable_units = (
+        db.session.query(func.coalesce(func.sum(ScheduledNotification.billable_units), 0))
+        .filter(*_scheduled_one_off_notifications_for_today(service_id, midnight, SMS_TYPE))
+        .scalar()
+    )
+    sent_billable_units = 0 if result is None or result.total_sms_billable_units is None else result.total_sms_billable_units
+    return sent_billable_units + scheduled_one_off_billable_units
 
 
 def fetch_service_email_limit(service_id: uuid.UUID) -> int:
@@ -557,7 +601,13 @@ def fetch_todays_total_email_count(service_id: uuid.UUID) -> int:
         )
     ).first()
 
-    return result.total_email_notifications + scheduled.total_scheduled_notifications
+    scheduled_one_off_count = (
+        db.session.query(func.count(ScheduledNotification.notification_id))
+        .filter(*_scheduled_one_off_notifications_for_today(service_id, midnight, EMAIL_TYPE))
+        .scalar()
+    )
+
+    return result.total_email_notifications + scheduled.total_scheduled_notifications + scheduled_one_off_count
 
 
 def _stats_for_service_query(service_id):

@@ -79,9 +79,9 @@ def upgrade():
 
     template_id = current_app.config["SERVICE_BOUNCE_RATE_SUSPENDED_TEMPLATE_ID"]
 
-    current_version = conn.execute("select version from templates where id='{}'".format(template_id)).fetchone()
-    name = conn.execute("select name from templates where id='{}'".format(template_id)).fetchone()
-    current_category = conn.execute(
+    current_version = conn.exec_driver_sql("select version from templates where id='{}'".format(template_id)).fetchone()
+    name = conn.exec_driver_sql("select name from templates where id='{}'".format(template_id)).fetchone()
+    current_category = conn.exec_driver_sql(
         "select template_category_id from templates where id='{}'".format(template_id)
     ).fetchone()
 

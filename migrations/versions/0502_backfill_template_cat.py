@@ -21,7 +21,7 @@ def upgrade():
     
     # Process in chunks until no more rows are affected
     while True:
-        result = conn.execute("""
+        result = conn.exec_driver_sql("""
             UPDATE templates_history th
             SET template_category_id = t.template_category_id
             FROM templates t

@@ -1,4 +1,5 @@
 import os
+import warnings
 from contextlib import contextmanager
 from typing import List
 from urllib.parse import urlparse
@@ -11,6 +12,8 @@ from flask import Flask
 
 from app import create_app, db
 from app.encryption import CryptoSigner
+
+TEST_DB_ROLE_SETUP_LOCK_ID = 887766554434
 
 
 def pytest_configure(config):
@@ -76,18 +79,37 @@ def grant_test_db(writer_uri, uri_db_reader):
     db_reader_password = urlparse(uri_db_reader).password
 
     postgres_db = sqlalchemy.create_engine(writer_uri, echo=False, isolation_level="AUTOCOMMIT", client_encoding="utf8")
+    postgres_uri = sqlalchemy.engine.make_url(writer_uri).set(database="postgres")
+    lock_engine = sqlalchemy.create_engine(postgres_uri, isolation_level="AUTOCOMMIT", client_encoding="utf8")
 
     statements = [
         f"DO $$ BEGIN CREATE ROLE {db_reader} LOGIN PASSWORD '{db_reader_password}'; EXCEPTION WHEN duplicate_object OR unique_violation THEN ALTER ROLE {db_reader} WITH LOGIN PASSWORD '{db_reader_password}'; END $$;",
         f"GRANT USAGE ON SCHEMA {db_schema} TO {db_reader};",
         f"GRANT SELECT ON ALL TABLES IN SCHEMA {db_schema} TO {db_reader};",
     ]
-    for statement in statements:
-        try:
-            postgres_db.execute(sqlalchemy.sql.text(statement)).close()
-        except (sqlalchemy.exc.ProgrammingError, sqlalchemy.exc.IntegrityError):
-            pass
-    postgres_db.dispose()
+    try:
+        with lock_engine.connect() as lock_connection:
+            lock_connection.execute(
+                sqlalchemy.sql.text("SELECT pg_advisory_lock(:lock_id)"),
+                {"lock_id": TEST_DB_ROLE_SETUP_LOCK_ID},
+            )
+            try:
+                for statement in statements:
+                    try:
+                        postgres_db.execute(sqlalchemy.sql.text(statement)).close()
+                    except (sqlalchemy.exc.ProgrammingError, sqlalchemy.exc.IntegrityError) as exc:
+                        warnings.warn(
+                            f"grant_test_db ignored SQL error for statement: {statement!r}; error: {exc}",
+                            RuntimeWarning,
+                        )
+            finally:
+                lock_connection.execute(
+                    sqlalchemy.sql.text("SELECT pg_advisory_unlock(:lock_id)"),
+                    {"lock_id": TEST_DB_ROLE_SETUP_LOCK_ID},
+                )
+    finally:
+        postgres_db.dispose()
+        lock_engine.dispose()
 
 
 @pytest.fixture(scope="session")
