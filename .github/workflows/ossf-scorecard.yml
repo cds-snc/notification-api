@@ -16,19 +16,12 @@ permissions:
   checks: read
   actions: read
 
-env: # temporary CA mitigation
-  NODE_OPTIONS: --use-openssl-ca
-  SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
-  SSL_CERT_DIR: /etc/ssl/certs
-
 jobs:
   analysis:
     name: Scorecards analysis
     runs-on: ubuntu-latest
 
     steps:
-      - name: Prepare Ubuntu CA trust
-        uses: route06/actions/prepare-ubuntu-ca@aa6b218e4bc5445f54d3649a04297af5e1ce7458 # temporary CA mitigation
       - name: "Audit DNS requests"
         uses: cds-snc/dns-proxy-action@7b6ba63b4f045de61c98a3c1b99fdd08f32b0784 # v1.2.0
         env:
