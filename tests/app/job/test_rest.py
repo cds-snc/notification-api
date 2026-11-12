@@ -81,7 +81,8 @@ def test_get_job_with_unknown_id_returns404(client, sample_template, fake_uuid):
     assert resp_json == {"message": "Job not found in database", "result": "error"}
 
 
-def test_cancel_job(client, sample_scheduled_job):
+def test_cancel_job(client, sample_scheduled_job, mocker):
+    release_mock = mocker.patch("app.job.rest.release_daily_limit_for_cancelled_job")
     job_id = str(sample_scheduled_job.id)
     service_id = sample_scheduled_job.service.id
     path = "/service/{}/job/{}/cancel".format(service_id, job_id)
@@ -91,6 +92,8 @@ def test_cancel_job(client, sample_scheduled_job):
     resp_json = json.loads(response.get_data(as_text=True))
     assert resp_json["data"]["id"] == job_id
     assert resp_json["data"]["job_status"] == "cancelled"
+    release_mock.assert_called_once()
+    assert release_mock.call_args.args[0].id == sample_scheduled_job.id
 
 
 def test_cant_cancel_normal_job(client, sample_job, mocker):

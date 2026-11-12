@@ -30,6 +30,10 @@ def increment_todays_email_count(service_id: UUID, increment_by: int) -> None:
 
 @requires_feature("REDIS_ENABLED")
 def decrement_todays_email_count(service_id: UUID, decrement_by: int) -> None:
-    fetch_todays_email_count(service_id)
     cache_key = email_daily_count_cache_key(service_id)
-    redis_store.decrby(cache_key, decrement_by)
+    # If today's count isn't in Redis, it'll be loaded from the database, which no longer includes what's being removed.
+    if redis_store.get(cache_key) is None:
+        return
+    new_count = redis_store.decrby(cache_key, decrement_by)
+    if new_count is not None and int(new_count) < 0:
+        redis_store.set(cache_key, 0, ex=int(timedelta(hours=2).total_seconds()))
