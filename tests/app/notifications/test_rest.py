@@ -595,7 +595,7 @@ class TestBillableUnitsInV1SendNotification:
         should be called with number_of_sms_fragments value instead of 1."""
         with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
             sample_template.content = "a" * 200  # Long message -> 2 fragments
-            mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+            mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
             mocker.patch(
                 "app.notifications.validators.get_annual_limit_notifications_v2",
                 return_value={
@@ -629,7 +629,7 @@ class TestBillableUnitsInV1SendNotification:
         should be called with 1 regardless of message length."""
         with set_config(notify_api, "FF_USE_BILLABLE_UNITS", False):
             sample_template.content = "a" * 200  # Long message -> 2 fragments
-            mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+            mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
             mocker.patch(
                 "app.notifications.validators.get_annual_limit_notifications_v2",
                 return_value={
@@ -693,7 +693,7 @@ class TestBillableUnitsInV1SendNotification:
         """When sending to a simulated recipient, SMS limit checks should be skipped."""
         with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
             sample_template.content = "a" * 200
-            mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+            mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
             mocker.patch(
                 "app.notifications.validators.get_annual_limit_notifications_v2",
                 return_value={

@@ -613,7 +613,6 @@ class Config(object):
         },
     }
     CELERY_QUEUES: List[Any] = []
-    CELERY_DELIVER_SMS_RATE_LIMIT = os.getenv("CELERY_DELIVER_SMS_RATE_LIMIT", "1/s")
     CELERY_DELIVER_SMS_RATE_LIMIT_PER_MINUTE = env.int("CELERY_DELIVER_SMS_RATE_LIMIT_PER_MINUTE", 6_000)
     # SMS rate limiter backend class name. Must match a key in an implementation class in the rate_limiter module.
     # Options: "InMemoryRateLimiter", "RedisSlidingWindowLogRateLimiter", "RedisTokenBucketRateLimiter"

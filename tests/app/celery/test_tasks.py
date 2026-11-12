@@ -238,7 +238,7 @@ class TestBatchSaving:
             sample_template_with_placeholders, to="+1 650 253 2223", personalisation={"name": "Test3"}
         )
 
-        mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+        mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
         acknowledge_mock = mocker.patch("app.sms_normal.acknowledge")
 
         receipt = uuid.uuid4()
@@ -283,7 +283,7 @@ class TestBatchSaving:
             sample_template_with_placeholders, to="+1 650 253 2223", personalisation={"name": "Test3"}
         )
 
-        mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+        mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
         acknowldege_mock = mocker.patch("app.sms_normal.acknowledge")
 
         receipt = uuid.uuid4()
@@ -366,7 +366,7 @@ class TestBatchSaving:
         notification1["id"] = str(uuid.uuid4())
         notification1["service_id"] = str(sample_template_with_placeholders.service.id)
 
-        mock_deliver_sms = mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+        mock_deliver_sms = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
         mock_persist_notifications = mocker.patch(
             "app.celery.tasks.persist_notifications", side_effect=IntegrityError(None, None, None)
         )
@@ -488,7 +488,7 @@ class TestBatchSaving:
             sample_template_with_placeholders, to="+1 650 253 2223", personalisation={"name": "Test3"}
         )
 
-        mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+        mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
 
         save_smss(
             str(sample_template_with_placeholders.service.id),
@@ -665,7 +665,7 @@ class TestMixedPriorityBatchRouting:
         n_bulk = _notification_json(bulk_template, to=to[2])
         n_bulk["id"] = b_id
 
-        deliver_task = "deliver_email" if notification_type == "email" else "deliver_sms_rate_limited"
+        deliver_task = "deliver_email" if notification_type == "email" else "deliver_sms"
         deliver_mock = mocker.patch(f"app.celery.provider_tasks.{deliver_task}.apply_async")
 
         save_fn(
@@ -1352,7 +1352,7 @@ class TestSaveSmss:
             personalisation={"name": "Jo"},
         )
 
-        mocked_deliver_sms = mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+        mocked_deliver_sms = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
 
         save_smss(
             sample_template_with_placeholders.service_id,
@@ -1391,7 +1391,7 @@ class TestSaveSmss:
         sms_sender = ServiceSmsSender()
         sms_sender.sms_sender = "6135550123"
         mocked_get_sender_id = mocker.patch("app.celery.tasks.dao_get_service_sms_senders_by_id", return_value=sms_sender)
-        celery_task = "deliver_throttled_sms" if sender_id else "deliver_sms_rate_limited"
+        celery_task = "deliver_throttled_sms" if sender_id else "deliver_sms"
         mocked_deliver_sms = mocker.patch(f"app.celery.provider_tasks.{celery_task}.apply_async")
         json_template_date = {"data": template_schema.dump(sample_template_with_placeholders)}
         json_service_data = {"data": service_schema.dump(sample_service)}
@@ -1464,7 +1464,7 @@ class TestSaveSmss:
         template = create_template(service=service, process_type=process_type)
         notification = _notification_json(template, to="+1 650 253 2222")
 
-        mocked_deliver_sms = mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+        mocked_deliver_sms = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
 
         notification_id = uuid.uuid4()
 
@@ -1475,11 +1475,11 @@ class TestSaveSmss:
         )
         persisted_notification = Notification.query.one()
         if process_type == "priority":
-            provider_tasks.deliver_sms_rate_limited.apply_async.assert_called_once_with(
+            provider_tasks.deliver_sms.apply_async.assert_called_once_with(
                 [str(persisted_notification.id), ANY], queue=QueueNames.SEND_SMS_HIGH, MessageGroupId=ANY
             )
         else:
-            provider_tasks.deliver_sms_rate_limited.apply_async.assert_called_once_with(
+            provider_tasks.deliver_sms.apply_async.assert_called_once_with(
                 [str(persisted_notification.id), ANY], queue=QueueNames.SEND_SMS_LOW, MessageGroupId=ANY
             )
         assert mocked_deliver_sms.called
@@ -1489,7 +1489,7 @@ class TestSaveSmss:
         template = create_template(service=service, process_type="normal")
         notification = _notification_json(template, to="+1 650 253 2222", queue=QueueNames.SEND_SMS_LOW)
 
-        mocked_deliver_sms = mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+        mocked_deliver_sms = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
 
         notification_id = uuid.uuid4()
 
@@ -1499,7 +1499,7 @@ class TestSaveSmss:
             notification_id,
         )
         persisted_notification = Notification.query.one()
-        provider_tasks.deliver_sms_rate_limited.apply_async.assert_called_once_with(
+        provider_tasks.deliver_sms.apply_async.assert_called_once_with(
             [str(persisted_notification.id), ANY], queue=QueueNames.SEND_SMS_LOW, MessageGroupId=ANY
         )
         assert mocked_deliver_sms.called
@@ -1531,7 +1531,7 @@ class TestSaveSmss:
         template = create_template(service=service)
         notification = _notification_json(template, "+16502532222")
 
-        mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+        mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
 
         notification_id = uuid.uuid4()
         save_smss(template.service_id, [signer_notification.sign(notification)], notification_id)
@@ -1547,7 +1547,7 @@ class TestSaveSmss:
         assert not persisted_notification.job_id
         assert not persisted_notification.personalisation
         assert persisted_notification.notification_type == "sms"
-        provider_tasks.deliver_sms_rate_limited.apply_async.assert_called_once_with(
+        provider_tasks.deliver_sms.apply_async.assert_called_once_with(
             [str(persisted_notification.id), ANY], queue=QueueNames.SEND_SMS_MEDIUM, MessageGroupId=ANY
         )
 
@@ -1556,7 +1556,7 @@ class TestSaveSmss:
         template = create_template(service=service)
 
         notification = _notification_json(template, to="6502532222")
-        mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+        mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
 
         notification_id = uuid.uuid4()
         save_smss(template.service_id, [signer_notification.sign(notification)], notification_id)
@@ -1566,7 +1566,7 @@ class TestSaveSmss:
 
     def test_should_save_sms_template_to_and_persist_with_job_id(self, notify_api, sample_job, mocker):
         notification = _notification_json(sample_job.template, to="+1 650 253 2222", job_id=sample_job.id, row_number=2)
-        mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+        mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
 
         notification_id = uuid.uuid4()
         now = datetime.utcnow()
@@ -1585,7 +1585,7 @@ class TestSaveSmss:
         assert persisted_notification.key_type == KEY_TYPE_NORMAL
         assert persisted_notification.notification_type == "sms"
 
-        provider_tasks.deliver_sms_rate_limited.apply_async.assert_called_once_with(
+        provider_tasks.deliver_sms.apply_async.assert_called_once_with(
             [str(persisted_notification.id), ANY], queue=QueueNames.SEND_SMS_MEDIUM, MessageGroupId=ANY
         )
 
@@ -1594,7 +1594,7 @@ class TestSaveSmss:
 
         expected_exception = SQLAlchemyError()
 
-        mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+        mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
         mocker.patch("app.celery.tasks.save_smss.retry", side_effect=Retry)
         mocker.patch("app.celery.tasks.save_smss.max_retries", return_value=4)
         mocker.patch(
@@ -1606,14 +1606,14 @@ class TestSaveSmss:
 
         with pytest.raises(Retry):
             save_smss(sample_template.service_id, [signer_notification.sign(notification)], notification_id)
-        assert provider_tasks.deliver_sms_rate_limited.apply_async.called is False
+        assert provider_tasks.deliver_sms.apply_async.called is False
         tasks.save_smss.retry.assert_called_with(exc=expected_exception, queue="retry-tasks")
 
         assert Notification.query.count() == 0
 
     def test_save_sms_does_not_send_duplicate_and_does_not_put_in_retry_queue(self, sample_notification, mocker):
         json = _notification_json(sample_notification.template, "6502532222", job_id=uuid.uuid4(), row_number=1)
-        deliver_sms = mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+        deliver_sms = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
         retry = mocker.patch("app.celery.tasks.save_smss.retry", side_effect=Exception())
         notification_id = str(sample_notification.id)
         json["id"] = str(sample_notification.id)
@@ -1643,7 +1643,7 @@ class TestSaveSmss:
 
         notification = _notification_json(template, to="6502532222")
         notification["sender_id"] = str(new_sender.id)
-        deliver_sms = mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+        deliver_sms = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
 
         notification_id = uuid.uuid4()
         save_smss(service.id, [signer_notification.sign(notification)], notification_id)

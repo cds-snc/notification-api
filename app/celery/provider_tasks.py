@@ -7,7 +7,7 @@ from sqlalchemy.orm.exc import NoResultFound
 
 from app import notify_celery
 from app.celery.utils import CeleryParams
-from app.config import Config
+from app.config import QueueNames
 from app.dao.notifications_dao import get_notification_with_template, update_notification_status_by_id
 from app.delivery import send_to_providers
 from app.exceptions import (
@@ -47,32 +47,23 @@ def deliver_throttled_sms(self, notification_id: str):
     _deliver_sms(self, notification_id)
 
 
-# Celery rate limits are per worker instance and not a global rate limit.
-# https://docs.celeryproject.org/en/stable/userguide/tasks.html#Task.rate_limit
-# We currently set rate_limit="1/s" on the Celery task and 4 workers per pod, and so a limit of 4 tasks per second per pod.
-# The number of pods is controlled by the Kubernetes HPA and scales up and down with demand.
-# Currently in production we have 3 celery-sms-send-primary pods, and up to 20 celery-sms-send-scalable pods
-# This means we can send up to 92 messages per second.
 @notify_celery.task(
     bind=True,
     name="deliver_sms",
     max_retries=48,
     default_retry_delay=300,
-    rate_limit=Config.CELERY_DELIVER_SMS_RATE_LIMIT,
 )
 @statsd(namespace="tasks")
-def deliver_sms(self, notification_id: str):
-    _deliver_sms(self, notification_id)
+def deliver_sms(self, notification_id: str, parts_count: Optional[int] = None):
+    if parts_count is None:
+        routing_key = (self.request.delivery_info or {}).get("routing_key")
+        if routing_key in (None, QueueNames.RESEARCH_MODE):
+            _deliver_sms(self, notification_id)
+            return
+        # Older queued tasks carry only a notification ID. Keep them rate-limited
+        # after deployment; the exact SMS length is unavailable in those messages.
+        parts_count = 1
 
-
-@notify_celery.task(
-    bind=True,
-    name="deliver_sms_rate_limited",
-    max_retries=48,
-    default_retry_delay=300,
-)
-@statsd(namespace="tasks")
-def deliver_sms_rate_limited(self, notification_id: str, parts_count: int):
     acquired, seconds_to_wait = get_rate_limiter("sms").acquire_lease(parts_count)
     if acquired:
         _deliver_sms(self, notification_id)
@@ -85,7 +76,7 @@ def deliver_sms_rate_limited(self, notification_id: str, parts_count: int):
         # do not consume the task's max_retries budget, which is reserved for real
         # delivery failures in _deliver_sms.
         current_queue = self.request.delivery_info.get("routing_key")
-        deliver_sms_rate_limited.apply_async(
+        deliver_sms.apply_async(
             queue=current_queue,
             args=[notification_id, parts_count],
             countdown=seconds_to_wait,

@@ -172,7 +172,7 @@ def test_switch_providers_on_slow_delivery_switches_once_then_does_not_switch_if
 
 @freeze_time("2017-05-01 14:00:00")
 def test_should_send_all_scheduled_notifications_to_deliver_queue(sample_template, mocker):
-    mocked = mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited")
+    mocked = mocker.patch("app.celery.provider_tasks.deliver_sms")
     message_to_deliver = save_scheduled_notification(
         create_notification(template=sample_template), scheduled_for="2017-05-01 13:15"
     )
@@ -300,7 +300,7 @@ class TestSendScheduledNotifications:
     def test_notification_is_created_when_its_sent(self, sample_service, mocker, template_type):
         # The notification should be created (and counted) on the day it's sent, not the day it was requested
         mock_publish = mocker.patch(f"app.{template_type}_normal_publish.publish")
-        delivery_task = "deliver_sms_rate_limited" if template_type == "sms" else "deliver_email"
+        delivery_task = "deliver_sms" if template_type == "sms" else "deliver_email"
         mocker.patch(f"app.celery.provider_tasks.{delivery_task}.apply_async")
         template = create_template(service=sample_service, template_type=template_type, content="Hi ((name))")
         with freeze_time("2017-04-28 09:00:00"):
@@ -326,7 +326,7 @@ class TestSendScheduledNotifications:
 
     @freeze_time("2017-05-01 14:00:00")
     def test_still_sends_legacy_scheduled_notifications(self, sample_template, mocker):
-        mock_deliver = mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited")
+        mock_deliver = mocker.patch("app.celery.provider_tasks.deliver_sms")
         mock_publish = mocker.patch("app.sms_normal_publish.publish")
         legacy = save_scheduled_notification(create_notification(template=sample_template), scheduled_for="2017-05-01 13:15")
         create_scheduled_one_off_notification(sample_template, scheduled_for="2017-05-01 13:00")
@@ -474,7 +474,7 @@ def test_check_job_status_task_sets_jobs_to_error(mocker, sample_template):
 
 def test_replay_created_notifications(notify_db_session, sample_service, mocker):
     email_delivery_queue = mocker.patch("app.celery.provider_tasks.deliver_email.apply_async")
-    sms_delivery_queue = mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+    sms_delivery_queue = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
 
     sms_template = create_template(service=sample_service, template_type="sms")
     email_template = create_template(service=sample_service, template_type="email")

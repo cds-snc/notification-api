@@ -11,7 +11,6 @@ from app.celery.provider_tasks import (
     _safe_get_process_type,
     deliver_email,
     deliver_sms,
-    deliver_sms_rate_limited,
     deliver_throttled_sms,
 )
 from app.clients.email.aws_ses import AwsSesClientException
@@ -32,7 +31,6 @@ def test_should_have_decorated_tasks_functions():
     assert deliver_sms.__wrapped__.__name__ == "deliver_sms"
     assert deliver_throttled_sms.__wrapped__.__name__ == "deliver_throttled_sms"
     assert deliver_email.__wrapped__.__name__ == "deliver_email"
-    assert deliver_sms_rate_limited.__wrapped__.__name__ == "deliver_sms_rate_limited"
 
 
 @pytest.mark.parametrize("sms_method,sms_method_name", sms_methods)
@@ -259,16 +257,39 @@ def test_send_sms_should_not_switch_providers_on_non_provider_failure(
     assert switch_provider_mock.called is False
 
 
-class TestDeliverSmsRateLimited:
+class TestDeliverSms:
+    def test_bypasses_rate_limit_for_research_queue(self, notify_api, mocker):
+        notification_id = str(uuid.uuid4())
+        mock_limiter = mocker.patch("app.celery.provider_tasks.get_rate_limiter")
+        mock_deliver = mocker.patch("app.celery.provider_tasks._deliver_sms")
+        deliver_sms._get_current_object().request.delivery_info = {"routing_key": QueueNames.RESEARCH_MODE}
+
+        deliver_sms(notification_id)
+
+        mock_limiter.assert_not_called()
+        mock_deliver.assert_called_once()
+
+    def test_rate_limits_legacy_task_with_no_parts_count(self, notify_api, mocker):
+        notification_id = str(uuid.uuid4())
+        mock_limiter = MagicMock()
+        mock_limiter.acquire_lease.return_value = (True, 0)
+        mocker.patch("app.celery.provider_tasks.get_rate_limiter", return_value=mock_limiter)
+        mocker.patch("app.celery.provider_tasks._deliver_sms")
+        deliver_sms._get_current_object().request.delivery_info = {"routing_key": QueueNames.SEND_SMS_MEDIUM}
+
+        deliver_sms(notification_id)
+
+        mock_limiter.acquire_lease.assert_called_once_with(1)
+
     def test_delivers_sms_when_rate_limit_acquired(self, notify_api, mocker):
         notification_id = str(uuid.uuid4())
         mock_limiter = MagicMock()
         mock_limiter.acquire_lease.return_value = (True, 0)
         mocker.patch("app.celery.provider_tasks.get_rate_limiter", return_value=mock_limiter)
         mock_deliver = mocker.patch("app.celery.provider_tasks._deliver_sms")
-        mock_apply_async = mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+        mock_apply_async = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
 
-        deliver_sms_rate_limited(notification_id, 2)
+        deliver_sms(notification_id, 2)
 
         mock_deliver.assert_called_once()
         mock_apply_async.assert_not_called()
@@ -279,13 +300,13 @@ class TestDeliverSmsRateLimited:
         mock_limiter.acquire_lease.return_value = (False, 30)
         mocker.patch("app.celery.provider_tasks.get_rate_limiter", return_value=mock_limiter)
         mocker.patch("app.celery.provider_tasks._deliver_sms")
-        mock_apply_async = mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+        mock_apply_async = mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
         # In unit test context, self.request.delivery_info isn't populated by a real
         # broker; patch it so the task can read the current routing_key.
-        deliver_sms_rate_limited._get_current_object().request.delivery_info = {"routing_key": QueueNames.SEND_SMS_MEDIUM}
+        deliver_sms._get_current_object().request.delivery_info = {"routing_key": QueueNames.SEND_SMS_MEDIUM}
 
         with pytest.raises(Ignore):
-            deliver_sms_rate_limited(notification_id, 2)
+            deliver_sms(notification_id, 2)
 
         mock_apply_async.assert_called_once_with(
             queue=QueueNames.SEND_SMS_MEDIUM,
@@ -300,7 +321,7 @@ class TestDeliverSmsRateLimited:
         mocker.patch("app.celery.provider_tasks.get_rate_limiter", return_value=mock_limiter)
         mock_deliver = mocker.patch("app.celery.provider_tasks._deliver_sms")
 
-        deliver_sms_rate_limited(notification_id, 1)
+        deliver_sms(notification_id, 1)
 
         mock_deliver.assert_called_once()
 

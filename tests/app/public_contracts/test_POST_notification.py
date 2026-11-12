@@ -18,7 +18,7 @@ def _post_notification(client, template, url, to):
 
 
 def test_post_sms_contract(client, mocker, sample_template):
-    mocker.patch("app.celery.provider_tasks.deliver_sms_rate_limited.apply_async")
+    mocker.patch("app.celery.provider_tasks.deliver_sms.apply_async")
     mocker.patch(
         "app.notifications.validators.get_annual_limit_notifications_v2",
         return_value={

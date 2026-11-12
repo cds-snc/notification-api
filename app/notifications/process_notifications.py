@@ -300,8 +300,6 @@ def choose_deliver_task(notification):
         deliver_task = provider_tasks.deliver_sms
         if notification.sends_with_custom_number() and notification.queue_name != QueueNames.RESEARCH_MODE:
             deliver_task = provider_tasks.deliver_throttled_sms
-        elif notification.queue_name != QueueNames.RESEARCH_MODE:
-            deliver_task = provider_tasks.deliver_sms_rate_limited
     if notification.notification_type == EMAIL_TYPE:
         deliver_task = provider_tasks.deliver_email
     if notification.notification_type == LETTER_TYPE:
@@ -325,7 +323,6 @@ def send_notification_to_queue(notification, research_mode, queue=None):
             deliver_task = provider_tasks.deliver_throttled_sms
             queue = QueueNames.SEND_THROTTLED_SMS
         elif queue != QueueNames.RESEARCH_MODE:
-            deliver_task = provider_tasks.deliver_sms_rate_limited
             template = notification.template or dao_get_template_by_id(
                 notification.template_id, notification.template_version, use_cache=True
             )
