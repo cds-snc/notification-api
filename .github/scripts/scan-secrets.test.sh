@@ -49,6 +49,12 @@ grep -qx 'before-commit' "$ARGUMENTS"
 grep -qx 'after-commit' "$ARGUMENTS"
 grep -qx 'ghcr.io/trufflesecurity/trufflehog@sha256:0d003fc3abc4e1565eca8462b992001314de51451e96e3c44de80d116794d5d1' "$ARGUMENTS"
 
+GITHUB_EVENT_NAME=workflow_call check 0 "reusable workflow scans all refs"
+if grep -qxE -- '--since-commit|--branch' "$ARGUMENTS"; then
+  echo "FAIL: reusable workflow scan must include all available refs" >&2
+  exit 1
+fi
+
 finding='{
   "DetectorName": "SyntheticTestDetector",
   "Verified": false,

@@ -51,7 +51,7 @@ case "${GITHUB_EVENT_NAME:-local}" in
       base=""
     fi
     ;;
-  workflow_dispatch|schedule|local) ;;
+  workflow_call|workflow_dispatch|schedule|local) ;;
   *)
     echo "Unsupported secret scanning event: ${GITHUB_EVENT_NAME}" >&2
     exit 1
