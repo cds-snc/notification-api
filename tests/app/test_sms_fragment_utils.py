@@ -117,22 +117,18 @@ class TestBillableUnitsInSmsFragmentUtils:
 
 
 @pytest.mark.parametrize(
-    "decrement_fn, cache_key_fn, fetch_fn",
+    "decrement_fn, cache_key_fn",
     [
-        (decrement_todays_requested_sms_count, sms_daily_count_cache_key, "fetch_todays_requested_sms_count"),
-        (
-            decrement_todays_requested_sms_billable_units_count,
-            billable_units_sms_daily_count_cache_key,
-            "fetch_todays_requested_sms_billable_units_count",
-        ),
+        (decrement_todays_requested_sms_count, sms_daily_count_cache_key),
+        (decrement_todays_requested_sms_billable_units_count, billable_units_sms_daily_count_cache_key),
     ],
 )
 @pytest.mark.parametrize("decrby_result, expect_reset_to_zero", [(3, False), (0, False), (-2, True)])
 def test_decrement_todays_requested_sms_counts(
-    mocker, client, sample_service, decrement_fn, cache_key_fn, fetch_fn, decrby_result, expect_reset_to_zero
+    mocker, client, sample_service, decrement_fn, cache_key_fn, decrby_result, expect_reset_to_zero
 ):
     cache_key = cache_key_fn(sample_service.id)
-    mocker.patch(f"app.sms_fragment_utils.{fetch_fn}")
+    mocker.patch("app.redis_store.get", return_value=b"5")
     mocked_decrby = mocker.patch("app.redis_store.decrby", return_value=decrby_result)
     mocked_set = mocker.patch("app.redis_store.set")
 
@@ -155,4 +151,25 @@ def test_decrement_todays_requested_sms_counts_does_nothing_when_redis_disabled(
     with set_config(client.application, "REDIS_ENABLED", False):
         decrement_fn(sample_service.id, 5)
 
+    mocked_decrby.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "decrement_fn, db_fetch_fn",
+    [
+        (decrement_todays_requested_sms_count, "fetch_todays_total_sms_count"),
+        (decrement_todays_requested_sms_billable_units_count, "fetch_todays_total_sms_billable_units"),
+    ],
+)
+def test_decrement_todays_requested_sms_counts_does_nothing_when_not_in_redis(
+    mocker, client, sample_service, decrement_fn, db_fetch_fn
+):
+    mocker.patch("app.redis_store.get", return_value=None)
+    mocked_db_fetch = mocker.patch(f"app.sms_fragment_utils.{db_fetch_fn}")
+    mocked_decrby = mocker.patch("app.redis_store.decrby")
+
+    with set_config(client.application, "REDIS_ENABLED", True):
+        decrement_fn(sample_service.id, 5)
+
+    mocked_db_fetch.assert_not_called()
     mocked_decrby.assert_not_called()

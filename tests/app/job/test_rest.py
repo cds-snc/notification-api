@@ -13,7 +13,13 @@ from notifications_utils.clients.redis.annual_limit import (
 
 import app.celery.tasks
 from app.dao.templates_dao import dao_update_template
-from app.models import JOB_STATUS_FINISHED, JOB_STATUS_PENDING, JOB_STATUS_TYPES, ServiceSmsSender
+from app.models import (
+    JOB_STATUS_FINISHED,
+    JOB_STATUS_PENDING,
+    JOB_STATUS_TYPES,
+    Job,
+    ServiceSmsSender,
+)
 from app.notifications.validators import (
     LiveServiceRequestExceedsEmailAnnualLimitError,
     LiveServiceRequestExceedsSMSAnnualLimitError,
@@ -1336,3 +1342,74 @@ class TestBillableUnitsInJobCreation:
             mock_check_annual.assert_not_called()
             mock_check_daily.assert_not_called()
             mock_increment.assert_not_called()
+
+            assert Job.query.get(fake_uuid).billable_units == 0
+
+    @freeze_time("2026-11-12 10:00:00")
+    @pytest.mark.parametrize(
+        "ff_use_billable_units, expected_requested_sms",
+        [(True, 6), (False, 3)],
+    )
+    @pytest.mark.parametrize(
+        "scheduled_for, expect_increment",
+        [
+            (None, True),
+            ("2026-11-12T20:00:00", True),
+            ("2026-11-13T09:00:00", False),
+        ],
+        ids=["not scheduled", "scheduled for today", "scheduled for a later day"],
+    )
+    def test_create_sms_job_only_counts_towards_todays_limit_if_sent_today(
+        self,
+        client,
+        sample_template,
+        mocker,
+        fake_uuid,
+        notify_api,
+        ff_use_billable_units,
+        expected_requested_sms,
+        scheduled_for,
+        expect_increment,
+    ):
+        with set_config(notify_api, "FF_USE_BILLABLE_UNITS", ff_use_billable_units):
+            mocker.patch("app.celery.tasks.process_job.apply_async")
+            mocker.patch(
+                "app.job.rest.get_job_metadata_from_s3",
+                return_value={
+                    "template_id": str(sample_template.id),
+                    "original_file_name": "thisisatest.csv",
+                    "notification_count": "3",
+                    "valid": "True",
+                },
+            )
+            mocker.patch(
+                "app.job.rest.get_job_from_s3",
+                return_value="phone number\r\n6502532222\r\n6502532223\r\n6502532224",
+            )
+            mocker.patch(
+                "notifications_utils.recipients.RecipientCSV.sms_fragment_count",
+                new_callable=mocker.PropertyMock,
+                return_value=6,
+            )
+            mock_check_annual = mocker.patch("app.job.rest.check_sms_annual_limit")
+            mock_check_daily = mocker.patch("app.job.rest.check_sms_daily_limit")
+            mock_increment = mocker.patch("app.job.rest.increment_sms_daily_count_send_warnings_if_needed")
+
+            data = {"id": fake_uuid, "created_by": str(sample_template.created_by.id)}
+            if scheduled_for:
+                data["scheduled_for"] = scheduled_for
+            path = "/service/{}/job".format(sample_template.service.id)
+            headers = [("Content-Type", "application/json"), create_authorization_header()]
+
+            response = client.post(path, data=json.dumps(data), headers=headers)
+            assert response.status_code == 201
+
+            mock_check_annual.assert_called_once_with(sample_template.service, expected_requested_sms)
+            mock_check_daily.assert_called_once_with(sample_template.service, expected_requested_sms)
+            if expect_increment:
+                mock_increment.assert_called_once_with(sample_template.service, expected_requested_sms)
+            else:
+                mock_increment.assert_not_called()
+            # Stored so the day the job is scheduled for can count it when its count is loaded from the database
+            assert Job.query.get(fake_uuid).billable_units == 6
+            assert "billable_units" not in response.get_json()["data"]

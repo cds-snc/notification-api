@@ -39,7 +39,6 @@ def decrement_todays_requested_sms_count(service_id: UUID, decrement_by: int):
     if not current_app.config["REDIS_ENABLED"]:
         return
 
-    fetch_todays_requested_sms_count(service_id)
     _decrement_without_going_below_zero(sms_daily_count_cache_key(service_id), decrement_by)
 
 
@@ -73,11 +72,13 @@ def decrement_todays_requested_sms_billable_units_count(service_id: UUID, decrem
     if not current_app.config["REDIS_ENABLED"]:
         return
 
-    fetch_todays_requested_sms_billable_units_count(service_id)
     _decrement_without_going_below_zero(billable_units_sms_daily_count_cache_key(service_id), decrement_by)
 
 
 def _decrement_without_going_below_zero(cache_key: str, decrement_by: int):
+    # If today's count isn't in Redis, it'll be loaded from the database, which no longer includes what's being removed.
+    if redis_store.get(cache_key) is None:
+        return
     new_count = redis_store.decrby(cache_key, decrement_by)
     if new_count is not None and int(new_count) < 0:
         redis_store.set(cache_key, 0, ex=int(timedelta(hours=2).total_seconds()))
