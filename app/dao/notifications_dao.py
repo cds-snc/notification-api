@@ -16,6 +16,7 @@ from notifications_utils.timezones import (
     convert_utc_to_local_timezone,
 )
 from sqlalchemy import asc, desc, func
+from sqlalchemy import update as sqlalchemy_update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import defer, joinedload
 from sqlalchemy.orm.exc import NoResultFound
@@ -24,6 +25,8 @@ from sqlalchemy.sql.expression import case
 from werkzeug.datastructures import MultiDict
 
 from app import create_uuid, db, signer_personalisation
+from app.cache.cache_events import queue_cache_invalidations
+from app.caching import cache_on_arguments
 from app.dao.dao_utils import transactional
 from app.dao.date_util import get_query_date_based_on_retention_period
 from app.errors import InvalidRequest
@@ -48,6 +51,10 @@ from app.models import (
     ScheduledNotification,
     Service,
     ServiceDataRetention,
+)
+from app.schemas import (
+    notification_with_personalisation_schema,
+    notification_with_template_schema,
 )
 from app.utils import escape_special_characters
 
@@ -261,6 +268,7 @@ def _update_notification_statuses(updates):
 @transactional
 def update_notification_statuses(notifications):
     db.session.bulk_save_objects(notifications)
+    queue_cache_invalidations(db.session, Notification, id=[notification.id for notification in notifications])
 
 
 @statsd(namespace="dao")
@@ -333,7 +341,22 @@ def get_notification_count_for_job(service_id, job_id):
 
 
 @statsd(namespace="dao")
-def get_notification_with_personalisation(service_id, notification_id, key_type):
+def get_notification_with_personalisation(service_id, notification_id, key_type, *, use_dogpile=False):
+    """Return a notification ORM object, or an API snapshot when ``use_dogpile`` is requested."""
+    if use_dogpile:
+        if current_app.config.get("FF_USE_DOGPILE_CACHING", False):
+            snapshot = dao_get_notification_snapshot_cached(notification_id)
+        else:
+            snapshot = _get_notification_snapshot(notification_id)
+
+        if (
+            snapshot is None
+            or snapshot["service_id"] != str(service_id)
+            or (key_type is not None and snapshot["key_type"] != key_type)
+        ):
+            return None
+        return snapshot
+
     filter_dict = {"service_id": service_id, "id": notification_id}
     if key_type:
         filter_dict["key_type"] = key_type
@@ -363,6 +386,29 @@ def get_notification_with_template(notification_id: str) -> Notification | None:
         .options(joinedload("template").joinedload("template_category"))
         .first()
     )
+
+
+@cache_on_arguments(
+    namespace="notification",
+    group_by="notification_id",
+    should_cache_fn=lambda snapshot: snapshot is not None,
+)
+def dao_get_notification_snapshot_cached(notification_id):
+    """Fetch one notification snapshot for the cached read path."""
+    return _get_notification_snapshot(notification_id)
+
+
+def _get_notification_snapshot(notification_id):
+    notification = Notification.query.filter_by(id=notification_id).options(joinedload("template")).first()
+    if notification is None:
+        return None
+    return {
+        "service_id": str(notification.service_id),
+        "key_type": notification.key_type,
+        "v1": notification_with_personalisation_schema.dump(notification),
+        "v2": notification.serialize(include_template_uri=False),
+        "admin": notification_with_template_schema.dump(notification),
+    }
 
 
 def get_notifications(filter_dict=None):
@@ -562,6 +608,7 @@ def insert_update_notification_history(notification_type, date_to_delete_from, s
 @transactional
 def dao_delete_notifications_by_id(notification_id):
     db.session.query(Notification).filter(Notification.id == notification_id).delete(synchronize_session="fetch")
+    queue_cache_invalidations(db.session, Notification, id=notification_id)
 
 
 @statsd(namespace="dao")
@@ -578,6 +625,7 @@ def dao_delete_scheduled_notification_by_id(notification_id):
 
     if deleted_count:
         db.session.query(Notification).filter(Notification.id == notification_id).delete(synchronize_session="fetch")
+        queue_cache_invalidations(db.session, Notification, id=notification_id)
 
     return deleted_count
 
@@ -593,6 +641,8 @@ def _timeout_notifications(current_statuses, new_status, timeout_start, updated_
         Notification.status.in_(current_statuses),
         Notification.notification_type != LETTER_TYPE,
     ).update({"status": new_status, "updated_at": updated_at}, synchronize_session=False)
+    # The rows were already loaded above, so reuse their IDs instead of adding RETURNING to the UPDATE.
+    queue_cache_invalidations(db.session, Notification, id=[notification.id for notification in notifications])
     return notifications
 
 
@@ -675,9 +725,19 @@ def is_delivery_slow_for_provider(
 @statsd(namespace="dao")
 @transactional
 def dao_update_notifications_by_reference(references, update_dict):
-    updated_count = Notification.query.filter(Notification.reference.in_(references)).update(
-        update_dict, synchronize_session=False
+    notification_ids = (
+        db.session.execute(
+            sqlalchemy_update(Notification)
+            .where(Notification.reference.in_(references))
+            .values(update_dict)
+            .returning(Notification.id)
+            .execution_options(synchronize_session=False)
+        )
+        .scalars()
+        .all()
     )
+    queue_cache_invalidations(db.session, Notification, id=notification_ids)
+    updated_count = len(notification_ids)
 
     updated_history_count = 0
     if updated_count != len(references):

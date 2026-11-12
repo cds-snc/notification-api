@@ -54,13 +54,16 @@ register_errors(notifications)
 
 @notifications.route("/notifications/<uuid:notification_id>", methods=["GET"])
 def get_notification_by_id(notification_id):
-    notification = notifications_dao.get_notification_with_personalisation(
-        str(authenticated_service.id), notification_id, key_type=None
+    snapshot = notifications_dao.get_notification_with_personalisation(
+        authenticated_service.id,
+        notification_id,
+        key_type=None,
+        use_dogpile=True,
     )
-    if notification is not None:
-        return jsonify(data={"notification": notification_with_personalisation_schema.dump(notification)}), 200
-    else:
-        return jsonify(result="error", message="Notification not found in database"), 404
+    if snapshot is not None:
+        return jsonify(data={"notification": snapshot["v1"]}), 200
+
+    return jsonify(result="error", message="Notification not found in database"), 404
 
 
 @notifications.route("/notifications", methods=["GET"])
