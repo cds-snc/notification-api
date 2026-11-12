@@ -81,7 +81,7 @@ def create_test_db(writer_uri):
     postgres_db = sqlalchemy.create_engine(db_uri, echo=False, isolation_level="AUTOCOMMIT", client_encoding="utf8")
     try:
         with postgres_db.begin() as connection:
-            connection.execute(sqlalchemy.sql.text(f"CREATE DATABASE {db_name};")
+            connection.execute(sqlalchemy.sql.text(f"CREATE DATABASE {db_name};"))
     except sqlalchemy.exc.ProgrammingError:
         # database "test_notification_api_master" already exists
         pass
