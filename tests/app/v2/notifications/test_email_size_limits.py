@@ -7,7 +7,7 @@ from notifications_utils.template import HTMLEmailTemplate
 
 from app.authentication.auth import AUTH_TYPES
 from app.models import EMAIL_TYPE
-from app.notifications.validators import check_email_csv_rows_size
+from app.notifications.validators import _email_content_segments, check_email_csv_rows_size
 from app.v2.errors import BadRequestError
 from tests import create_authorization_header
 from tests.app.conftest import create_sample_job
@@ -366,14 +366,16 @@ class TestEmailSizeLimits:
 
     def test_csv_rows_do_not_build_html_email_template(self, app_ctx, mocker):
         spy = mocker.patch("app.notifications.validators.HTMLEmailTemplate", wraps=HTMLEmailTemplate)
+        parse_spy = mocker.patch("app.notifications.validators._email_content_segments", wraps=_email_content_segments)
         recipient_csv, template = self._csv_stub(
-            "Hi ((First Name)), your order is ((order))\n\n((opt??extra))",
+            "S" * 49_900 + " ((First Name)), your order is ((order))\n\n((opt??extra))",
             [{"firstname": f"user{i}", "order": str(i), "opt": None} for i in range(50_000)],
         )
 
         check_email_csv_rows_size(recipient_csv, template)
 
         assert spy.call_count == 0
+        assert parse_spy.call_count == 1
 
     def test_csv_row_over_limit_is_rejected(self, app_ctx):
         # Personalisation stays under 50,000 but the repeated variable pushes the rendered body over it.

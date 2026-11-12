@@ -25,7 +25,6 @@ from notifications_utils.recipients import (
     validate_and_format_phone_number,
 )
 from notifications_utils.statsd_decorators import statsd_catch
-from notifications_utils.take import Take
 from notifications_utils.template import HTMLEmailTemplate
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -615,18 +614,35 @@ def check_email_content_char_count(content_count):
         raise BadRequestError(message=message)
 
 
+def _email_content_segments(content):
+    segments = []
+    last_end = 0
+    for match in Field.placeholder_pattern.finditer(content):
+        segments.append((len(content[last_end : match.start()]), match))
+        last_end = match.end()
+    return segments, len(content[last_end:])
+
+
+def _rendered_email_content_count(segments, trailing_length, values):
+    if not segments:
+        return trailing_length
+
+    field = Field("", values, html="passthrough", markdown_lists=True)
+    return trailing_length + sum(literal_length + len(field.replace_match(match)) for literal_length, match in segments)
+
+
 def check_email_csv_rows_size(recipient_csv, template):
     """Apply the single-send email limits (personalisation and rendered body) to every CSV row."""
     if template.template_type != EMAIL_TYPE:
         return
+    segments, trailing_length = _email_content_segments(template.content)
     for row in recipient_csv.rows:
         # Blank cells render as empty; None would be counted as highlighted placeholder markup.
-        values = {k: v or "" for k, v in dict(row.personalisation).items()}
+        values = {k: v if v is not None else "" for k, v in dict(row.personalisation).items()}
         _, errors = validate_personalisation_size(values)
         if errors:
             raise BadRequestError(message=f"Row {row.index + 1} - {errors[0]['message']}")
-        # Same count as HTMLEmailTemplate.content_count, without the costly template construction.
-        content_count = len(Take(Field(template.content, values, html="passthrough", markdown_lists=True)))
+        content_count = _rendered_email_content_count(segments, trailing_length, values)
         if content_count > EMAIL_CHAR_COUNT_LIMIT:
             raise BadRequestError(
                 message=f"Row {row.index + 1} - has a character count greater than the limit of {EMAIL_CHAR_COUNT_LIMIT}"
