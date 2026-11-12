@@ -244,7 +244,7 @@ def test_timeout_notifications_sends_status_update_to_service(client, sample_tem
     timeout_notifications()
 
     signed_data = create_delivery_status_callback_data(notification, callback_api)
-    mocked.assert_called_once_with([str(notification.id), signed_data, notification.service_id], queue=QueueNames.CALLBACKS)
+    mocked.assert_called_once_with([str(notification.id), signed_data, str(notification.service_id)], queue=QueueNames.CALLBACKS)
 
 
 def test_timeout_notifications_logs_and_increments_statsd_for_temporary_failures(notify_api, sample_template, mocker):
