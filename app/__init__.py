@@ -166,19 +166,19 @@ def create_app(application, config=None):
 
         register_cache_orm_events()
 
-    sms_bulk_publish.init_app(flask_cache_ops, metrics_logger)
-    sms_normal_publish.init_app(flask_cache_ops, metrics_logger)
-    sms_priority_publish.init_app(flask_cache_ops, metrics_logger)
-    email_bulk_publish.init_app(flask_cache_ops, metrics_logger)
-    email_normal_publish.init_app(flask_cache_ops, metrics_logger)
-    email_priority_publish.init_app(flask_cache_ops, metrics_logger)
+    sms_bulk_publish.init_app(flask_cache_ops, metrics_logger, signer_notification)
+    sms_normal_publish.init_app(flask_cache_ops, metrics_logger, signer_notification)
+    sms_priority_publish.init_app(flask_cache_ops, metrics_logger, signer_notification)
+    email_bulk_publish.init_app(flask_cache_ops, metrics_logger, signer_notification)
+    email_normal_publish.init_app(flask_cache_ops, metrics_logger, signer_notification)
+    email_priority_publish.init_app(flask_cache_ops, metrics_logger, signer_notification)
 
-    sms_bulk.init_app(flask_cache_ops, metrics_logger)
-    sms_normal.init_app(flask_cache_ops, metrics_logger)
-    sms_priority.init_app(flask_cache_ops, metrics_logger)
-    email_bulk.init_app(flask_cache_ops, metrics_logger)
-    email_normal.init_app(flask_cache_ops, metrics_logger)
-    email_priority.init_app(flask_cache_ops, metrics_logger)
+    sms_bulk.init_app(flask_cache_ops, metrics_logger, signer_notification)
+    sms_normal.init_app(flask_cache_ops, metrics_logger, signer_notification)
+    sms_priority.init_app(flask_cache_ops, metrics_logger, signer_notification)
+    email_bulk.init_app(flask_cache_ops, metrics_logger, signer_notification)
+    email_normal.init_app(flask_cache_ops, metrics_logger, signer_notification)
+    email_priority.init_app(flask_cache_ops, metrics_logger, signer_notification)
 
     # Celery worker pods never serve HTTP and have no need for REST API blueprints
     # or CLI commands. Skipping them avoids importing ~30 blueprint modules, their
