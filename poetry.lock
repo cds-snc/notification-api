@@ -2815,8 +2815,8 @@ werkzeug = "3.1.6"
 [package.source]
 type = "git"
 url = "https://github.com/cds-snc/notifier-utils.git"
-reference = "task/fix-flask"
-resolved_reference = "b8fe648710d83b7deedee3ee580223707f5ab9fe"
+reference = "54.0.0"
+resolved_reference = "316ddb5bf88111e8b497b55bc4d42cc47daed61d"
 
 [[package]]
 name = "opentelemetry-api"
@@ -5108,4 +5108,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.12.7"
-content-hash = "35b7e7fe3722696da875790895e7eb84affdaab150578bfe119670ab21fc4e93"
+content-hash = "4fac9ff2ef1ae99675fecd403e89b33359141b0f5fdd726c38be1a4e88ca48f3"
