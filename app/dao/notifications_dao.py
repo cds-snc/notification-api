@@ -48,6 +48,7 @@ from app.models import (
     ScheduledNotification,
     Service,
     ServiceDataRetention,
+    TemplateHistory,
 )
 from app.utils import escape_special_characters
 
@@ -339,7 +340,7 @@ def get_notification_with_personalisation(service_id, notification_id, key_type)
         filter_dict["key_type"] = key_type
 
     try:
-        return Notification.query.filter_by(**filter_dict).options(joinedload("template")).one()
+        return Notification.query.filter_by(**filter_dict).options(joinedload(Notification.template)).one()
     except NoResultFound:
         current_app.logger.warning(f"Failed to get notification with filter: {filter_dict}")
         return None
@@ -360,7 +361,7 @@ def get_notification_with_template(notification_id: str) -> Notification | None:
         db.on_reader()
         .query(Notification)
         .filter(Notification.id == notification_id)
-        .options(joinedload("template").joinedload("template_category"))
+        .options(joinedload(Notification.template).joinedload(TemplateHistory.template_category))
         .first()
     )
 
@@ -416,10 +417,10 @@ def get_notifications_for_service(
     query = _filter_query(query, filter_dict)
     query = query.options(joinedload(Notification.scheduled_notification))
     if personalisation:
-        query = query.options(joinedload("template"))
+        query = query.options(joinedload(Notification.template))
     else:
         # this field is not used and it can contain a lot of data
-        query = query.options(defer("_personalisation"))
+        query = query.options(defer(Notification._personalisation))
 
     if format_for_csv:
         # do an explicit join on the template, job, and created_by tables so that we won't
@@ -633,12 +634,10 @@ def is_delivery_slow_for_provider(
     count = (
         db.session.query(
             case(
-                [
-                    (
-                        Notification.status == NOTIFICATION_DELIVERED,
-                        (Notification.updated_at - Notification.sent_at) >= delivery_time,
-                    )
-                ],
+                (
+                    Notification.status == NOTIFICATION_DELIVERED,
+                    (Notification.updated_at - Notification.sent_at) >= delivery_time,
+                ),
                 else_=(datetime.utcnow() - Notification.sent_at) >= delivery_time,
             ).label("slow"),
             func.count(),
@@ -860,7 +859,7 @@ def dao_get_total_notifications_sent_per_day_for_performance_platform(start_date
     notification_type != 'letter';
     """
     under_10_secs = Notification.sent_at - Notification.created_at <= timedelta(seconds=10)
-    sum_column = functions.coalesce(functions.sum(case([(under_10_secs, 1)], else_=0)), 0)
+    sum_column = functions.coalesce(functions.sum(case((under_10_secs, 1), else_=0)), 0)
 
     return (
         db.session.query(
@@ -969,7 +968,7 @@ def send_method_stats_by_service(start_time, end_time):
             Service.name.label("service_name"),
             Organisation.name.label("organisation_name"),
             NotificationHistory.notification_type,
-            case([(NotificationHistory.api_key_id.isnot(None), "api")], else_="admin").label("send_method"),
+            case((NotificationHistory.api_key_id.isnot(None), "api"), else_="admin").label("send_method"),
             func.count().label("total_notifications"),
         )
         .join(Service, Service.id == NotificationHistory.service_id)
@@ -985,7 +984,7 @@ def send_method_stats_by_service(start_time, end_time):
             Service.name,
             Organisation.name,
             NotificationHistory.notification_type,
-            case([(NotificationHistory.api_key_id.isnot(None), "api")], else_="admin"),
+            case((NotificationHistory.api_key_id.isnot(None), "api"), else_="admin"),
         )
         .all()
     )
