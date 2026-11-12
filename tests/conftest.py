@@ -24,7 +24,7 @@ def pytest_configure(config):
 
 
 @pytest.fixture(scope="session")
-def notify_api():
+def notify_api(worker_id):
     from app.config import configs
 
     test_database_uri = os.environ.get("SQLALCHEMY_DATABASE_TEST_URI") or configs["test"].SQLALCHEMY_DATABASE_URI
