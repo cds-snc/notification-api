@@ -24,9 +24,24 @@ def pytest_configure(config):
 
 
 @pytest.fixture(scope="session")
-def notify_api():
+def notify_api(worker_id):
+    from app.config import configs
+
+    test_database_uri = os.environ.get("SQLALCHEMY_DATABASE_TEST_URI") or configs["test"].SQLALCHEMY_DATABASE_URI
+    writer_uri = f"{test_database_uri}_{worker_id}"
+    reader_uri = writer_uri
+    worker_config = type(
+        "WorkerTestConfig",
+        (configs["test"],),
+        {
+            "SQLALCHEMY_DATABASE_URI": writer_uri,
+            "SQLALCHEMY_DATABASE_READER_URI": reader_uri,
+            "SQLALCHEMY_BINDS": {"reader": reader_uri, "writer": writer_uri},
+        },
+    )
+
     app = Flask("test")
-    create_app(app)
+    create_app(app, config=worker_config)
 
     # deattach server-error error handlers - error_handler_spec looks like:
     #   {'blueprint_name': {
@@ -65,7 +80,8 @@ def create_test_db(writer_uri):
 
     postgres_db = sqlalchemy.create_engine(db_uri, echo=False, isolation_level="AUTOCOMMIT", client_encoding="utf8")
     try:
-        postgres_db.execute(sqlalchemy.sql.text(f"CREATE DATABASE {db_name};")).close()
+        with postgres_db.begin() as connection:
+            connection.execute(sqlalchemy.sql.text(f"CREATE DATABASE {db_name};"))
     except sqlalchemy.exc.ProgrammingError:
         # database "test_notification_api_master" already exists
         pass
@@ -96,7 +112,8 @@ def grant_test_db(writer_uri, uri_db_reader):
             try:
                 for statement in statements:
                     try:
-                        postgres_db.execute(sqlalchemy.sql.text(statement)).close()
+                        with postgres_db.begin() as connection:
+                            connection.execute(sqlalchemy.sql.text(statement))
                     except (sqlalchemy.exc.ProgrammingError, sqlalchemy.exc.IntegrityError) as exc:
                         warnings.warn(
                             f"grant_test_db ignored SQL error for statement: {statement!r}; error: {exc}",
@@ -112,6 +129,25 @@ def grant_test_db(writer_uri, uri_db_reader):
         lock_engine.dispose()
 
 
+def initialize_test_db(writer_uri, reader_uri, migration_config, app):
+    postgres_uri = sqlalchemy.engine.make_url(writer_uri).set(database="postgres")
+    lock_engine = sqlalchemy.create_engine(postgres_uri, isolation_level="AUTOCOMMIT", client_encoding="utf8")
+    lock_id = 887766554433
+
+    try:
+        with lock_engine.connect() as connection:
+            connection.execute(sqlalchemy.text("SELECT pg_advisory_lock(:lock_id)"), {"lock_id": lock_id})
+            try:
+                create_test_db(writer_uri)
+                with app.app_context():
+                    upgrade(migration_config, "head")
+                grant_test_db(writer_uri, reader_uri)
+            finally:
+                connection.execute(sqlalchemy.text("SELECT pg_advisory_unlock(:lock_id)"), {"lock_id": lock_id})
+    finally:
+        lock_engine.dispose()
+
+
 @pytest.fixture(scope="session")
 def notify_db(notify_api, worker_id):
     assert "test_notification_api" in db.engine.url.database, "dont run tests against main db"
@@ -119,31 +155,20 @@ def notify_db(notify_api, worker_id):
     # create a database for this worker thread -
     from flask import current_app
 
-    current_app.config["SQLALCHEMY_DATABASE_URI"] += "_{}".format(worker_id)
-    current_app.config["SQLALCHEMY_DATABASE_READER_URI"] += "_{}".format(worker_id)
     uri_db_writer = current_app.config["SQLALCHEMY_DATABASE_URI"]
     uri_db_reader = current_app.config["SQLALCHEMY_DATABASE_READER_URI"]
-    current_app.config["SQLALCHEMY_BINDS"] = {
-        "reader": uri_db_reader,
-        "writer": uri_db_writer,
-    }
-
-    create_test_db(uri_db_writer)
 
     BASE_DIR = os.path.dirname(os.path.dirname(__file__))
     ALEMBIC_CONFIG = os.path.join(BASE_DIR, "migrations")
     config = Config(ALEMBIC_CONFIG + "/alembic.ini")
     config.set_main_option("script_location", ALEMBIC_CONFIG)
 
-    with notify_api.app_context():
-        upgrade(config, "head")
-
-    grant_test_db(uri_db_writer, uri_db_reader)
+    initialize_test_db(uri_db_writer, uri_db_reader, config, notify_api)
 
     yield db
 
     db.session.remove()
-    db.get_engine(notify_api).dispose()
+    db.engine.dispose()
 
 
 @pytest.fixture(scope="function")
@@ -154,7 +179,8 @@ def notify_db_session(notify_db):
     # Ensure any service history rows referencing users are removed first
     # so Postgres doesn't block deleting users during teardown.
     try:
-        notify_db.engine.execute(sqlalchemy.sql.text("DELETE FROM services_history")).close()
+        with notify_db.engine.begin() as connection:
+            connection.execute(sqlalchemy.sql.text("DELETE FROM services_history"))
     except Exception:
         # If we cant remove the services history, just ignore and continue
         pass
@@ -173,7 +199,9 @@ def notify_db_session(notify_db):
             "invite_status_type",
             "service_callback_type",
         ]:
-            notify_db.engine.execute(tbl.delete())
+            with notify_db.engine.begin() as connection:
+                connection.execute(tbl.delete())
+
     notify_db.session.commit()
 
 
