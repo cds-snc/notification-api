@@ -71,20 +71,23 @@ if [[ -n "$base" ]]; then
   arguments+=(--since-commit "$base")
 fi
 
-echo "Event: ${GITHUB_EVENT_NAME:-local}; scanner: 3.99.7."
 echo "Scanning ${head:-all available refs}, starting after ${base:-the beginning of history}."
 echo "All-ref results depend on the branches and tags available in this checkout."
 # Findings are evaluated below, not with --fail, so scan errors cannot be
 # mistaken for an exit caused only by baselined findings.
 if [[ "$native" == true ]]; then
-  version=$(trufflehog --version 2>&1)
-  echo "Installed scanner: $version"
-  command=(trufflehog git "file://$root")
+  scanner=(trufflehog)
+  source=("file://$root")
 else
-  # v3.99.7 multi-platform manifest (linux/amd64 and linux/arm64).
-  command=(docker run --rm -v "$root:/repo:ro" ghcr.io/trufflesecurity/trufflehog@sha256:0d003fc3abc4e1565eca8462b992001314de51451e96e3c44de80d116794d5d1 git file:///repo)
+  scanner=(docker run --rm -v "$root:/repo:ro" ghcr.io/trufflesecurity/trufflehog@sha256:0d003fc3abc4e1565eca8462b992001314de51451e96e3c44de80d116794d5d1)
+  source=(file:///repo)
 fi
-if "${command[@]}" "${arguments[@]}" > "$temporary/results.jsonl" 2> "$temporary/errors.log"; then
+if ! version=$("${scanner[@]}" --version 2>&1); then
+  echo "Unable to determine TruffleHog version." >&2
+  exit 1
+fi
+echo "Event: ${GITHUB_EVENT_NAME:-local}; scanner: $version."
+if "${scanner[@]}" git "${source[@]}" "${arguments[@]}" > "$temporary/results.jsonl" 2> "$temporary/errors.log"; then
   :
 else
   status=$?

@@ -19,12 +19,18 @@ printf '%s\n' '{"before":"before-commit","after":"after-commit"}' > "$GITHUB_EVE
 
 cat > "$temporary/bin/docker" <<'SH'
 #!/usr/bin/env bash
+if [[ "${@: -1}" == "--version" ]]; then
+  echo "$SCANNER_VERSION"
+  exit 0
+fi
 printf '%s\n' "$@" > "$ARGUMENTS"
 cat "$FIXTURE"
-echo '{"msg":"finished scanning","chunks":1,"bytes":2,"trufflehog_version":"3.99.7"}' >&2
+jq -cn --arg version "$SCANNER_VERSION" \
+  '{msg:"finished scanning",chunks:1,bytes:2,trufflehog_version:$version}' >&2
 exit "${SCANNER_EXIT:-0}"
 SH
 chmod +x "$temporary/bin/docker"
+export SCANNER_VERSION="trufflehog test-version"
 
 check() {
   local expected=$1
@@ -48,6 +54,8 @@ check 0 "clean scan"
 grep -qx 'before-commit' "$ARGUMENTS"
 grep -qx 'after-commit' "$ARGUMENTS"
 grep -qx 'ghcr.io/trufflesecurity/trufflehog@sha256:0d003fc3abc4e1565eca8462b992001314de51451e96e3c44de80d116794d5d1' "$ARGUMENTS"
+grep -q 'scanner: trufflehog test-version' "$temporary/output"
+grep -q '"trufflehog_version":"trufflehog test-version"' "$temporary/output"
 
 GITHUB_EVENT_NAME=workflow_call check 0 "reusable workflow scans all refs"
 if grep -qxE -- '--since-commit|--branch' "$ARGUMENTS"; then
