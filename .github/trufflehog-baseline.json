@@ -1,0 +1,142 @@
+[
+  {
+    "detector": "Alchemy",
+    "commit": "08b21bc0f4fa758c324ee58d613b326c3deba2af",
+    "file": "migrations/versions/0151_kill_service_free_fragments.py",
+    "raw_sha256": "f3e4676f1ad33f6468c38e75f98e37bd60a1fa886393ff29a57a7f3afae455ba",
+    "reason": "Reviewed non-secret. False positive"
+  },
+  {
+    "detector": "Postgres",
+    "commit": "*",
+    "file": ".devcontainer/docker-compose.yml",
+    "raw_sha256": "a7b285906a7b2b50fbf46f836256c7865991b191a14ca9ef098be2ff7b8014f0",
+    "reason": "Reviewed non-secret. Dummy PostgreSQL credentials."
+  },
+  {
+    "detector": "Postgres",
+    "commit": "*",
+    "file": ".github/workflows/cypress.yaml",
+    "raw_sha256": "0801f9df063d5feb4b02793ec3b818332ef6b4fa34c89b27a7edb7f340f1b0a7",
+    "reason": "Reviewed non-secret. Dummy PostgreSQL credentials."
+  },
+  {
+    "detector": "Postgres",
+    "commit": "*",
+    "file": ".github/workflows/cypress.yaml",
+    "raw_sha256": "87b582f6810ee8fcd10d6cc1f1c79be2064edba6a1566b09ebd79d95e5751665",
+    "reason": "Reviewed non-secret. Dummy PostgreSQL credentials."
+  },
+  {
+    "detector": "Postgres",
+    "commit": "*",
+    "file": ".github/workflows/cypress.yaml",
+    "raw_sha256": "93e3389f7e94ffc6595ab024e9b41c155bab94e010acb500af4a97e88001092d",
+    "reason": "Reviewed non-secret. Dummy PostgreSQL credentials."
+  },
+  {
+    "detector": "Postgres",
+    "commit": "*",
+    "file": ".github/workflows/test.yaml",
+    "raw_sha256": "0801f9df063d5feb4b02793ec3b818332ef6b4fa34c89b27a7edb7f340f1b0a7",
+    "reason": "Reviewed non-secret. Dummy PostgreSQL credentials."
+  },
+  {
+    "detector": "Postgres",
+    "commit": "*",
+    "file": "Makefile",
+    "raw_sha256": "0801f9df063d5feb4b02793ec3b818332ef6b4fa34c89b27a7edb7f340f1b0a7",
+    "reason": "Reviewed non-secret. Dummy PostgreSQL credentials."
+  },
+  {
+    "detector": "Postgres",
+    "commit": "*",
+    "file": "Makefile",
+    "raw_sha256": "32df975b2e022d7b9ef304842bd5cdc51bf11f0c266514c118c537cc376f9d4a",
+    "reason": "Reviewed non-secret. Dummy PostgreSQL credentials."
+  },
+  {
+    "detector": "Postgres",
+    "commit": "*",
+    "file": "docker-compose.yml",
+    "raw_sha256": "32df975b2e022d7b9ef304842bd5cdc51bf11f0c266514c118c537cc376f9d4a",
+    "reason": "Reviewed non-secret. Dummy PostgreSQL credentials."
+  },
+  {
+    "detector": "Postgres",
+    "commit": "*",
+    "file": "docker-compose.yml",
+    "raw_sha256": "8a316b7f2869d7dc6d3379fbf2bdf8e42a8d9adc254d1e30dbdf9f8cbec08929",
+    "reason": "Reviewed non-secret. Dummy PostgreSQL credentials."
+  },
+  {
+    "detector": "Postgres",
+    "commit": "*",
+    "file": "docker-compose.yml",
+    "raw_sha256": "a5bcc800165b0b4c68c54f7871c65ac51bcf873105e6c9d74c746c6f90d887a7",
+    "reason": "Reviewed non-secret. Dummy PostgreSQL credentials."
+  },
+  {
+    "detector": "Postgres",
+    "commit": "*",
+    "file": "pytest.ini",
+    "raw_sha256": "2e07a3af1207a55e0766fe4f14479a8921358cbcc1820691989f4a40650e78f7",
+    "reason": "Reviewed non-secret. Dummy PostgreSQL credentials."
+  },
+  {
+    "detector": "Postgres",
+    "commit": "*",
+    "file": "pytest.ini",
+    "raw_sha256": "a7b285906a7b2b50fbf46f836256c7865991b191a14ca9ef098be2ff7b8014f0",
+    "reason": "Reviewed non-secret. Dummy PostgreSQL credentials."
+  },
+  {
+    "detector": "Postgres",
+    "commit": "*",
+    "file": "pytest.ini",
+    "raw_sha256": "af0bce204ac71aae51fcfbe3e5cc1ee98fd9fdcebaf9f29cd9731c9a51e759eb",
+    "reason": "Reviewed non-secret. Dummy PostgreSQL credentials."
+  },
+  {
+    "detector": "SentryToken",
+    "commit": "013c0325aa5bcde7b6575e99c266d550ea9ea2f0",
+    "file": "poetry.lock",
+    "raw_sha256": "28ef0cbeb1c44a0d7e4d1b9c6c9652d795be7a0b7d33816fcad238d8c1c9eff2",
+    "reason": "Reviewed non-secret. False alarm, sha"
+  },
+  {
+    "detector": "SentryToken",
+    "commit": "42b585171a08fd624508ebd89b9d1e5cd43dfc31",
+    "file": "poetry.lock",
+    "raw_sha256": "28ef0cbeb1c44a0d7e4d1b9c6c9652d795be7a0b7d33816fcad238d8c1c9eff2",
+    "reason": "Reviewed non-secret. False alarm, sha"
+  },
+  {
+    "detector": "SentryToken",
+    "commit": "9847ae6a3f3d87612491c734871f47727a81f822",
+    "file": "poetry.lock",
+    "raw_sha256": "28ef0cbeb1c44a0d7e4d1b9c6c9652d795be7a0b7d33816fcad238d8c1c9eff2",
+    "reason": "Reviewed non-secret. False alarm, sha"
+  },
+  {
+    "detector": "SentryToken",
+    "commit": "f40f70b368a50fbf28f49480775f482718d25f0f",
+    "file": "poetry.lock",
+    "raw_sha256": "28ef0cbeb1c44a0d7e4d1b9c6c9652d795be7a0b7d33816fcad238d8c1c9eff2",
+    "reason": "Reviewed non-secret. False alarm, sha"
+  },
+  {
+    "detector": "URI",
+    "commit": "*",
+    "file": "newrelic-layer.zip",
+    "raw_sha256": "fb13d54a54803ad1393f0b3d5345f6e046562624858f57041c724fe75f2cd863",
+    "reason": "Reviewed non-secret. URI false positive in New Relic layer archive."
+  },
+  {
+    "detector": "Twilio",
+    "commit": "61aaa36f9b8839581e0a7353165d64ccc56a3949",
+    "file": "notifications-api.zip",
+    "raw_sha256": "457ea514441540dae5eb995e91fa26a981e36429a9563b663aea118e04979755",
+    "reason": "Reviewed non-secret. Historical Twilio finding in archived notifications API."
+  }
+]
