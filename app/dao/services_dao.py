@@ -9,7 +9,7 @@ from notifications_utils.statsd_decorators import statsd
 from notifications_utils.timezones import convert_utc_to_local_timezone
 from redis.exceptions import RedisError
 from sqlalchemy.orm import joinedload
-from sqlalchemy.sql.expression import and_, asc, case, func
+from sqlalchemy.sql.expression import and_, asc, case, func, or_
 
 from app import db, redis_store
 from app.annotations import log_execution_time
@@ -506,6 +506,30 @@ def _scheduled_one_off_notifications_for_today(service_id, midnight, notificatio
     return filters
 
 
+def _sum_for_jobs_scheduled_for_today(service_id, midnight, notification_type, column) -> int:
+    """Sums `column` over jobs scheduled to be sent today that haven't started yet. Scheduled jobs count towards the
+    daily limit of the day they're scheduled for, see create_job and post_bulk."""
+    query = (
+        db.session.query(func.coalesce(func.sum(column), 0))
+        .select_from(Job)
+        .join(Template, Job.template_id == Template.id)
+        .outerjoin(ApiKey, Job.api_key_id == ApiKey.id)
+        .filter(
+            Job.service_id == service_id,
+            Job.job_status == JOB_STATUS_SCHEDULED,
+            Job.scheduled_for >= midnight,
+            Job.scheduled_for < midnight + timedelta(days=1),
+            Template.template_type == notification_type,
+            or_(ApiKey.id.is_(None), ApiKey.key_type != KEY_TYPE_TEST),
+        )
+    )
+    if notification_type == SMS_TYPE:
+        # SMS jobs with test keys or simulated recipients aren't counted (billable_units is 0). SMS jobs created before
+        # billable_units was added (null) were counted on the day they were created.
+        query = query.filter(Job.billable_units > 0)
+    return query.scalar()
+
+
 def fetch_todays_total_message_count(service_id):
     midnight = get_midnight(datetime.now(tz=pytz.utc))
     scheduled = (
@@ -552,7 +576,8 @@ def fetch_todays_total_sms_count(service_id):
         .scalar()
     )
     sent_count = 0 if result is None or result.total_sms_notifications is None else result.total_sms_notifications
-    return sent_count + scheduled_one_off_count
+    scheduled_jobs_count = _sum_for_jobs_scheduled_for_today(service_id, midnight, SMS_TYPE, Job.notification_count)
+    return sent_count + scheduled_one_off_count + scheduled_jobs_count
 
 
 def fetch_todays_total_sms_billable_units(service_id):
@@ -574,7 +599,8 @@ def fetch_todays_total_sms_billable_units(service_id):
         .scalar()
     )
     sent_billable_units = 0 if result is None or result.total_sms_billable_units is None else result.total_sms_billable_units
-    return sent_billable_units + scheduled_one_off_billable_units
+    scheduled_jobs_billable_units = _sum_for_jobs_scheduled_for_today(service_id, midnight, SMS_TYPE, Job.billable_units)
+    return sent_billable_units + scheduled_one_off_billable_units + scheduled_jobs_billable_units
 
 
 def fetch_service_email_limit(service_id: uuid.UUID) -> int:
@@ -583,14 +609,7 @@ def fetch_service_email_limit(service_id: uuid.UUID) -> int:
 
 def fetch_todays_total_email_count(service_id: uuid.UUID) -> int:
     midnight = get_midnight(datetime.now(tz=pytz.utc))
-    scheduled = (
-        db.session.query(func.coalesce(func.sum(Job.notification_count), 0).label("total_scheduled_notifications")).filter(
-            Job.service_id == service_id,
-            Job.job_status == JOB_STATUS_SCHEDULED,
-            Job.scheduled_for > midnight,
-            Job.scheduled_for < midnight + timedelta(hours=23, minutes=59, seconds=59),
-        )
-    ).first()
+    scheduled_jobs_count = _sum_for_jobs_scheduled_for_today(service_id, midnight, EMAIL_TYPE, Job.notification_count)
 
     result = (
         db.session.query(func.coalesce(func.count(Notification.id), 0).label("total_email_notifications")).filter(
@@ -607,7 +626,7 @@ def fetch_todays_total_email_count(service_id: uuid.UUID) -> int:
         .scalar()
     )
 
-    return result.total_email_notifications + scheduled.total_scheduled_notifications + scheduled_one_off_count
+    return result.total_email_notifications + scheduled_jobs_count + scheduled_one_off_count
 
 
 def _stats_for_service_query(service_id):

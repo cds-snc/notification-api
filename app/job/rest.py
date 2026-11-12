@@ -1,6 +1,5 @@
 import time
 import uuid
-from datetime import datetime
 
 from flask import Blueprint, current_app, jsonify, request
 from notifications_utils.recipients import RecipientCSV
@@ -36,6 +35,7 @@ from app.models import (
 )
 from app.notifications.process_notifications import (
     csv_has_simulated_and_non_simulated_recipients,
+    is_scheduled_for_a_later_day,
 )
 from app.notifications.validators import (
     check_email_annual_limit,
@@ -193,6 +193,11 @@ def create_job(service_id):
 
     check_email_csv_rows_size(recipient_csv, template)
 
+    # A job scheduled for a later day is counted towards that day's limit when that day's count is loaded from the
+    # database (it includes jobs scheduled for the day), not today's.
+    count_towards_todays_limit = not is_scheduled_for_a_later_day(data.get("scheduled_for"))
+    sms_billable_units = None
+
     if template.template_type == SMS_TYPE:
         # set sender_id if missing
         default_senders = [x for x in service.service_sms_senders if x.is_default]
@@ -209,18 +214,17 @@ def create_job(service_id):
         if has_simulated and has_real_recipients:
             raise InvalidRequest(message="Bulk sending to testing and non-testing numbers is not supported", status_code=400)
 
+        sms_billable_units = 0
         # Check and track limits if we're not sending test notifications
         if has_real_recipients and not has_simulated:
             csv_length = len(recipient_csv)
-            if current_app.config.get("FF_USE_BILLABLE_UNITS"):
-                total_billable_units = recipient_csv.sms_fragment_count
-                check_sms_annual_limit(service, total_billable_units)
-                check_sms_daily_limit(service, total_billable_units)
-                increment_sms_daily_count_send_warnings_if_needed(service, total_billable_units)
-            else:
-                check_sms_annual_limit(service, csv_length)
-                check_sms_daily_limit(service, csv_length)
-                increment_sms_daily_count_send_warnings_if_needed(service, csv_length)
+            sms_billable_units = recipient_csv.sms_fragment_count
+            # TODO FF_USE_BILLABLE_UNITS removal - Use billable units when feature flag is enabled
+            requested_sms = sms_billable_units if current_app.config.get("FF_USE_BILLABLE_UNITS") else csv_length
+            check_sms_annual_limit(service, requested_sms)
+            check_sms_daily_limit(service, requested_sms)
+            if count_towards_todays_limit:
+                increment_sms_daily_count_send_warnings_if_needed(service, requested_sms)
 
     elif template.template_type == EMAIL_TYPE:
         if "notification_count" in data:
@@ -235,14 +239,13 @@ def create_job(service_id):
 
         check_email_daily_limit(service, notification_count)
 
-        scheduled_for = datetime.fromisoformat(data.get("scheduled_for")) if data.get("scheduled_for") else None
-
-        if scheduled_for is None or not scheduled_for.date() > datetime.today().date():
+        if count_towards_todays_limit:
             increment_email_daily_count_send_warnings_if_needed(service, notification_count)
 
     data.update({"template_version": template.version})
 
     job = job_schema.load(data)
+    job.billable_units = sms_billable_units
 
     if job.scheduled_for:
         job.job_status = JOB_STATUS_SCHEDULED

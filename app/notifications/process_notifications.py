@@ -453,7 +453,7 @@ def persist_notifications(notifications: List[VerifiedNotification]) -> List[Not
 
 
 def csv_has_simulated_and_non_simulated_recipients(
-    to_addresses: set, notification_type: NotificationType, chunk_size=5000
+    to_addresses: list, notification_type: NotificationType, chunk_size=5000
 ) -> tuple[bool, bool]:
     """Kicks off a parallelized process to check if a RecipientCSV contains simulated, non-simulated, or both types of recipients.
 
