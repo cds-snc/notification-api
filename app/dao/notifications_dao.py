@@ -341,7 +341,22 @@ def get_notification_count_for_job(service_id, job_id):
 
 
 @statsd(namespace="dao")
-def get_notification_with_personalisation(service_id, notification_id, key_type):
+def get_notification_with_personalisation(service_id, notification_id, key_type, *, use_dogpile=False):
+    """Return a notification ORM object, or an API snapshot when ``use_dogpile`` is requested."""
+    if use_dogpile:
+        if current_app.config.get("FF_USE_DOGPILE_CACHING", False):
+            snapshot = dao_get_notification_snapshot_cached(notification_id)
+        else:
+            snapshot = _get_notification_snapshot(notification_id)
+
+        if (
+            snapshot is None
+            or snapshot["service_id"] != str(service_id)
+            or (key_type is not None and snapshot["key_type"] != key_type)
+        ):
+            return None
+        return snapshot
+
     filter_dict = {"service_id": service_id, "id": notification_id}
     if key_type:
         filter_dict["key_type"] = key_type
@@ -379,28 +394,21 @@ def get_notification_with_template(notification_id: str) -> Notification | None:
     should_cache_fn=lambda snapshot: snapshot is not None,
 )
 def dao_get_notification_snapshot_cached(notification_id):
-    """Every API representation of a notification, so all GET routes share one cache entry and one invalidation."""
+    """Fetch one notification snapshot for the cached read path."""
+    return _get_notification_snapshot(notification_id)
+
+
+def _get_notification_snapshot(notification_id):
     notification = Notification.query.filter_by(id=notification_id).options(joinedload("template")).first()
     if notification is None:
         return None
     return {
         "service_id": str(notification.service_id),
+        "key_type": notification.key_type,
         "v1": notification_with_personalisation_schema.dump(notification),
         "v2": notification.serialize(include_template_uri=False),
         "admin": notification_with_template_schema.dump(notification),
     }
-
-
-def get_cached_notification_snapshot(service_id, notification_id):
-    """Return the cached API representations of a notification owned by `service_id`.
-
-    The cache key is the notification ID alone so write paths can evict it without knowing the
-    service. Ownership is therefore enforced here, on every hit, rather than in the key.
-    """
-    snapshot = dao_get_notification_snapshot_cached(notification_id)
-    if snapshot is None or snapshot["service_id"] != str(service_id):
-        return None
-    return snapshot
 
 
 def get_notifications(filter_dict=None):

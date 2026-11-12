@@ -305,7 +305,12 @@ def notification_cache(client, notify_api, mocker):
 
 
 def _snapshot(notification):
-    return notifications_dao.get_cached_notification_snapshot(notification.service_id, notification.id)
+    return notifications_dao.get_notification_with_personalisation(
+        notification.service_id,
+        notification.id,
+        key_type=None,
+        use_dogpile=True,
+    )
 
 
 @pytest.mark.parametrize("route", ["v1", "v2", "admin"])
@@ -339,12 +344,34 @@ def test_notification_snapshot_is_shared_by_all_routes(notification_cache, sampl
     assert notification_cache.keys("notification:*") == [exact_cache_key("notification", sample_notification.id).encode()]
 
 
+def test_notification_snapshot_can_bypass_dogpile(notification_cache, sample_notification, mocker):
+    cached_snapshot = mocker.patch.object(notifications_dao, "dao_get_notification_snapshot_cached")
+
+    snapshot = notifications_dao.get_notification_with_personalisation(
+        sample_notification.service_id,
+        sample_notification.id,
+        key_type=None,
+        use_dogpile=False,
+    )
+
+    assert snapshot is sample_notification
+    cached_snapshot.assert_not_called()
+
+
 @pytest.mark.parametrize("prefix", ["", "/v2"])
 def test_notification_cache_checks_service_ownership_on_hits(client, notification_cache, sample_notification, prefix):
     notification = sample_notification
     assert _snapshot(notification) is not None
     other_service = create_service(service_name="other-cache-service", email_from="other-cache-service")
-    assert notifications_dao.get_cached_notification_snapshot(other_service.id, notification.id) is None
+    assert (
+        notifications_dao.get_notification_with_personalisation(
+            other_service.id,
+            notification.id,
+            key_type=None,
+            use_dogpile=True,
+        )
+        is None
+    )
     response = client.get(
         f"{prefix}/notifications/{notification.id}",
         headers=[create_authorization_header(service_id=other_service.id)],
@@ -354,11 +381,29 @@ def test_notification_cache_checks_service_ownership_on_hits(client, notificatio
 
 def test_notification_cache_normalizes_ids_and_does_not_cache_missing(notification_cache, sample_notification):
     service_id = sample_notification.service_id
-    first = notifications_dao.get_cached_notification_snapshot(service_id, sample_notification.id)
-    second = notifications_dao.get_cached_notification_snapshot(str(service_id), str(sample_notification.id))
+    first = notifications_dao.get_notification_with_personalisation(
+        service_id,
+        sample_notification.id,
+        key_type=None,
+        use_dogpile=True,
+    )
+    second = notifications_dao.get_notification_with_personalisation(
+        str(service_id),
+        str(sample_notification.id),
+        key_type=None,
+        use_dogpile=True,
+    )
     assert jsonify(first).get_json() == jsonify(second).get_json()
     missing_id = UUID("aaaaaaaa-1111-2222-3333-444444444444")
-    assert notifications_dao.get_cached_notification_snapshot(service_id, missing_id) is None
+    assert (
+        notifications_dao.get_notification_with_personalisation(
+            service_id,
+            missing_id,
+            key_type=None,
+            use_dogpile=True,
+        )
+        is None
+    )
     assert not notification_cache.exists(exact_cache_key("notification", missing_id))
 
 
@@ -411,7 +456,15 @@ def test_notification_delete_evicts_cached_snapshot(notification_cache, sample_n
     _snapshot(sample_notification)
     notifications_dao.dao_delete_notifications_by_id(notification_id)
     assert not notification_cache.exists(exact_cache_key("notification", notification_id))
-    assert notifications_dao.get_cached_notification_snapshot(service_id, notification_id) is None
+    assert (
+        notifications_dao.get_notification_with_personalisation(
+            service_id,
+            notification_id,
+            key_type=None,
+            use_dogpile=True,
+        )
+        is None
+    )
 
 
 @pytest.mark.parametrize("operation", ["reference", "timeout"])
