@@ -4,8 +4,8 @@ from flask import jsonify
 
 from app import authenticated_service
 from app.dao.jobs_dao import dao_get_job_by_service_id_and_job_id_for_update, dao_update_job
-from app.email_limit_utils import decrement_todays_email_count
-from app.models import EMAIL_TYPE, JOB_STATUS_CANCELLED, JOB_STATUS_SCHEDULED
+from app.job.daily_limits import release_daily_limit_for_cancelled_job
+from app.models import JOB_STATUS_CANCELLED, JOB_STATUS_SCHEDULED
 from app.schema_validation import validate
 from app.v2.errors import JobAlreadyCancelledError, JobCancellationNotAllowedError, JobNotFoundError
 from app.v2.notifications import v2_notification_blueprint
@@ -32,8 +32,7 @@ def cancel_bulk_job(job_id):
     job.job_status = JOB_STATUS_CANCELLED
     dao_update_job(job)
 
-    if job.template.template_type == EMAIL_TYPE:
-        decrement_todays_email_count(authenticated_service.id, job.notification_count)
+    release_daily_limit_for_cancelled_job(job)
 
     data = _serialize_jobs_with_statistics([job])[0]
     return jsonify(data=data), 200

@@ -25,8 +25,8 @@ from app.dao.jobs_dao import (
 from app.dao.notifications_dao import get_notifications_for_job
 from app.dao.services_dao import dao_fetch_service_by_id
 from app.dao.templates_dao import dao_get_template_by_id
-from app.email_limit_utils import decrement_todays_email_count
 from app.errors import InvalidRequest, register_errors
+from app.job.daily_limits import release_daily_limit_for_cancelled_job
 from app.models import (
     EMAIL_TYPE,
     JOB_STATUS_CANCELLED,
@@ -78,7 +78,7 @@ def cancel_job(service_id, job_id):
     job = dao_get_future_scheduled_job_by_id_and_service_id(job_id, service_id)
     job.job_status = JOB_STATUS_CANCELLED
     dao_update_job(job)
-    decrement_todays_email_count(service_id, job.notification_count)
+    release_daily_limit_for_cancelled_job(job)
     return get_job_by_service_and_job_id(service_id, job_id)
 
 

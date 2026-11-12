@@ -2,6 +2,8 @@ import pytest
 from notifications_utils.clients.redis import billable_units_sms_daily_count_cache_key, sms_daily_count_cache_key
 
 from app.sms_fragment_utils import (
+    decrement_todays_requested_sms_billable_units_count,
+    decrement_todays_requested_sms_count,
     fetch_todays_requested_sms_billable_units_count,
     fetch_todays_requested_sms_count,
     increment_todays_requested_sms_billable_units_count,
@@ -112,3 +114,45 @@ class TestBillableUnitsInSmsFragmentUtils:
 
             # Should not attempt to increment when Redis is disabled
             mock_incrby.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "decrement_fn, cache_key_fn, fetch_fn",
+    [
+        (decrement_todays_requested_sms_count, sms_daily_count_cache_key, "fetch_todays_requested_sms_count"),
+        (
+            decrement_todays_requested_sms_billable_units_count,
+            billable_units_sms_daily_count_cache_key,
+            "fetch_todays_requested_sms_billable_units_count",
+        ),
+    ],
+)
+@pytest.mark.parametrize("decrby_result, expect_reset_to_zero", [(3, False), (0, False), (-2, True)])
+def test_decrement_todays_requested_sms_counts(
+    mocker, client, sample_service, decrement_fn, cache_key_fn, fetch_fn, decrby_result, expect_reset_to_zero
+):
+    cache_key = cache_key_fn(sample_service.id)
+    mocker.patch(f"app.sms_fragment_utils.{fetch_fn}")
+    mocked_decrby = mocker.patch("app.redis_store.decrby", return_value=decrby_result)
+    mocked_set = mocker.patch("app.redis_store.set")
+
+    with set_config(client.application, "REDIS_ENABLED", True):
+        decrement_fn(sample_service.id, 5)
+
+    mocked_decrby.assert_called_once_with(cache_key, 5)
+    if expect_reset_to_zero:
+        mocked_set.assert_called_once_with(cache_key, 0, ex=7200)
+    else:
+        mocked_set.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "decrement_fn", [decrement_todays_requested_sms_count, decrement_todays_requested_sms_billable_units_count]
+)
+def test_decrement_todays_requested_sms_counts_does_nothing_when_redis_disabled(mocker, client, sample_service, decrement_fn):
+    mocked_decrby = mocker.patch("app.redis_store.decrby")
+
+    with set_config(client.application, "REDIS_ENABLED", False):
+        decrement_fn(sample_service.id, 5)
+
+    mocked_decrby.assert_not_called()

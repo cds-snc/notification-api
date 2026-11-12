@@ -32,4 +32,6 @@ def increment_todays_email_count(service_id: UUID, increment_by: int) -> None:
 def decrement_todays_email_count(service_id: UUID, decrement_by: int) -> None:
     fetch_todays_email_count(service_id)
     cache_key = email_daily_count_cache_key(service_id)
-    redis_store.decrby(cache_key, decrement_by)
+    new_count = redis_store.decrby(cache_key, decrement_by)
+    if new_count is not None and int(new_count) < 0:
+        redis_store.set(cache_key, 0, ex=int(timedelta(hours=2).total_seconds()))
