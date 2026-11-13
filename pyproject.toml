@@ -62,6 +62,7 @@ opentelemetry-instrumentation-celery = "0.55b1"
 opentelemetry-instrumentation-flask = "0.55b1"
 opentelemetry-instrumentation-redis = "0.55b1"
 opentelemetry-instrumentation-sqlalchemy = "0.55b1"
+# This needs to be addressed - inline images requires a new notification-utils build. 
 notifications-utils = { path = "local_dependencies/notifications_utils-53.3.0+inline.3-py3-none-any.whl" }
 pre-commit = "^3.7.1"
 psycopg2-binary = "2.9.11"
