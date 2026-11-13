@@ -1359,21 +1359,22 @@ files = [
 
 [[package]]
 name = "flask"
-version = "2.3.3"
+version = "3.1.3"
 description = "A simple framework for building complex web applications."
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.9"
 files = [
-    {file = "flask-2.3.3-py3-none-any.whl", hash = "sha256:f69fcd559dc907ed196ab9df0e48471709175e696d6e698dd4dbe940f96ce66b"},
-    {file = "flask-2.3.3.tar.gz", hash = "sha256:09c347a92aa7ff4a8e7f3206795f30d826654baf38b873d0744cd571ca609efc"},
+    {file = "flask-3.1.3-py3-none-any.whl", hash = "sha256:f4bcbefc124291925f1a26446da31a5178f9483862233b23c0c96a20701f670c"},
+    {file = "flask-3.1.3.tar.gz", hash = "sha256:0ef0e52b8a9cd932855379197dd8f94047b359ca0a78695144304cb45f87c9eb"},
 ]
 
 [package.dependencies]
-blinker = ">=1.6.2"
+blinker = ">=1.9.0"
 click = ">=8.1.3"
-itsdangerous = ">=2.1.2"
-Jinja2 = ">=3.1.2"
-Werkzeug = ">=2.3.7"
+itsdangerous = ">=2.2.0"
+jinja2 = ">=3.1.2"
+markupsafe = ">=2.1.1"
+werkzeug = ">=3.1.0"
 
 [package.extras]
 async = ["asgiref (>=3.2)"]
@@ -2778,7 +2779,7 @@ requests = ">=2.0.0"
 
 [[package]]
 name = "notifications-utils"
-version = "53.3.0"
+version = "54.0.0"
 description = "Shared python code for Notification - Provides logging utils etc."
 optional = false
 python-versions = "~3.12.7"
@@ -2792,7 +2793,7 @@ boto3 = "1.43.54"
 cachetools = "4.2.4"
 certifi = "^2026.10.19"
 cryptography = "^46.0.5"
-Flask = "2.3.3"
+Flask = "3.1.3"
 Flask-Redis = "0.4.0"
 itsdangerous = "2.2.0"
 Jinja2 = "^3.0.0"
@@ -2804,7 +2805,7 @@ pre-commit = "^3.8.0"
 py_w3c = "0.3.1"
 pypdf2 = "1.28.6"
 python-json-logger = "2.0.7"
-pytz = "2021.3"
+pytz = "2022.7"
 PyYAML = "6.0.3"
 requests = "2.32.3"
 smartypants = "2.0.2"
@@ -2814,8 +2815,8 @@ werkzeug = "3.1.6"
 [package.source]
 type = "git"
 url = "https://github.com/cds-snc/notifier-utils.git"
-reference = "53.3.0"
-resolved_reference = "a896fececc48cf47e5bedbffc136c3bb8ca725f5"
+reference = "54.0.0"
+resolved_reference = "316ddb5bf88111e8b497b55bc4d42cc47daed61d"
 
 [[package]]
 name = "opentelemetry-api"
@@ -3863,13 +3864,13 @@ typing-extensions = "*"
 
 [[package]]
 name = "pytz"
-version = "2021.3"
+version = "2022.7"
 description = "World timezone definitions, modern and historical"
 optional = false
 python-versions = "*"
 files = [
-    {file = "pytz-2021.3-py2.py3-none-any.whl", hash = "sha256:3672058bc3453457b622aab7a1c3bfd5ab0bdae451512f6cf25f64ed37f5b87c"},
-    {file = "pytz-2021.3.tar.gz", hash = "sha256:acad2d8b20a1af07d4e4c9d2e9285c5ed9104354062f275f3fcd88dcef4f1326"},
+    {file = "pytz-2022.7-py2.py3-none-any.whl", hash = "sha256:93007def75ae22f7cd991c84e02d434876818661f8df9ad5df9e950ff4e52cfd"},
+    {file = "pytz-2022.7.tar.gz", hash = "sha256:7ccfae7b4b2c067464a6733c6261673fdb8fd1be905460396b97a073e9fa683a"},
 ]
 
 [[package]]
@@ -5107,4 +5108,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.12.7"
-content-hash = "4cd738a765a827e2f0e97dd721ca75062f5090b0097b3917073c298487a1a5f9"
+content-hash = "4fac9ff2ef1ae99675fecd403e89b33359141b0f5fdd726c38be1a4e88ca48f3"
