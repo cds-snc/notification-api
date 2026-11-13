@@ -360,6 +360,17 @@ paths:
                       file: "file as base64 encoded string"
                       filename: "your_custom_filename.pdf"
                       sending_method: "link"
+              with_inline_image:
+                summary: Courriel avec une image intégrée (indicateur de fonctionnalité requis)
+                value:
+                  email_address: "user@example.com"
+                  template_id: "12345678-1234-1234-1234-123456789012"
+                  personalisation:
+                    usage_chart:
+                      file: "image as base64 encoded string"
+                      filename: "chart.png"
+                      sending_method: "inline"
+                      alt_text: Votre graphique d’utilisation
               scheduled_email:
                 summary: Notification courriel planifiée
                 value:
@@ -428,7 +439,7 @@ paths:
                     status_code: 400
                     errors:
                       - error: "ValidationError"
-                        message: "personalisation application_file sending_method is not one of [attach, link]"
+                        message: "personalisation application_file sending_method is not one of [attach, link, inline]"
                 base64_decode_error:
                   summary: Base64 decoding error
                   value:
@@ -2525,6 +2536,7 @@ components:
               - type: string
                 description: Valeur de la variable du modèle
               - $ref: '#/components/schemas/FileAttachment'
+              - $ref: '#/components/schemas/InlineImage'
         scheduled_for:
           type: string
           format: date-time
@@ -2652,6 +2664,46 @@ components:
         file: "base64encodedfilecontenthere"
         filename: "document.pdf"
         sending_method: "attach"
+
+    InlineImage:
+      type: object
+      description: >-
+        FF_ENABLE_INLINE_IMAGES et l’appartenance à INLINE_IMAGE_SERVICE_IDS sont tous deux requis. Les services absents de la liste reçoivent une réponse HTTP 403.
+        Nécessite FF_ENABLE_INLINE_IMAGES et la permission upload_document. Placez la variable sur une ligne distincte dans le corps du courriel. PNG et JPEG uniquement; les limites des pièces jointes s’appliquent. Non pris en charge dans les objets, les liens ou les conditions.
+      properties:
+        file:
+          type: string
+          description: Contenu du fichier encodé en base64
+        filename:
+          type: string
+          minLength: 3
+          maxLength: 255
+        sending_method:
+          type: string
+          enum: [inline]
+        display_size:
+          type: string
+          enum: [responsive, original]
+          default: responsive
+          description: Original demande les dimensions natives de l’image; les clients de messagerie peuvent toutefois la redimensionner ou la rogner. Responsive adapte l’image à la largeur du contenu du courriel.
+        max_width:
+          type: integer
+          minimum: 1
+          description: Largeur maximale de l’image en pixels, en conservant ses proportions sans agrandir les petites images. Ne peut pas être combinée avec display_size.
+        alt_text:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          pattern: '\S'
+          description: Description obligatoire de l’image, également utilisée dans le courriel en texte brut
+      required:
+        - file
+        - filename
+        - sending_method
+        - alt_text
+
+      not:
+        required: [display_size, max_width]
 
     Template:
       type: object

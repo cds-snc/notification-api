@@ -178,6 +178,10 @@ class Config(object):
     # Feature flag to enable custom retry policies such as lowering retry period for certain priority lanes.
     FF_CELERY_CUSTOM_TASK_PARAMS = env.bool("FF_CELERY_CUSTOM_TASK_PARAMS", True)
     FF_CLOUDWATCH_METRICS_ENABLED = env.bool("FF_CLOUDWATCH_METRICS_ENABLED", False)
+    FF_ENABLE_INLINE_IMAGES = env.bool("FF_ENABLE_INLINE_IMAGES", False)
+    INLINE_IMAGE_SERVICE_IDS: List[str] = [
+        service_id.strip() for service_id in os.getenv("INLINE_IMAGE_SERVICE_IDS", "").split(",") if service_id.strip()
+    ]
     FF_IMPROVE_CELERY_WORKER_ISOLATION = env.bool("FF_IMPROVE_CELERY_WORKER_ISOLATION", False)
     FF_PT_SERVICE_SKIP_FRESHDESK = env.bool("FF_PT_SERVICE_SKIP_FRESHDESK", False)
     # Enables the /v2/reports API endpoints. Off by default so the feature stays hidden in production until launch.

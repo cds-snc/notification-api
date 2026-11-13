@@ -53,6 +53,7 @@ from app.exceptions import (
     PinpointConflictException,
     PinpointValidationException,
 )
+from app.inline_images import get_inline_image_mime_type, is_service_allowed_inline_images
 from app.models import (
     BRANDING_BOTH_EN,
     BRANDING_BOTH_FR,
@@ -471,6 +472,8 @@ def _normalise_file_personalisation(personalisation_data: Optional[Dict[str, Any
         if document.get("sending_method") == "template_attach":
             normalised_personalisation[key] = ""
             continue
+        if "inline_image" in document:
+            continue
 
         normalised_personalisation[key] = document.get("url") or document.get("direct_file_url") or ""
 
@@ -493,7 +496,15 @@ def send_email_to_provider(notification: Notification):
     provider = provider_to_use(EMAIL_TYPE, notification.id)
 
     attachments = []
+    inline_images = []
     personalisation_data = (notification.personalisation or {}).copy()
+    has_inline_images = any(
+        isinstance(value, dict) and isinstance(value.get("document"), dict) and "inline_image" in value["document"]
+        for value in personalisation_data.values()
+    )
+    if has_inline_images and (not is_service_allowed_inline_images(service.id) or not service.has_permission(UPLOAD_DOCUMENT)):
+        current_app.logger.error("Inline image delivery is not enabled or permitted for notification %s", notification.id)
+        raise NotificationTechnicalFailureException("Inline image delivery is not enabled or permitted")
 
     if not service.has_permission(UPLOAD_DOCUMENT):
         current_app.logger.info(
@@ -519,9 +530,43 @@ def send_email_to_provider(notification: Notification):
                 f"Calling document_download_client.check_scan_verdict() for document_id: {document_id} and notification_id: {notification.id}"
             )
             scan_verdict_response = document_download_client.check_scan_verdict(service.id, document_id, sending_method)
+            image_metadata = personalisation_data[key]["document"].get("inline_image")
+            if image_metadata is not None and scan_verdict_response.status_code in {408, 422}:
+                current_app.logger.error("Inline image scan did not succeed for notification %s", notification.id)
+                raise DocumentDownloadException("Inline image scan did not succeed")
             check_for_malware_errors(scan_verdict_response.status_code, notification)
             current_app.logger.info(f"scan_verdict for document_id {document_id} is {scan_verdict_response.json()}")
-            if sending_method == "attach":
+            if image_metadata is not None:
+                if sending_method != "attach":
+                    current_app.logger.error("Invalid inline image storage method for notification %s", notification.id)
+                    raise DocumentDownloadException("Inline images must use scanned attachment storage")
+                http = PoolManager(retries=Retry(total=5))
+                response = http.request("GET", url=download_url, redirect=False)
+                if response.status != 200:
+                    current_app.logger.error(
+                        "Inline image download failed for notification %s: %s", notification.id, response.status
+                    )
+                    raise DocumentDownloadException("Inline image download failed")
+                if len(response.data) > current_app.config["ATTACHMENT_SIZE_LIMIT"]:
+                    current_app.logger.error("Inline image exceeds size limit for notification %s", notification.id)
+                    raise DocumentDownloadException("Inline image exceeds the attachment size limit")
+                try:
+                    detected_mime_type = get_inline_image_mime_type(response.data)
+                except ValueError as e:
+                    current_app.logger.error("Invalid inline image for notification %s: %s", notification.id, e)
+                    raise DocumentDownloadException(str(e)) from e
+                if detected_mime_type != mime_type:
+                    current_app.logger.error("Inline image MIME type mismatch for notification %s", notification.id)
+                    raise DocumentDownloadException("Inline image content does not match its MIME type")
+                inline_images.append(
+                    {
+                        "name": filename,
+                        "data": response.data,
+                        "mime_type": mime_type,
+                        "content_id": image_metadata["content_id"],
+                    }
+                )
+            elif sending_method == "attach":
                 try:
                     retries = Retry(total=5)
                     http = PoolManager(retries=retries)
@@ -565,6 +610,7 @@ def send_email_to_provider(notification: Notification):
         allow_html=is_service_allowed_html(service),
         asset_domain=current_app.config["ASSET_DOMAIN"],
         **get_html_email_options(service),
+        **({"enable_inline_images": True} if inline_images else {}),
     )
 
     plain_text_email = PlainTextEmailTemplate(template_dict, values=personalisation_data)
@@ -612,6 +658,7 @@ def send_email_to_provider(notification: Notification):
             reply_to_address=validate_and_format_email_address(email_reply_to) if email_reply_to else None,
             attachments=attachments,
             extra_headers=_get_unsubscribe_headers(unsubscribe_link_for_header),
+            **({"inline_images": inline_images} if inline_images else {}),
         )
         check_service_over_bounce_rate_old(service.id) if current_app.config[
             "TEST_OLD_BOUNCE_RATE"
@@ -625,7 +672,7 @@ def send_email_to_provider(notification: Notification):
 
     # Record StatsD stats to compute SLOs
     statsd_client.timing_with_dates("email.total-time", notification.sent_at, notification.created_at)
-    attachments_category = "with-attachments" if attachments else "no-attachments"
+    attachments_category = "with-attachments" if attachments or inline_images else "no-attachments"
     statsd_key = f"email.{attachments_category}.process_type-{template_dict['process_type']}"
     statsd_client.timing_with_dates(statsd_key, notification.sent_at, notification.created_at)
     statsd_client.incr(statsd_key)

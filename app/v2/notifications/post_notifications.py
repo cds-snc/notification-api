@@ -33,6 +33,7 @@ from app.dao.jobs_dao import dao_create_job
 from app.dao.notifications_dao import update_notification_status_by_reference
 from app.dao.templates_dao import get_precompiled_letter_template
 from app.email_limit_utils import fetch_todays_email_count
+from app.inline_images import get_inline_image_mime_type, is_service_allowed_inline_images
 from app.models import (
     EMAIL_TYPE,
     JOB_STATUS_PENDING,
@@ -299,6 +300,8 @@ def post_notification(notification_type: NotificationType):
 
     check_service_has_permission(notification_type, authenticated_service.permissions)
 
+    check_inline_image_service_permission(form.get("personalisation"), authenticated_service.id)
+
     scheduled_for = form.get("scheduled_for", None)
 
     check_rate_limiting(authenticated_service, api_user)
@@ -504,7 +507,15 @@ def process_sms_or_email_notification(
     return notification
 
 
+def check_inline_image_service_permission(personalisation_data, service_id):
+    if any(
+        isinstance(value, dict) and value.get("sending_method") == "inline" for value in (personalisation_data or {}).values()
+    ) and not is_service_allowed_inline_images(service_id):
+        raise BadRequestError(message="Inline images are not enabled for this service", status_code=403)
+
+
 def process_document_uploads(personalisation_data, service: Service, simulated, template_id):
+    check_inline_image_service_permission(personalisation_data, service.id)
     file_keys = [k for k, v in (personalisation_data or {}).items() if isinstance(v, dict) and "file" in v]
     if not file_keys:
         return personalisation_data
@@ -514,12 +525,35 @@ def process_document_uploads(personalisation_data, service: Service, simulated, 
     check_service_has_permission(UPLOAD_DOCUMENT, authenticated_service.permissions)
 
     for key in file_keys:
+        upload = personalisation_data[key]
+        inline_image = upload.get("sending_method") == "inline"
+        if inline_image:
+            upload = {**upload, "sending_method": "attach"}
+            del upload["alt_text"]
+            image_metadata = {"content_id": uuid.uuid4().hex, "alt_text": personalisation_data[key]["alt_text"]}
+            for sizing_key in ("display_size", "max_width"):
+                if sizing_key in upload:
+                    image_metadata[sizing_key] = upload.pop(sizing_key)
+            if "max_width" in image_metadata:
+                image_metadata["max_width"] = int(image_metadata["max_width"])
         if simulated:
-            personalisation_data[key] = document_download_client.get_upload_url(service.id) + "/test-document"
+            if inline_image:
+                personalisation_data[key] = {"document": {"inline_image": image_metadata}}
+            else:
+                personalisation_data[key] = document_download_client.get_upload_url(service.id) + "/test-document"
         else:
             try:
-                personalisation_data[key] = document_download_client.upload_document(service.id, personalisation_data[key])
+                personalisation_data[key] = document_download_client.upload_document(service.id, upload)
                 uploaded_document = personalisation_data[key]["document"]
+                if inline_image:
+                    if uploaded_document.get("sending_method") != "attach" or uploaded_document.get(
+                        "mime_type"
+                    ) != get_inline_image_mime_type(upload["file"]):
+                        current_app.logger.error(
+                            "Document service returned invalid inline image metadata for service %s", service.id
+                        )
+                        raise BadRequestError(message="Uploaded inline image metadata does not match the image", status_code=502)
+                    uploaded_document["inline_image"] = image_metadata
                 current_app.logger.info(
                     "File upload accepted: service_id=%s template_id=%s filename=%s file_extension=%s "
                     "mime_type=%s sending_method=%s",

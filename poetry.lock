@@ -2780,29 +2780,30 @@ requests = ">=2.0.0"
 
 [[package]]
 name = "notifications-utils"
-version = "53.3.0"
+version = "53.3.0+inline.3"
 description = "Shared python code for Notification - Provides logging utils etc."
 optional = false
-python-versions = "~3.12.7"
-files = []
-develop = false
+python-versions = ">=3.12.7,<3.13.0"
+files = [
+    {file = "notifications_utils-53.3.0+inline.3-py3-none-any.whl", hash = "sha256:45ebfbff4a7162c7bceb4fa32aee647784fe368612310c353afa013f6315835a"},
+]
 
 [package.dependencies]
 awscli = "1.45.59"
 bleach = "6.3.0"
 boto3 = "1.43.54"
 cachetools = "4.2.4"
-certifi = "^2026.10.19"
-cryptography = "^46.0.5"
+certifi = ">=2026.10.19,<2027.0.0"
+cryptography = ">=46.0.5,<47.0.0"
 Flask = "2.3.3"
 Flask-Redis = "0.4.0"
 itsdangerous = "2.2.0"
-Jinja2 = "^3.0.0"
+Jinja2 = ">=3.0.0,<4.0.0"
 markupsafe = "2.1.5"
 mistune = "0.8.4"
 ordered-set = "4.1.0"
 phonenumbers = "8.13.55"
-pre-commit = "^3.8.0"
+pre-commit = ">=3.8.0,<4.0.0"
 py_w3c = "0.3.1"
 pypdf2 = "1.28.6"
 python-json-logger = "2.0.7"
@@ -2814,10 +2815,8 @@ statsd = "3.3.0"
 werkzeug = "3.1.6"
 
 [package.source]
-type = "git"
-url = "https://github.com/cds-snc/notifier-utils.git"
-reference = "53.3.0"
-resolved_reference = "a896fececc48cf47e5bedbffc136c3bb8ca725f5"
+type = "file"
+url = "local_dependencies/notifications_utils-53.3.0+inline.3-py3-none-any.whl"
 
 [[package]]
 name = "opentelemetry-api"
@@ -5074,4 +5073,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.0"
 python-versions = "~3.12.7"
-content-hash = "05b4c6be3442e8403bc1c74a2a5e1eb6b1a498f83597a3cefb70bc55c764cefa"
+content-hash = "f4cc98a2289534f60420c7bea924c398c8bed9eb03ec904f32553cc9fcd0b223"
