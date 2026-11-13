@@ -59,9 +59,7 @@
 			"helm": "latest",
 			"minikube": "none"
 		},
-		"ghcr.io/devcontainers/features/node:1": {
-			"version": "22"
-		}
+		"ghcr.io/devcontainers/features/node:1": {}
 	},
 	"postCreateCommand": "bash /workspace/.devcontainer/scripts/notify-dev-entrypoint.sh",
 	"postStartCommand": "sudo install -d -o vscode -g vscode /home/vscode/.aws/cli /home/vscode/.aws/sso/cache",
