@@ -104,6 +104,12 @@ def create_app(application, config=None):
     else:
         application.config.from_object(config)
 
+    if application.config["FF_ENABLE_INLINE_IMAGES"]:
+        from notifications_utils.template import HTMLEmailTemplate
+
+        if not getattr(HTMLEmailTemplate, "supports_inline_images", False):
+            raise RuntimeError("FF_ENABLE_INLINE_IMAGES requires a notification-utils release with inline image support")
+
     application.config["NOTIFY_APP_NAME"] = application.name
     init_app(application)
     application.json = NotifyJSONProvider(application)

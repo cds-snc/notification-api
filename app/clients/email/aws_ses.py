@@ -1,4 +1,6 @@
+import re
 from email.mime.application import MIMEApplication
+from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from time import monotonic
@@ -10,6 +12,7 @@ from notifications_utils.recipients import InvalidEmailError
 from notifications_utils.statsd_decorators import statsd
 
 from app.clients.email import EmailClient, EmailClientException
+from app.inline_images import get_inline_image_mime_type
 
 
 class AwsSesClientException(EmailClientException):
@@ -41,6 +44,7 @@ class AwsSesClient(EmailClient):
         reply_to_address=None,
         attachments=None,
         extra_headers=None,
+        inline_images=None,
     ):
         def create_mime_base(attachments, html):
             msg_type = "mixed" if attachments or (not attachments and not html) else "alternative"
@@ -60,6 +64,21 @@ class AwsSesClient(EmailClient):
         def attach_html(m, content):
             if content:
                 parts = MIMEText(content, "html")
+                if inline_images:
+                    related = MIMEMultipart("related")
+                    related.attach(parts)
+                    for image in inline_images:
+                        content_id = image["content_id"]
+                        if not isinstance(content_id, str) or not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.@-]{0,127}", content_id):
+                            raise ValueError("Invalid inline image content ID")
+                        mime_type = get_inline_image_mime_type(image["data"])
+                        if mime_type != image["mime_type"]:
+                            raise ValueError("Inline image content does not match its MIME type")
+                        part = MIMEImage(image["data"], _subtype=mime_type.split("/")[1])
+                        part.add_header("Content-ID", f"<{content_id}>")
+                        part.add_header("Content-Disposition", "inline", filename=image["name"])
+                        related.attach(part)
+                    parts = related
                 m.attach(parts)
 
         attachments = attachments or []
@@ -80,8 +99,18 @@ class AwsSesClient(EmailClient):
         #         - TXT
         #         - HTML
         #       - Attachment(s)
+        #
+        # Inline images wrap the HTML part in multipart/related.
 
         try:
+            if inline_images:
+                if not current_app.config["FF_ENABLE_INLINE_IMAGES"]:
+                    raise ValueError("Inline images are not enabled")
+                if not html_body:
+                    raise ValueError("Inline images require an HTML email body")
+                content_ids = [image["content_id"] for image in inline_images]
+                if len(set(content_ids)) != len(content_ids):
+                    raise ValueError("Inline image content IDs must be unique")
             msg = create_mime_base(attachments, html_body)
             txt_part = MIMEText(body, "plain")
 

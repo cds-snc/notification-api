@@ -18,6 +18,7 @@ from notifications_utils.clients.redis.annual_limit import (
     TOTAL_SMS_BILLABLE_UNITS_FISCAL_YEAR_TO_YESTERDAY,
     TOTAL_SMS_FISCAL_YEAR_TO_YESTERDAY,
 )
+from notifications_utils.columns import Columns
 from notifications_utils.field import Field
 from notifications_utils.recipients import (
     get_international_phone_info,
@@ -35,6 +36,7 @@ from app.dao.service_email_reply_to_dao import dao_get_reply_to_by_id
 from app.dao.service_letter_contact_dao import dao_get_letter_contact_by_id
 from app.dao.service_sms_sender_dao import dao_get_service_sms_senders_by_id
 from app.email_limit_utils import fetch_todays_email_count, increment_todays_email_count
+from app.inline_images import get_inline_image_mime_type
 from app.models import (
     EMAIL_TYPE,
     INTERNATIONAL_SMS_TYPE,
@@ -653,6 +655,7 @@ def validate_template(template_id, personalisation, service: Service, notificati
     template = check_template_exists_by_id_and_service(template_id, service)
     check_template_is_for_notification_type(notification_type, template.template_type)
     check_template_is_active(template)
+    validate_inline_image_placeholders(template, personalisation, notification_type)
 
     template_with_content: Template = create_content_for_notification(template, personalisation)
     if template.template_type == SMS_TYPE:
@@ -669,6 +672,28 @@ def validate_template(template_id, personalisation, service: Service, notificati
     check_content_is_not_blank(template_with_content)
 
     return template, template_with_content
+
+
+def validate_inline_image_placeholders(template, personalisation, notification_type):
+    for key, value in (personalisation or {}).items():
+        if not isinstance(value, dict) or value.get("sending_method") != "inline":
+            continue
+        if notification_type != EMAIL_TYPE:
+            raise BadRequestError(message="Inline images can only be used in email notifications")
+        normalised_key = Columns.make_key(key)
+        subject_keys = {Columns.make_key(name) for name in Field(template.subject).placeholders}
+        matches = [
+            match
+            for match in Field.placeholder_pattern.finditer(template.content)
+            if Columns.make_key(match.group(1).split("??")[0]) == normalised_key
+        ]
+        if normalised_key in subject_keys or not matches:
+            raise BadRequestError(message=f"Inline image {key} must have a placeholder in the email body, not the subject")
+        for match in matches:
+            before = template.content[: match.start()].rsplit("\n", 1)[-1]
+            after = template.content[match.end() :].split("\n", 1)[0]
+            if "??" in match.group(1) or before.strip() or after.strip():
+                raise BadRequestError(message=f"Inline image placeholder {key} must be on its own line")
 
 
 def check_template_exists_by_id_and_service(template_id, service: Service) -> Template:
@@ -716,6 +741,9 @@ def check_service_letter_contact_id(service_id, letter_contact_id, notification_
 
 
 def validate_personalisation_and_decode_files(json_personalisation):
+    if any(isinstance(value, dict) and value.get("sending_method") == "inline" for value in json_personalisation.values()):
+        if not current_app.config["FF_ENABLE_INLINE_IMAGES"]:
+            return json_personalisation, [{"error": "ValidationError", "message": "Inline images are not enabled"}]
     errors = []
     json_personalisation, errors_vars = validate_personalisation_size(json_personalisation)
     json_personalisation, errors_num_file = validate_personalisation_num_files(json_personalisation)
@@ -785,6 +813,11 @@ def decode_personalisation_files(json_personalisation):
                         "message": f"{key} : File size for {filename} is {personalisation_size} and greater than allowed limit of {size_limit}.",
                     }
                 )
+            if json_personalisation[key].get("sending_method") == "inline":
+                try:
+                    get_inline_image_mime_type(json_personalisation[key]["file"])
+                except ValueError as e:
+                    errors.append({"error": "ValidationError", "message": f"{key} : {e}"})
         except Exception as e:
             errors.append(
                 {
