@@ -620,9 +620,14 @@ def get_scheduled_notifications_for_service(service_id):
 
 @service_blueprint.route("/<uuid:service_id>/notifications/<uuid:notification_id>", methods=["GET"])
 def get_notification_for_service(service_id, notification_id):
-    notification = notifications_dao.get_notification_with_personalisation(service_id, notification_id, key_type=None)
-    if notification is not None:
-        return jsonify(notification_with_template_schema.dump(notification)), 200
+    snapshot = notifications_dao.get_notification_with_personalisation(
+        service_id,
+        notification_id,
+        key_type=None,
+        use_dogpile=True,
+    )
+    if snapshot is not None:
+        return jsonify(snapshot["admin"]), 200
 
     scheduled_notification = notifications_dao.dao_get_scheduled_one_off_notification(service_id, notification_id)
     if scheduled_notification is not None:

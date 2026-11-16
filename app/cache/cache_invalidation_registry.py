@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 
 from app.models import (
+    Notification,
     Permission,
     Service,
     ServicePermission,
@@ -19,9 +20,15 @@ class CacheInvalidationRule:
 
     namespace: str
     entity_id_attribute: str
+    # Skip invalidation for newly inserted rows when a cache entry cannot exist yet
+    # (e.g. misses are never cached), avoiding a Redis round trip on hot insert paths.
+    invalidate_on_insert: bool = True
 
 
 CACHE_INVALIDATION_REGISTRY = {
+    Notification: [
+        CacheInvalidationRule(namespace="notification", entity_id_attribute="id", invalidate_on_insert=False),
+    ],
     Service: [
         CacheInvalidationRule(namespace="service", entity_id_attribute="id"),
     ],

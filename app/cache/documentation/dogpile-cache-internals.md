@@ -50,7 +50,7 @@ Two helpers matter for tests and deletion:
 
 `CacheNamespace` has two fields: `key_strategy` (`prefix` or `exact`) and `region` (`default` or `short_lived`). `CACHE_NAMESPACES` lists the exceptions. Today only `notification` is listed (exact keys, short-lived region). Anything else, including service, user and template, gets `CacheNamespace()`: prefix keys, default region. `get_cache_namespace` does that lookup.
 
-`cache_on_arguments(namespace=, group_by=, should_cache_fn=None)` runs these checks when the module is imported, so mistakes fail early:
+`cache_on_arguments(namespace=, group_by=, no_cache_on_none=False)` runs these checks when the module is imported, so mistakes fail early:
 
 - `group_by` must be a parameter of the function, otherwise `TypeError`.
 - An exact namespace requires the function to take only the `group_by` parameter, otherwise `TypeError`.
@@ -122,7 +122,7 @@ Values are stored as compact UTF-8 JSON:
 
 Consequences for cached functions: anything not natively JSON (UUIDs, datetimes, `Decimal`) goes through `str()` and comes back as a string. Tuples come back as lists. Return types should be plain dicts and lists whose values are already JSON-safe.
 
-`should_cache_fn` is passed straight to dogpile. When it returns false for a freshly created value, dogpile returns the value without storing it. The notification snapshot uses `lambda snapshot: snapshot is not None` so "not found" is never cached.
+When `no_cache_on_none=True`, the decorator passes Dogpile a predicate that returns `False` for `None`, so a "not found" result is returned without being stored. The notification snapshot uses this because notification inserts skip invalidation: an ID that missed before the insert must be read from the database after it, rather than remain a cached miss until the TTL expires. The trade-off is that repeated misses query the database instead of using a negative cache entry.
 
 ## Read path in detail
 
@@ -248,7 +248,7 @@ Exact-key deletion emits a log line and no `cache.invalidation.*` metrics. See t
 | `TypeError` at import | `group_by` is not a parameter, or an exact namespace function takes extra arguments | Decorator checks in `cache_on_arguments` |
 | Same data cached under several keys | Argument types render differently, or a value with an unstable `repr` | `_serialize_key_value` |
 | UUID or date field is a string after a cache hit | JSON round trip | Serializer pair; convert in the caller |
-| Cache never hits for a call | `should_cache_fn` rejected the value, or the flag is off | DAO gate and `should_cache_fn` |
+| Cache never hits for a call | `no_cache_on_none=True` rejected a `None` result, or the flag is off | DAO gate and `no_cache_on_none` |
 | Invalidation did not run | Commit listener not registered, or deletion raised and was logged | `register_cache_orm_events`, "Failed to invalidate cache" logs |
 | Brief stale value right after a write | A read raced the write and re-cached old data before the delete ran | Expected; see the architecture overview's limits |
 
