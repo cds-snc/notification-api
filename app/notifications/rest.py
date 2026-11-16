@@ -52,6 +52,14 @@ notifications = Blueprint("notifications", __name__)
 register_errors(notifications)
 
 
+# Registered before the auth hook (added in register_notify_blueprint), so disabled
+# endpoints return 404 without authenticating the request.
+@notifications.before_request
+def check_v1_api_enabled():
+    if current_app.config.get("FF_DISABLE_V1_API"):
+        return jsonify(result="error", message="Not Found"), 404
+
+
 @notifications.route("/notifications/<uuid:notification_id>", methods=["GET"])
 def get_notification_by_id(notification_id):
     notification = notifications_dao.get_notification_with_personalisation(
