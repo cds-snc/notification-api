@@ -235,10 +235,10 @@ def dao_get_template_by_id(template_id, version=None, use_cache=False) -> Union[
 def dao_get_all_templates_for_service(service_id, template_type=None):
     # Eager load fields required for serialization; otherwise lazy loading these will trigger thousands of individual queries.
     query = Template.query.options(
-        joinedload("template_redacted"),
-        joinedload("template_category"),
-        joinedload("created_by"),
-        joinedload("service_letter_contact"),
+        joinedload(Template.template_redacted),
+        joinedload(Template.template_category),
+        joinedload(Template.created_by),
+        joinedload(Template.service_letter_contact),
     )
 
     if template_type is not None:
