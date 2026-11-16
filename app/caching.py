@@ -260,12 +260,20 @@ def invalidate_service_cache_keys(service_id):
         pass  #  Failures are swallowed because request/transaction paths should not fail due to cache backend issues.
 
 
-def cache_on_arguments(*, namespace, group_by, should_cache_fn=None):
+def _should_cache_non_none(value):
+    return value is not None
+
+
+def cache_on_arguments(*, namespace, group_by, no_cache_on_none=False):
     """Cache function arguments and group its keys by one named argument.
 
     Key format, storage region and invalidation are derived from the namespace's entry in
     ``CACHE_NAMESPACES``; callers never choose them, so they cannot drift out of sync.
-    ``should_cache_fn`` is passed to dogpile (e.g. ``lambda value: value is not None``).
+
+    Set ``no_cache_on_none`` when caching a missing result would make a later insert
+    invisible until the cache entry expires. This is needed when insert paths do not
+    invalidate the namespace because no cache entry should exist before the insert.
+    It trades negative-cache protection for a database query on each repeated miss.
     """
     config = get_cache_namespace(namespace)
 
@@ -297,8 +305,8 @@ def cache_on_arguments(*, namespace, group_by, should_cache_fn=None):
                 statsd_client.timing(f"cache.creator.{namespace}.{outcome}.duration", elapsed_ms)
 
         options = {"namespace": namespace}
-        if should_cache_fn is not None:
-            options["should_cache_fn"] = should_cache_fn
+        if no_cache_on_none:
+            options["should_cache_fn"] = _should_cache_non_none
         cached_fn = _get_region(config.region).cache_on_arguments(**options)(creator)
 
         @wraps(cached_fn)

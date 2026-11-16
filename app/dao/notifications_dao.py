@@ -392,7 +392,7 @@ def get_notification_with_template(notification_id: str) -> Notification | None:
 @cache_on_arguments(
     namespace="notification",
     group_by="notification_id",
-    should_cache_fn=lambda snapshot: snapshot is not None,
+    no_cache_on_none=True,
 )
 def dao_get_notification_snapshot_cached(notification_id):
     """Fetch one notification snapshot for the cached read path."""

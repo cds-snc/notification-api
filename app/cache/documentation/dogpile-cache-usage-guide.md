@@ -21,7 +21,7 @@ Rules:
 - Return JSON-serializable data (dictionaries, lists, strings, numbers), never ORM objects.
 - `group_by` should name the function parameter whose value identifies the cache group.
 - The namespace decides the key style, region and removal method. You do not choose them in the decorator.
-- Use `should_cache_fn` to skip caching some results, for example `lambda value: value is not None` so misses are not cached.
+- Set `no_cache_on_none=True` when a missing result must not be cached. This is appropriate when insert paths intentionally skip invalidation because a cache entry cannot exist before the insert: caching a miss would otherwise hide the new row until the entry expires. It trades negative-cache protection for a database query on each repeated miss.
 
 ### Expose it to callers
 

@@ -197,6 +197,19 @@ def test_explicit_template_version_bypasses_current_cache(notify_api, sample_tem
 
 
 class TestCacheAccessMetrics:
+    def test_no_cache_on_none_regenerates_missing_values(self, mocker):
+        mocker.patch("app.caching.dogpile_region", _make_memory_region())
+        creator_calls = []
+
+        @cache_on_arguments(namespace="service", group_by="service_id", no_cache_on_none=True)
+        def fetch(service_id):
+            creator_calls.append(service_id)
+            return None
+
+        assert fetch("missing") is None
+        assert fetch("missing") is None
+        assert creator_calls == ["missing", "missing"]
+
     def test_records_regeneration_and_cache_reuse(self, mocker, cache_statsd):
         mocker.patch("app.caching.dogpile_region", _make_memory_region())
         mocker.patch("app.caching.perf_counter", side_effect=[10, 10.001, 10.010, 10.01234, 20, 20.001])
