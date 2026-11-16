@@ -82,6 +82,7 @@ from tests.app.db import (
     create_ft_billing,
     create_inbound_number,
     create_invited_user,
+    create_job,
     create_letter_branding,
     create_notification,
     create_notification_history,
@@ -1165,6 +1166,69 @@ class TestTodaysTotalCountsIncludeScheduledNotifications:
 
         assert fetch_todays_total_email_count(service.id) == 0
         assert fetch_todays_total_message_count(service.id) == 0
+
+
+@pytest.mark.usefixtures("notify_db_session")
+@freeze_time("2018-07-16 15:00")
+class TestTodaysTotalCountsIncludeScheduledJobs:
+    """Jobs scheduled for today count towards today's limits before they're sent, see create_job and post_bulk"""
+
+    def _create_scheduled_jobs(self, template, **kwargs):
+        create_job(template, job_status="scheduled", scheduled_for=datetime(2018, 7, 16, 0, 0), **kwargs)
+        create_job(template, job_status="scheduled", scheduled_for=datetime(2018, 7, 16, 23, 59), **kwargs)
+        create_job(template, job_status="scheduled", scheduled_for=datetime(2018, 7, 17, 0, 0), **kwargs)
+        create_job(template, job_status="cancelled", scheduled_for=datetime(2018, 7, 16, 20, 0), **kwargs)
+        create_job(template, job_status="pending", scheduled_for=datetime(2018, 7, 16, 20, 0), **kwargs)
+
+    def test_fetch_todays_total_sms_count(self):
+        service = create_service()
+        sms_template = create_template(service=service, template_type=SMS_TYPE)
+        save_notification(create_notification(template=sms_template))
+        self._create_scheduled_jobs(sms_template, notification_count=3, billable_units=6)
+        self._create_scheduled_jobs(create_template(service=service, template_type=EMAIL_TYPE), notification_count=100)
+
+        assert fetch_todays_total_sms_count(service.id) == 1 + 3 + 3
+
+    def test_fetch_todays_total_sms_billable_units(self):
+        service = create_service()
+        sms_template = create_template(service=service, template_type=SMS_TYPE)
+        save_notification(create_notification(template=sms_template, billable_units=1))
+        self._create_scheduled_jobs(sms_template, notification_count=3, billable_units=6)
+
+        assert fetch_todays_total_sms_billable_units(service.id) == 1 + 6 + 6
+
+    @pytest.mark.parametrize("billable_units", [0, None], ids=["not counted", "created before billable_units"])
+    def test_sms_counts_dont_include_sms_jobs_that_arent_counted(self, billable_units):
+        service = create_service()
+        self._create_scheduled_jobs(
+            create_template(service=service, template_type=SMS_TYPE), notification_count=3, billable_units=billable_units
+        )
+
+        assert fetch_todays_total_sms_count(service.id) == 0
+        assert fetch_todays_total_sms_billable_units(service.id) == 0
+
+    def test_fetch_todays_total_email_count_only_counts_email_jobs(self):
+        service = create_service()
+        email_template = create_template(service=service, template_type=EMAIL_TYPE)
+        save_notification(create_notification(template=email_template))
+        self._create_scheduled_jobs(email_template, notification_count=10)
+        self._create_scheduled_jobs(
+            create_template(service=service, template_type=SMS_TYPE), notification_count=100, billable_units=100
+        )
+
+        assert fetch_todays_total_email_count(service.id) == 1 + 10 + 10
+
+    def test_doesnt_count_test_key_or_other_services_jobs(self):
+        service = create_service()
+        test_key = create_api_key(service, key_type=KEY_TYPE_TEST)
+        self._create_scheduled_jobs(create_template(service=service, template_type=EMAIL_TYPE), api_key=test_key)
+        self._create_scheduled_jobs(create_template(service=create_service(service_name="other"), template_type=EMAIL_TYPE))
+        live_key = create_api_key(service, key_type=KEY_TYPE_NORMAL)
+        self._create_scheduled_jobs(
+            create_template(service=service, template_type=EMAIL_TYPE), notification_count=2, api_key=live_key
+        )
+
+        assert fetch_todays_total_email_count(service.id) == 4
 
 
 def test_dao_fetch_todays_stats_for_all_services_includes_all_services(

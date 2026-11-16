@@ -531,6 +531,7 @@ class JobSchema(BaseSchema):
     class Meta(BaseSchema.Meta):
         model = models.Job
         exclude = (
+            "billable_units",
             "notifications",
             "notifications_delivered",
             "notifications_failed",
