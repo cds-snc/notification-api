@@ -719,3 +719,45 @@ class TestBillableUnitsInV1SendNotification:
             # Simulated recipient should skip SMS limit checks
             mock_check_annual.assert_not_called()
             mock_check_daily.assert_not_called()
+
+
+class TestV1ApiFeatureFlag:
+    @pytest.mark.parametrize(
+        "method, path",
+        [
+            ("get", "/notifications"),
+            ("get", "/notifications/5fb8e3d0-7e6c-4c2a-9a4b-1d2f3e4a5b6c"),
+            ("post", "/notifications/sms"),
+            ("post", "/notifications/email"),
+        ],
+    )
+    def test_v1_endpoints_return_404_when_disabled(self, client, sample_api_key, method, path):
+        auth_header = create_authorization_header(service_id=sample_api_key.service_id)
+
+        with set_config(client.application, "FF_DISABLE_V1_API", True):
+            response = getattr(client, method)(path, headers=[("Content-Type", "application/json"), auth_header])
+
+        assert response.status_code == 404
+        assert json.loads(response.get_data(as_text=True)) == {"result": "error", "message": "Not Found"}
+
+    def test_v1_endpoints_return_404_without_auth_when_disabled(self, client):
+        with set_config(client.application, "FF_DISABLE_V1_API", True):
+            response = client.get("/notifications")
+
+        assert response.status_code == 404
+
+    def test_v1_endpoints_available_when_flag_off(self, client, sample_notification):
+        auth_header = create_authorization_header(service_id=sample_notification.service_id)
+
+        with set_config(client.application, "FF_DISABLE_V1_API", False):
+            response = client.get("/notifications", headers=[auth_header])
+
+        assert response.status_code == 200
+
+    def test_v2_endpoints_unaffected_when_v1_disabled(self, client, sample_notification):
+        auth_header = create_authorization_header(service_id=sample_notification.service_id)
+
+        with set_config(client.application, "FF_DISABLE_V1_API", True):
+            response = client.get("/v2/notifications", headers=[auth_header])
+
+        assert response.status_code == 200
