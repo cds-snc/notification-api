@@ -1,5 +1,7 @@
 import importlib
 import os
+import subprocess
+from pathlib import Path
 
 import pytest
 
@@ -56,6 +58,30 @@ def test_queue_names_all_queues_correct():
             QueueNames.DELIVERY_RECEIPTS,
         ]
     ) == set(queues)
+
+
+@pytest.mark.parametrize(
+    "task_name",
+    ["delete-sms-notifications", "delete-email-notifications", "delete-letter-notifications", "delete-inbound-sms"],
+)
+def test_cleanup_tasks_use_nightly_queue(task_name):
+    assert config.Config.CELERYBEAT_SCHEDULE[task_name]["options"]["queue"] == QueueNames.NIGHTLY
+
+
+@pytest.mark.parametrize("script_name", ["run_celery.sh", "run_celery_core_tasks.sh"])
+def test_general_workers_do_not_consume_periodic_tasks(script_name):
+    script = Path(__file__).resolve().parents[2] / "scripts" / script_name
+    result = subprocess.run(
+        ["sh", "-c", 'celery() { printf "%s\\n" "$@"; }; . "$1"', "test", str(script)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    queues = result.stdout.splitlines()[-1].split(",")
+
+    assert QueueNames.PERIODIC not in queues
+    assert QueueNames.NIGHTLY not in queues
+    assert QueueNames.NORMAL in queues
 
 
 def test_get_safe_config(mocker, reload_config):

@@ -1633,6 +1633,9 @@ class Job(BaseModel):
     notifications_sent = db.Column(db.Integer, nullable=False, default=0)
     notifications_delivered = db.Column(db.Integer, nullable=False, default=0)
     notifications_failed = db.Column(db.Integer, nullable=False, default=0)
+    # SMS fragments the job counts towards the daily limit: 0 if it isn't counted (test key or simulated
+    # recipients), null for email jobs and SMS jobs created before this column was added.
+    billable_units = db.Column(db.Integer, nullable=True)
 
     processing_started = db.Column(db.DateTime, index=True, unique=False, nullable=True)
     processing_finished = db.Column(db.DateTime, index=False, unique=False, nullable=True)

@@ -3520,3 +3520,72 @@ class TestBillableUnitsInV2Notifications:
 
             # Verify increment was called with billable_units=2
             mock_increment.assert_called_once_with(template.service, 2)
+
+
+@pytest.mark.usefixtures("notify_db_session")
+@freeze_time("2026-11-12 10:00:00")
+class TestPostBulkScheduledSmsDailyLimit:
+    @pytest.mark.parametrize("ff_use_billable_units, expected_requested_sms", [(True, 4), (False, 2)])
+    @pytest.mark.parametrize(
+        "scheduled_for, expect_increment",
+        [(None, True), ("2026-11-12T20:00:00", True), ("2026-11-13T09:00:00", False)],
+        ids=["not scheduled", "scheduled for today", "scheduled for a later day"],
+    )
+    def test_post_bulk_sms_only_counts_towards_todays_limit_if_sent_today(
+        self,
+        client,
+        mocker,
+        notify_api,
+        mock_annual_limits,
+        notify_user,
+        ff_use_billable_units,
+        expected_requested_sms,
+        scheduled_for,
+        expect_increment,
+    ):
+        service = create_service(service_name="scheduled bulk sms")
+        template = create_template(service=service, content="a" * 200)  # 2 fragments
+        job_id = str(uuid.uuid4())
+        mocker.patch("app.v2.notifications.post_notifications.upload_job_to_s3", return_value=job_id)
+        mocker.patch("app.v2.notifications.post_notifications.process_job.apply_async")
+        mock_check_daily = mocker.patch("app.v2.notifications.post_notifications.check_sms_daily_limit")
+        mock_increment = mocker.patch("app.v2.notifications.post_notifications.increment_sms_daily_count_send_warnings_if_needed")
+        data = {"name": "job_name", "template_id": str(template.id), "rows": [["phone number"], ["6135550111"], ["6135550112"]]}
+        if scheduled_for:
+            data["scheduled_for"] = scheduled_for
+
+        with set_config(notify_api, "FF_USE_BILLABLE_UNITS", ff_use_billable_units):
+            response = client.post(
+                "/v2/notifications/bulk",
+                data=json.dumps(data),
+                headers=[("Content-Type", "application/json"), create_authorization_header(service_id=service.id)],
+            )
+
+        assert response.status_code == 201
+        mock_check_daily.assert_called_once_with(service, expected_requested_sms)
+        if expect_increment:
+            mock_increment.assert_called_once_with(service, expected_requested_sms)
+        else:
+            mock_increment.assert_not_called()
+        assert dao_get_job_by_id(job_id).billable_units == 4
+        assert "billable_units" not in response.get_json()["data"]
+
+    def test_post_bulk_sms_with_test_key_is_not_counted(self, client, mocker, mock_annual_limits, notify_user):
+        service = create_service(service_name="scheduled bulk sms")
+        template = create_template(service=service)
+        job_id = str(uuid.uuid4())
+        mocker.patch("app.v2.notifications.post_notifications.upload_job_to_s3", return_value=job_id)
+        mocker.patch("app.v2.notifications.post_notifications.process_job.apply_async")
+        mock_increment = mocker.patch("app.v2.notifications.post_notifications.increment_sms_daily_count_send_warnings_if_needed")
+        api_key = create_api_key(service=service, key_type=KEY_TYPE_TEST)
+        data = {"name": "job_name", "template_id": str(template.id), "rows": [["phone number"], ["6135550111"]]}
+
+        response = client.post(
+            "/v2/notifications/bulk",
+            data=json.dumps(data),
+            headers=[("Content-Type", "application/json"), create_authorization_header(api_key=api_key)],
+        )
+
+        assert response.status_code == 201
+        mock_increment.assert_not_called()
+        assert dao_get_job_by_id(job_id).billable_units == 0

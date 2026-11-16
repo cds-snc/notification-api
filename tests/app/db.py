@@ -471,6 +471,8 @@ def create_job(
     original_file_name="some.csv",
     archived=False,
     sender_id=None,
+    billable_units=None,
+    api_key=None,
 ):
     data = {
         "id": uuid.uuid4(),
@@ -488,6 +490,8 @@ def create_job(
         "processing_started": processing_started,
         "archived": archived,
         "sender_id": sender_id,
+        "billable_units": billable_units,
+        "api_key": api_key,
     }
     job = Job(**data)
     dao_create_job(job)
