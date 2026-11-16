@@ -17,7 +17,7 @@ def test_save_fido2_key_should_create_new_fido2_key(sample_user):
 
 
 def test_list_fido2_keys(sample_fido2_key):
-    Fido2Key(**{"user": sample_fido2_key.user, "name": "Name", "key": "Key"})
+    save_fido2_key(Fido2Key(user=sample_fido2_key.user, name="Name", key="Key"))
 
     keys = list_fido2_keys(sample_fido2_key.user.id)
     assert len(keys) == 2
