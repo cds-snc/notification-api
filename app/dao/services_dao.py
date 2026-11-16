@@ -47,6 +47,7 @@ from app.models import (
     Service,
     ServicePermission,
     ServiceSmsSender,
+    ServiceUser,
     Template,
     TemplateCategory,
     TemplateHistory,
@@ -72,7 +73,7 @@ DEFAULT_SERVICE_PERMISSIONS = [
 
 
 def dao_fetch_all_services(only_active=False):
-    query = Service.query.order_by(asc(Service.created_at)).options(joinedload("users"))
+    query = Service.query.order_by(asc(Service.created_at)).options(joinedload(Service.users))
 
     if only_active:
         query = query.filter(Service.active)
@@ -122,30 +123,24 @@ def dao_fetch_live_services_data():
             Service.volume_email.label("email_volume_intent"),
             Service.volume_letter.label("letter_volume_intent"),
             case(
-                [
-                    (
-                        this_year_ft_billing.c.notification_type == "email",
-                        func.sum(this_year_ft_billing.c.notifications_sent),
-                    )
-                ],
+                (
+                    this_year_ft_billing.c.notification_type == "email",
+                    func.sum(this_year_ft_billing.c.notifications_sent),
+                ),
                 else_=0,
             ).label("email_totals"),
             case(
-                [
-                    (
-                        this_year_ft_billing.c.notification_type == "sms",
-                        func.sum(this_year_ft_billing.c.notifications_sent),
-                    )
-                ],
+                (
+                    this_year_ft_billing.c.notification_type == "sms",
+                    func.sum(this_year_ft_billing.c.notifications_sent),
+                ),
                 else_=0,
             ).label("sms_totals"),
             case(
-                [
-                    (
-                        this_year_ft_billing.c.notification_type == "letter",
-                        func.sum(this_year_ft_billing.c.notifications_sent),
-                    )
-                ],
+                (
+                    this_year_ft_billing.c.notification_type == "letter",
+                    func.sum(this_year_ft_billing.c.notifications_sent),
+                ),
                 else_=0,
             ).label("letter_totals"),
             AnnualBilling.free_sms_fragment_limit,
@@ -204,7 +199,7 @@ def dao_fetch_live_services_data():
 @cache_on_arguments(namespace="service", group_by="service_id")
 def dao_fetch_service_by_id_cached(service_id: str, only_active=False) -> dict:
     """Dogpile cached version of fetching a service by id"""
-    query = Service.query.filter_by(id=service_id).options(joinedload("users"))
+    query = Service.query.filter_by(id=service_id).options(joinedload(Service.users))
     if only_active:
         query = query.filter(Service.active)
 
@@ -231,7 +226,7 @@ def dao_fetch_service_by_id(service_id, only_active=False, use_cache=False, *, u
             service_cache_decoded = json.loads(service_cache.decode("utf-8"))["data"]
             return Service.from_json(service_cache_decoded)
 
-    query = Service.query.filter_by(id=service_id).options(joinedload("users"))
+    query = Service.query.filter_by(id=service_id).options(joinedload(Service.users))
     if only_active:
         query = query.filter(Service.active)
     service = query.one()
@@ -248,7 +243,7 @@ def dao_fetch_service_by_inbound_number(number):
 
 
 def dao_fetch_service_by_id_with_api_keys(service_id, only_active=False):
-    query = db.on_reader().query(Service).filter_by(id=service_id).options(joinedload("api_keys"))
+    query = db.on_reader().query(Service).filter_by(id=service_id).options(joinedload(Service.api_keys))
 
     if only_active:
         query = query.filter(Service.active)
@@ -257,7 +252,9 @@ def dao_fetch_service_by_id_with_api_keys(service_id, only_active=False):
 
 
 def dao_fetch_all_services_by_user(user_id, only_active=False):
-    query = Service.query.filter(Service.users.any(id=user_id)).order_by(asc(Service.created_at)).options(joinedload("users"))
+    query = (
+        Service.query.filter(Service.users.any(id=user_id)).order_by(asc(Service.created_at)).options(joinedload(Service.users))
+    )
 
     if only_active:
         query = query.filter(Service.active)
@@ -305,9 +302,9 @@ def dao_archive_service_no_transaction(service_id, user_id=None):
     # to ensure that db.session still contains the models when it comes to creating history objects
     service = (
         Service.query.options(
-            joinedload("templates"),
-            joinedload("templates.template_redacted"),
-            joinedload("api_keys"),
+            joinedload(Service.templates),
+            joinedload(Service.templates).joinedload(Template.template_redacted),
+            joinedload(Service.api_keys),
         )
         .filter(Service.id == service_id)
         .one()
@@ -334,7 +331,7 @@ def dao_archive_service_no_transaction(service_id, user_id=None):
 
 
 def dao_fetch_service_by_id_and_user(service_id, user_id):
-    return Service.query.filter(Service.users.any(id=user_id), Service.id == service_id).options(joinedload("users")).one()
+    return Service.query.filter(Service.users.any(id=user_id), Service.id == service_id).options(joinedload(Service.users)).one()
 
 
 @transactional
@@ -409,11 +406,14 @@ def dao_add_user_to_service(service, user, permissions=None, folder_permissions=
     folder_permissions = folder_permissions or []
 
     try:
-        service.users.append(user)
+        service_user = ServiceUser.query.filter_by(user_id=user.id, service_id=service.id).one_or_none()
+        if service_user is None:
+            service.users.append(user)
         permission_dao.set_user_service_permission(user, service, permissions, _commit=False)
         db.session.add(service)
 
-        service_user = dao_get_service_user(user.id, service.id)
+        if service_user is None:
+            service_user = dao_get_service_user(user.id, service.id)
         valid_template_folders = dao_get_valid_template_folders_by_id(folder_permissions)
         service_user.folders = valid_template_folders
         db.session.add(service_user)
@@ -515,7 +515,7 @@ def fetch_todays_total_message_count(service_id):
             Job.scheduled_for >= midnight,
             Job.scheduled_for < midnight + timedelta(days=1),
         )
-    ).first()
+    ).one()
 
     result = (
         db.session.query(func.coalesce(func.count(Notification.id), 0).label("count")).filter(
@@ -523,7 +523,7 @@ def fetch_todays_total_message_count(service_id):
             Notification.key_type != KEY_TYPE_TEST,
             Notification.created_at >= midnight,
         )
-    ).first()
+    ).one()
 
     scheduled_one_off_count = (
         db.session.query(func.count(ScheduledNotification.notification_id))
@@ -590,7 +590,7 @@ def fetch_todays_total_email_count(service_id: uuid.UUID) -> int:
             Job.scheduled_for > midnight,
             Job.scheduled_for < midnight + timedelta(hours=23, minutes=59, seconds=59),
         )
-    ).first()
+    ).one()
 
     result = (
         db.session.query(func.coalesce(func.count(Notification.id), 0).label("total_email_notifications")).filter(
@@ -599,7 +599,7 @@ def fetch_todays_total_email_count(service_id: uuid.UUID) -> int:
             Notification.created_at > midnight,
             Notification.notification_type == "email",
         )
-    ).first()
+    ).one()
 
     scheduled_one_off_count = (
         db.session.query(func.count(ScheduledNotification.notification_id))
@@ -711,7 +711,7 @@ def dao_suspend_service_no_transaction(service_id, user_id=None):
     # to ensure that db.session still contains the models when it comes to creating history objects
     service = (
         Service.query.options(
-            joinedload("api_keys"),
+            joinedload(Service.api_keys),
         )
         .filter(Service.id == service_id)
         .one()

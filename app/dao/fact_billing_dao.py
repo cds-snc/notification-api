@@ -469,31 +469,29 @@ def _query_for_billing_data(table, notification_type, start_date, end_date, serv
         SMS_TYPE: NOTIFICATION_STATUS_TYPES_BILLABLE,
     }
     sms_sending_vehicle_case = case(
-        [
-            # International SMS is always treated as long_code — rate_multiplier covers the cost
-            (
-                and_(
-                    table.notification_type == SMS_TYPE,
-                    table.international == True,  # noqa: E712
-                ),
-                "long_code",
+        # International SMS is always treated as long_code — rate_multiplier covers the cost
+        (
+            and_(
+                table.notification_type == SMS_TYPE,
+                table.international == True,  # noqa: E712
             ),
-            (
-                and_(
-                    table.notification_type == SMS_TYPE,
-                    table.sms_origination_phone_number.isnot(None),
-                    ~(table.sms_origination_phone_number.op("~")(SmsClient.LONG_CODE_REGEX.pattern)),
-                ),
-                "short_code",
+            "long_code",
+        ),
+        (
+            and_(
+                table.notification_type == SMS_TYPE,
+                table.sms_origination_phone_number.isnot(None),
+                ~(table.sms_origination_phone_number.op("~")(SmsClient.LONG_CODE_REGEX.pattern)),
             ),
-            (
-                and_(
-                    table.notification_type == SMS_TYPE,
-                    table.sms_origination_phone_number.is_(None),
-                ),
-                func.coalesce(TemplateCategory.sms_sending_vehicle, "long_code"),
+            "short_code",
+        ),
+        (
+            and_(
+                table.notification_type == SMS_TYPE,
+                table.sms_origination_phone_number.is_(None),
             ),
-        ],
+            func.coalesce(TemplateCategory.sms_sending_vehicle, "long_code"),
+        ),
         else_="long_code",
     ).label("sms_sending_vehicle")
     query = (
@@ -504,20 +502,14 @@ def _query_for_billing_data(table, notification_type, start_date, end_date, serv
             func.coalesce(
                 table.sent_by,
                 case(
-                    [
-                        (table.notification_type == "letter", "dvla"),
-                        (table.notification_type == "sms", "unknown"),
-                        (table.notification_type == "email", "ses"),
-                    ]
+                    (table.notification_type == "letter", "dvla"),
+                    (table.notification_type == "sms", "unknown"),
+                    (table.notification_type == "email", "ses"),
                 ),
             ).label("sent_by"),
             func.coalesce(table.rate_multiplier, 1).cast(Integer).label("rate_multiplier"),
             func.coalesce(table.international, False).label("international"),
-            case(
-                [
-                    (table.notification_type == "letter", table.billable_units),
-                ]
-            ).label("letter_page_count"),
+            case((table.notification_type == "letter", table.billable_units)).label("letter_page_count"),
             func.sum(table.billable_units).label("billable_units"),
             func.count().label("notifications_sent"),
             Service.crown,
