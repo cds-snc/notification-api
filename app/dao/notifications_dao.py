@@ -16,6 +16,7 @@ from notifications_utils.timezones import (
     convert_utc_to_local_timezone,
 )
 from sqlalchemy import asc, desc, func
+from sqlalchemy import delete as sqlalchemy_delete
 from sqlalchemy import update as sqlalchemy_update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import defer, joinedload
@@ -570,13 +571,19 @@ def _delete_notifications(notification_type, date_to_delete_from, service_id, qu
 
 
 def _delete_for_query(subquery):
-    number_deleted = db.session.query(Notification).filter(Notification.id.in_(subquery)).delete(synchronize_session=False)
-    deleted = number_deleted
-    db.session.commit()
-    while number_deleted > 0:
-        number_deleted = db.session.query(Notification).filter(Notification.id.in_(subquery)).delete(synchronize_session=False)
-        deleted += number_deleted
+    statement = (
+        sqlalchemy_delete(Notification)
+        .where(Notification.id.in_(subquery.select()))
+        .returning(Notification.id)
+        .execution_options(synchronize_session=False)
+    )
+    deleted = 0
+
+    while notification_ids := db.session.execute(statement).scalars().all():
+        queue_cache_invalidations(db.session, Notification, id=notification_ids)
+        deleted += len(notification_ids)
         db.session.commit()
+
     return deleted
 
 

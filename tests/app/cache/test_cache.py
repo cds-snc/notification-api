@@ -467,6 +467,15 @@ def test_notification_delete_evicts_cached_snapshot(notification_cache, sample_n
     )
 
 
+def test_notification_bulk_delete_evicts_cached_snapshot(notification_cache, sample_notification):
+    notification_id = sample_notification.id
+    _snapshot(sample_notification)
+    subquery = db.session.query(Notification.id).filter(Notification.id == notification_id).subquery()
+
+    assert notifications_dao._delete_for_query(subquery) == 1
+    assert not notification_cache.exists(exact_cache_key("notification", notification_id))
+
+
 @pytest.mark.parametrize("operation", ["reference", "timeout"])
 def test_notification_bulk_dml_evicts_cached_snapshot(notification_cache, sample_notification, operation):
     notification = sample_notification
