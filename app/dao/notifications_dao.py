@@ -401,7 +401,7 @@ def dao_get_notification_snapshot_cached(notification_id):
 
 
 def _get_notification_snapshot(notification_id):
-    notification = Notification.query.filter_by(id=notification_id).options(joinedload("template")).first()
+    notification = Notification.query.filter_by(id=notification_id).options(joinedload(Notification.template)).first()
     if notification is None:
         return None
     return {
