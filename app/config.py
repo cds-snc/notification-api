@@ -178,7 +178,6 @@ class Config(object):
     # Feature flag to enable custom retry policies such as lowering retry period for certain priority lanes.
     FF_CELERY_CUSTOM_TASK_PARAMS = env.bool("FF_CELERY_CUSTOM_TASK_PARAMS", True)
     FF_CLOUDWATCH_METRICS_ENABLED = env.bool("FF_CLOUDWATCH_METRICS_ENABLED", False)
-    FF_IMPROVE_CELERY_WORKER_ISOLATION = env.bool("FF_IMPROVE_CELERY_WORKER_ISOLATION", False)
     FF_PT_SERVICE_SKIP_FRESHDESK = env.bool("FF_PT_SERVICE_SKIP_FRESHDESK", False)
     # Enables the /v2/reports API endpoints. Off by default so the feature stays hidden in production until launch.
     FF_REPORT_API = env.bool("FF_REPORT_API", False)
@@ -524,22 +523,22 @@ class Config(object):
         "delete-sms-notifications": {
             "task": "delete-sms-notifications",
             "schedule": crontab(hour=9, minute=15),  # 4:15 EST in UTC,  after 'create-nightly-notification-status'
-            "options": {"queue": QueueNames.NIGHTLY if FF_IMPROVE_CELERY_WORKER_ISOLATION else QueueNames.PERIODIC},
+            "options": {"queue": QueueNames.NIGHTLY},
         },
         "delete-email-notifications": {
             "task": "delete-email-notifications",
             "schedule": crontab(hour=9, minute=30),  # 4:30 EST in UTC, after 'create-nightly-notification-status'
-            "options": {"queue": QueueNames.NIGHTLY if FF_IMPROVE_CELERY_WORKER_ISOLATION else QueueNames.PERIODIC},
+            "options": {"queue": QueueNames.NIGHTLY},
         },
         "delete-letter-notifications": {
             "task": "delete-letter-notifications",
             "schedule": crontab(hour=9, minute=45),  # 4:45 EST in UTC, after 'create-nightly-notification-status'
-            "options": {"queue": QueueNames.NIGHTLY if FF_IMPROVE_CELERY_WORKER_ISOLATION else QueueNames.PERIODIC},
+            "options": {"queue": QueueNames.NIGHTLY},
         },
         "delete-inbound-sms": {
             "task": "delete-inbound-sms",
             "schedule": crontab(hour=6, minute=40),  # 1:40 EST in UTC
-            "options": {"queue": QueueNames.NIGHTLY if FF_IMPROVE_CELERY_WORKER_ISOLATION else QueueNames.PERIODIC},
+            "options": {"queue": QueueNames.NIGHTLY},
         },
         "send-daily-performance-platform-stats": {
             "task": "send-daily-performance-platform-stats",
