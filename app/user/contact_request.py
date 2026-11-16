@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field, fields
 from typing import List
 
-from flask import escape
+from markupsafe import escape
 from notifications_utils.recipients import validate_email_address
 
 __all__ = [
