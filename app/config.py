@@ -207,7 +207,7 @@ class Config(object):
     SQLALCHEMY_DISABLE_POOL = env.bool("SQLALCHEMY_DISABLE_POOL", False)
     # Flask-SQLAlchemy 3.x ignores SQLALCHEMY_POOL_* keys. Pool options must be passed via
     # engine options.
-    SQLALCHEMY_ENGINE_OPTIONS = (
+    SQLALCHEMY_ENGINE_OPTIONS: dict[str, Any] = (
         {"poolclass": NullPool}
         if SQLALCHEMY_DISABLE_POOL
         else {

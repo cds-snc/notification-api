@@ -105,14 +105,22 @@ def create_app(application, config=None):
         application.config.from_object(config)
 
     def use_psycopg2(uri):
-        if uri and uri.startswith("postgresql://"):
+        if isinstance(uri, str) and uri.startswith("postgresql://"):
             return uri.replace("postgresql://", "postgresql+psycopg2://", 1)
         return uri
 
+    def use_psycopg2_bind(bind):
+        if isinstance(bind, dict):
+            return {**bind, "url": use_psycopg2(bind.get("url"))}
+        return use_psycopg2(bind)
+
     for key in ("SQLALCHEMY_DATABASE_URI", "SQLALCHEMY_DATABASE_READER_URI"):
         application.config[key] = use_psycopg2(application.config.get(key))
-    for value in (application.config.get("SQLALCHEMY_BINDS") or {}).values():
-        value["url"] = use_psycopg2(value["url"])
+    # Build new bind dicts: from_object() shares the config class's dicts, so mutating them in place
+    # would leak into the Config class and any other app created from it.
+    binds = application.config.get("SQLALCHEMY_BINDS")
+    if binds:
+        application.config["SQLALCHEMY_BINDS"] = {name: use_psycopg2_bind(bind) for name, bind in binds.items()}
 
     application.config["NOTIFY_APP_NAME"] = application.name
     init_app(application)
