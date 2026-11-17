@@ -111,9 +111,11 @@ def create_app(application, config=None):
 
     for key in ("SQLALCHEMY_DATABASE_URI", "SQLALCHEMY_DATABASE_READER_URI"):
         application.config[key] = use_psycopg2(application.config.get(key))
-    for bind, uri in (application.config.get("SQLALCHEMY_BINDS") or {}).items():
-        if isinstance(uri, str):
-            application.config["SQLALCHEMY_BINDS"][bind] = use_psycopg2(uri)
+    for bind, value in (application.config.get("SQLALCHEMY_BINDS") or {}).items():
+        if isinstance(value, str):
+            application.config["SQLALCHEMY_BINDS"][bind] = use_psycopg2(value)
+        elif isinstance(value, dict) and value.get("url"):
+            value["url"] = use_psycopg2(value["url"])
 
     application.config["NOTIFY_APP_NAME"] = application.name
     init_app(application)

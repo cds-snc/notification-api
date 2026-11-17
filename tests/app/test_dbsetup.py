@@ -1,6 +1,16 @@
+import pytest
 from flask import Flask
 
+from app import db
 from app.dbsetup import RoutingSQLAlchemy, enable_sqlalchemy_debug_logging
+
+
+@pytest.mark.parametrize("bind", ["writer", "reader"])
+def test_live_engines_recycle_connections(notify_api, bind):
+    with notify_api.app_context():
+        pool = db.engines[bind].pool
+
+        assert pool._recycle == 300
 
 
 def test_routing_session_uses_explicit_reader_then_writer():

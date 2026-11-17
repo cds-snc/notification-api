@@ -106,8 +106,7 @@ def test_sqlalchemy_disable_pool_sets_null_pool(monkeypatch, reload_config):
 
     assert config.Config.SQLALCHEMY_DISABLE_POOL is True
     assert config.Config.SQLALCHEMY_ENGINE_OPTIONS["poolclass"].__name__ == "NullPool"
-    assert config.Config.SQLALCHEMY_POOL_SIZE is None
-    assert config.Config.SQLALCHEMY_POOL_TIMEOUT is None
+    assert "pool_size" not in config.Config.SQLALCHEMY_ENGINE_OPTIONS
 
 
 def test_sqlalchemy_disable_pool_default_false(monkeypatch, reload_config):
@@ -115,4 +114,17 @@ def test_sqlalchemy_disable_pool_default_false(monkeypatch, reload_config):
     importlib.reload(config)
 
     assert config.Config.SQLALCHEMY_DISABLE_POOL is False
-    assert config.Config.SQLALCHEMY_ENGINE_OPTIONS == {}
+    assert config.Config.SQLALCHEMY_ENGINE_OPTIONS["pool_recycle"] == 300
+    assert config.Config.SQLALCHEMY_ENGINE_OPTIONS["pool_timeout"] == 30
+
+
+def test_reader_and_writer_binds_receive_pool_options(monkeypatch, reload_config):
+    monkeypatch.delenv("SQLALCHEMY_DISABLE_POOL", raising=False)
+    monkeypatch.setenv("SQLALCHEMY_DATABASE_URI", "postgresql://writer/db")
+    monkeypatch.setenv("SQLALCHEMY_DATABASE_READER_URI", "postgresql://reader/db")
+    importlib.reload(config)
+
+    for name, url in (("writer", "postgresql://writer/db"), ("reader", "postgresql://reader/db")):
+        bind = config.Config.SQLALCHEMY_BINDS[name]
+        assert bind["url"] == url
+        assert bind["pool_recycle"] == 300
