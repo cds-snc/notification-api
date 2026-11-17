@@ -46,22 +46,20 @@ def seed_data_in_redis(service_id: UUID) -> dict:
     data[TOTAL_SMS_FISCAL_YEAR_TO_YESTERDAY] = annual_data_sms
     data[TOTAL_EMAIL_FISCAL_YEAR_TO_YESTERDAY] = annual_data_email
 
-    # TODO FF_USE_BILLABLE_UNITS removal - Also seed billable units when feature flag is enabled
-    if current_app.config.get("FF_USE_BILLABLE_UNITS"):
-        annual_billable_units_sms = fetch_billable_units_totals_for_service_by_fiscal_year(
-            service_id, get_fiscal_year(today), notification_type=SMS_TYPE
+    annual_billable_units_sms = fetch_billable_units_totals_for_service_by_fiscal_year(
+        service_id, get_fiscal_year(today), notification_type=SMS_TYPE
+    )
+    billable_units_data = prepare_billable_units_counts_for_seeding(
+        fetch_billable_units_for_service_for_day(
+            datetime.now(timezone.utc),
+            service_id=service_id,
         )
-        billable_units_data = prepare_billable_units_counts_for_seeding(
-            fetch_billable_units_for_service_for_day(
-                datetime.now(timezone.utc),
-                service_id=service_id,
-            )
-        )
-        data[TOTAL_SMS_BILLABLE_UNITS_FISCAL_YEAR_TO_YESTERDAY] = annual_billable_units_sms
-        data.update(billable_units_data)
-        current_app.logger.info(
-            f"[seed-debug] Service {service_id} - Seeded billable units data: annual={annual_billable_units_sms}, today={billable_units_data}"
-        )
+    )
+    data[TOTAL_SMS_BILLABLE_UNITS_FISCAL_YEAR_TO_YESTERDAY] = annual_billable_units_sms
+    data.update(billable_units_data)
+    current_app.logger.info(
+        f"[seed-debug] Service {service_id} - Seeded billable units data: annual={annual_billable_units_sms}, today={billable_units_data}"
+    )
 
     # The below function will also set the SEEDED_AT key for notifications_v2 in redis
     # — but only when at least one count is non-zero. When all counts are zero it

@@ -217,14 +217,11 @@ def create_job(service_id):
         sms_billable_units = 0
         # Check and track limits if we're not sending test notifications
         if has_real_recipients and not has_simulated:
-            csv_length = len(recipient_csv)
             sms_billable_units = recipient_csv.sms_fragment_count
-            # TODO FF_USE_BILLABLE_UNITS removal - Use billable units when feature flag is enabled
-            requested_sms = sms_billable_units if current_app.config.get("FF_USE_BILLABLE_UNITS") else csv_length
-            check_sms_annual_limit(service, requested_sms)
-            check_sms_daily_limit(service, requested_sms)
+            check_sms_annual_limit(service, sms_billable_units)
+            check_sms_daily_limit(service, sms_billable_units)
             if count_towards_todays_limit:
-                increment_sms_daily_count_send_warnings_if_needed(service, requested_sms)
+                increment_sms_daily_count_send_warnings_if_needed(service, sms_billable_units)
 
     elif template.template_type == EMAIL_TYPE:
         if "notification_count" in data:

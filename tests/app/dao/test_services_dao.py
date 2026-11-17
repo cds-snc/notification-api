@@ -1724,7 +1724,6 @@ class TestSensitiveService:
         assert sensitive_service == []
 
 
-# TODO: Remove feature flag checks after FF_USE_BILLABLE_UNITS go live
 class TestBillableUnitsInServicesDao:
     """Tests for billable_units functionality in services_dao"""
 
