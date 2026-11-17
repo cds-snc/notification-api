@@ -226,6 +226,19 @@ class TestSendScheduledNotifications:
         }
         assert [n.notification_id for n in ScheduledNotification.query.all()] == [not_due.notification_id]
 
+    @freeze_time("2017-05-01 14:00:00")
+    def test_puts_created_by_on_the_queue_for_notifications_scheduled_from_the_admin(self, sample_template, mocker):
+        mock_publish = mocker.patch("app.sms_normal_publish.publish")
+        create_scheduled_one_off_notification(
+            sample_template, scheduled_for="2017-05-01 14:00", created_by=sample_template.service.created_by
+        )
+
+        send_scheduled_notifications()
+
+        signed = signer_notification.verify(mock_publish.call_args[0][0])
+        assert signed["created_by_id"] == str(sample_template.service.created_by_id)
+        assert signed["api_key"] is None
+
     @pytest.mark.parametrize(
         "template_type, process_type, queue",
         [

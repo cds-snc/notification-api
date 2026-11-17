@@ -1,4 +1,5 @@
 from flask import current_app
+from jsonschema import ValidationError
 from sqlalchemy.orm.exc import NoResultFound
 
 from app import create_random_identifier
@@ -19,10 +20,13 @@ from app.models import (
     SMS_TYPE,
 )
 from app.notifications.process_notifications import (
+    is_scheduled_for_a_later_day,
     number_of_sms_fragments,
     persist_notification,
+    persist_scheduled_one_off_notification,
     send_notification_to_queue,
     simulated_recipient,
+    transform_notification,
 )
 from app.notifications.validators import (
     check_email_annual_limit,
@@ -34,6 +38,7 @@ from app.notifications.validators import (
     validate_and_format_recipient,
     validate_template,
 )
+from app.schema_validation import validate_schema_date_for_job
 from app.utils import get_delivery_queue_for_template
 from app.v2.errors import BadRequestError
 
@@ -51,11 +56,30 @@ def create_one_off_reference(template_type):
     return None
 
 
+def validate_scheduled_for(scheduled_for, template_type):
+    if template_type == LETTER_TYPE:
+        raise BadRequestError(message="Letters cannot be scheduled")
+    try:
+        validate_schema_date_for_job(scheduled_for)
+    except ValidationError as e:
+        raise BadRequestError(message=f"scheduled_for {e.message}")
+
+
 def send_one_off_notification(service_id, post_data):
     service = dao_fetch_service_by_id(service_id)
     template = dao_get_template_by_id_and_service_id(template_id=post_data["template_id"], service_id=service_id)
 
     personalisation = post_data.get("personalisation", None)
+
+    scheduled_for = post_data.get("scheduled_for") or None
+    if scheduled_for:
+        validate_scheduled_for(scheduled_for, template.template_type)
+        # Like the API, simulated recipients are never scheduled: they're sent (and shown) straight away
+        if simulated_recipient(post_data["to"], template.template_type):
+            scheduled_for = None
+    # Like scheduled bulk jobs, a notification scheduled for a later day is counted towards that day's limit when that
+    # day's count is loaded from the database (it includes notifications scheduled for the day), not today's.
+    count_towards_todays_limit = not is_scheduled_for_a_later_day(scheduled_for)
 
     _, template_with_content = validate_template(template.id, personalisation, service, template.template_type)
 
@@ -96,24 +120,41 @@ def send_one_off_notification(service_id, post_data):
     if template.template_type == SMS_TYPE:
         billable_units = number_of_sms_fragments(template, personalisation)
 
-    notification = persist_notification(
-        template_id=template.id,
-        template_version=template.version,
-        template_postage=template.postage,
-        recipient=post_data["to"],
-        service=service,
-        personalisation=personalisation,
-        notification_type=template.template_type,
-        api_key_id=None,
-        key_type=KEY_TYPE_NORMAL,
-        created_by_id=post_data["created_by"],
-        reply_to_text=reply_to,
-        reference=create_one_off_reference(template.template_type),
-        billable_units=billable_units,
-    )
+    if scheduled_for:
+        # Not added to the notifications table or the sending queues until it's sent, see send_scheduled_notifications
+        notification = transform_notification(
+            template_id=template.id,
+            template_version=template.version,
+            recipient=post_data["to"],
+            service=service,
+            personalisation=personalisation,
+            notification_type=template.template_type,
+            api_key_id=None,
+            key_type=KEY_TYPE_NORMAL,
+            created_by_id=post_data["created_by"],
+            reply_to_text=reply_to,
+            billable_units=billable_units,
+        )
+        persist_scheduled_one_off_notification(notification, scheduled_for)
+    else:
+        notification = persist_notification(
+            template_id=template.id,
+            template_version=template.version,
+            template_postage=template.postage,
+            recipient=post_data["to"],
+            service=service,
+            personalisation=personalisation,
+            notification_type=template.template_type,
+            api_key_id=None,
+            key_type=KEY_TYPE_NORMAL,
+            created_by_id=post_data["created_by"],
+            reply_to_text=reply_to,
+            reference=create_one_off_reference(template.template_type),
+            billable_units=billable_units,
+        )
 
     # Increment daily counts after notification is created so we can use actual billable_units
-    if template.template_type == SMS_TYPE:
+    if template.template_type == SMS_TYPE and count_towards_todays_limit:
         is_test_notification = simulated_recipient(post_data["to"], template.template_type)
         if not is_test_notification:
             # TODO FF_USE_BILLABLE_UNITS removal - Use billable_units when feature flag is enabled
@@ -127,10 +168,12 @@ def send_one_off_notification(service_id, post_data):
             else:
                 increment_by = 1
             increment_sms_daily_count_send_warnings_if_needed(service, increment_by)
-    elif template.template_type == EMAIL_TYPE:
+    elif template.template_type == EMAIL_TYPE and count_towards_todays_limit:
         increment_email_daily_count_send_warnings_if_needed(service, 1)  # 1 email
 
-    if template.template_type == LETTER_TYPE and service.research_mode:
+    if scheduled_for:
+        pass  # sent to the queues by send_scheduled_notifications at the scheduled time
+    elif template.template_type == LETTER_TYPE and service.research_mode:
         _update_notification_status(
             notification,
             NOTIFICATION_DELIVERED,

@@ -85,6 +85,18 @@ class TestGetScheduledNotification:
         assert response["created_by"] is None
         assert Notification.query.count() == 0
 
+    def test_get_notification_includes_created_by_for_notification_scheduled_from_the_admin(self, admin_request, sample_template):
+        user = sample_template.service.created_by
+        scheduled_notification = create_scheduled_one_off_notification(sample_template, created_by=user)
+
+        response = admin_request.get(
+            "service.get_notification_for_service",
+            service_id=scheduled_notification.service_id,
+            notification_id=scheduled_notification.notification_id,
+        )
+
+        assert response["created_by"] == {"id": str(user.id), "name": user.name, "email_address": user.email_address}
+
     def test_get_notification_doesnt_return_another_services_scheduled_notification(self, admin_request, sample_template):
         scheduled_notification = create_scheduled_one_off_notification(sample_template)
 

@@ -2,6 +2,7 @@ import uuid
 from unittest.mock import Mock
 
 import pytest
+from freezegun import freeze_time
 from notifications_utils import SMS_CHAR_COUNT_LIMIT
 from notifications_utils.recipients import InvalidPhoneError
 
@@ -13,6 +14,7 @@ from app.models import (
     MOBILE_TYPE,
     SMS_TYPE,
     Notification,
+    ScheduledNotification,
     ServiceSafelist,
 )
 from app.service.send_notification import send_one_off_notification
@@ -680,3 +682,116 @@ class TestBillableUnitsInSendOneOffNotification:
 
             # Email increment always uses 1, never billable_units
             mock_increment.assert_called_once_with(service, 1)
+
+
+@pytest.fixture
+def mock_annual_limits(mocker):
+    mocker.patch(
+        "app.notifications.validators.get_annual_limit_notifications_v2",
+        return_value={
+            "total_email_fiscal_year_to_yesterday": 0,
+            "total_sms_fiscal_year_to_yesterday": 0,
+        },
+    )
+
+
+class TestScheduledOneOffNotification:
+    @freeze_time("2017-05-01 14:00:00")
+    @pytest.mark.parametrize("template_type, to", [(SMS_TYPE, "6502532222"), (EMAIL_TYPE, "ok@ok.com")])
+    def test_stores_scheduled_notification_and_does_not_send_it(
+        self, notify_db_session, celery_mock, mock_annual_limits, template_type, to
+    ):
+        service = create_service()
+        template = create_template(service=service, template_type=template_type, content="Hello ((name))")
+
+        resp = send_one_off_notification(
+            service.id,
+            {
+                "template_id": str(template.id),
+                "to": to,
+                "personalisation": {"name": "Jo"},
+                "created_by": str(service.created_by_id),
+                "scheduled_for": "2017-05-02 10:00",
+            },
+        )
+
+        assert not celery_mock.called
+        assert Notification.query.count() == 0
+        scheduled = ScheduledNotification.query.one()
+        assert resp == {"id": str(scheduled.notification_id)}
+        assert scheduled.service_id == service.id
+        assert scheduled.template_id == template.id
+        assert scheduled.to == to
+        assert scheduled.personalisation == {"name": "Jo"}
+        assert scheduled.api_key_id is None
+        assert scheduled.key_type == KEY_TYPE_NORMAL
+        assert scheduled.created_by_id == service.created_by_id
+        assert scheduled.scheduled_for.isoformat() == "2017-05-02T10:00:00"
+
+    @freeze_time("2017-05-01 14:00:00")
+    @pytest.mark.parametrize("scheduled_for, counted_today", [("2017-05-01 20:00", True), ("2017-05-02 10:00", False)])
+    def test_only_counts_towards_todays_limit_if_scheduled_for_today(
+        self, notify_db_session, celery_mock, mock_annual_limits, mocker, scheduled_for, counted_today
+    ):
+        increment_mock = mocker.patch("app.service.send_notification.increment_sms_daily_count_send_warnings_if_needed")
+        service = create_service()
+        template = create_template(service=service)
+
+        send_one_off_notification(
+            service.id,
+            {
+                "template_id": str(template.id),
+                "to": "6502532222",
+                "created_by": str(service.created_by_id),
+                "scheduled_for": scheduled_for,
+            },
+        )
+
+        assert increment_mock.called is counted_today
+
+    @freeze_time("2017-05-01 14:00:00")
+    @pytest.mark.parametrize(
+        "scheduled_for, message",
+        [
+            ("2017-05-01 13:00", "scheduled_for datetime cannot be in the past"),
+            ("2017-05-30 13:00", "scheduled_for datetime can only be up to 96 hours in the future"),
+            ("not a date", "scheduled_for datetime format is invalid"),
+        ],
+    )
+    def test_raises_if_scheduled_for_is_invalid(self, notify_db_session, persist_mock, celery_mock, scheduled_for, message):
+        service = create_service()
+        template = create_template(service=service)
+
+        with pytest.raises(BadRequestError) as e:
+            send_one_off_notification(
+                service.id,
+                {
+                    "template_id": str(template.id),
+                    "to": "6502532222",
+                    "created_by": str(service.created_by_id),
+                    "scheduled_for": scheduled_for,
+                },
+            )
+
+        assert e.value.message.startswith(message)
+        assert ScheduledNotification.query.count() == 0
+        assert not persist_mock.called
+
+    @freeze_time("2017-05-01 14:00:00")
+    def test_sends_simulated_recipients_straight_away(self, notify_db_session, persist_mock, celery_mock, mock_annual_limits):
+        service = create_service()
+        template = create_template(service=service, template_type=EMAIL_TYPE)
+
+        send_one_off_notification(
+            service.id,
+            {
+                "template_id": str(template.id),
+                "to": "simulate-delivered@notification.canada.ca",
+                "created_by": str(service.created_by_id),
+                "scheduled_for": "2017-05-02 10:00",
+            },
+        )
+
+        assert persist_mock.called
+        assert celery_mock.called
+        assert ScheduledNotification.query.count() == 0

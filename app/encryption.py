@@ -26,6 +26,7 @@ class NotificationDictToSign(TypedDict):
     sender_id: Optional[str]
     job: NotRequired[str]  # actually job_id
     row_number: Optional[Any]  # should this be int or str?
+    created_by_id: NotRequired[str]  # set for one-off notifications sent from the admin
 
 
 class CryptoSigner:
