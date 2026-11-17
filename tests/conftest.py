@@ -36,7 +36,10 @@ def notify_api(worker_id):
         {
             "SQLALCHEMY_DATABASE_URI": writer_uri,
             "SQLALCHEMY_DATABASE_READER_URI": reader_uri,
-            "SQLALCHEMY_BINDS": {"reader": reader_uri, "writer": writer_uri},
+            "SQLALCHEMY_BINDS": {
+                "reader": {"url": reader_uri, **configs["test"].SQLALCHEMY_ENGINE_OPTIONS},
+                "writer": {"url": writer_uri, **configs["test"].SQLALCHEMY_ENGINE_OPTIONS},
+            },
         },
     )
 

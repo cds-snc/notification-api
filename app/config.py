@@ -204,12 +204,25 @@ class Config(object):
     # DB conection string
     SQLALCHEMY_DATABASE_URI = os.getenv("SQLALCHEMY_DATABASE_URI")
     SQLALCHEMY_DATABASE_READER_URI = os.getenv("SQLALCHEMY_DATABASE_READER_URI")
+    SQLALCHEMY_DISABLE_POOL = env.bool("SQLALCHEMY_DISABLE_POOL", False)
+    # Flask-SQLAlchemy 3.x ignores SQLALCHEMY_POOL_* keys. Pool options must be passed via
+    # engine options.
+    SQLALCHEMY_ENGINE_OPTIONS: dict[str, Any] = (
+        {"poolclass": NullPool}
+        if SQLALCHEMY_DISABLE_POOL
+        else {
+            "pool_size": env.int("SQLALCHEMY_POOL_SIZE", 5),
+            "pool_timeout": 30,
+            "pool_recycle": 300,
+        }
+    )
     # By making the database reader optional, we can revert to a single writer
-    # instance configuration easily.
+    # instance configuration easily. Binds use the dict form so that each engine
+    # receives SQLALCHEMY_ENGINE_OPTIONS; string binds do not.
     if SQLALCHEMY_DATABASE_READER_URI:
         SQLALCHEMY_BINDS = {
-            "writer": SQLALCHEMY_DATABASE_URI,
-            "reader": SQLALCHEMY_DATABASE_READER_URI,
+            "writer": {"url": SQLALCHEMY_DATABASE_URI, **SQLALCHEMY_ENGINE_OPTIONS},
+            "reader": {"url": SQLALCHEMY_DATABASE_READER_URI, **SQLALCHEMY_ENGINE_OPTIONS},
         }
 
     # Hosted graphite statsd prefix
@@ -299,11 +312,6 @@ class Config(object):
     NOTIFY_APP_NAME = "api"
     SQLALCHEMY_RECORD_QUERIES = False
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_DISABLE_POOL = env.bool("SQLALCHEMY_DISABLE_POOL", False)
-    SQLALCHEMY_ENGINE_OPTIONS = {"poolclass": NullPool} if SQLALCHEMY_DISABLE_POOL else {}
-    SQLALCHEMY_POOL_SIZE = None if SQLALCHEMY_DISABLE_POOL else env.int("SQLALCHEMY_POOL_SIZE", 5)
-    SQLALCHEMY_POOL_TIMEOUT = None if SQLALCHEMY_DISABLE_POOL else 30
-    SQLALCHEMY_POOL_RECYCLE = 300
     SQLALCHEMY_DEBUG_POOL_LOGGING = env.bool("SQLALCHEMY_DEBUG_POOL_LOGGING", False)
     SQLALCHEMY_DEBUG_QUERY_MS = env.int("SQLALCHEMY_DEBUG_QUERY_MS", 250)
     SQLALCHEMY_ECHO = env.bool("SQLALCHEMY_ECHO", False)

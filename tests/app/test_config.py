@@ -4,8 +4,10 @@ import subprocess
 from pathlib import Path
 
 import pytest
+from flask import Flask
+from sqlalchemy.pool import NullPool
 
-from app import config
+from app import config, create_app, db
 from app.config import QueueNames
 
 
@@ -106,8 +108,7 @@ def test_sqlalchemy_disable_pool_sets_null_pool(monkeypatch, reload_config):
 
     assert config.Config.SQLALCHEMY_DISABLE_POOL is True
     assert config.Config.SQLALCHEMY_ENGINE_OPTIONS["poolclass"].__name__ == "NullPool"
-    assert config.Config.SQLALCHEMY_POOL_SIZE is None
-    assert config.Config.SQLALCHEMY_POOL_TIMEOUT is None
+    assert "pool_size" not in config.Config.SQLALCHEMY_ENGINE_OPTIONS
 
 
 def test_sqlalchemy_disable_pool_default_false(monkeypatch, reload_config):
@@ -115,4 +116,36 @@ def test_sqlalchemy_disable_pool_default_false(monkeypatch, reload_config):
     importlib.reload(config)
 
     assert config.Config.SQLALCHEMY_DISABLE_POOL is False
-    assert config.Config.SQLALCHEMY_ENGINE_OPTIONS == {}
+    assert config.Config.SQLALCHEMY_ENGINE_OPTIONS["pool_recycle"] == 300
+    assert config.Config.SQLALCHEMY_ENGINE_OPTIONS["pool_timeout"] == 30
+
+
+def test_reader_and_writer_binds_receive_pool_options(monkeypatch, reload_config):
+    monkeypatch.delenv("SQLALCHEMY_DISABLE_POOL", raising=False)
+    monkeypatch.setenv("SQLALCHEMY_DATABASE_URI", "postgresql://writer/db")
+    monkeypatch.setenv("SQLALCHEMY_DATABASE_READER_URI", "postgresql://reader/db")
+    importlib.reload(config)
+
+    for name, url in (("writer", "postgresql://writer/db"), ("reader", "postgresql://reader/db")):
+        bind = config.Config.SQLALCHEMY_BINDS[name]
+        assert bind["url"] == url
+        assert bind["pool_recycle"] == 300
+
+
+def test_disable_pool_gives_null_pool_to_default_reader_and_writer_engines(notify_api, monkeypatch, reload_config):
+    # notify_api must be built first: blueprints only register on the first create_app() in a process.
+    monkeypatch.setenv("SQLALCHEMY_DISABLE_POOL", "true")
+    monkeypatch.setenv("SQLALCHEMY_DATABASE_URI", "postgresql://user:pass@writer-host/db")
+    monkeypatch.setenv("SQLALCHEMY_DATABASE_READER_URI", "postgresql://user:pass@reader-host/db")
+    importlib.reload(config)
+
+    app = Flask("disable-pool-test")
+    create_app(app, config=config.Test)
+
+    with app.app_context():
+        try:
+            for bind in (None, "writer", "reader"):
+                assert isinstance(db.engines[bind].pool, NullPool), bind
+        finally:
+            for engine in db.engines.values():
+                engine.dispose()
