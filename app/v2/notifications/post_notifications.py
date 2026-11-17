@@ -255,12 +255,10 @@ def post_bulk():
         sms_billable_units = 0
         if not is_test_notification:
             sms_billable_units = recipient_csv.sms_fragment_count
-            # TODO FF_USE_BILLABLE_UNITS removal - Use billable units when feature flag is enabled
-            requested_sms = sms_billable_units if current_app.config.get("FF_USE_BILLABLE_UNITS") else len(recipient_csv)
-            check_sms_annual_limit(authenticated_service, requested_sms)
-            check_sms_daily_limit(authenticated_service, requested_sms)
+            check_sms_annual_limit(authenticated_service, sms_billable_units)
+            check_sms_daily_limit(authenticated_service, sms_billable_units)
             if count_towards_todays_limit:
-                increment_sms_daily_count_send_warnings_if_needed(authenticated_service, requested_sms)
+                increment_sms_daily_count_send_warnings_if_needed(authenticated_service, sms_billable_units)
 
     job = create_bulk_job(authenticated_service, api_user, template, form, recipient_csv, sms_billable_units)
 
@@ -324,14 +322,9 @@ def post_notification(notification_type: NotificationType):
     if template.template_type == SMS_TYPE:
         is_test_notification = api_user.key_type == KEY_TYPE_TEST or simulated_recipient(form["phone_number"], notification_type)
         if not is_test_notification:
-            # TODO FF_USE_BILLABLE_UNITS removal - Use billable units when feature flag is enabled
-            if current_app.config.get("FF_USE_BILLABLE_UNITS"):
-                billable_unit = number_of_sms_fragments(template, personalisation)
-                check_sms_annual_limit(authenticated_service, billable_unit)
-                check_sms_daily_limit(authenticated_service, billable_unit)
-            else:
-                check_sms_annual_limit(authenticated_service, 1)
-                check_sms_daily_limit(authenticated_service, 1)
+            billable_unit = number_of_sms_fragments(template, personalisation)
+            check_sms_annual_limit(authenticated_service, billable_unit)
+            check_sms_daily_limit(authenticated_service, billable_unit)
 
     current_app.logger.info(f"Trying to send notification for Template ID: {template.id}")
 
@@ -362,8 +355,7 @@ def post_notification(notification_type: NotificationType):
     if template.template_type == SMS_TYPE and count_towards_todays_limit:
         is_test_notification = api_user.key_type == KEY_TYPE_TEST or simulated_recipient(form["phone_number"], notification_type)
         if not is_test_notification:
-            # TODO FF_USE_BILLABLE_UNITS removal - Use billable_units when feature flag is enabled
-            increment_by = notification.billable_units if current_app.config.get("FF_USE_BILLABLE_UNITS") else 1
+            increment_by = notification.billable_units
             if increment_by is None:
                 current_app.logger.info(
                     f"Billable units is None for notification {getattr(notification, 'id', None)}, template {template.id}"
@@ -495,8 +487,7 @@ def process_sms_or_email_notification(
         notification["service"] = service
         notification["service_id"] = service.id
         notification["reply_to_text"] = reply_to_text
-        # Calculate billable_units for SMS if feature flag is enabled
-        if current_app.config.get("FF_USE_BILLABLE_UNITS") and notification_type == SMS_TYPE:
+        if notification_type == SMS_TYPE:
             notification["billable_units"] = number_of_sms_fragments(template, personalisation)
         del notification["template"]
         del notification["api_key"]

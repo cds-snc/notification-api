@@ -250,7 +250,6 @@ def test_rate_limit_db_calls_blocked(notify_api, mocker):
         mock_redis_set.assert_not_called()
 
 
-# TODO: Remove feature flag checks after FF_USE_BILLABLE_UNITS go live
 class TestPrepareBillableUnitsCountsForSeeding:
     """Tests for prepare_billable_units_counts_for_seeding utility function"""
 

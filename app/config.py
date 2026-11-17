@@ -182,7 +182,9 @@ class Config(object):
     # Enables the /v2/reports API endpoints. Off by default so the feature stays hidden in production until launch.
     FF_REPORT_API = env.bool("FF_REPORT_API", False)
     FF_SMS_RATELIMIT = env.bool("FF_SMS_RATELIMIT", False)
-    FF_USE_BILLABLE_UNITS = env.bool("FF_USE_BILLABLE_UNITS", False)
+    # Always on. No longer read by this app, but notifications-utils (annual_limit client) still checks this key
+    # (default False), so it must stay True until that library drops the check.
+    FF_USE_BILLABLE_UNITS = True
     FF_USE_DOGPILE_CACHING = env.bool("FF_USE_DOGPILE_CACHING", False)
 
     # URL of admin app
@@ -827,7 +829,6 @@ class Test(Development):
     TEMPLATE_PREVIEW_API_HOST = "http://localhost:9999"
     FAILED_LOGIN_LIMIT = 0
     GC_ORGANISATIONS_BUCKET_NAME = "test-gc-organisations"
-    FF_USE_BILLABLE_UNITS = True
     FF_REPORT_API = True
 
 
@@ -858,7 +859,6 @@ class ProductionFF(Test):
     """Test configuration with feature flags turned off for production parity testing"""
 
     NOTIFY_ENVIRONMENT = "production_ff"
-    FF_USE_BILLABLE_UNITS = False
 
 
 class Staging(Production):

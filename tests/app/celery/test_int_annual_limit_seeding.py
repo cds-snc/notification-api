@@ -62,11 +62,7 @@ def test_int_annual_limit_seeding_and_incrementation_flows_in_celery(redis, samp
         assert all(value == 0 for value in annual_limit_client.get_all_notification_counts(service.id).values())
 
     # Moving onto day 2 - Testing the seeding process
-    with (
-        freeze_time("2019-04-02T010:00"),
-        set_config(notify_api, "REDIS_ENABLED", True),
-        set_config(notify_api, "FF_USE_BILLABLE_UNITS", True),
-    ):
+    with freeze_time("2019-04-02T010:00"), set_config(notify_api, "REDIS_ENABLED", True):
         # Insert delivered and failed notifications into the db so we can test that
         # the seeding process in process_sns_results collects notification counts correctly
         for service in services:
@@ -131,17 +127,10 @@ def test_int_annual_limit_seeding_and_incrementation_flows_in_celery(redis, samp
             "email_delivered_today": 1,
             "total_email_fiscal_year_to_yesterday": 2,
             "total_sms_fiscal_year_to_yesterday": 2,
+            "sms_billable_units_delivered_today": 3,  # 2 from morning + 1 from this increment
+            "sms_billable_units_failed_today": 1,  # Unchanged from morning
+            "total_sms_billable_units_fiscal_year_to_yesterday": 2,  # Unchanged from morning
         }
-
-        # When FF_USE_BILLABLE_UNITS is enabled, billable units will be incremented since seeding already occurred
-        if notify_api.config.get("FF_USE_BILLABLE_UNITS"):
-            expected_counts.update(
-                {
-                    "sms_billable_units_delivered_today": 3,  # 2 from morning + 1 from this increment
-                    "sms_billable_units_failed_today": 1,  # Unchanged from morning
-                    "total_sms_billable_units_fiscal_year_to_yesterday": 2,  # Unchanged from morning
-                }
-            )
 
         # Invoke process_sns_receipts, which should only increment sms_delivered as seeding has occurred for the day
         process_sns_results(sns_success_callback(reference=f"{service.name}-ref1"))  # Make sure the ref doesn't collide

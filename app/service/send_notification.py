@@ -62,13 +62,9 @@ def send_one_off_notification(service_id, post_data):
     if template.template_type == SMS_TYPE:
         is_test_notification = simulated_recipient(post_data["to"], template.template_type)
         if not is_test_notification:
-            if current_app.config.get("FF_USE_BILLABLE_UNITS"):
-                billable_unit = number_of_sms_fragments(template_with_content, personalisation)
-                check_sms_annual_limit(service, billable_unit)
-                check_sms_daily_limit(service, billable_unit)
-            else:
-                check_sms_annual_limit(service, 1)
-                check_sms_daily_limit(service, 1)
+            billable_unit = number_of_sms_fragments(template_with_content, personalisation)
+            check_sms_annual_limit(service, billable_unit)
+            check_sms_daily_limit(service, billable_unit)
     elif template.template_type == EMAIL_TYPE:
         check_email_annual_limit(service, 1)
         check_email_daily_limit(service, 1)  # 1 email
@@ -116,15 +112,11 @@ def send_one_off_notification(service_id, post_data):
     if template.template_type == SMS_TYPE:
         is_test_notification = simulated_recipient(post_data["to"], template.template_type)
         if not is_test_notification:
-            # TODO FF_USE_BILLABLE_UNITS removal - Use billable_units when feature flag is enabled
-            if current_app.config.get("FF_USE_BILLABLE_UNITS"):
-                increment_by = notification.billable_units
-                if increment_by is None:
-                    current_app.logger.info(
-                        f"Billable units is None for notification {getattr(notification, 'id', None)}, template {template.id}"
-                    )
-                    increment_by = 1
-            else:
+            increment_by = notification.billable_units
+            if increment_by is None:
+                current_app.logger.info(
+                    f"Billable units is None for notification {getattr(notification, 'id', None)}, template {template.id}"
+                )
                 increment_by = 1
             increment_sms_daily_count_send_warnings_if_needed(service, increment_by)
     elif template.template_type == EMAIL_TYPE:
