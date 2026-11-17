@@ -1046,9 +1046,7 @@ def test_update_service_annual_limits(
     )
     assert getattr(sample_service, limit_field) == limit_value
     if limit_field == "sms_annual_limit":
-        expected_fields = ["near_sms_limit", "over_sms_limit"]
-        if current_app.config.get("FF_USE_BILLABLE_UNITS"):
-            expected_fields += ["near_sms_billable_units_limit", "over_sms_billable_units_limit"]
+        expected_fields = ["near_sms_limit", "over_sms_limit", "near_sms_billable_units_limit", "over_sms_billable_units_limit"]
         assert redis_delete.call_args_list == [
             call(f"annual-limit:{sample_service.id}:status", expected_fields),
         ]

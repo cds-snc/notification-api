@@ -1572,7 +1572,6 @@ class TestFetchQuarterData:
         )
 
 
-# TODO: Remove feature flag checks after FF_USE_BILLABLE_UNITS go live
 class TestBillableUnitsInFactNotificationStatusDao:
     """Tests for billable_units functionality in fact_notification_status_dao"""
 

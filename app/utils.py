@@ -274,7 +274,7 @@ def prepare_notification_counts_for_seeding(notification_counts: list) -> dict:
 
 def prepare_billable_units_counts_for_seeding(billable_units_data: list) -> dict:
     """Utility method that transforms billable units data for seeding Redis.
-    Used to seed billable unit counts in Redis for annual limits when FF_USE_BILLABLE_UNITS is enabled.
+    Used to seed billable unit counts in Redis for annual limits.
 
     Args:
         billable_units_data (list): A list of tuples containing (date, notification_type, status, billable_units)

@@ -135,14 +135,9 @@ def send_notification(notification_type: NotificationType):
     if notification_type == SMS_TYPE:
         _service_can_send_internationally(authenticated_service, notification_form["to"])
         if not simulated and api_user.key_type != KEY_TYPE_TEST:
-            # TODO FF_USE_BILLABLE_UNITS removal - Use billable units when feature flag is enabled
-            if current_app.config.get("FF_USE_BILLABLE_UNITS"):
-                billable_unit = number_of_sms_fragments(template, notification_form.get("personalisation", {}))
-                check_sms_annual_limit(authenticated_service, billable_unit)
-                check_sms_daily_limit(authenticated_service, billable_unit)
-            else:
-                check_sms_annual_limit(authenticated_service, 1)
-                check_sms_daily_limit(authenticated_service, 1)
+            billable_unit = number_of_sms_fragments(template, notification_form.get("personalisation", {}))
+            check_sms_annual_limit(authenticated_service, billable_unit)
+            check_sms_daily_limit(authenticated_service, billable_unit)
     # Do not persist or send notification to the queue if it is a simulated recipient
 
     notification_model = persist_notification(
