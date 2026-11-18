@@ -1256,7 +1256,7 @@ class TestSchedulingSends:
         assert response.status_code == 201
         # Limits are always checked when the notification is requested, like scheduled bulk jobs
         mock_check = mock_check_sms if notification_type == SMS_TYPE else mock_check_email
-        mock_check.assert_called_once()
+        mock_check.assert_called_once_with(service, 1, scheduled_for)
         mock_increment = mock_increment_sms if notification_type == SMS_TYPE else mock_increment_email
         assert mock_increment.called is expect_daily_count_incremented
 
