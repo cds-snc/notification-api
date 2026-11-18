@@ -114,7 +114,7 @@ def check_service_over_api_rate_limit_and_update_rate(service: Service, api_key:
 )
 def check_sms_daily_limit(service: Service, requested_sms=0, scheduled_for: Optional[str] = None):
     """Checks the daily limit of the day the messages will be sent: today, or the day they're scheduled for."""
-    if is_scheduled_for_a_later_day(scheduled_for):
+    if scheduled_for and is_scheduled_for_a_later_day(scheduled_for):
         messages_sent = fetch_scheduled_sms_billable_units_for_day(service.id, parse_scheduled_datetime(scheduled_for))
     else:
         messages_sent = fetch_todays_requested_sms_billable_units_count(service.id)
@@ -145,7 +145,7 @@ def check_sms_daily_limit(service: Service, requested_sms=0, scheduled_for: Opti
 )
 def check_email_daily_limit(service: Service, requested_email=0, scheduled_for: Optional[str] = None):
     """Checks the daily limit of the day the emails will be sent: today, or the day they're scheduled for."""
-    if is_scheduled_for_a_later_day(scheduled_for):
+    if scheduled_for and is_scheduled_for_a_later_day(scheduled_for):
         emails_sent_today = fetch_scheduled_email_count_for_day(service.id, parse_scheduled_datetime(scheduled_for))
     else:
         emails_sent_today = fetch_todays_email_count(service.id)
