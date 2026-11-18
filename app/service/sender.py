@@ -63,6 +63,26 @@ def send_notification_to_single_user(user, template_id, personalisation=None, in
     send_notification_to_queue(notification, False, queue=QueueNames.NOTIFY)
 
 
+def send_notification_to_email_address(email_address, template_id, personalisation=None):
+    personalisation = personalisation or {}
+    template = dao_get_template_by_id(template_id)
+    notify_service = dao_fetch_service_by_id(current_app.config["NOTIFY_SERVICE_ID"])
+
+    notification = persist_notification(
+        template_id=template.id,
+        template_version=template.version,
+        recipient=email_address,
+        service=notify_service,
+        personalisation=personalisation,
+        notification_type=template.template_type,
+        api_key_id=None,
+        key_type=KEY_TYPE_NORMAL,
+        reply_to_text=notify_service.get_default_reply_to_email_address(),
+    )
+
+    send_notification_to_queue(notification, False, queue=QueueNames.NOTIFY)
+
+
 def _add_user_fields(user, personalisation, fields):
     for field in fields:
         personalisation[field] = getattr(user, field)

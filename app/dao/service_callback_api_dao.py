@@ -4,7 +4,7 @@ from flask import current_app
 from itsdangerous import BadSignature
 
 from app import create_uuid, db, signer_bearer_token
-from app.dao.dao_utils import transactional, version_class
+from app.dao.dao_utils import VersionOptions, transactional, version_class
 from app.models import (
     COMPLAINT_CALLBACK_TYPE,
     DELIVERY_STATUS_CALLBACK_TYPE,
@@ -96,10 +96,28 @@ def delete_service_callback_api(service_callback_api):
 
 
 @transactional
-@version_class(ServiceCallbackApi)
-def suspend_unsuspend_service_callback_api(service_callback_api, updated_by_id, suspend=False):
-    service_callback_api.is_suspended = suspend
-    service_callback_api.suspended_at = datetime.now(timezone.utc)
-    service_callback_api.updated_by_id = updated_by_id
-    service_callback_api.updated_at = datetime.now(timezone.utc)
-    db.session.add(service_callback_api)
+@version_class(VersionOptions(ServiceCallbackApi, must_write_history=False))
+def suspend_unsuspend_service_callback_api(
+    service_callback_api,
+    updated_by_id,
+    suspend=False,
+    failed_callback_url=None,
+):
+    callback_api = ServiceCallbackApi.query.filter_by(id=service_callback_api.id).with_for_update().first()
+    if not callback_api:
+        return None
+
+    if suspend and failed_callback_url and callback_api.url != failed_callback_url:
+        return None
+
+    if callback_api.is_suspended == suspend:
+        return None
+
+    now = datetime.now(timezone.utc)
+    callback_api.is_suspended = suspend
+    callback_api.suspended_at = now
+    callback_api.updated_by_id = updated_by_id
+    callback_api.updated_at = now
+    db.session.add(callback_api)
+
+    return callback_api

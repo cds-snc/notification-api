@@ -440,13 +440,13 @@ def test_get_yearly_usage_by_monthly_from_ft_billing_all_cases(client, notify_db
     assert json_response[3]["month"] == "May"
     assert json_response[3]["notification_type"] == "sms"
     assert json_response[3]["rate"] == 0.0150
-    assert json_response[3]["billing_units"] == 4
+    assert json_response[3]["billing_units"] == 2
     assert json_response[3]["postage"] == "none"
 
     assert json_response[4]["month"] == "May"
     assert json_response[4]["notification_type"] == "sms"
     assert json_response[4]["rate"] == 0.162
-    assert json_response[4]["billing_units"] == 5
+    assert json_response[4]["billing_units"] == 3
     assert json_response[4]["postage"] == "none"
 
 

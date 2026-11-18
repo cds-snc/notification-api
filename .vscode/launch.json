@@ -27,38 +27,58 @@
             "type": "debugpy",
             "request": "launch",
             "module": "flask",
+            "cwd": "${workspaceFolder}",
+            "envFile": "${workspaceFolder}/.env",
             "env": {
-                "FLASK_APP": "application.py",
-                "FLASK_ENV": "development"
+                "FLASK_APP": "application",
+                "AWS_PROFILE": "notify-staging",
+                "AWS_ACCESS_KEY_ID": null,
+                "AWS_SECRET_ACCESS_KEY": null,
+                "AWS_SESSION_TOKEN": null
             },
             "args": [
                 "run",
+                "--port=6011",
+                "--host=0.0.0.0",
                 "--no-debugger",
-                "-p 6011",
-                "--host=0.0.0.0"
+                "--no-reload"
             ],
             "jinja": true,
-            "justMyCode": false
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "preLaunchTask": "AWS SSO login",
+            "consoleTitle": "API"
         },
         {
             "name": "Python: Celery",
             "type": "debugpy",
             "request": "launch",
+            "python": "${command:python.interpreterPath}",
             "module": "celery",
+            "cwd": "${workspaceFolder}",
+            "envFile": "${workspaceFolder}/.env",
+            "env": {
+                "AWS_PROFILE": "notify-staging",
+                "AWS_ACCESS_KEY_ID": null,
+                "AWS_SECRET_ACCESS_KEY": null,
+                "AWS_SESSION_TOKEN": null
+            },
             "console": "integratedTerminal",
             "justMyCode": false,
+            "preLaunchTask": "AWS SSO login",
+            "consoleTitle": "Celery",
             "args": [
-                "--app",
-                "run_celery",
+                "-A",
+                "run_celery.notify_celery",
                 "worker",
+                "--beat",
                 "--pidfile",
                 "/tmp/celery.pid",
+                "--loglevel=INFO",
+                "--pool=prefork",
                 "--concurrency=1",
-                "-l",
-                "DEBUG",
                 "-Q",
-                "database-tasks,-priority-database-tasks.fifo,-normal-database-tasks,-bulk-database-tasks,job-tasks,notify-internal-tasks,periodic-tasks,priority-tasks,normal-tasks,bulk-tasks,reporting-tasks,research-mode-tasks,retry-tasks,service-callbacks-retry,send-sms-tasks,send-sms-high,send-sms-medium,send-sms-low,send-throttled-sms-tasks,send-sms-fair,send-email-high,send-email-medium,send-email-low,send-email-tasks,service-callbacks,delivery-receipts",
-                "--beat",
+                "-priority-database-tasks.fifo,-normal-database-tasks,-bulk-database-tasks,job-tasks,notify-internal-tasks,periodic-tasks,priority-tasks,normal-tasks,bulk-tasks,reporting-tasks,research-mode-tasks,retry-tasks,send-sms-high,send-sms-medium,send-sms-low,send-throttled-sms-tasks,send-email-high,send-email-medium,send-email-low,service-callbacks,service-callbacks-retry,delivery-receipts,generate-reports"
             ]
         },
         {

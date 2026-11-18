@@ -2,15 +2,20 @@ import uuid
 from datetime import datetime, timedelta
 from random import SystemRandom
 
-from sqlalchemy import func
+from flask import current_app
+from redis.exceptions import RedisError
+from sqlalchemy import func, update
 from sqlalchemy.orm import joinedload
 
 from app import db
+from app.annotations import log_execution_time
+from app.cache.cache_dml import cache_invalidating_dml
+from app.caching import cache_on_arguments
 from app.dao.dao_utils import transactional
 from app.dao.permissions_dao import permission_dao
 from app.dao.service_user_dao import dao_get_service_users_by_user_id
 from app.errors import InvalidRequest
-from app.models import EMAIL_AUTH_TYPE, Service, ServiceUser, User, VerifyCode
+from app.models import EMAIL_AUTH_TYPE, Organisation, Service, ServiceUser, User, VerifyCode
 from app.utils import escape_special_characters
 
 
@@ -23,22 +28,30 @@ def create_secret_code():
     return "".join(map(str, [SystemRandom().randrange(10) for i in range(5)]))
 
 
-def save_user_attribute(usr: User, update_dict={}):
-    if "blocked" in update_dict and update_dict["blocked"]:
-        update_dict.update({"current_session_id": "00000000-0000-0000-0000-000000000000"})
+def save_user_attribute(usr: User, update_dict=None):
+    if update_dict is None:
+        return
 
-    db.session.query(User).filter_by(id=usr.id).update(update_dict)
+    updates = dict(update_dict)
+
+    if updates.get("blocked"):
+        updates["current_session_id"] = "00000000-0000-0000-0000-000000000000"
+
+    statement = update(User).where(User.id == usr.id).values(**updates).execution_options(synchronize_session="fetch")
+    db.session.execute(cache_invalidating_dml(statement, id=usr.id))
     db.session.commit()
 
 
-def save_model_user(usr: User, update_dict={}, pwd=None):
+def save_model_user(usr: User, update_dict=None, pwd=None):
     if pwd:
         usr.password = pwd
         usr.password_changed_at = datetime.utcnow()
 
-    if update_dict:
-        _remove_values_for_keys_if_present(update_dict, ["id", "password_changed_at"])
-        db.session.query(User).filter_by(id=usr.id).update(update_dict)
+    if update_dict is not None:
+        updates = dict(update_dict)
+        _remove_values_for_keys_if_present(updates, ["id", "password_changed_at"])
+        statement = update(User).where(User.id == usr.id).values(**updates).execution_options(synchronize_session="fetch")
+        db.session.execute(cache_invalidating_dml(statement, id=usr.id))
     else:
         db.session.add(usr)
     db.session.commit()
@@ -104,10 +117,31 @@ def verify_within_time(user, age=timedelta(seconds=30)):
     return query.count()
 
 
-def get_user_by_id(user_id=None) -> User:
+@log_execution_time
+def get_user_by_id(user_id=None, *, use_dogpile=False) -> User | list[User] | dict:
+    """Return ORM users by default, or a single user's data when opted in.
+
+    Dictionary reads retain their return type when caching is disabled or Redis
+    fails. Listing users remains an ORM-only operation.
+    """
+    if use_dogpile:
+        if not user_id:
+            raise ValueError("Dogpile user reads require a user ID")
+        if current_app.config.get("FF_USE_DOGPILE_CACHING", False) is True:
+            try:
+                return dao_get_user_by_id_cached(user_id)
+            except RedisError:
+                current_app.logger.warning("User cache unavailable; falling back to database")
     if user_id:
-        return User.query.filter_by(id=user_id).one()
+        user = User.query.filter_by(id=user_id).one()
+        return user.serialize() if use_dogpile else user
     return User.query.filter_by().all()
+
+
+@cache_on_arguments(namespace="user", group_by="user_id")
+def dao_get_user_by_id_cached(user_id) -> dict:
+    """Return a JSON-safe cached representation of a single user."""
+    return get_user_by_id(user_id=user_id).serialize()
 
 
 def get_user_by_email(email) -> User:
@@ -147,10 +181,10 @@ def get_user_and_accounts(user_id):
         .options(
             # eagerly load the user's services and organisations, and also the service's org and vice versa
             # (so we can see if the user knows about it)
-            joinedload("services"),
-            joinedload("organisations"),
-            joinedload("organisations.services"),
-            joinedload("services.organisation"),
+            joinedload(User.services),
+            joinedload(User.organisations),
+            joinedload(User.organisations).joinedload(Organisation.services),
+            joinedload(User.services).joinedload(Service.organisation),
         )
         .one()
     )

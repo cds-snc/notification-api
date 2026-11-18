@@ -13,6 +13,7 @@ from app.dao.notifications_dao import (
     dao_create_notification,
     dao_created_scheduled_notification,
     dao_delete_notifications_by_id,
+    dao_delete_scheduled_notification_by_notification_id,
     dao_get_last_notification_added_for_job_id,
     dao_get_last_template_usage,
     dao_get_notification_by_reference,
@@ -29,13 +30,13 @@ from app.dao.notifications_dao import (
     get_notification_count_for_job,
     get_notification_for_job,
     get_notification_with_personalisation,
+    get_notification_with_template,
     get_notifications_for_job,
     get_notifications_for_service,
     is_delivery_slow_for_provider,
     notifications_not_yet_sent,
     resign_notifications,
     send_method_stats_by_service,
-    set_scheduled_notification_to_processed,
     update_notification_status_by_id,
     update_notification_status_by_reference,
 )
@@ -63,6 +64,7 @@ from tests.app.db import (
     create_job,
     create_notification,
     create_notification_history,
+    create_scheduled_one_off_notification,
     create_service,
     create_template,
     save_notification,
@@ -547,6 +549,29 @@ def test_get_notification_by_id_when_notification_exists_for_different_service(
         get_notification_by_id(sample_notification.id, another_service.id, _raise=True)
 
 
+def test_get_notification_with_template_eagerly_loads_template(sample_notification):
+    notification_from_db = get_notification_with_template(str(sample_notification.id))
+
+    assert notification_from_db is not None
+    assert notification_from_db.id == sample_notification.id
+    # template is loaded and accessible without a lazy-load query
+    assert notification_from_db.template is not None
+    assert notification_from_db.template.process_type is not None or notification_from_db.template.process_type is None
+
+
+def test_get_notification_with_template_returns_none_when_not_found(notify_db, fake_uuid):
+    assert get_notification_with_template(fake_uuid) is None
+
+
+def test_get_notification_with_template_accessible_after_session_expire(sample_notification, notify_db_session):
+    notification_from_db = get_notification_with_template(str(sample_notification.id))
+    # Expire all objects in session to simulate detached/expired state
+    notify_db_session.session.expire_all()
+    # template.process_type should still be accessible because it was eagerly loaded
+    assert notification_from_db.template is not None
+    assert hasattr(notification_from_db.template, "process_type")
+
+
 def test_get_notifications_by_reference(sample_template):
     client_reference = "some-client-ref"
     assert len(Notification.query.all()) == 0
@@ -613,6 +638,21 @@ def test_get_latest_sent_notification_for_job_partially_processed_job(sample_job
 
     latest_sent_notification = get_latest_sent_notification_for_job(sample_job.id)
     assert latest_sent_notification.updated_at == now
+
+
+def test_get_latest_sent_notification_for_job_ignores_null_updated_at(sample_job):
+    now = datetime.utcnow()
+    save_notification(create_notification(template=sample_job.template, job=sample_job, status="sent", updated_at=now))
+    save_notification(create_notification(template=sample_job.template, job=sample_job, status="created", updated_at=None))
+
+    latest_sent_notification = get_latest_sent_notification_for_job(sample_job.id)
+    assert latest_sent_notification.updated_at == now
+
+
+def test_get_latest_sent_notification_for_job_only_null_updated_at(sample_job):
+    save_notification(create_notification(template=sample_job.template, job=sample_job, status="created", updated_at=None))
+
+    assert get_latest_sent_notification_for_job(sample_job.id) is None
 
 
 def test_get_latest_sent_notification_for_job_no_notifications(sample_template):
@@ -1456,7 +1496,19 @@ def test_dao_get_scheduled_notifications(sample_template):
     assert scheduled_notifications[0].scheduled_notification.pending
 
 
-def test_set_scheduled_notification_to_processed(sample_template):
+def test_dao_get_scheduled_notifications_ignores_rows_not_in_the_notifications_table(sample_template):
+    legacy = save_scheduled_notification(
+        create_notification(template=sample_template, status="created"),
+        scheduled_for="2017-05-05 14:15",
+    )
+    create_scheduled_one_off_notification(sample_template, scheduled_for="2017-05-05 14:15")
+
+    scheduled_notifications = dao_get_scheduled_notifications()
+
+    assert [n.id for n in scheduled_notifications] == [legacy.id]
+
+
+def test_dao_delete_scheduled_notification_by_notification_id(sample_template):
     notification_1 = save_scheduled_notification(
         create_notification(template=sample_template, status="created"),
         scheduled_for="2017-05-05 14:15",
@@ -1466,9 +1518,10 @@ def test_set_scheduled_notification_to_processed(sample_template):
     assert scheduled_notifications[0].id == notification_1.id
     assert scheduled_notifications[0].scheduled_notification.pending
 
-    set_scheduled_notification_to_processed(notification_1.id)
+    dao_delete_scheduled_notification_by_notification_id(notification_1.id)
     scheduled_notifications = dao_get_scheduled_notifications()
     assert not scheduled_notifications
+    assert ScheduledNotification.query.filter_by(notification_id=notification_1.id).count() == 0
 
 
 def test_dao_get_notifications_by_to_field_filters_status(sample_template):
@@ -1588,9 +1641,9 @@ def test_dao_get_last_notification_added_for_job_id_valid_job_id(sample_template
         processing_started=datetime.utcnow() - timedelta(minutes=31),
         job_status=JOB_STATUS_IN_PROGRESS,
     )
-    create_notification(sample_template, job, 0)
-    create_notification(sample_template, job, 1)
-    last = create_notification(sample_template, job, 2)
+    save_notification(create_notification(sample_template, job, 0))
+    save_notification(create_notification(sample_template, job, 1))
+    last = save_notification(create_notification(sample_template, job, 2))
 
     assert dao_get_last_notification_added_for_job_id(job.id) == last
 

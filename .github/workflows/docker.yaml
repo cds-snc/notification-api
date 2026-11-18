@@ -9,6 +9,9 @@ env:
   DOCKER_ORG: public.ecr.aws/v6b8u5o6
   DOCKER_SLUG: public.ecr.aws/v6b8u5o6/notify-api
   KUBECTL_VERSION: '1.23.6'
+  NODE_OPTIONS: --use-openssl-ca
+  SSL_CERT_FILE: /etc/ssl/certs/ca-certificates.crt
+  SSL_CERT_DIR: /etc/ssl/certs
   
 permissions:
   id-token: write   # This is required for requesting the OIDC JWT
@@ -18,7 +21,11 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     name: Build and push
+    env:
+      STAGING_ACCOUNT_ID: "239043911459"
     steps:
+    - name: Prepare Ubuntu CA trust
+      uses: route06/actions/prepare-ubuntu-ca@aa6b218e4bc5445f54d3649a04297af5e1ce7458 # temporary CA mitigation
     - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
     - name: Install AWS CLI
       run: |
@@ -28,7 +35,7 @@ jobs:
         aws --version
 
     - name: Configure credentials to CDS public ECR using OIDC
-      uses: aws-actions/configure-aws-credentials@master
+      uses: aws-actions/configure-aws-credentials@ececac1a45f3b08a01d2dd070d28d111c5fe6722 # v4.1.0
       with:
         role-to-assume: arn:aws:iam::283582579564:role/notification-api-apply
         role-session-name: NotifyApiGitHubActions
@@ -42,17 +49,14 @@ jobs:
 
     - name: Build
       run: |
-        docker pull $DOCKER_SLUG:latest
         docker build \
-        --cache-from $DOCKER_SLUG:latest \
         --build-arg GIT_SHA=${GITHUB_SHA} \
         -t $DOCKER_SLUG:${GITHUB_SHA::7} \
-        -t $DOCKER_SLUG:latest \
         -f ci/Dockerfile .
 
     - name: Publish
       run: |
-        docker push $DOCKER_SLUG:latest && docker push $DOCKER_SLUG:${GITHUB_SHA::7}
+        docker push $DOCKER_SLUG:${GITHUB_SHA::7}
 
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@5fd3084fc36e372ff1fff382a39b10d03659f355 # v2.2.0
@@ -62,7 +66,8 @@ jobs:
         aws-region: ca-central-1                      
 
     - name: Set Docker Tag
-      run: echo "DOCKER_TAG=${GITHUB_SHA::7}" >> $GITHUB_ENV
+      id: image-tag
+      run: echo "tag=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
       env:
         GITHUB_SHA: ${{ github.sha }}
 
@@ -74,7 +79,7 @@ jobs:
           -H "Authorization: Bearer ${{ secrets.MANIFESTS_WORKFLOW_TOKEN }}" \
           -H "X-GitHub-Api-Version: 2022-11-28" \
           https://api.github.com/repos/cds-snc/notification-manifests/dispatches \
-          -d '{"event_type":"update-docker-image","client_payload":{"component":"API","docker_tag":"${{ env.DOCKER_TAG }}"}}'
+          -d '{"event_type":"update-docker-image","client_payload":{"component":"API","docker_tag":"${{ steps.image-tag.outputs.tag }}"}}'
 
     - name: my-app-install token
       id: notify-pr-bot
@@ -82,17 +87,69 @@ jobs:
       with:
         app_id: ${{ secrets.NOTIFY_PR_BOT_APP_ID }}
         private_key: ${{ secrets.NOTIFY_PR_BOT_PRIVATE_KEY }}
+        scope: cds-snc
 
-    - uses: cds-snc/notification-pr-bot@main
+    - name: Debug notification-pr-bot token scope (temporary)
+      env:
+        GH_APP_TOKEN: ${{ steps.notify-pr-bot.outputs.token }}
+      run: |
+        set -euo pipefail
+
+        echo "Checking app installation repositories..."
+        install_repos="$(curl -sS \
+          -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer ${GH_APP_TOKEN}" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          https://api.github.com/installation/repositories?per_page=100)"
+
+        repo_count="$(echo "${install_repos}" | jq -r '.total_count // 0')"
+        has_manifests="$(echo "${install_repos}" | jq -r '[.repositories[]?.full_name] | index("cds-snc/notification-manifests") != null')"
+
+        echo "Installed repo count: ${repo_count}"
+        echo "Includes cds-snc/notification-manifests: ${has_manifests}"
+
+        echo "Checking pull request read access on notification-manifests..."
+        pr_http_code="$(curl -sS -o /tmp/pr_check.json -w "%{http_code}" \
+          -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer ${GH_APP_TOKEN}" \
+          -H "X-GitHub-Api-Version: 2022-11-28" \
+          "https://api.github.com/repos/cds-snc/notification-manifests/pulls?per_page=1&state=all")"
+
+        echo "GET pulls?per_page=1&state=all status: ${pr_http_code}"
+        if [ "${pr_http_code}" -ne 200 ]; then
+          echo "GET /pulls?per_page=1&state=all failed:"
+          cat /tmp/pr_check.json
+          exit 1
+        fi
+
+        if [ "${has_manifests}" != "true" ]; then
+          echo "Token installation does not include cds-snc/notification-manifests."
+          exit 1
+        fi
+
+    - uses: cds-snc/notification-pr-bot@main # zizmor: ignore[unpinned-uses] First-party bot intentionally tracks main (see renovate.json ignoreDeps) - can't hash-pin without losing that.
       env:
         TOKEN: ${{ steps.notify-pr-bot.outputs.token }}
+
+    - name: Configure AWS credentials for public ECR using OIDC
+      uses: aws-actions/configure-aws-credentials@ececac1a45f3b08a01d2dd070d28d111c5fe6722 # v4.1.0
+      with:
+        role-to-assume: arn:aws:iam::${{ env.STAGING_ACCOUNT_ID }}:role/notification-api-apply
+        role-session-name: NotifyApiGitHubActions
+        aws-region: "us-east-1"
+
+    - name: Login to public ECR
+      id: login-ecr-trivy
+      uses: aws-actions/amazon-ecr-login@5a88a04c91d5c6f97aae0d9be790e64d9b1d47b7 # v1.7.1
+      with:
+        registry-type: public
 
     - name: Generate docker SBOM
       uses: cds-snc/security-tools/.github/actions/generate-sbom@12a0cdea1c5a515dfcbe353693db804a1793c0ed # v4.0.1
       env:
         TRIVY_DB_REPOSITORY: ${{ vars.TRIVY_DB_REPOSITORY }}
       with:
-        docker_image: "${{ env.DOCKER_SLUG }}:latest"
+        docker_image: "${{ env.DOCKER_SLUG }}:${{ steps.image-tag.outputs.tag }}"
         dockerfile_path: "ci/Dockerfile"
         sbom_name: "notification-api"
         token: "${{ secrets.GITHUB_TOKEN }}"
@@ -102,4 +159,3 @@ jobs:
       run: |
         json='{"text":"<!here> CI is failing in <https://github.com/cds-snc/notification-api/actions/runs/'${{ github.run_id }}'|notification-api> !"}'
         curl -X POST -H 'Content-type: application/json' --data "$json"  ${{ secrets.SLACK_WEBHOOK }}
-

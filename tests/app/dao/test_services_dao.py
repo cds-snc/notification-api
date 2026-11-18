@@ -39,6 +39,7 @@ from app.dao.services_dao import (
     dao_update_service,
     delete_service_and_all_associated_db_objects,
     fetch_service_email_limit,
+    fetch_todays_total_email_count,
     fetch_todays_total_message_count,
     fetch_todays_total_sms_billable_units,
     fetch_todays_total_sms_count,
@@ -54,6 +55,7 @@ from app.models import (
     KEY_TYPE_TEST,
     LETTER_TYPE,
     SMS_TYPE,
+    UPLOAD_DOCUMENT,
     ApiKey,
     InvitedUser,
     Job,
@@ -61,6 +63,7 @@ from app.models import (
     NotificationHistory,
     Organisation,
     Permission,
+    ScheduledNotification,
     Service,
     ServicePermission,
     ServiceUser,
@@ -79,10 +82,12 @@ from tests.app.db import (
     create_ft_billing,
     create_inbound_number,
     create_invited_user,
+    create_job,
     create_letter_branding,
     create_notification,
     create_notification_history,
     create_organisation,
+    create_scheduled_one_off_notification,
     create_service,
     create_service_with_defined_sms_sender,
     create_service_with_inbound_number,
@@ -91,7 +96,6 @@ from tests.app.db import (
     create_user,
     save_notification,
 )
-from tests.conftest import set_config
 
 # from unittest import mock
 
@@ -499,8 +503,7 @@ def test_get_all_user_services_should_return_empty_list_if_no_services_for_user(
 
 
 @freeze_time("2019-04-23T10:00:00")
-@pytest.mark.parametrize("filter_heartbeats", [True, False])
-def test_dao_fetch_live_services_data_filter_heartbeats(notify_api, sample_user, filter_heartbeats):
+def test_dao_fetch_live_services_data(notify_api, sample_user):
     org = create_organisation(organisation_type="nhs_central")
     service = create_service(go_live_user=sample_user, go_live_at="2014-04-20T10:00:00")
     template = create_template(service=service)
@@ -568,12 +571,8 @@ def test_dao_fetch_live_services_data_filter_heartbeats(notify_api, sample_user,
     # 3rd service: billing from 2019
     create_annual_billing(service_3.id, 200, 2019)
 
-    with set_config(notify_api, "NOTIFY_SERVICE_ID", template.service_id):
-        results = dao_fetch_live_services_data(filter_heartbeats=filter_heartbeats)
-        if not filter_heartbeats:
-            assert len(results) == 3
-        else:
-            assert len(results) == 2
+    results = dao_fetch_live_services_data()
+    assert len(results) == 3
     # checks the results and that they are ordered by date:
     # @todo: this test is temporarily forced to pass until we can add the fiscal year back into
     # the query and create a new endpoint for the homepage stats
@@ -646,6 +645,7 @@ def test_create_service_returns_service_with_default_permissions(notify_db_sessi
             SMS_TYPE,
             EMAIL_TYPE,
             INTERNATIONAL_SMS_TYPE,
+            UPLOAD_DOCUMENT,
         ),
     )
 
@@ -658,14 +658,12 @@ def test_create_service_returns_service_with_default_permissions(notify_db_sessi
             (
                 EMAIL_TYPE,
                 INTERNATIONAL_SMS_TYPE,
+                UPLOAD_DOCUMENT,
             ),
         ),
         (
             EMAIL_TYPE,
-            (
-                SMS_TYPE,
-                INTERNATIONAL_SMS_TYPE,
-            ),
+            (SMS_TYPE, INTERNATIONAL_SMS_TYPE, UPLOAD_DOCUMENT),
         ),
     ],
 )
@@ -699,7 +697,7 @@ def test_create_service_by_id_adding_and_removing_letter_returns_service_without
     dao_add_service_permission(service_id=service.id, permission=LETTER_TYPE)
 
     service = dao_fetch_service_by_id(service.id)
-    _assert_service_permissions(service.permissions, (SMS_TYPE, EMAIL_TYPE, INTERNATIONAL_SMS_TYPE, LETTER_TYPE))
+    _assert_service_permissions(service.permissions, (SMS_TYPE, EMAIL_TYPE, INTERNATIONAL_SMS_TYPE, LETTER_TYPE, UPLOAD_DOCUMENT))
 
     dao_remove_service_permission(service_id=service.id, permission=LETTER_TYPE)
     service = dao_fetch_service_by_id(service.id)
@@ -710,6 +708,7 @@ def test_create_service_by_id_adding_and_removing_letter_returns_service_without
             SMS_TYPE,
             EMAIL_TYPE,
             INTERNATIONAL_SMS_TYPE,
+            UPLOAD_DOCUMENT,
         ),
     )
 
@@ -855,6 +854,7 @@ def test_delete_service_and_associated_objects(notify_db_session):
     template = create_template(service=service)
     api_key = create_api_key(service=service)
     save_notification(create_notification(template=template, api_key=api_key))
+    create_scheduled_one_off_notification(template, api_key=api_key)
     create_invited_user(service=service)
 
     assert ServicePermission.query.count() == len(
@@ -862,6 +862,7 @@ def test_delete_service_and_associated_objects(notify_db_session):
             SMS_TYPE,
             EMAIL_TYPE,
             INTERNATIONAL_SMS_TYPE,
+            UPLOAD_DOCUMENT,
         )
     )
 
@@ -873,6 +874,7 @@ def test_delete_service_and_associated_objects(notify_db_session):
     assert TemplateHistory.query.count() == 0
     assert Job.query.count() == 0
     assert Notification.query.count() == 0
+    assert ScheduledNotification.query.count() == 0
     assert Permission.query.count() == 0
     assert User.query.count() == 0
     assert InvitedUser.query.count() == 0
@@ -1111,6 +1113,122 @@ class TestFetchTodaysTotalSmsCount:
         yesterday = today - timedelta(days=1)
         save_notification(create_notification(created_at=yesterday, template=sms_template))
         assert fetch_todays_total_sms_count(service.id) == 0
+
+
+@pytest.mark.usefixtures("notify_db_session")
+@freeze_time("2018-07-16 15:00")
+class TestTodaysTotalCountsIncludeScheduledNotifications:
+    """One-off notifications scheduled for today count towards today's limits before they're sent, like scheduled jobs"""
+
+    def _create_scheduled(self, template, **kwargs):
+        today = create_scheduled_one_off_notification(template, scheduled_for="2018-07-16 23:59", billable_units=2, **kwargs)
+        create_scheduled_one_off_notification(template, scheduled_for="2018-07-17 00:00", billable_units=4, **kwargs)
+        create_scheduled_one_off_notification(template, scheduled_for="2018-07-18 12:00", billable_units=8, **kwargs)
+        return today
+
+    def test_fetch_todays_total_message_count(self):
+        service = create_service()
+        save_notification(create_notification(template=create_template(service=service)))
+        self._create_scheduled(create_template(service=service, template_type=EMAIL_TYPE))
+        self._create_scheduled(create_template(service=service, template_type=SMS_TYPE))
+
+        assert fetch_todays_total_message_count(service.id) == 3
+
+    def test_fetch_todays_total_sms_count(self):
+        service = create_service()
+        save_notification(create_notification(template=create_template(service=service, template_type=SMS_TYPE)))
+        self._create_scheduled(create_template(service=service, template_type=SMS_TYPE))
+        self._create_scheduled(create_template(service=service, template_type=EMAIL_TYPE))
+
+        assert fetch_todays_total_sms_count(service.id) == 2
+
+    def test_fetch_todays_total_sms_billable_units(self):
+        service = create_service()
+        sms_template = create_template(service=service, template_type=SMS_TYPE)
+        save_notification(create_notification(template=sms_template, billable_units=1))
+        self._create_scheduled(sms_template)
+
+        assert fetch_todays_total_sms_billable_units(service.id) == 3
+
+    def test_fetch_todays_total_email_count(self):
+        service = create_service()
+        email_template = create_template(service=service, template_type=EMAIL_TYPE)
+        save_notification(create_notification(template=email_template))
+        self._create_scheduled(email_template)
+        self._create_scheduled(create_template(service=service, template_type=SMS_TYPE))
+
+        assert fetch_todays_total_email_count(service.id) == 2
+
+    def test_doesnt_count_test_key_or_other_services_notifications(self):
+        service = create_service()
+        self._create_scheduled(create_template(service=service, template_type=EMAIL_TYPE), key_type=KEY_TYPE_TEST)
+        self._create_scheduled(create_template(service=create_service(service_name="other"), template_type=EMAIL_TYPE))
+
+        assert fetch_todays_total_email_count(service.id) == 0
+        assert fetch_todays_total_message_count(service.id) == 0
+
+
+@pytest.mark.usefixtures("notify_db_session")
+@freeze_time("2018-07-16 15:00")
+class TestTodaysTotalCountsIncludeScheduledJobs:
+    """Jobs scheduled for today count towards today's limits before they're sent, see create_job and post_bulk"""
+
+    def _create_scheduled_jobs(self, template, **kwargs):
+        create_job(template, job_status="scheduled", scheduled_for=datetime(2018, 7, 16, 0, 0), **kwargs)
+        create_job(template, job_status="scheduled", scheduled_for=datetime(2018, 7, 16, 23, 59), **kwargs)
+        create_job(template, job_status="scheduled", scheduled_for=datetime(2018, 7, 17, 0, 0), **kwargs)
+        create_job(template, job_status="cancelled", scheduled_for=datetime(2018, 7, 16, 20, 0), **kwargs)
+        create_job(template, job_status="pending", scheduled_for=datetime(2018, 7, 16, 20, 0), **kwargs)
+
+    def test_fetch_todays_total_sms_count(self):
+        service = create_service()
+        sms_template = create_template(service=service, template_type=SMS_TYPE)
+        save_notification(create_notification(template=sms_template))
+        self._create_scheduled_jobs(sms_template, notification_count=3, billable_units=6)
+        self._create_scheduled_jobs(create_template(service=service, template_type=EMAIL_TYPE), notification_count=100)
+
+        assert fetch_todays_total_sms_count(service.id) == 1 + 3 + 3
+
+    def test_fetch_todays_total_sms_billable_units(self):
+        service = create_service()
+        sms_template = create_template(service=service, template_type=SMS_TYPE)
+        save_notification(create_notification(template=sms_template, billable_units=1))
+        self._create_scheduled_jobs(sms_template, notification_count=3, billable_units=6)
+
+        assert fetch_todays_total_sms_billable_units(service.id) == 1 + 6 + 6
+
+    @pytest.mark.parametrize("billable_units", [0, None], ids=["not counted", "created before billable_units"])
+    def test_sms_counts_dont_include_sms_jobs_that_arent_counted(self, billable_units):
+        service = create_service()
+        self._create_scheduled_jobs(
+            create_template(service=service, template_type=SMS_TYPE), notification_count=3, billable_units=billable_units
+        )
+
+        assert fetch_todays_total_sms_count(service.id) == 0
+        assert fetch_todays_total_sms_billable_units(service.id) == 0
+
+    def test_fetch_todays_total_email_count_only_counts_email_jobs(self):
+        service = create_service()
+        email_template = create_template(service=service, template_type=EMAIL_TYPE)
+        save_notification(create_notification(template=email_template))
+        self._create_scheduled_jobs(email_template, notification_count=10)
+        self._create_scheduled_jobs(
+            create_template(service=service, template_type=SMS_TYPE), notification_count=100, billable_units=100
+        )
+
+        assert fetch_todays_total_email_count(service.id) == 1 + 10 + 10
+
+    def test_doesnt_count_test_key_or_other_services_jobs(self):
+        service = create_service()
+        test_key = create_api_key(service, key_type=KEY_TYPE_TEST)
+        self._create_scheduled_jobs(create_template(service=service, template_type=EMAIL_TYPE), api_key=test_key)
+        self._create_scheduled_jobs(create_template(service=create_service(service_name="other"), template_type=EMAIL_TYPE))
+        live_key = create_api_key(service, key_type=KEY_TYPE_NORMAL)
+        self._create_scheduled_jobs(
+            create_template(service=service, template_type=EMAIL_TYPE), notification_count=2, api_key=live_key
+        )
+
+        assert fetch_todays_total_email_count(service.id) == 4
 
 
 def test_dao_fetch_todays_stats_for_all_services_includes_all_services(
@@ -1458,6 +1576,7 @@ def create_email_sms_letter_template():
     return template_one, template_three, template_two
 
 
+@pytest.mark.usefixtures("notify_db_session")
 class TestServiceEmailLimits:
     def test_get_email_count_for_service(self):
         active_user_1 = create_user(email="active1@foo.com", state="active")
@@ -1605,7 +1724,6 @@ class TestSensitiveService:
         assert sensitive_service == []
 
 
-# TODO: Remove feature flag checks after FF_USE_BILLABLE_UNITS go live
 class TestBillableUnitsInServicesDao:
     """Tests for billable_units functionality in services_dao"""
 

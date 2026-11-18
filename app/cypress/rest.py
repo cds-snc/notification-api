@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 from flask import Blueprint, current_app, jsonify
 
 from app import db
+from app.caching import invalidate_service_cache_keys
 from app.dao.services_dao import dao_add_user_to_service
 from app.dao.users_dao import save_model_user
 from app.errors import register_errors
@@ -141,6 +142,7 @@ def _destroy_test_user(email_name):
         # and is a bug
         cypress_service = Service.query.filter_by(id=current_app.config["CYPRESS_SERVICE_ID"]).first()
         cypress_service.created_by_id = current_app.config["CYPRESS_TEST_USER_ID"]
+        invalidate_service_cache_keys(cypress_service.id)
         # update the smoktest templates' created_by to be the main cypress user
         Template.query.filter(
             Template.id.in_(
@@ -155,6 +157,7 @@ def _destroy_test_user(email_name):
         # cycle through all the services created by this user, remove associated entities
         services = Service.query.filter_by(created_by=user).filter(Service.id != current_app.config["CYPRESS_SERVICE_ID"])
         for service in services.all():
+            invalidate_service_cache_keys(service.id)
             # Delete template history except for smoke test templates
             TemplateHistory.query.filter(
                 TemplateHistory.service_id == service.id,

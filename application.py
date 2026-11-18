@@ -3,7 +3,6 @@ from __future__ import print_function
 
 import os
 
-from apig_wsgi import make_lambda_handler
 from dotenv import load_dotenv
 from environs import Env
 from flask import Flask
@@ -27,9 +26,6 @@ if not ff_enable_otel:
     # Used to trace requests and responses through the stack
     patch_all()
 
-is_lambda = os.environ.get("AWS_LAMBDA_RUNTIME_API") is not None
-print("is_lambda =", is_lambda)
-
 application = Flask("api")
 application.wsgi_app = ProxyFix(application.wsgi_app)  # type: ignore
 
@@ -40,10 +36,6 @@ if not ff_enable_otel:
     xray_recorder.configure(service="Notify-API", context=NotifyContext())
     XRayMiddleware(app, xray_recorder)
 
-apig_wsgi_handler = make_lambda_handler(
-    app, binary_support=True, non_binary_content_type_prefixes=["application/yaml", "application/json"]
-)
-
 if os.environ.get("USE_LOCAL_JINJA_TEMPLATES") == "True":
     print("")
     print("========================================================")
@@ -53,7 +45,3 @@ if os.environ.get("USE_LOCAL_JINJA_TEMPLATES") == "True":
     print("")
     print("========================================================")
     print("")
-
-
-def handler(event, context):
-    return apig_wsgi_handler(event, context)

@@ -18,9 +18,8 @@ from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm.exc import NoResultFound
 
-from app import redis_store, salesforce_client
+from app import redis_store
 from app.annual_limit_utils import get_annual_limit_notifications_v2
-from app.clients.salesforce.salesforce_engagement import ENGAGEMENT_STAGE_LIVE
 from app.config import QueueNames
 from app.dao import fact_notification_status_dao, notifications_dao
 from app.dao.api_key_dao import (
@@ -76,7 +75,6 @@ from app.dao.services_dao import (
     dao_fetch_all_services_by_user,
     dao_fetch_live_services_data,
     dao_fetch_service_by_id,
-    dao_fetch_service_creator,
     dao_fetch_service_ids_of_sensitive_services,
     dao_fetch_todays_stats_for_all_services,
     dao_fetch_todays_stats_for_service,
@@ -109,6 +107,7 @@ from app.notifications.process_notifications import (
 )
 from app.schema_validation import validate
 from app.schemas import (
+    FlexibleDateTime,
     api_key_schema,
     detailed_service_schema,
     email_data_request_schema,
@@ -209,15 +208,13 @@ def find_services_by_name():
 
 @service_blueprint.route("/live-services-data", methods=["GET"])
 def get_live_services_data():
-    filter_heartbeats = request.args.get("filter_heartbeats", None) == "True"
-    data = dao_fetch_live_services_data(filter_heartbeats=filter_heartbeats)
+    data = dao_fetch_live_services_data()
     return jsonify(data=data)
 
 
 @service_blueprint.route("/delivered-notifications-stats-by-month-data", methods=["GET"])
 def get_delivered_notification_stats_by_month_data():
-    filter_heartbeats = request.args.get("filter_heartbeats", None) == "True"
-    return jsonify(data=fetch_delivered_notification_stats_by_month(filter_heartbeats=filter_heartbeats))
+    return jsonify(data=fetch_delivered_notification_stats_by_month())
 
 
 @service_blueprint.route("/<uuid:service_id>", methods=["GET"])
@@ -225,9 +222,8 @@ def get_service_by_id(service_id):
     if request.args.get("detailed") == "True":
         data = get_detailed_service(service_id, today_only=request.args.get("today_only") == "True")
     else:
-        fetched = dao_fetch_service_by_id(service_id)
+        data = dao_fetch_service_by_id(service_id, use_dogpile=True)
 
-        data = service_schema.dump(fetched)
     return jsonify(data=data)
 
 
@@ -270,12 +266,6 @@ def create_service():
 
     dao_create_service(valid_service, user, organisation_id=organisation_id)
 
-    if current_app.config["FF_SALESFORCE_CONTACT"]:
-        try:
-            salesforce_client.engagement_create(valid_service, user)
-        except Exception as e:
-            current_app.logger.exception(e)
-
     return jsonify(data=service_schema.dump(valid_service)), 201
 
 
@@ -286,7 +276,6 @@ def update_service(service_id):
     fetched_service = dao_fetch_service_by_id(service_id)
     # Capture the status change here as Marshmallow changes this later
     service_going_live = fetched_service.restricted and not req_json.get("restricted", True)
-    service_name_changed = fetched_service.name != req_json.get("name", fetched_service.name)
     message_limit_changed = fetched_service.message_limit != req_json.get("message_limit", fetched_service.message_limit)
     sms_limit_changed = fetched_service.sms_daily_limit != req_json.get("sms_daily_limit", fetched_service.sms_daily_limit)
     email_annual_limit_changed = fetched_service.email_annual_limit != req_json.get(
@@ -321,17 +310,17 @@ def update_service(service_id):
     if sms_limit_changed:
         redis_store.delete(near_sms_daily_limit_cache_key(service_id))
         redis_store.delete(over_sms_daily_limit_cache_key(service_id))
-        if current_app.config["FF_USE_BILLABLE_UNITS"]:
-            redis_store.delete(near_billable_units_sms_daily_limit_cache_key(service_id))
-            redis_store.delete(over_billable_units_sms_daily_limit_cache_key(service_id))
+        redis_store.delete(near_billable_units_sms_daily_limit_cache_key(service_id))
+        redis_store.delete(over_billable_units_sms_daily_limit_cache_key(service_id))
         if not fetched_service.restricted:
             _warn_service_users_about_sms_limit_changed(service_id, current_data)
     if sms_annual_limit_changed:
         _warn_service_users_about_annual_limit_change(service, SMS_TYPE)
         # TODO: abstract this in the annual_limits_client
-        fields_to_clear = list(ANNUAL_LIMIT_SMS_OVER_NEAR_STATUS_FIELDS)
-        if current_app.config.get("FF_USE_BILLABLE_UNITS"):
-            fields_to_clear += ["near_sms_billable_units_limit", "over_sms_billable_units_limit"]
+        fields_to_clear = list(ANNUAL_LIMIT_SMS_OVER_NEAR_STATUS_FIELDS) + [
+            "near_sms_billable_units_limit",
+            "over_sms_billable_units_limit",
+        ]
         redis_store.delete_hash_fields(f"annual-limit:{service_id}:status", fields_to_clear)
     if email_annual_limit_changed:
         _warn_service_users_about_annual_limit_change(service, EMAIL_TYPE)
@@ -340,24 +329,6 @@ def update_service(service_id):
 
     if service_going_live:
         _warn_services_users_about_going_live(service_id, current_data)
-
-    if current_app.config["FF_SALESFORCE_CONTACT"]:
-        try:
-            if service_going_live:
-                # Two scenarios, if there is a user that has requested to go live, we will use that user
-                # to create a Contact/Engagment pair between Notify and Salesforce.
-                # If by any chance there is no tracked request to a user, Notify will try to identify the user
-                # that created the service and then create a Contact/Engagment relationship.
-                if service.go_live_user_id:
-                    user = get_user_by_id(service.go_live_user_id)
-                else:
-                    user = dao_fetch_service_creator(service.id)
-                salesforce_client.engagement_update(service, user, {"StageName": ENGAGEMENT_STAGE_LIVE})
-            elif service_name_changed:
-                user = dao_fetch_service_creator(service.id)
-                salesforce_client.engagement_update(service, user, {"Name": service.name})
-        except Exception as e:
-            current_app.logger.exception(e)
 
     return jsonify(data=service_schema.dump(fetched_service)), 200
 
@@ -376,7 +347,6 @@ def _warn_service_users_about_message_limit_changed(service_id, data):
 
 
 def _warn_service_users_about_sms_limit_changed(service_id, data):
-    use_parts = current_app.config.get("FF_USE_BILLABLE_UNITS", False)
     send_notification_to_service_users(
         service_id=service_id,
         template_id=current_app.config["DAILY_SMS_LIMIT_UPDATED_TEMPLATE_ID"],
@@ -384,8 +354,8 @@ def _warn_service_users_about_sms_limit_changed(service_id, data):
             "service_name": data["name"],
             "message_limit_en": "{:,}".format(data["sms_daily_limit"]),
             "message_limit_fr": "{:,}".format(data["sms_daily_limit"]).replace(",", " "),
-            "message_type_en": "text message parts" if use_parts else "text messages",
-            "message_type_fr": "parties de messages texte" if use_parts else "messages texte",
+            "message_type_en": "text message parts",
+            "message_type_fr": "parties de messages texte",
         },
         include_user_fields=["name"],
     )
@@ -395,12 +365,9 @@ def _warn_service_users_about_annual_limit_change(service: Service, notification
     if notification_type == EMAIL_TYPE:
         message_type_en = "emails"
         message_type_fr = "courriels"
-    elif current_app.config["FF_USE_BILLABLE_UNITS"]:
+    else:
         message_type_en = "text message parts"
         message_type_fr = "parties de messages texte"
-    else:
-        message_type_en = "text messages"
-        message_type_fr = "messages texte"
 
     send_notification_to_service_users(
         service_id=service.id,
@@ -518,12 +485,6 @@ def add_user_to_service(service_id, user_id):
 
     data = service_schema.dump(service)
 
-    if current_app.config["FF_SALESFORCE_CONTACT"]:
-        try:
-            salesforce_client.engagement_add_contact_role(service, user)
-        except Exception as e:
-            current_app.logger.exception(e)
-
     return jsonify(data=data), 201
 
 
@@ -550,12 +511,6 @@ def remove_user_from_service(service_id, user_id):
         raise CannotRemoveUserError(message=error)
 
     dao_remove_user_from_service(service, user)
-
-    if current_app.config["FF_SALESFORCE_CONTACT"]:
-        try:
-            salesforce_client.engagement_delete_contact_role(service, user)
-        except Exception as e:
-            current_app.logger.exception(e)
 
     return jsonify({}), 204
 
@@ -642,13 +597,41 @@ def get_all_notifications_for_service(service_id):
     )
 
 
+@service_blueprint.route("/<uuid:service_id>/notifications/scheduled", methods=["GET"])
+def get_scheduled_notifications_for_service(service_id):
+    data = notifications_filter_schema.load(request.args)
+    page = data.get("page", 1)
+    page_size = data.get("page_size", current_app.config.get("PAGE_SIZE"))
+
+    pagination = notifications_dao.dao_get_scheduled_one_off_notifications_for_service(service_id, page=page, page_size=page_size)
+    return (
+        jsonify(
+            notifications=[_scheduled_one_off_notification_json(n) for n in pagination.items],
+            page_size=page_size,
+            total=pagination.total,
+        ),
+        200,
+    )
+
+
 @service_blueprint.route("/<uuid:service_id>/notifications/<uuid:notification_id>", methods=["GET"])
 def get_notification_for_service(service_id, notification_id):
     notification = notifications_dao.get_notification_with_personalisation(service_id, notification_id, key_type=None)
     if notification is not None:
         return jsonify(notification_with_template_schema.dump(notification)), 200
-    else:
-        return jsonify(result="error", message="Notification not found in database"), 404
+
+    scheduled_notification = notifications_dao.dao_get_scheduled_one_off_notification(service_id, notification_id)
+    if scheduled_notification is not None:
+        return jsonify(_scheduled_one_off_notification_json(scheduled_notification)), 200
+
+    return jsonify(result="error", message="Notification not found in database"), 404
+
+
+def _scheduled_one_off_notification_json(scheduled_notification):
+    # Same format as a notification that has been sent, so it can be shown the same way
+    data = notification_with_template_schema.dump(scheduled_notification.as_notification())
+    data["scheduled_for"] = scheduled_notification.scheduled_for.strftime(FlexibleDateTime.OLD_MARSHMALLOW_FORMAT)
+    return data
 
 
 @service_blueprint.route("/<uuid:service_id>/notifications/<uuid:notification_id>/cancel", methods=["POST"])
@@ -672,6 +655,28 @@ def cancel_notification_for_service(service_id, notification_id):
         jsonify(notification_with_template_schema.dump(updated_notification)),
         200,
     )
+
+
+@service_blueprint.route("/<uuid:service_id>/notifications/<uuid:notification_id>/cancel-scheduled", methods=["POST"])
+def cancel_scheduled_notification_for_service(service_id, notification_id):
+    if notifications_dao.dao_delete_scheduled_one_off_notification(service_id, notification_id):
+        return jsonify(result="success"), 200
+
+    notification = notifications_dao.get_notification_with_personalisation(service_id, notification_id, key_type=None)
+
+    if notification is None:
+        raise InvalidRequest("Notification not found", status_code=404)
+
+    # Legacy scheduled notifications are in the notifications table, linked to a ScheduledNotification
+    scheduled_notification = notification.scheduled_notification
+    if scheduled_notification is None:
+        raise InvalidRequest("Notification is not scheduled and cannot be cancelled", status_code=400)
+
+    if not scheduled_notification.pending or not notifications_dao.dao_delete_scheduled_notification_by_id(notification_id):
+        # The delete only removes pending notifications, so a 0 count means it was sent in the meantime.
+        raise InvalidRequest("Notification has already been sent and cannot be cancelled", status_code=400)
+
+    return jsonify(result="success"), 200
 
 
 def search_for_notification_by_to_field(service_id, search_term, statuses, notification_type):
@@ -784,19 +789,21 @@ def update_safelist(service_id):
         return "", 204
 
 
+@service_blueprint.route("/<uuid:service_id>/archive/<uuid:user_id>", methods=["POST"])
 @service_blueprint.route("/<uuid:service_id>/archive", methods=["POST"])
-def archive_service(service_id):
+def archive_service(service_id, user_id=None):
     """
     When a service is archived the service is made inactive, templates are archived and api keys are revoked.
     There is no coming back from this operation.
     :param service_id:
+    :param user_id: optional ID of the user performing the archive, recorded for audit purposes
     :return:
     """
     service: Service = dao_fetch_service_by_id(service_id)
 
     if service.active:
         try:
-            service_name = dao_archive_service(service.id)
+            service_name = dao_archive_service(service.id, user_id)
             send_notification_to_service_users(
                 service_id=service_id,
                 template_id=current_app.config["SERVICE_DEACTIVATED_TEMPLATE_ID"],
@@ -812,12 +819,6 @@ def archive_service(service_id):
             )
         except Exception as e:
             current_app.logger.exception(e)
-
-        if current_app.config["FF_SALESFORCE_CONTACT"]:
-            try:
-                salesforce_client.engagement_close(service)
-            except Exception as e:
-                current_app.logger.exception(e)
 
     return "", 204
 

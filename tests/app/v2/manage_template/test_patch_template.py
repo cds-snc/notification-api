@@ -1,6 +1,7 @@
 import uuid
 
 from flask import json
+from notifications_utils.clients.redis import template_version_cache_key
 from sqlalchemy.orm.exc import NoResultFound
 from tests import create_authorization_header
 from tests.app.db import create_template
@@ -166,3 +167,45 @@ class TestPatchTemplateV2ManageTemplate:
         assert "created_at" in data
         assert "updated_at" in data
         assert "archived" in data
+
+    def test_patch_template_clears_admin_cache(self, client, sample_service, create_api_key_with_manage_api_perm, mocker):
+        template = create_template(sample_service, template_type=SMS_TYPE)
+        mock_redis_delete = mocker.patch("app.v2.manage_template.patch_template.redis_store.delete")
+        auth_header = create_authorization_header(api_key=create_api_key_with_manage_api_perm)
+
+        response = client.patch(
+            f"/v2/manage-template/{template.id}",
+            data=json.dumps({"name": "Cache Bust"}),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+
+        assert response.status_code == 200
+        deleted_keys = [call.args[0] for call in mock_redis_delete.call_args_list]
+        assert f"service-{sample_service.id}-templates" in deleted_keys
+        assert template_version_cache_key(template.id) in deleted_keys
+        assert f"template-{template.id}-versions" in deleted_keys
+
+    def test_patch_template_clears_category_cache_when_category_updated(
+        self,
+        client,
+        sample_service,
+        sample_template_category,
+        sample_template_category_bulk,
+        create_api_key_with_manage_api_perm,
+        mocker,
+    ):
+        template = create_template(sample_service, template_type=SMS_TYPE, template_category=sample_template_category_bulk)
+        mock_redis_delete = mocker.patch("app.v2.manage_template.patch_template.redis_store.delete")
+        auth_header = create_authorization_header(api_key=create_api_key_with_manage_api_perm)
+
+        response = client.patch(
+            f"/v2/manage-template/{template.id}",
+            data=json.dumps({"template_category_id": str(sample_template_category.id)}),
+            headers=[("Content-Type", "application/json"), auth_header],
+        )
+
+        assert response.status_code == 200
+        deleted_keys = [call.args[0] for call in mock_redis_delete.call_args_list]
+        assert f"template_category-{sample_template_category_bulk.id}" in deleted_keys
+        assert f"template_category-{sample_template_category.id}" in deleted_keys
+        assert "template_categories" in deleted_keys

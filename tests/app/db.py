@@ -358,6 +358,40 @@ def save_scheduled_notification(notification_model, scheduled_for):
     return notification_model
 
 
+def create_scheduled_one_off_notification(
+    template,
+    scheduled_for="2099-05-12 15:15",
+    to=None,
+    personalisation=None,
+    key_type=KEY_TYPE_NORMAL,
+    api_key=None,
+    client_reference=None,
+    reply_to_text=None,
+    billable_units=0,
+    created_at=None,
+):
+    scheduled_notification = ScheduledNotification(
+        id=uuid.uuid4(),
+        notification_id=uuid.uuid4(),
+        service_id=template.service_id,
+        template_id=template.id,
+        template_version=template.version,
+        notification_type=template.template_type,
+        to=to or ("+16502532222" if template.template_type == SMS_TYPE else "test@example.com"),
+        api_key_id=api_key.id if api_key else None,
+        key_type=key_type,
+        client_reference=client_reference,
+        reply_to_text=reply_to_text,
+        billable_units=billable_units,
+        scheduled_for=datetime.strptime(scheduled_for, "%Y-%m-%d %H:%M"),
+        created_at=created_at or datetime.utcnow(),
+    )
+    scheduled_notification.personalisation = personalisation
+    db.session.add(scheduled_notification)
+    db.session.commit()
+    return scheduled_notification
+
+
 def create_notification_history(
     template=None,
     job=None,
@@ -437,6 +471,8 @@ def create_job(
     original_file_name="some.csv",
     archived=False,
     sender_id=None,
+    billable_units=None,
+    api_key=None,
 ):
     data = {
         "id": uuid.uuid4(),
@@ -454,6 +490,8 @@ def create_job(
         "processing_started": processing_started,
         "archived": archived,
         "sender_id": sender_id,
+        "billable_units": billable_units,
+        "api_key": api_key,
     }
     job = Job(**data)
     dao_create_job(job)

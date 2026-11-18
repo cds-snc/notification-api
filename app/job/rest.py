@@ -1,8 +1,6 @@
 import time
 import uuid
-from datetime import datetime
 
-import dateutil
 from flask import Blueprint, current_app, jsonify, request
 from notifications_utils.recipients import RecipientCSV
 from notifications_utils.template import Template
@@ -11,24 +9,23 @@ from app.annual_limit_utils import get_annual_limit_notifications_v2
 from app.aws.s3 import get_job_from_s3, get_job_metadata_from_s3
 from app.celery.tasks import process_job
 from app.config import QueueNames
-from app.dao.fact_notification_status_dao import fetch_notification_statuses_for_job_batch
 from app.dao.jobs_dao import (
     can_letter_job_be_cancelled,
     dao_cancel_letter_job,
     dao_create_job,
     dao_get_future_scheduled_job_by_id_and_service_id,
     dao_get_job_by_service_id_and_job_id,
+    dao_get_job_statistics_for_jobs,
     dao_get_jobs_by_service_id,
     dao_get_notification_outcomes_for_job,
-    dao_get_notification_outcomes_for_job_batch,
     dao_service_has_jobs,
     dao_update_job,
 )
 from app.dao.notifications_dao import get_notifications_for_job
 from app.dao.services_dao import dao_fetch_service_by_id
 from app.dao.templates_dao import dao_get_template_by_id
-from app.email_limit_utils import decrement_todays_email_count
 from app.errors import InvalidRequest, register_errors
+from app.job.daily_limits import release_daily_limit_for_cancelled_job
 from app.models import (
     EMAIL_TYPE,
     JOB_STATUS_CANCELLED,
@@ -38,9 +35,11 @@ from app.models import (
 )
 from app.notifications.process_notifications import (
     csv_has_simulated_and_non_simulated_recipients,
+    is_scheduled_for_a_later_day,
 )
 from app.notifications.validators import (
     check_email_annual_limit,
+    check_email_csv_rows_size,
     check_email_daily_limit,
     check_sms_annual_limit,
     check_sms_daily_limit,
@@ -53,7 +52,7 @@ from app.schemas import (
     notifications_filter_schema,
     unarchived_template_schema,
 )
-from app.utils import midnight_n_days_ago, pagination_links
+from app.utils import pagination_links
 
 job_blueprint = Blueprint("job", __name__, url_prefix="/service/<uuid:service_id>/job")
 
@@ -79,7 +78,7 @@ def cancel_job(service_id, job_id):
     job = dao_get_future_scheduled_job_by_id_and_service_id(job_id, service_id)
     job.job_status = JOB_STATUS_CANCELLED
     dao_update_job(job)
-    decrement_todays_email_count(service_id, job.notification_count)
+    release_daily_limit_for_cancelled_job(job)
     return get_job_by_service_and_job_id(service_id, job_id)
 
 
@@ -192,6 +191,13 @@ def create_job(service_id):
     # Pre-seed annual limit data in Redis to avoid slow database queries during limit checks
     get_annual_limit_notifications_v2(service_id)
 
+    check_email_csv_rows_size(recipient_csv, template)
+
+    # A job scheduled for a later day is counted towards that day's limit when that day's count is loaded from the
+    # database (it includes jobs scheduled for the day), not today's.
+    count_towards_todays_limit = not is_scheduled_for_a_later_day(data.get("scheduled_for"))
+    sms_billable_units = None
+
     if template.template_type == SMS_TYPE:
         # set sender_id if missing
         default_senders = [x for x in service.service_sms_senders if x.is_default]
@@ -208,18 +214,14 @@ def create_job(service_id):
         if has_simulated and has_real_recipients:
             raise InvalidRequest(message="Bulk sending to testing and non-testing numbers is not supported", status_code=400)
 
+        sms_billable_units = 0
         # Check and track limits if we're not sending test notifications
         if has_real_recipients and not has_simulated:
-            csv_length = len(recipient_csv)
-            if current_app.config.get("FF_USE_BILLABLE_UNITS"):
-                total_billable_units = recipient_csv.sms_fragment_count
-                check_sms_annual_limit(service, total_billable_units)
-                check_sms_daily_limit(service, total_billable_units)
-                increment_sms_daily_count_send_warnings_if_needed(service, total_billable_units)
-            else:
-                check_sms_annual_limit(service, csv_length)
-                check_sms_daily_limit(service, csv_length)
-                increment_sms_daily_count_send_warnings_if_needed(service, csv_length)
+            sms_billable_units = recipient_csv.sms_fragment_count
+            check_sms_annual_limit(service, sms_billable_units)
+            check_sms_daily_limit(service, sms_billable_units)
+            if count_towards_todays_limit:
+                increment_sms_daily_count_send_warnings_if_needed(service, sms_billable_units)
 
     elif template.template_type == EMAIL_TYPE:
         if "notification_count" in data:
@@ -234,14 +236,13 @@ def create_job(service_id):
 
         check_email_daily_limit(service, notification_count)
 
-        scheduled_for = datetime.fromisoformat(data.get("scheduled_for")) if data.get("scheduled_for") else None
-
-        if scheduled_for is None or not scheduled_for.date() > datetime.today().date():
+        if count_towards_todays_limit:
             increment_email_daily_count_send_warnings_if_needed(service, notification_count)
 
     data.update({"template_version": template.version})
 
     job = job_schema.load(data)
+    job.billable_units = sms_billable_units
 
     if job.scheduled_for:
         job.job_status = JOB_STATUS_SCHEDULED
@@ -275,55 +276,12 @@ def get_paginated_jobs(service_id, limit_days, statuses, page, page_size=None):
     )
     data = job_schema.dump(pagination.items, many=True)
 
-    cutoff = midnight_n_days_ago(3)
-    recent_job_ids = []
-    old_job_ids = []
-
-    # Find jobs < the cutoff (ft_notification_status) and those within the cutoff (notifications/notification_history)
-    # Categorize them into recent and old jobs based on their processing_started date
-    for job_data in data:  # TODO: figure out what idx is, job_id?
-        raw_start = job_data["processing_started"]
-        start = dateutil.parser.parse(raw_start).replace(tzinfo=None) if raw_start else None
-        # Temporarily store the parsed start time to avoid parsing it again later during stat assignment
-        job_data["_parsed_start"] = start
-
-        if start is None:
-            job_data["statistics"] = []
-            continue
-        if start < cutoff:
-            old_job_ids.append(job_data["id"])
-        else:
-            recent_job_ids.append(job_data["id"])
-
-    # Fetch statistics for recent and old jobs in batches instead of job by job to reduce # of DB queries
-    recent_stats = {}
-    if recent_job_ids:
-        stats = dao_get_notification_outcomes_for_job_batch(service_id, recent_job_ids)
-        for job_id, status, count in stats:
-            recent_stats.setdefault(job_id, []).append({"status": status, "count": count})
-
-    old_stats = {}
-    if old_job_ids:
-        stats = fetch_notification_statuses_for_job_batch(service_id, old_job_ids)
-        for job_id, status, count in stats:
-            old_stats.setdefault(job_id, []).append({"status": status, "count": count})
-
-    # Assign statistics to each job
+    statistics_by_job = dao_get_job_statistics_for_jobs(pagination.items)
     for job_data in data:
-        job_id = job_data["id"]
-        start = job_data.get("_parsed_start")
-
-        if start is None:
-            # We set this in the first loop so we can just skip it here
-            continue
-        elif start < cutoff:
-            job_data["statistics"] = old_stats.get(uuid.UUID(job_id), [])
-        else:
-            job_data["statistics"] = recent_stats.get(uuid.UUID(job_id), [])
-        del job_data["_parsed_start"]  # Clean up that temporary field
+        job_data["statistics"] = statistics_by_job.get(uuid.UUID(job_data["id"]), [])
 
     end_time = time.time()
-    current_app.logger.info(f"[get_paginated_jobs] took {"{:.3f}".format(end_time - start_time)} seconds")
+    current_app.logger.info(f"[get_paginated_jobs] took {end_time - start_time:.3f} seconds")
 
     # Build extra kwargs so pagination links preserve all original query params.
     link_kwargs = {"service_id": service_id}

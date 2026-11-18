@@ -1,9 +1,34 @@
 import pytest
 
-from app import aws_pinpoint_client
+from app import aws_pinpoint_client, clients
 from app.clients.sms import SmsSendingVehicles
+from app.clients.sms.aws_pinpoint import AwsPinpointClient
 from app.exceptions import PinpointConflictException, PinpointValidationException
 from tests.conftest import set_config_values
+
+
+@pytest.mark.serial
+def test_pinpoint_client_uses_configured_regions(notify_api, mocker):
+    boto_client = mocker.patch("app.clients.sms.aws_pinpoint.boto3.client")
+    pinpoint_client = AwsPinpointClient()
+
+    pinpoint_client.init_app(
+        notify_api,
+        statsd_client=mocker.Mock(),
+        dedicated_region="us-west-2",
+        tollfree_region="ca-central-1",
+    )
+
+    assert boto_client.call_args_list == [
+        mocker.call("pinpoint-sms-voice-v2", region_name=notify_api.config["AWS_REGION"]),
+        mocker.call("pinpoint-sms-voice-v2", region_name="us-west-2"),
+        mocker.call("pinpoint-sms-voice-v2", region_name="ca-central-1"),
+    ]
+
+
+@pytest.mark.serial
+def test_pinpoint_client_is_registered_once(notify_api):
+    assert clients.get_sms_client("pinpoint") is aws_pinpoint_client
 
 
 @pytest.mark.serial
@@ -33,6 +58,7 @@ def test_send_sms_sends_to_default_pool(notify_api, mocker, sample_template, tem
         MessageType="TRANSACTIONAL",
         ConfigurationSetName="config_set_name",
         DryRun=False,
+        TimeToLive=259200,
     )
 
 
@@ -62,6 +88,7 @@ def test_send_sms_sends_notify_sms_to_shortcode_pool(notify_api, mocker, sample_
         MessageType="TRANSACTIONAL",
         ConfigurationSetName="config_set_name",
         DryRun=False,
+        TimeToLive=259200,
     )
 
 
@@ -154,6 +181,7 @@ def test_respects_sending_vehicle_if_FF_enabled(notify_api, mocker, sample_templ
         MessageType="TRANSACTIONAL",
         ConfigurationSetName="config_set_name",
         DryRun=False,
+        TimeToLive=259200,
     )
 
 
@@ -181,6 +209,7 @@ def test_send_sms_sends_international_without_pool_id(notify_api, mocker, sample
         MessageBody=content,
         MessageType="TRANSACTIONAL",
         ConfigurationSetName="config_set_name",
+        TimeToLive=259200,
     )
 
 
@@ -211,6 +240,7 @@ def test_send_sms_uses_dryrun(notify_api, mocker, sample_template, template_id):
         MessageType="TRANSACTIONAL",
         ConfigurationSetName="config_set_name",
         DryRun=True,
+        TimeToLive=259200,
     )
 
 
@@ -249,6 +279,7 @@ def test_send_sms_uses_dedicated_number_with_long_code_sender(notify_api, mocker
         MessageType="TRANSACTIONAL",
         ConfigurationSetName="config_set_name",
         DryRun=False,
+        TimeToLive=259200,
     )
 
     # Default client NOT used
@@ -257,6 +288,7 @@ def test_send_sms_uses_dedicated_number_with_long_code_sender(notify_api, mocker
 
 @pytest.mark.serial
 def test_send_sms_to_us_number_uses_US_toll_free_number(notify_api, mocker):
+    tollfree_mock = mocker.patch.object(aws_pinpoint_client, "_tollfree_client", create=True)
     dedicated_mock = mocker.patch.object(aws_pinpoint_client, "_dedicated_client", create=True)
     default_mock = mocker.patch.object(aws_pinpoint_client, "_client", create=True)
     mocker.patch.object(aws_pinpoint_client, "statsd_client", create=True)
@@ -274,13 +306,15 @@ def test_send_sms_to_us_number_uses_US_toll_free_number(notify_api, mocker):
     ):
         aws_pinpoint_client.send_sms(to, content, reference)
 
-    dedicated_mock.send_text_message.assert_called_once_with(
+    tollfree_mock.send_text_message.assert_called_once_with(
         DestinationPhoneNumber=f"+1{to}",
         OriginationIdentity=us_toll_free_number,
         MessageBody=content,
         MessageType="TRANSACTIONAL",
         ConfigurationSetName="config_set_name",
+        TimeToLive=259200,
     )
 
-    # Default client NOT used
+    # Dedicated and default clients NOT used
+    dedicated_mock.send_text_message.assert_not_called()
     default_mock.send_text_message.assert_not_called()

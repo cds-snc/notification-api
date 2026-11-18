@@ -27,7 +27,7 @@ NEW_RATES = [
 def upgrade():
     conn = op.get_bind()
     for id, start_date, sheet_count, rate, crown, post_class in NEW_RATES:
-        conn.execute(
+        conn.exec_driver_sql(
             """
             INSERT INTO letter_rates (id, start_date, sheet_count, rate, crown, post_class)
                 VALUES ('{}', '{}', '{}', '{}', '{}', '{}')

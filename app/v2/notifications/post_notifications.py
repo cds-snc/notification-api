@@ -18,13 +18,7 @@ from app import (
     authenticated_service,
     create_uuid,
     document_download_client,
-    email_bulk_publish,
-    email_normal_publish,
-    email_priority_publish,
     signer_notification,
-    sms_bulk_publish,
-    sms_normal_publish,
-    sms_priority_publish,
     statsd_client,
 )
 from app.annual_limit_utils import get_annual_limit_notifications_v2
@@ -39,20 +33,16 @@ from app.dao.jobs_dao import dao_create_job
 from app.dao.notifications_dao import update_notification_status_by_reference
 from app.dao.templates_dao import get_precompiled_letter_template
 from app.email_limit_utils import fetch_todays_email_count
-from app.encryption import NotificationDictToSign
 from app.models import (
-    BULK,
     EMAIL_TYPE,
     JOB_STATUS_PENDING,
     JOB_STATUS_SCHEDULED,
     KEY_TYPE_TEAM,
     KEY_TYPE_TEST,
     LETTER_TYPE,
-    NORMAL,
     NOTIFICATION_CREATED,
     NOTIFICATION_DELIVERED,
     NOTIFICATION_SENDING,
-    PRIORITY,
     SMS_TYPE,
     UPLOAD_DOCUMENT,
     ApiKey,
@@ -62,20 +52,22 @@ from app.models import (
 )
 from app.notifications.process_letter_notifications import create_letter_notification
 from app.notifications.process_notifications import (
+    build_notification_to_sign,
     choose_queue,
     csv_has_simulated_and_non_simulated_recipients,
     db_save_and_send_notification,
+    is_scheduled_for_a_later_day,
     number_of_sms_fragments,
-    persist_notification,
-    persist_scheduled_notification,
+    persist_scheduled_one_off_notification,
     simulated_recipient,
     transform_notification,
+    triage_notification_to_queues,
 )
 from app.notifications.validators import (
     check_email_annual_limit,
+    check_email_csv_rows_size,
     check_email_daily_limit,
     check_rate_limiting,
-    check_service_can_schedule_notification,
     check_service_email_reply_to_id,
     check_service_has_permission,
     check_service_sms_sender_id,
@@ -223,17 +215,22 @@ def post_bulk():
         raise BadRequestError(message=f"Error converting to CSV: {str(e)}", status_code=400)
 
     check_for_csv_errors(recipient_csv, max_rows, remaining_daily_messages, remaining_annual_messages)
+    check_email_csv_rows_size(recipient_csv, template)
     notification_count_requested = len(recipient_csv.rows)
 
     # Pre-seed annual limit data in Redis to avoid slow database queries during limit checks
     get_annual_limit_notifications_v2(authenticated_service.id)
 
+    # A job scheduled for a later day is counted towards that day's limit when that day's count is loaded from the
+    # database (it includes jobs scheduled for the day), not today's.
+    count_towards_todays_limit = not is_scheduled_for_a_later_day(form.get("scheduled_for"))
+    sms_billable_units = None
+
     if template.template_type == EMAIL_TYPE and api_user.key_type != KEY_TYPE_TEST:
         check_email_annual_limit(authenticated_service, notification_count_requested)
         check_email_daily_limit(authenticated_service, notification_count_requested)
-        scheduled_for = datetime.fromisoformat(form.get("scheduled_for")) if form.get("scheduled_for") else None
 
-        if scheduled_for is None or not scheduled_for.date() > datetime.today().date():
+        if count_towards_todays_limit:
             increment_email_daily_count_send_warnings_if_needed(authenticated_service, notification_count_requested)
 
     if template.template_type == SMS_TYPE:
@@ -255,19 +252,15 @@ def post_bulk():
 
         is_test_notification = api_user.key_type == KEY_TYPE_TEST or (has_simulated and not has_real_recipients)
 
+        sms_billable_units = 0
         if not is_test_notification:
-            # TODO FF_USE_BILLABLE_UNITS removal - Use billable units when feature flag is enabled
-            if current_app.config.get("FF_USE_BILLABLE_UNITS"):
-                total_billable_units = recipient_csv.sms_fragment_count
-                check_sms_annual_limit(authenticated_service, total_billable_units)
-                check_sms_daily_limit(authenticated_service, total_billable_units)
-                increment_sms_daily_count_send_warnings_if_needed(authenticated_service, total_billable_units)
-            else:
-                check_sms_annual_limit(authenticated_service, len(recipient_csv))
-                check_sms_daily_limit(authenticated_service, len(recipient_csv))
-                increment_sms_daily_count_send_warnings_if_needed(authenticated_service, len(recipient_csv))
+            sms_billable_units = recipient_csv.sms_fragment_count
+            check_sms_annual_limit(authenticated_service, sms_billable_units)
+            check_sms_daily_limit(authenticated_service, sms_billable_units)
+            if count_towards_todays_limit:
+                increment_sms_daily_count_send_warnings_if_needed(authenticated_service, sms_billable_units)
 
-    job = create_bulk_job(authenticated_service, api_user, template, form, recipient_csv)
+    job = create_bulk_job(authenticated_service, api_user, template, form, recipient_csv, sms_billable_units)
 
     return jsonify(data=job_schema.dump(job)), 201
 
@@ -308,8 +301,6 @@ def post_notification(notification_type: NotificationType):
 
     scheduled_for = form.get("scheduled_for", None)
 
-    check_service_can_schedule_notification(authenticated_service.permissions, scheduled_for)
-
     check_rate_limiting(authenticated_service, api_user)
 
     personalisation = strip_keys_from_personalisation_if_send_attach(form.get("personalisation", {}))
@@ -324,17 +315,16 @@ def post_notification(notification_type: NotificationType):
         check_email_annual_limit(authenticated_service, 1)
         check_email_daily_limit(authenticated_service, 1)  # 1 email
 
+    # Like scheduled bulk jobs, a notification scheduled for a later day is counted towards that day's limit when that
+    # day's count is loaded from the database (it includes notifications scheduled for the day), not today's.
+    count_towards_todays_limit = not is_scheduled_for_a_later_day(scheduled_for)
+
     if template.template_type == SMS_TYPE:
         is_test_notification = api_user.key_type == KEY_TYPE_TEST or simulated_recipient(form["phone_number"], notification_type)
         if not is_test_notification:
-            # TODO FF_USE_BILLABLE_UNITS removal - Use billable units when feature flag is enabled
-            if current_app.config.get("FF_USE_BILLABLE_UNITS"):
-                billable_unit = number_of_sms_fragments(template, personalisation)
-                check_sms_annual_limit(authenticated_service, billable_unit)
-                check_sms_daily_limit(authenticated_service, billable_unit)
-            else:
-                check_sms_annual_limit(authenticated_service, 1)
-                check_sms_daily_limit(authenticated_service, 1)
+            billable_unit = number_of_sms_fragments(template, personalisation)
+            check_sms_annual_limit(authenticated_service, billable_unit)
+            check_sms_daily_limit(authenticated_service, billable_unit)
 
     current_app.logger.info(f"Trying to send notification for Template ID: {template.id}")
 
@@ -359,14 +349,19 @@ def post_notification(notification_type: NotificationType):
 
         template_with_content.values = notification.personalisation
 
-    if template.template_type == EMAIL_TYPE and api_user.key_type != KEY_TYPE_TEST:
+    if template.template_type == EMAIL_TYPE and api_user.key_type != KEY_TYPE_TEST and count_towards_todays_limit:
         increment_email_daily_count_send_warnings_if_needed(authenticated_service, 1)  # 1 email
 
-    if template.template_type == SMS_TYPE:
+    if template.template_type == SMS_TYPE and count_towards_todays_limit:
         is_test_notification = api_user.key_type == KEY_TYPE_TEST or simulated_recipient(form["phone_number"], notification_type)
         if not is_test_notification:
-            # TODO FF_USE_BILLABLE_UNITS removal - Use billable_units when feature flag is enabled
-            increment_by = notification.billable_units if current_app.config.get("FF_USE_BILLABLE_UNITS") else 1
+            increment_by = notification.billable_units
+            if increment_by is None:
+                current_app.logger.info(
+                    f"Billable units is None for notification {getattr(notification, 'id', None)}, template {template.id}"
+                )
+                increment_by = 1
+
             increment_sms_daily_count_send_warnings_if_needed(authenticated_service, increment_by)
 
     if notification_type == SMS_TYPE:
@@ -396,33 +391,6 @@ def post_notification(notification_type: NotificationType):
     return jsonify(resp), 201
 
 
-def triage_notification_to_queues(notification_type: NotificationType, signed_notification_data, template: Template):
-    """Determine which queue to use based on notification_type and process_type
-
-    Args:
-        notification_type: Type of notification being sent; either SMS_TYPE or EMAIL_TYPE
-        signed_notification_data: Encrypted notification data
-        template: Template used to send notification
-    Returns:
-        None
-
-    """
-    if notification_type == SMS_TYPE:
-        if template.process_type == PRIORITY:
-            sms_priority_publish.publish(signed_notification_data)
-        elif template.process_type == NORMAL:
-            sms_normal_publish.publish(signed_notification_data)
-        elif template.process_type == BULK:
-            sms_bulk_publish.publish(signed_notification_data)
-    elif notification_type == EMAIL_TYPE:
-        if template.process_type == PRIORITY:
-            email_priority_publish.publish(signed_notification_data)
-        elif template.process_type == NORMAL:
-            email_normal_publish.publish(signed_notification_data)
-        elif template.process_type == BULK:
-            email_bulk_publish.publish(signed_notification_data)
-
-
 def process_sms_or_email_notification(
     *, form, notification_type: NotificationType, api_key: ApiKey, template: Template, service: Service, reply_to_text=None
 ) -> Notification:
@@ -440,19 +408,19 @@ def process_sms_or_email_notification(
 
     personalisation = process_document_uploads(form.get("personalisation"), service, simulated, template.id)
 
-    _notification: NotificationDictToSign = {
-        "id": create_uuid(),
-        "template": str(template.id),
-        "service_id": str(service.id),
-        "template_version": str(template.version),  # type: ignore
-        "to": form_send_to,
-        "personalisation": personalisation,
-        "simulated": simulated,
-        "api_key": str(api_key.id),
-        "key_type": str(api_key.key_type),
-        "client_reference": form.get("reference", None),
-        "reply_to_text": reply_to_text,
-    }
+    _notification = build_notification_to_sign(
+        notification_id=create_uuid(),
+        template_id=str(template.id),
+        service_id=str(service.id),
+        template_version=str(template.version),  # type: ignore
+        to=form_send_to,
+        personalisation=personalisation,
+        simulated=simulated,
+        api_key_id=str(api_key.id),
+        key_type=str(api_key.key_type),
+        client_reference=form.get("reference", None),
+        reply_to_text=reply_to_text,
+    )
 
     signed_notification_data = signer_notification.sign(_notification)
     notification = {**_notification}
@@ -465,8 +433,9 @@ def process_sms_or_email_notification(
             api_key_last_used = datetime.utcnow()
             update_last_used_api_key(api_key_id, api_key_last_used)
 
-    if scheduled_for:
-        notification = persist_notification(  # keep scheduled notifications using the old code path for now
+    if scheduled_for and not simulated:
+        # Not added to the notifications table or the sending queues until it's sent, see send_scheduled_notifications
+        notification = transform_notification(
             template_id=template.id,
             template_version=template.version,
             recipient=form_send_to,
@@ -477,8 +446,10 @@ def process_sms_or_email_notification(
             key_type=api_key.key_type,
             client_reference=form.get("reference", None),
             reply_to_text=reply_to_text,
+            notification_id=_notification["id"],
+            billable_units=number_of_sms_fragments(template, personalisation),
         )
-        persist_scheduled_notification(notification.id, form["scheduled_for"])
+        persist_scheduled_one_off_notification(notification, scheduled_for)
     elif not simulated:
         triage_notification_to_queues(notification_type, signed_notification_data, template)
 
@@ -516,8 +487,7 @@ def process_sms_or_email_notification(
         notification["service"] = service
         notification["service_id"] = service.id
         notification["reply_to_text"] = reply_to_text
-        # Calculate billable_units for SMS if feature flag is enabled
-        if current_app.config.get("FF_USE_BILLABLE_UNITS") and notification_type == SMS_TYPE:
+        if notification_type == SMS_TYPE:
             notification["billable_units"] = number_of_sms_fragments(template, personalisation)
         del notification["template"]
         del notification["api_key"]
@@ -542,6 +512,25 @@ def process_document_uploads(personalisation_data, service: Service, simulated, 
         else:
             try:
                 personalisation_data[key] = document_download_client.upload_document(service.id, personalisation_data[key])
+                uploaded_document = personalisation_data[key]["document"]
+                current_app.logger.info(
+                    "File upload accepted: service_id=%s template_id=%s filename=%s file_extension=%s "
+                    "mime_type=%s sending_method=%s",
+                    service.id,
+                    template_id,
+                    uploaded_document.get("filename"),
+                    uploaded_document.get("file_extension"),
+                    uploaded_document.get("mime_type"),
+                    uploaded_document.get("sending_method"),
+                    extra={
+                        "service_id": str(service.id),
+                        "template_id": str(template_id),
+                        "file_name": uploaded_document.get("filename"),
+                        "file_extension": uploaded_document.get("file_extension"),
+                        "mime_type": uploaded_document.get("mime_type"),
+                        "sending_method": uploaded_document.get("sending_method"),
+                    },
+                )
             except DocumentDownloadError as e:
                 raise BadRequestError(message=e.message, status_code=e.status_code)
 
@@ -748,7 +737,7 @@ def check_for_csv_errors(recipient_csv, max_rows, remaining_daily_messages, rema
             raise NotImplementedError("Got errors but code did not handle")
 
 
-def create_bulk_job(service, api_key, template, form, recipient_csv):
+def create_bulk_job(service, api_key, template, form, recipient_csv, sms_billable_units=None):
     upload_id = upload_job_to_s3(service.id, recipient_csv.file_data)
     sender_id = form["validated_sender_id"]
 
@@ -769,6 +758,7 @@ def create_bulk_job(service, api_key, template, form, recipient_csv):
         data["scheduled_for"] = form.get("scheduled_for")
 
     job = job_schema.load(data)
+    job.billable_units = sms_billable_units
     dao_create_job(job)
 
     if job.job_status == JOB_STATUS_PENDING:

@@ -13,7 +13,13 @@ from notifications_utils.clients.redis.annual_limit import (
 
 import app.celery.tasks
 from app.dao.templates_dao import dao_update_template
-from app.models import JOB_STATUS_FINISHED, JOB_STATUS_PENDING, JOB_STATUS_TYPES, ServiceSmsSender
+from app.models import (
+    JOB_STATUS_FINISHED,
+    JOB_STATUS_PENDING,
+    JOB_STATUS_TYPES,
+    Job,
+    ServiceSmsSender,
+)
 from app.notifications.validators import (
     LiveServiceRequestExceedsEmailAnnualLimitError,
     LiveServiceRequestExceedsSMSAnnualLimitError,
@@ -75,7 +81,8 @@ def test_get_job_with_unknown_id_returns404(client, sample_template, fake_uuid):
     assert resp_json == {"message": "Job not found in database", "result": "error"}
 
 
-def test_cancel_job(client, sample_scheduled_job):
+def test_cancel_job(client, sample_scheduled_job, mocker):
+    release_mock = mocker.patch("app.job.rest.release_daily_limit_for_cancelled_job")
     job_id = str(sample_scheduled_job.id)
     service_id = sample_scheduled_job.service.id
     path = "/service/{}/job/{}/cancel".format(service_id, job_id)
@@ -85,6 +92,8 @@ def test_cancel_job(client, sample_scheduled_job):
     resp_json = json.loads(response.get_data(as_text=True))
     assert resp_json["data"]["id"] == job_id
     assert resp_json["data"]["job_status"] == "cancelled"
+    release_mock.assert_called_once()
+    assert release_mock.call_args.args[0].id == sample_scheduled_job.id
 
 
 def test_cant_cancel_normal_job(client, sample_job, mocker):
@@ -1172,164 +1181,185 @@ def test_get_service_has_jobs_returns_false_when_no_jobs_exist(client, notify_db
     assert json.loads(response.get_data(as_text=True))["data"]["has_jobs"] is False
 
 
-# TODO: Remove feature flag checks after FF_USE_BILLABLE_UNITS go live
 class TestBillableUnitsInJobCreation:
-    """Tests for billable_units in job creation endpoint with FF_USE_BILLABLE_UNITS feature flag"""
+    """Tests for billable_units in job creation endpoint"""
 
-    def test_create_sms_job_uses_billable_units_when_flag_enabled(self, client, sample_template, mocker, fake_uuid, notify_api):
-        """When FF_USE_BILLABLE_UNITS is enabled, check_sms_annual_limit and check_sms_daily_limit
+    def test_create_sms_job_uses_billable_units(self, client, sample_template, mocker, fake_uuid):
+        """check_sms_annual_limit and check_sms_daily_limit
         should be called with total_billable_units from recipient_csv.sms_fragment_count."""
-        with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
-            mocker.patch("app.celery.tasks.process_job.apply_async")
-            mocker.patch(
-                "app.job.rest.get_job_metadata_from_s3",
-                return_value={
-                    "template_id": str(sample_template.id),
-                    "original_file_name": "thisisatest.csv",
-                    "notification_count": "1",
-                    "valid": "True",
-                },
-            )
-            mocker.patch(
-                "app.job.rest.get_job_from_s3",
-                return_value="phone number\r\n6502532222",
-            )
-            # Mock sms_fragment_count on RecipientCSV to return 2 (simulating a long message)
-            mocker.patch(
-                "notifications_utils.recipients.RecipientCSV.sms_fragment_count",
-                new_callable=mocker.PropertyMock,
-                return_value=2,
-            )
+        mocker.patch("app.celery.tasks.process_job.apply_async")
+        mocker.patch(
+            "app.job.rest.get_job_metadata_from_s3",
+            return_value={
+                "template_id": str(sample_template.id),
+                "original_file_name": "thisisatest.csv",
+                "notification_count": "1",
+                "valid": "True",
+            },
+        )
+        mocker.patch(
+            "app.job.rest.get_job_from_s3",
+            return_value="phone number\r\n6502532222",
+        )
+        # Mock sms_fragment_count on RecipientCSV to return 2 (simulating a long message)
+        mocker.patch(
+            "notifications_utils.recipients.RecipientCSV.sms_fragment_count",
+            new_callable=mocker.PropertyMock,
+            return_value=2,
+        )
 
-            mock_check_annual = mocker.patch("app.job.rest.check_sms_annual_limit")
-            mock_check_daily = mocker.patch("app.job.rest.check_sms_daily_limit")
-            mock_increment = mocker.patch("app.job.rest.increment_sms_daily_count_send_warnings_if_needed")
+        mock_check_annual = mocker.patch("app.job.rest.check_sms_annual_limit")
+        mock_check_daily = mocker.patch("app.job.rest.check_sms_daily_limit")
+        mock_increment = mocker.patch("app.job.rest.increment_sms_daily_count_send_warnings_if_needed")
 
-            data = {"id": fake_uuid, "created_by": str(sample_template.created_by.id)}
-            path = "/service/{}/job".format(sample_template.service.id)
-            auth_header = create_authorization_header()
-            headers = [("Content-Type", "application/json"), auth_header]
+        data = {"id": fake_uuid, "created_by": str(sample_template.created_by.id)}
+        path = "/service/{}/job".format(sample_template.service.id)
+        auth_header = create_authorization_header()
+        headers = [("Content-Type", "application/json"), auth_header]
 
-            response = client.post(path, data=json.dumps(data), headers=headers)
-            assert response.status_code == 201
+        response = client.post(path, data=json.dumps(data), headers=headers)
+        assert response.status_code == 201
 
-            # sms_fragment_count returns 2, so limit checks should use 2
-            mock_check_annual.assert_called_once_with(sample_template.service, 2)
-            mock_check_daily.assert_called_once_with(sample_template.service, 2)
-            mock_increment.assert_called_once_with(sample_template.service, 2)
+        # sms_fragment_count returns 2, so limit checks should use 2
+        mock_check_annual.assert_called_once_with(sample_template.service, 2)
+        mock_check_daily.assert_called_once_with(sample_template.service, 2)
+        mock_increment.assert_called_once_with(sample_template.service, 2)
 
-    def test_create_sms_job_uses_csv_length_when_flag_disabled(self, client, sample_template, mocker, fake_uuid, notify_api):
-        """When FF_USE_BILLABLE_UNITS is disabled, check_sms_annual_limit and check_sms_daily_limit
-        should be called with csv_length (count of 1 per recipient) instead of billable_unit * csv_length."""
-        with set_config(notify_api, "FF_USE_BILLABLE_UNITS", False):
-            mocker.patch("app.celery.tasks.process_job.apply_async")
-            mocker.patch(
-                "app.job.rest.get_job_metadata_from_s3",
-                return_value={
-                    "template_id": str(sample_template.id),
-                    "original_file_name": "thisisatest.csv",
-                    "notification_count": "1",
-                    "valid": "True",
-                },
-            )
-            mocker.patch(
-                "app.job.rest.get_job_from_s3",
-                return_value="phone number\r\n6502532222",
-            )
-
-            mock_check_annual = mocker.patch("app.job.rest.check_sms_annual_limit")
-            mock_check_daily = mocker.patch("app.job.rest.check_sms_daily_limit")
-            mock_increment = mocker.patch("app.job.rest.increment_sms_daily_count_send_warnings_if_needed")
-
-            data = {"id": fake_uuid, "created_by": str(sample_template.created_by.id)}
-            path = "/service/{}/job".format(sample_template.service.id)
-            auth_header = create_authorization_header()
-            headers = [("Content-Type", "application/json"), auth_header]
-
-            response = client.post(path, data=json.dumps(data), headers=headers)
-            assert response.status_code == 201
-
-            # With flag disabled, should be called with csv_length=1
-            mock_check_annual.assert_called_once_with(sample_template.service, 1)
-            mock_check_daily.assert_called_once_with(sample_template.service, 1)
-            mock_increment.assert_called_once_with(sample_template.service, 1)
-
-    def test_create_sms_job_multiple_recipients_uses_total_billable_units(
-        self, client, sample_template, mocker, fake_uuid, notify_api
-    ):
-        """When FF_USE_BILLABLE_UNITS is enabled with multiple recipients, limit checks
+    def test_create_sms_job_multiple_recipients_uses_total_billable_units(self, client, sample_template, mocker, fake_uuid):
+        """With multiple recipients, limit checks
         should be called with total_billable_units from recipient_csv.sms_fragment_count."""
-        with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
-            mocker.patch("app.celery.tasks.process_job.apply_async")
-            mocker.patch(
-                "app.job.rest.get_job_metadata_from_s3",
-                return_value={
-                    "template_id": str(sample_template.id),
-                    "original_file_name": "thisisatest.csv",
-                    "notification_count": "3",
-                    "valid": "True",
-                },
-            )
-            mocker.patch(
-                "app.job.rest.get_job_from_s3",
-                return_value="phone number\r\n6502532222\r\n6502532223\r\n6502532224",
-            )
-            # Mock sms_fragment_count on RecipientCSV to return 6
-            # (simulating 3 recipients × 2 fragments each)
-            mocker.patch(
-                "notifications_utils.recipients.RecipientCSV.sms_fragment_count",
-                new_callable=mocker.PropertyMock,
-                return_value=6,
-            )
+        mocker.patch("app.celery.tasks.process_job.apply_async")
+        mocker.patch(
+            "app.job.rest.get_job_metadata_from_s3",
+            return_value={
+                "template_id": str(sample_template.id),
+                "original_file_name": "thisisatest.csv",
+                "notification_count": "3",
+                "valid": "True",
+            },
+        )
+        mocker.patch(
+            "app.job.rest.get_job_from_s3",
+            return_value="phone number\r\n6502532222\r\n6502532223\r\n6502532224",
+        )
+        # Mock sms_fragment_count on RecipientCSV to return 6
+        # (simulating 3 recipients × 2 fragments each)
+        mocker.patch(
+            "notifications_utils.recipients.RecipientCSV.sms_fragment_count",
+            new_callable=mocker.PropertyMock,
+            return_value=6,
+        )
 
-            mock_check_annual = mocker.patch("app.job.rest.check_sms_annual_limit")
-            mock_check_daily = mocker.patch("app.job.rest.check_sms_daily_limit")
-            mock_increment = mocker.patch("app.job.rest.increment_sms_daily_count_send_warnings_if_needed")
+        mock_check_annual = mocker.patch("app.job.rest.check_sms_annual_limit")
+        mock_check_daily = mocker.patch("app.job.rest.check_sms_daily_limit")
+        mock_increment = mocker.patch("app.job.rest.increment_sms_daily_count_send_warnings_if_needed")
 
-            data = {"id": fake_uuid, "created_by": str(sample_template.created_by.id)}
-            path = "/service/{}/job".format(sample_template.service.id)
-            auth_header = create_authorization_header()
-            headers = [("Content-Type", "application/json"), auth_header]
+        data = {"id": fake_uuid, "created_by": str(sample_template.created_by.id)}
+        path = "/service/{}/job".format(sample_template.service.id)
+        auth_header = create_authorization_header()
+        headers = [("Content-Type", "application/json"), auth_header]
 
-            response = client.post(path, data=json.dumps(data), headers=headers)
-            assert response.status_code == 201
+        response = client.post(path, data=json.dumps(data), headers=headers)
+        assert response.status_code == 201
 
-            # sms_fragment_count returns 6, so limit checks should use 6
-            mock_check_annual.assert_called_once_with(sample_template.service, 6)
-            mock_check_daily.assert_called_once_with(sample_template.service, 6)
-            mock_increment.assert_called_once_with(sample_template.service, 6)
+        # sms_fragment_count returns 6, so limit checks should use 6
+        mock_check_annual.assert_called_once_with(sample_template.service, 6)
+        mock_check_daily.assert_called_once_with(sample_template.service, 6)
+        mock_increment.assert_called_once_with(sample_template.service, 6)
 
-    def test_create_sms_job_simulated_recipients_skips_limit_checks(self, client, sample_template, mocker, fake_uuid, notify_api):
+    def test_create_sms_job_simulated_recipients_skips_limit_checks(self, client, sample_template, mocker, fake_uuid):
         """When all recipients are simulated, limit checks should be skipped entirely."""
-        with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
-            mocker.patch("app.celery.tasks.process_job.apply_async")
-            mocker.patch(
-                "app.job.rest.get_job_metadata_from_s3",
-                return_value={
-                    "template_id": str(sample_template.id),
-                    "original_file_name": "thisisatest.csv",
-                    "notification_count": "1",
-                    "valid": "True",
-                },
-            )
-            mocker.patch(
-                "app.job.rest.get_job_from_s3",
-                return_value="phone number\r\n+16132532222",  # Simulated number (must include +1 prefix)
-            )
+        mocker.patch("app.celery.tasks.process_job.apply_async")
+        mocker.patch(
+            "app.job.rest.get_job_metadata_from_s3",
+            return_value={
+                "template_id": str(sample_template.id),
+                "original_file_name": "thisisatest.csv",
+                "notification_count": "1",
+                "valid": "True",
+            },
+        )
+        mocker.patch(
+            "app.job.rest.get_job_from_s3",
+            return_value="phone number\r\n+16132532222",  # Simulated number (must include +1 prefix)
+        )
 
-            mock_check_annual = mocker.patch("app.job.rest.check_sms_annual_limit")
-            mock_check_daily = mocker.patch("app.job.rest.check_sms_daily_limit")
-            mock_increment = mocker.patch("app.job.rest.increment_sms_daily_count_send_warnings_if_needed")
+        mock_check_annual = mocker.patch("app.job.rest.check_sms_annual_limit")
+        mock_check_daily = mocker.patch("app.job.rest.check_sms_daily_limit")
+        mock_increment = mocker.patch("app.job.rest.increment_sms_daily_count_send_warnings_if_needed")
 
-            data = {"id": fake_uuid, "created_by": str(sample_template.created_by.id)}
-            path = "/service/{}/job".format(sample_template.service.id)
-            auth_header = create_authorization_header()
-            headers = [("Content-Type", "application/json"), auth_header]
+        data = {"id": fake_uuid, "created_by": str(sample_template.created_by.id)}
+        path = "/service/{}/job".format(sample_template.service.id)
+        auth_header = create_authorization_header()
+        headers = [("Content-Type", "application/json"), auth_header]
 
-            response = client.post(path, data=json.dumps(data), headers=headers)
-            assert response.status_code == 201
+        response = client.post(path, data=json.dumps(data), headers=headers)
+        assert response.status_code == 201
 
-            # Simulated recipients skip all limit checks
-            mock_check_annual.assert_not_called()
-            mock_check_daily.assert_not_called()
+        # Simulated recipients skip all limit checks
+        mock_check_annual.assert_not_called()
+        mock_check_daily.assert_not_called()
+        mock_increment.assert_not_called()
+
+        assert Job.query.get(fake_uuid).billable_units == 0
+
+    @freeze_time("2026-11-12 10:00:00")
+    @pytest.mark.parametrize(
+        "scheduled_for, expect_increment",
+        [
+            (None, True),
+            ("2026-11-12T20:00:00", True),
+            ("2026-11-13T09:00:00", False),
+        ],
+        ids=["not scheduled", "scheduled for today", "scheduled for a later day"],
+    )
+    def test_create_sms_job_only_counts_towards_todays_limit_if_sent_today(
+        self,
+        client,
+        sample_template,
+        mocker,
+        fake_uuid,
+        scheduled_for,
+        expect_increment,
+    ):
+        mocker.patch("app.celery.tasks.process_job.apply_async")
+        mocker.patch(
+            "app.job.rest.get_job_metadata_from_s3",
+            return_value={
+                "template_id": str(sample_template.id),
+                "original_file_name": "thisisatest.csv",
+                "notification_count": "3",
+                "valid": "True",
+            },
+        )
+        mocker.patch(
+            "app.job.rest.get_job_from_s3",
+            return_value="phone number\r\n6502532222\r\n6502532223\r\n6502532224",
+        )
+        mocker.patch(
+            "notifications_utils.recipients.RecipientCSV.sms_fragment_count",
+            new_callable=mocker.PropertyMock,
+            return_value=6,
+        )
+        mock_check_annual = mocker.patch("app.job.rest.check_sms_annual_limit")
+        mock_check_daily = mocker.patch("app.job.rest.check_sms_daily_limit")
+        mock_increment = mocker.patch("app.job.rest.increment_sms_daily_count_send_warnings_if_needed")
+
+        data = {"id": fake_uuid, "created_by": str(sample_template.created_by.id)}
+        if scheduled_for:
+            data["scheduled_for"] = scheduled_for
+        path = "/service/{}/job".format(sample_template.service.id)
+        headers = [("Content-Type", "application/json"), create_authorization_header()]
+
+        response = client.post(path, data=json.dumps(data), headers=headers)
+        assert response.status_code == 201
+
+        mock_check_annual.assert_called_once_with(sample_template.service, 6)
+        mock_check_daily.assert_called_once_with(sample_template.service, 6)
+        if expect_increment:
+            mock_increment.assert_called_once_with(sample_template.service, 6)
+        else:
             mock_increment.assert_not_called()
+        # Stored so the day the job is scheduled for can count it when its count is loaded from the database
+        assert Job.query.get(fake_uuid).billable_units == 6
+        assert "billable_units" not in response.get_json()["data"]

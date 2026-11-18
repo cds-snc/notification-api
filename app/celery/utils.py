@@ -32,12 +32,20 @@ class CeleryParams(object):
         """
         params: dict[str, Any] = {"queue": config.QueueNames.RETRY}
         if current_app.config["FF_CELERY_CUSTOM_TASK_PARAMS"] is False:
+            current_app.logger.debug(
+                f"CeleryParams.retry: FF_CELERY_CUSTOM_TASK_PARAMS=False, skipping countdown override for process_type={notification_process_type}"
+            )
             return params
 
         if countdown is not None:
             params["countdown"] = countdown
+            current_app.logger.debug(
+                f"CeleryParams.retry: process_type={notification_process_type} countdown={countdown} (override)"
+            )
         else:
             # Overring the retry policy is only supported for SMS for now;
             # email support coming later.
-            params["countdown"] = CeleryParams.RETRY_PERIODS[notification_process_type]
+            final_countdown = CeleryParams.RETRY_PERIODS[notification_process_type]
+            params["countdown"] = final_countdown
+            current_app.logger.debug(f"CeleryParams.retry: process_type={notification_process_type} countdown={final_countdown}")
         return params

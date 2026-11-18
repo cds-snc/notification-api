@@ -269,3 +269,58 @@ class TestSuspendedServiceCallback:
             assert x.service_id == sample_service.id
             assert x.updated_by_id == sample_service.users[0].id
             assert signer_bearer_token.verify(x._bearer_token) == "some_unique_string"
+
+    def test_suspend_unsuspend_service_callback_api_suspends_when_active(self, sample_service):
+        service_callback_api = create_service_callback_api(service=sample_service)
+
+        updated = suspend_unsuspend_service_callback_api(
+            service_callback_api,
+            updated_by_id=sample_service.users[0].id,
+            suspend=True,
+            failed_callback_url=service_callback_api.url,
+        )
+
+        assert updated.id == service_callback_api.id
+        refreshed = ServiceCallbackApi.query.get(service_callback_api.id)
+        assert refreshed.is_suspended is True
+        assert refreshed.suspended_at is not None
+
+    def test_suspend_unsuspend_service_callback_api_noops_when_already_suspended(self, sample_service):
+        service_callback_api = create_service_callback_api(service=sample_service, is_suspended=True)
+
+        updated = suspend_unsuspend_service_callback_api(
+            service_callback_api,
+            updated_by_id=sample_service.users[0].id,
+            suspend=True,
+            failed_callback_url=service_callback_api.url,
+        )
+
+        assert updated is None
+
+    def test_suspend_unsuspend_service_callback_api_noops_on_url_mismatch(self, sample_service):
+        service_callback_api = create_service_callback_api(service=sample_service, url="https://new.service/callback")
+
+        updated = suspend_unsuspend_service_callback_api(
+            service_callback_api,
+            updated_by_id=sample_service.users[0].id,
+            suspend=True,
+            failed_callback_url="https://old.service/callback",
+        )
+
+        assert updated is None
+        refreshed = ServiceCallbackApi.query.get(service_callback_api.id)
+        assert refreshed.is_suspended is False
+
+    def test_suspend_unsuspend_service_callback_api_unsuspends_when_suspended(self, sample_service):
+        service_callback_api = create_service_callback_api(service=sample_service, is_suspended=True)
+
+        updated = suspend_unsuspend_service_callback_api(
+            service_callback_api,
+            updated_by_id=sample_service.users[0].id,
+            suspend=False,
+        )
+
+        assert updated.id == service_callback_api.id
+        refreshed = ServiceCallbackApi.query.get(service_callback_api.id)
+        assert refreshed.is_suspended is False
+        assert refreshed.suspended_at is not None

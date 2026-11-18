@@ -7,9 +7,9 @@ from flask import current_app, url_for
 
 from app.dao.permissions_dao import permission_dao
 from app.files.rest import _parse_scan_verdict_payload
-from app.models import FILE_STATUS_UPLOADED, FILE_STATUS_VIRUS_SCAN_FAILED
+from app.models import EMAIL_TYPE, FILE_STATUS_UPLOADED, FILE_STATUS_VIRUS_SCAN_FAILED, UPLOAD_DOCUMENT
 from tests.app.conftest import create_sample_template
-from tests.app.db import create_user
+from tests.app.db import create_service, create_template, create_user
 from tests.conftest import set_config_values
 
 MOCK_DOCUMENT_ID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
@@ -195,6 +195,217 @@ class TestCreateFile:
             _expected_status=403,
         )
 
+    def test_create_file_returns_400_when_total_size_exceeds_6mb(
+        self, notify_db, notify_db_session, admin_request, sample_service_full_permissions
+    ):
+        from app.dao.files_dao import dao_create_file
+        from app.files.rest import MAX_TOTAL_FILE_SIZE
+        from app.models import FILE_STATUS_PENDING_VIRUS_SCAN, Files
+
+        sample_template = create_sample_template(notify_db, notify_db_session, service=sample_service_full_permissions)
+        current_user_id = str(sample_template.service.users[0].id)
+
+        # Create an existing file that uses most of the 6MB budget
+        existing_file = Files(
+            template_id=sample_template.id,
+            service_id=sample_service_full_permissions.id,
+            document_id=uuid.uuid4(),
+            type="attach",
+            name="existing.pdf",
+            mime_type="application/pdf",
+            file_size=MAX_TOTAL_FILE_SIZE - 1000,
+            status=FILE_STATUS_PENDING_VIRUS_SCAN,
+            created_by_id=current_user_id,
+        )
+        dao_create_file(existing_file)
+
+        # file_data decodes to 1001 bytes, which exceeds the remaining 1000 byte budget
+        oversized_content = b"x" * 1001
+        response = admin_request.post(
+            "files.create_file",
+            template_id=str(sample_template.id),
+            _data={
+                "template_id": str(sample_template.id),
+                "type": "attach",
+                "name": "too_large.pdf",
+                "mime_type": "application/pdf",
+                "file_size": 1001,
+                "file_data": base64.b64encode(oversized_content).decode("utf-8"),
+                "created_by": current_user_id,
+            },
+            _expected_status=400,
+        )
+        assert response["error"] == "over_file_limit"
+        assert response["current_usage"] == MAX_TOTAL_FILE_SIZE - 1000
+        assert response["requested"] == 1001
+        assert response["limit"] == MAX_TOTAL_FILE_SIZE
+
+    def test_create_file_succeeds_when_total_size_exactly_at_6mb(
+        self, mocker, notify_db, notify_db_session, admin_request, sample_service_full_permissions
+    ):
+        from app.dao.files_dao import dao_create_file
+        from app.files.rest import MAX_TOTAL_FILE_SIZE
+        from app.models import FILE_STATUS_PENDING_VIRUS_SCAN, Files
+
+        _mock_upload_template_attachment(mocker)
+        sample_template = create_sample_template(notify_db, notify_db_session, service=sample_service_full_permissions)
+        current_user_id = str(sample_template.service.users[0].id)
+
+        # Create an existing file
+        existing_file = Files(
+            template_id=sample_template.id,
+            service_id=sample_service_full_permissions.id,
+            document_id=uuid.uuid4(),
+            type="attach",
+            name="existing.pdf",
+            mime_type="application/pdf",
+            file_size=MAX_TOTAL_FILE_SIZE - 1000,
+            status=FILE_STATUS_PENDING_VIRUS_SCAN,
+            created_by_id=current_user_id,
+        )
+        dao_create_file(existing_file)
+
+        # Adding exactly 1000 bytes of actual content should succeed (total == 6MB exactly)
+        exact_content = b"x" * 1000
+        admin_request.post(
+            "files.create_file",
+            template_id=str(sample_template.id),
+            _data={
+                "template_id": str(sample_template.id),
+                "type": "attach",
+                "name": "fits.pdf",
+                "mime_type": "application/pdf",
+                "file_size": 1000,
+                "file_data": base64.b64encode(exact_content).decode("utf-8"),
+                "created_by": current_user_id,
+            },
+            _expected_status=201,
+        )
+
+    def test_create_file_returns_400_when_single_file_exceeds_6mb(
+        self, notify_db, notify_db_session, admin_request, sample_service_full_permissions
+    ):
+        from app.files.rest import MAX_TOTAL_FILE_SIZE
+
+        sample_template = create_sample_template(notify_db, notify_db_session, service=sample_service_full_permissions)
+        current_user_id = str(sample_template.service.users[0].id)
+
+        # file_data decodes to MAX + 1 bytes, rejected even with no existing files
+        oversized_content = b"x" * (MAX_TOTAL_FILE_SIZE + 1)
+        response = admin_request.post(
+            "files.create_file",
+            template_id=str(sample_template.id),
+            _data={
+                "template_id": str(sample_template.id),
+                "type": "attach",
+                "name": "huge.pdf",
+                "mime_type": "application/pdf",
+                "file_size": MAX_TOTAL_FILE_SIZE + 1,
+                "file_data": base64.b64encode(oversized_content).decode("utf-8"),
+                "created_by": current_user_id,
+            },
+            _expected_status=400,
+        )
+        assert response["error"] == "over_file_limit"
+        assert response["current_usage"] == 0
+        assert response["requested"] == MAX_TOTAL_FILE_SIZE + 1
+        assert response["limit"] == MAX_TOTAL_FILE_SIZE
+
+    def test_create_file_ignores_archived_files_in_size_calculation(
+        self, mocker, notify_db, notify_db_session, admin_request, sample_service_full_permissions
+    ):
+        from app.dao.files_dao import dao_archive_file, dao_create_file
+        from app.files.rest import MAX_TOTAL_FILE_SIZE
+        from app.models import FILE_STATUS_PENDING_VIRUS_SCAN, Files
+
+        _mock_upload_template_attachment(mocker)
+        sample_template = create_sample_template(notify_db, notify_db_session, service=sample_service_full_permissions)
+        current_user_id = str(sample_template.service.users[0].id)
+
+        # Create a large file and archive it
+        archived_file = Files(
+            template_id=sample_template.id,
+            service_id=sample_service_full_permissions.id,
+            document_id=uuid.uuid4(),
+            type="attach",
+            name="archived.pdf",
+            mime_type="application/pdf",
+            file_size=MAX_TOTAL_FILE_SIZE,
+            status=FILE_STATUS_PENDING_VIRUS_SCAN,
+            created_by_id=current_user_id,
+        )
+        dao_create_file(archived_file)
+        dao_archive_file(archived_file)
+
+        # Should succeed because archived files don't count toward the limit
+        admin_request.post(
+            "files.create_file",
+            template_id=str(sample_template.id),
+            _data={
+                "template_id": str(sample_template.id),
+                "type": "attach",
+                "name": "new.pdf",
+                "mime_type": "application/pdf",
+                "file_size": 1000,
+                "file_data": base64.b64encode(b"test content").decode("utf-8"),
+                "created_by": current_user_id,
+            },
+            _expected_status=201,
+        )
+
+
+def _create_attacker_service():
+    return create_service(
+        service_name=f"Attacker service {uuid.uuid4()}",
+        service_permissions=[EMAIL_TYPE, UPLOAD_DOCUMENT],
+    )
+
+
+def _create_file_payload(template_id, user_id):
+    return {
+        "template_id": str(template_id),
+        "type": "attach",
+        "name": "idor-poc-test.txt",
+        "mime_type": "text/plain",
+        "file_size": 10,
+        "file_data": base64.b64encode(b"POC file").decode("utf-8"),
+        "created_by": str(user_id),
+    }
+
+
+class TestCrossServiceAccess:
+    def test_create_file_returns_403_when_user_not_member_of_template_service(
+        self, mocker, notify_db, notify_db_session, admin_request, sample_service_full_permissions
+    ):
+        mock_upload = _mock_upload_template_attachment(mocker)
+        victim_template = create_sample_template(notify_db, notify_db_session, service=sample_service_full_permissions)
+        attacker_service = _create_attacker_service()
+
+        admin_request.post(
+            "files.create_file",
+            template_id=str(victim_template.id),
+            _data=_create_file_payload(victim_template.id, attacker_service.created_by.id),
+            _expected_status=403,
+        )
+        mock_upload.assert_not_called()
+
+    def test_create_file_ignores_template_id_in_body(
+        self, mocker, notify_db, notify_db_session, admin_request, sample_service_full_permissions
+    ):
+        _mock_upload_template_attachment(mocker)
+        victim_template = create_sample_template(notify_db, notify_db_session, service=sample_service_full_permissions)
+        attacker_service = _create_attacker_service()
+        attacker_template = create_template(attacker_service, template_type=EMAIL_TYPE)
+
+        response = admin_request.post(
+            "files.create_file",
+            template_id=str(attacker_template.id),
+            _data=_create_file_payload(victim_template.id, attacker_service.created_by.id),
+            _expected_status=201,
+        )
+        assert response["template_id"] == str(attacker_template.id)
+        assert response["service_id"] == str(attacker_service.id)
+
 
 class TestGetFile:
     def test_get_file_status(self, admin_request, sample_file):
@@ -202,16 +413,84 @@ class TestGetFile:
             "files.get_file_status",
             template_id=str(sample_file.template_id),
             file_id=str(sample_file.id),
+            service_id=str(sample_file.service_id),
             _expected_status=200,
         )
         assert response["status"] == sample_file.status
 
     def test_get_files_by_template_id(self, admin_request, sample_file):
-        admin_request.get(
+        response = admin_request.get(
             "files.get_files_by_template_id",
             template_id=str(sample_file.template_id),
+            service_id=str(sample_file.service_id),
             _expected_status=200,
         )
+        assert [f["id"] for f in response] == [str(sample_file.id)]
+
+
+class TestServiceScoping:
+    @pytest.mark.parametrize(
+        "method, endpoint, needs_file_id",
+        [
+            ("get", "files.get_files_by_template_id", False),
+            ("get", "files.get_file_status", True),
+            ("get", "files.get_file_contents", True),
+            ("delete", "files.delete_file", True),
+        ],
+    )
+    @pytest.mark.parametrize("service_id", [None, "not-a-uuid"], ids=["missing", "invalid"])
+    def test_returns_400_without_valid_service_id(
+        self, mocker, admin_request, sample_file, method, endpoint, needs_file_id, service_id
+    ):
+        mock_delete = mocker.patch("app.files.rest.document_download_client.delete_document")
+        kwargs = {"template_id": str(sample_file.template_id)}
+        if needs_file_id:
+            kwargs["file_id"] = str(sample_file.id)
+        if service_id:
+            kwargs["service_id"] = service_id
+
+        getattr(admin_request, method)(endpoint, _expected_status=400, **kwargs)
+        mock_delete.assert_not_called()
+
+    def test_list_returns_nothing_for_other_service(self, admin_request, sample_file):
+        response = admin_request.get(
+            "files.get_files_by_template_id",
+            template_id=str(sample_file.template_id),
+            service_id=str(_create_attacker_service().id),
+        )
+        assert response == []
+
+    def test_status_returns_none_for_other_service(self, admin_request, sample_file):
+        response = admin_request.get(
+            "files.get_file_status",
+            template_id=str(sample_file.template_id),
+            file_id=str(sample_file.id),
+            service_id=str(_create_attacker_service().id),
+        )
+        assert response == {"status": None}
+
+    def test_download_returns_404_for_other_service(self, mocker, admin_request, sample_file):
+        mock_download = mocker.patch("app.files.rest.document_download_client.download_document")
+        admin_request.get(
+            "files.get_file_contents",
+            template_id=str(sample_file.template_id),
+            file_id=str(sample_file.id),
+            service_id=str(_create_attacker_service().id),
+            _expected_status=404,
+        )
+        mock_download.assert_not_called()
+
+    def test_delete_returns_404_for_other_service(self, mocker, admin_request, sample_file):
+        mock_delete = mocker.patch("app.files.rest.document_download_client.delete_document")
+        admin_request.delete(
+            "files.delete_file",
+            template_id=str(sample_file.template_id),
+            file_id=str(sample_file.id),
+            service_id=str(_create_attacker_service().id),
+            _expected_status=404,
+        )
+        mock_delete.assert_not_called()
+        assert sample_file.archived is False
 
 
 SCAN_VERDICT_TOKEN = "test-scan-verdict-token"
@@ -233,11 +512,7 @@ def _scan_verdict_post(client, data, expected_status=200):
 
 
 class TestUpdateFileStatus:
-    @pytest.fixture(autouse=True)
-    def mock_delete_document(self, mocker):
-        return mocker.patch("app.files.rest.document_download_client.delete_document")
-
-    def test_update_file_status_clean_scan(self, client, sample_file, mock_delete_document):
+    def test_update_file_status_clean_scan(self, client, sample_file):
         data = {
             "scan_status": "COMPLETED",
             "scan_result_status": "NO_THREATS_FOUND",
@@ -248,7 +523,6 @@ class TestUpdateFileStatus:
 
         assert resp["status"] == FILE_STATUS_UPLOADED
         assert sample_file.status == FILE_STATUS_UPLOADED
-        mock_delete_document.assert_called_once_with(str(sample_file.service_id), str(sample_file.document_id), "template_attach")
 
     def test_update_file_status_threat_found(self, client, sample_file):
         data = {
@@ -324,11 +598,24 @@ class TestDeleteFile:
             "files.delete_file",
             template_id=str(sample_file.template_id),
             file_id=str(sample_file.id),
+            service_id=str(sample_file.service_id),
             _expected_status=204,
         )
 
         # Verify S3 delete was called with sending_method
         mock_delete.assert_called_once_with(sample_file.service_id, sample_file.document_id, sample_file.type)
+
+        # Verify the file is archived (not hard-deleted)
+        from app.models import Files
+
+        archived_file = Files.query.filter(Files.id == sample_file.id).one()
+        assert archived_file.archived is True
+
+        # Verify archived file no longer appears in the template's file list
+        from app.dao.files_dao import dao_get_files_by_template_id
+
+        visible_files = dao_get_files_by_template_id(sample_file.template_id, sample_file.service_id)
+        assert all(f.id != sample_file.id for f in visible_files)
 
     def test_delete_file_returns_404_when_template_file_mismatch(
         self, mocker, notify_db, notify_db_session, admin_request, sample_file, sample_service_full_permissions
@@ -342,6 +629,7 @@ class TestDeleteFile:
             "files.delete_file",
             template_id=str(different_template.id),
             file_id=str(sample_file.id),
+            service_id=str(sample_file.service_id),
             _expected_status=404,
         )
 
@@ -360,6 +648,7 @@ class TestDeleteFile:
             "files.delete_file",
             template_id=str(sample_file.template_id),
             file_id=str(sample_file.id),
+            service_id=str(sample_file.service_id),
             _expected_status=500,
         )
 
@@ -369,12 +658,13 @@ class TestDeleteFile:
         # Verify S3 delete was attempted with sending_method
         mock_delete.assert_called_once_with(sample_file.service_id, sample_file.document_id, sample_file.type)
 
-        # Verify the file still exists in the database
+        # Verify the file still exists in the database and is not archived
         from app.dao.files_dao import dao_get_file_by_id
 
         db_file = dao_get_file_by_id(sample_file.id)
         assert db_file is not None
         assert db_file.id == sample_file.id
+        assert db_file.archived is False
 
 
 class TestParseScanVerdictPayload:

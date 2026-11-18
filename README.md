@@ -30,7 +30,7 @@ For any issues during the following instructions, make sure to review the
 
 3. Install the [Remote-Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
 
-4. In VS Code run "Remote-Containers: Open Folder in Container..." and select this repository folder
+4. Ensure your host `~/.aws/config` contains the `notify-staging` AWS SSO profile, then in VS Code run "Remote-Containers: Open Folder in Container..." and select this repository folder. Rebuild and reopen the devcontainer after adding or changing the profile so the updated configuration is mounted into the container.
 
 5. *(Optional)* If you already have the vs-code-agent-feedback repository checked out locally and want it mounted inside the container, copy [.devcontainer/devcontainer.local.example.json](.devcontainer/devcontainer.local.example.json) to a new file named devcontainer.local.json inside the same folder, adjust the `source` path if needed, and reopen the devcontainer. The mount will only be applied when that local override file exists.
 
@@ -40,6 +40,8 @@ For any issues during the following instructions, make sure to review the
 7. Run the service
 
 `make run`
+
+The API and local worker targets log in with the `notify-staging` AWS SSO profile by default. For CI environments that provide AWS credentials directly, use `make run-ci` and `make run-celery-local-filtered-ci`; these targets do not run SSO login and unset `AWS_PROFILE` so the AWS SDK uses the environment credentials.
 
 
 ##  To run the queues

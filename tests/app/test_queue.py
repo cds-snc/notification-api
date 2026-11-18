@@ -172,13 +172,10 @@ class TestRedisQueue:
     @pytest.mark.parametrize("count", [0, 1, 98, 99, 100, 101, REDIS_ELEMENTS_COUNT, REDIS_ELEMENTS_COUNT + 1, 500])
     def test_polling_many_messages(self, redis, redis_queue, count):
         with self.given_inbox_with_many_indexes(redis, redis_queue):
-            real_count = count if count < REDIS_ELEMENTS_COUNT else REDIS_ELEMENTS_COUNT
+            real_count = min(max(count, 0), RedisQueue.MAX_POLL_COUNT, REDIS_ELEMENTS_COUNT)
             (receipt, elements) = redis_queue.poll(count)
             assert len(elements) == real_count
-            if count < REDIS_ELEMENTS_COUNT:
-                assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX)) > 0
-            else:
-                assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX)) == 0
+            assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX)) == REDIS_ELEMENTS_COUNT - real_count
             assert redis.llen(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX)) == real_count
             self.delete_all_list(redis)
 
@@ -186,13 +183,12 @@ class TestRedisQueue:
     @pytest.mark.parametrize("count", [0, 1, 98, 99, 100, 101, REDIS_ELEMENTS_COUNT, REDIS_ELEMENTS_COUNT + 1, 500])
     def test_polling_many_messages_with_process(self, redis, redis_queue_with_process, count):
         with self.given_inbox_with_many_indexes(redis, redis_queue_with_process):
-            real_count = count if count < REDIS_ELEMENTS_COUNT else REDIS_ELEMENTS_COUNT
+            real_count = min(max(count, 0), RedisQueue.MAX_POLL_COUNT, REDIS_ELEMENTS_COUNT)
             (receipt, elements) = redis_queue_with_process.poll(count)
             assert len(elements) == real_count
-            if count < REDIS_ELEMENTS_COUNT:
-                assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX, process_type=PROCESS_TYPE)) > 0
-            else:
-                assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX, process_type=PROCESS_TYPE)) == 0
+            assert (
+                redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX, process_type=PROCESS_TYPE)) == REDIS_ELEMENTS_COUNT - real_count
+            )
             assert redis.llen(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX, process_type=PROCESS_TYPE)) == real_count
             self.delete_all_list(redis)
 
@@ -303,6 +299,155 @@ class TestRedisQueue:
         assert elements[0] == notification
 
         self.delete_all_list(redis)
+
+    @pytest.mark.serial
+    def test_polling_stops_before_payload_byte_limit(self, redis, redis_queue):
+        self.delete_all_list(redis)
+        first = "a" * (RedisQueue.MAX_POLL_BYTES // 2)
+        second = "b" * (RedisQueue.MAX_POLL_BYTES // 2)
+        deferred = "c"
+        try:
+            redis_queue.publish(first)
+            redis_queue.publish(second)
+            redis_queue.publish(deferred)
+
+            receipt, elements = redis_queue.poll()
+
+            assert elements == [first, second]
+            assert redis.lrange(Buffer.INBOX.inbox_name(QNAME_SUFFIX), 0, -1) == [deferred.encode()]
+            assert redis.lrange(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX), 0, -1) == [
+                second.encode(),
+                first.encode(),
+            ]
+        finally:
+            self.delete_all_list(redis)
+
+    @pytest.mark.serial
+    def test_polling_stops_before_payload_byte_limit_when_next_entry_is_too_large(self, redis, redis_queue):
+        self.delete_all_list(redis)
+        first = "a" * (RedisQueue.MAX_POLL_BYTES // 2)
+        second = "b" * (RedisQueue.MAX_POLL_BYTES - len(first) + 1)
+        try:
+            redis_queue.publish(first)
+            redis_queue.publish(second)
+
+            receipt, elements = redis_queue.poll()
+
+            assert elements == [first]
+            assert redis.lrange(Buffer.INBOX.inbox_name(QNAME_SUFFIX), 0, -1) == [second.encode()]
+            assert redis.lrange(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX), 0, -1) == [first.encode()]
+        finally:
+            self.delete_all_list(redis)
+
+    @pytest.mark.serial
+    def test_polling_payload_limit_counts_utf8_bytes(self, redis, redis_queue):
+        self.delete_all_list(redis)
+        first = "a" * (RedisQueue.MAX_POLL_BYTES - len("🎅".encode("utf-8")))
+        second = "🎅"
+        try:
+            redis_queue.publish(first)
+            redis_queue.publish(second)
+
+            receipt, elements = redis_queue.poll()
+
+            assert elements == [first, second]
+            assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX)) == 0
+            assert redis.llen(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX)) == 2
+        finally:
+            self.delete_all_list(redis)
+
+    @pytest.mark.serial
+    def test_polling_allows_single_oversized_head_entry_and_does_not_block_later_entries(self, redis, redis_queue):
+        self.delete_all_list(redis)
+        oversized = "a" * (RedisQueue.MAX_POLL_BYTES + 1)
+        normal = "normal notification"
+        try:
+            redis_queue.publish(oversized)
+            redis_queue.publish(normal)
+
+            receipt, elements = redis_queue.poll()
+
+            assert elements == [oversized]
+            assert redis.lrange(Buffer.INBOX.inbox_name(QNAME_SUFFIX), 0, -1) == [normal.encode()]
+            assert redis.lrange(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX), 0, -1) == [oversized.encode()]
+
+            _, next_elements = redis_queue.poll()
+            assert next_elements == [normal]
+        finally:
+            self.delete_all_list(redis)
+
+    @pytest.mark.serial
+    def test_polling_ten_small_messages_still_moves_together(self, redis, redis_queue):
+        with self.given_inbox_with_many_indexes(redis, redis_queue):
+            receipt, elements = redis_queue.poll()
+
+            assert len(elements) == RedisQueue.MAX_POLL_COUNT
+            assert redis.llen(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX)) == RedisQueue.MAX_POLL_COUNT
+            assert redis.llen(Buffer.INBOX.inbox_name(QNAME_SUFFIX)) == REDIS_ELEMENTS_COUNT - RedisQueue.MAX_POLL_COUNT
+
+    def test_max_poll_bytes_leaves_headroom_for_celery_sqs_double_base64_encoding(self):
+        # A polled batch is sent as the args of a celery task over our SQS-backed broker.
+        # Celery base64-encodes the task body, and kombu's SQS transport base64-encodes the
+        # *entire* envelope again, inflating the raw bytes by ~16/9 (1.78x) plus envelope
+        # overhead (headers, ids, argsrepr, etc). This asserts MAX_POLL_BYTES, once inflated
+        # by that factor plus a generous overhead allowance, still fits under the SQS hard
+        # limit of 256 KiB with headroom to spare -- guarding against reintroducing the
+        # "exceeded SQS size limit" bug by raising MAX_POLL_BYTES without accounting for it.
+        sqs_max_message_size_bytes = 256 * 1024
+        double_base64_inflation_factor = 16 / 9
+        generous_envelope_overhead_bytes = 8 * 1024
+
+        estimated_final_sqs_body_size = (
+            RedisQueue.MAX_POLL_BYTES * double_base64_inflation_factor + generous_envelope_overhead_bytes
+        )
+
+        assert estimated_final_sqs_body_size < sqs_max_message_size_bytes
+
+    @pytest.mark.serial
+    def test_polling_stops_before_ten_large_notifications_exceed_sqs_double_encoded_limit(self, redis, redis_queue):
+        # Regression test for a batch of ~19KB notifications that used to all fit under the
+        # old 180 KiB raw MAX_POLL_BYTES cap,
+        # but whose celery/kombu double-base64-encoded SQS message ended up around 313 KiB,
+        # exceeding the SQS 256 KiB limit and getting stuck as an in-flight that never acks.
+        self.delete_all_list(redis)
+        large_notification = "n" * (19 * 1024)
+        try:
+            for _ in range(RedisQueue.MAX_POLL_COUNT):
+                redis_queue.publish(large_notification)
+
+            receipt, elements = redis_queue.poll()
+
+            assert len(elements) < RedisQueue.MAX_POLL_COUNT
+            assert sum(len(e.encode("utf-8")) for e in elements) <= RedisQueue.MAX_POLL_BYTES
+            assert redis.llen(Buffer.IN_FLIGHT.inflight_name(receipt, QNAME_SUFFIX)) == len(elements)
+        finally:
+            self.delete_all_list(redis)
+
+    def test_scripts_registry_is_isolated_per_instance(self):
+        queue_one = RedisQueue("sms")
+        queue_two = RedisQueue("sms")
+
+        script_one_move = object()
+        script_one_expire = object()
+        script_two_move = object()
+        script_two_expire = object()
+
+        redis_client_one = mock.Mock()
+        redis_client_one.register_script.side_effect = [script_one_move, script_one_expire]
+        redis_client_two = mock.Mock()
+        redis_client_two.register_script.side_effect = [script_two_move, script_two_expire]
+
+        queue_one.init_app(redis_client_one, metrics_logger)
+        queue_two.init_app(redis_client_two, metrics_logger)
+
+        queue_one_scripts = queue_one._scripts
+        queue_two_scripts = queue_two._scripts
+
+        assert queue_one_scripts is not queue_two_scripts
+        assert queue_one_scripts[RedisQueue.LUA_MOVE_TO_INFLIGHT] is script_one_move
+        assert queue_one_scripts[RedisQueue.LUA_EXPIRE_INFLIGHTS] is script_one_expire
+        assert queue_two_scripts[RedisQueue.LUA_MOVE_TO_INFLIGHT] is script_two_move
+        assert queue_two_scripts[RedisQueue.LUA_EXPIRE_INFLIGHTS] is script_two_expire
 
 
 @pytest.mark.usefixtures("notify_api")

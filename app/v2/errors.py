@@ -148,9 +148,63 @@ class TemplateCategoryNotFoundError(BadRequestError):
         super().__init__(message=self.__class__.message)
 
 
+class JobNotFoundError(InvalidRequest):
+    status_code = 404
+    message = "Job not found in database"
+
+    def __init__(self):
+        super().__init__(message=self.__class__.message, status_code=self.__class__.status_code)
+
+
+class NotificationNotFoundError(InvalidRequest):
+    status_code = 404
+    message = "Notification not found in database"
+
+    def __init__(self):
+        super().__init__(message=self.__class__.message, status_code=self.__class__.status_code)
+
+
+class JobCancellationNotAllowedError(InvalidRequest):
+    status_code = 409
+    message = "Job cannot be cancelled because it is already being sent or has already been sent"
+
+    def __init__(self):
+        super().__init__(message=self.__class__.message, status_code=self.__class__.status_code)
+
+
+class JobAlreadyCancelledError(InvalidRequest):
+    status_code = 409
+    message = "Job has already been cancelled"
+
+    def __init__(self):
+        super().__init__(message=self.__class__.message, status_code=self.__class__.status_code)
+
+
+class ReportRateLimitError(InvalidRequest):
+    status_code = 429
+
+    def __init__(self, limit: int, retry_after: int, reset_at: int):
+        self.limit = limit
+        self.retry_after = retry_after
+        self.reset_at = reset_at
+        self.message = f"Maximum {self.limit} report requests per hour"
+        super().__init__(message=self.message, status_code=self.__class__.status_code)
+
+    def to_dict_v2(self):
+        return {"errors": [{"error": "RateLimitExceeded", "message": self.message}]}
+
+
 class PDFNotReadyError(BadRequestError):
     def __init__(self):
         super().__init__(message="PDF not available yet, try again later", status_code=400)
+
+
+class S3ReportDownloadError(InvalidRequest):
+    status_code = 502
+    message = "Failed to retrieve report content"
+
+    def __init__(self):
+        super().__init__(message=self.__class__.message, status_code=self.__class__.status_code)
 
 
 def register_errors(blueprint):

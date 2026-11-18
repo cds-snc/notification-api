@@ -17,6 +17,7 @@ from app.aws.s3 import (
     get_s3_file,
     remove_jobs_from_s3,
     remove_transformed_dvla_file,
+    stream_report_from_s3,
     stream_to_s3,
     upload_job_to_s3,
     upload_report_to_s3,
@@ -331,3 +332,37 @@ def test_stream_to_s3(notify_api, mocker):
         Key=object_key,
         Config=transfer_config_mock.return_value,
     )
+
+
+def test_stream_report_from_s3_yields_chunks(notify_api, mocker):
+    service_id = uuid.uuid4()
+    report_id = uuid.uuid4()
+
+    chunks = [b"row1\n", b"row2\n", b"row3\n"]
+    body_mock = Mock()
+    body_mock.read.side_effect = chunks + [b""]  # empty bytes signals end-of-stream
+
+    get_s3_mock = mocker.patch("app.aws.s3.get_s3_object")
+    get_s3_mock.return_value.get.return_value = {"Body": body_mock}
+
+    result = list(stream_report_from_s3(service_id, report_id))
+
+    get_s3_mock.assert_called_once_with(
+        current_app.config["REPORTS_BUCKET_NAME"],
+        f"reports/{service_id}/{report_id}.csv",
+    )
+    assert result == chunks
+
+
+def test_stream_report_from_s3_raises_client_error_on_s3_failure(notify_api, mocker):
+    service_id = uuid.uuid4()
+    report_id = uuid.uuid4()
+
+    get_s3_mock = mocker.patch("app.aws.s3.get_s3_object")
+    get_s3_mock.return_value.get.side_effect = ClientError(
+        {"Error": {"Code": "NoSuchKey", "Message": "The specified key does not exist."}},
+        "GetObject",
+    )
+
+    with pytest.raises(ClientError):
+        stream_report_from_s3(service_id, report_id)

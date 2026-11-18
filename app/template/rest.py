@@ -234,8 +234,7 @@ def get_all_templates_for_service(service_id):
 
 @template_blueprint.route("/<uuid:template_id>", methods=["GET"])
 def get_template_by_id_and_service_id(service_id, template_id):
-    fetched_template = dao_get_template_by_id_and_service_id(template_id=template_id, service_id=service_id)
-    data = template_schema.dump(fetched_template)
+    data = dao_get_template_by_id_and_service_id(template_id, service_id, use_dogpile=True)
     return jsonify(data=data)
 
 

@@ -54,7 +54,7 @@ def upgrade():
     template_id = current_app.config["USER_DEACTIVATED_TEMPLATE_ID"]
 
     # get current version and bump
-    current_version = conn.execute("select version from templates where id='{}'".format(template_id)).fetchone()
+    current_version = conn.exec_driver_sql("select version from templates where id='{}'".format(template_id)).fetchone()
     new_version = (current_version[0] if current_version and current_version[0] is not None else 0) + 1
 
     new_content = _new_user_deactivated_content()

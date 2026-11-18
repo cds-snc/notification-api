@@ -43,6 +43,7 @@ from app.models import (
     NOTIFICATION_STATUS_TYPES_COMPLETED,
     SERVICE_PERMISSION_TYPES,
     SMS_TYPE,
+    UPLOAD_DOCUMENT,
     ApiKey,
     ApiKeyPermission,
     Fido2Key,
@@ -91,7 +92,12 @@ def rmock():
 @pytest.fixture(scope="session")
 def pmr_redis_config():
     parsed_uri = urlparse(getenv("REDIS_URL"))
-    return RedisConfig(image="redis:6.2", host=parsed_uri.hostname, port="6380", ci_port="6380")
+    return RedisConfig(
+        image="redis:6.2@sha256:71075871d0c318a0a835648a954e32d2b88d7b2a75c89a034ad0aa404e0319c9",
+        host=parsed_uri.hostname,
+        port="6380",
+        ci_port="6380",
+    )
 
 
 @pytest.fixture(scope="function")
@@ -599,7 +605,7 @@ def create_sample_email_template(
     content="This is a template",
     subject_line="Email Subject",
     service=None,
-    permissions=[EMAIL_TYPE, SMS_TYPE],
+    permissions=[EMAIL_TYPE, SMS_TYPE, UPLOAD_DOCUMENT],
     template_category=None,
 ):
     if not template_category:
@@ -649,7 +655,7 @@ def sample_email_template(
         content,
         subject_line,
         service=None,
-        permissions=[EMAIL_TYPE, SMS_TYPE],
+        permissions=[EMAIL_TYPE, SMS_TYPE, UPLOAD_DOCUMENT],
     )
 
 
@@ -1804,6 +1810,20 @@ def create_api_key_with_manage_api_perm(sample_service):
         "created_by": sample_service.created_by,
         "key_type": KEY_TYPE_NORMAL,
         "permissions": [ApiKeyPermission.MANAGE_TEMPLATES],
+    }
+    api_key = ApiKey(**data)
+    save_model_api_key(api_key)
+    return api_key
+
+
+@pytest.fixture
+def create_api_key_with_manage_reports_perm(sample_service):
+    data = {
+        "service": sample_service,
+        "name": f"reports test key {uuid.uuid4()}",
+        "created_by": sample_service.created_by,
+        "key_type": KEY_TYPE_NORMAL,
+        "permissions": [ApiKeyPermission.MANAGE_REPORTS],
     }
     api_key = ApiKey(**data)
     save_model_api_key(api_key)

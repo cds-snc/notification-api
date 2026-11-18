@@ -48,6 +48,7 @@ from app.models import (
     ScheduledNotification,
     Service,
     ServiceDataRetention,
+    TemplateHistory,
 )
 from app.utils import escape_special_characters
 
@@ -339,7 +340,7 @@ def get_notification_with_personalisation(service_id, notification_id, key_type)
         filter_dict["key_type"] = key_type
 
     try:
-        return Notification.query.filter_by(**filter_dict).options(joinedload("template")).one()
+        return Notification.query.filter_by(**filter_dict).options(joinedload(Notification.template)).one()
     except NoResultFound:
         current_app.logger.warning(f"Failed to get notification with filter: {filter_dict}")
         return None
@@ -352,6 +353,17 @@ def get_notification_by_id(notification_id, service_id=None, _raise=False) -> No
         filters.append(Notification.service_id == service_id)
     query = db.on_reader().query(Notification).filter(*filters)
     return query.one() if _raise else query.first()
+
+
+@statsd(namespace="dao")
+def get_notification_with_template(notification_id: str) -> Notification | None:
+    return (
+        db.on_reader()
+        .query(Notification)
+        .filter(Notification.id == notification_id)
+        .options(joinedload(Notification.template).joinedload(TemplateHistory.template_category))
+        .first()
+    )
 
 
 def get_notifications(filter_dict=None):
@@ -405,10 +417,10 @@ def get_notifications_for_service(
     query = _filter_query(query, filter_dict)
     query = query.options(joinedload(Notification.scheduled_notification))
     if personalisation:
-        query = query.options(joinedload("template"))
+        query = query.options(joinedload(Notification.template))
     else:
         # this field is not used and it can contain a lot of data
-        query = query.options(defer("_personalisation"))
+        query = query.options(defer(Notification._personalisation))
 
     if format_for_csv:
         # do an explicit join on the template, job, and created_by tables so that we won't
@@ -553,6 +565,24 @@ def dao_delete_notifications_by_id(notification_id):
     db.session.query(Notification).filter(Notification.id == notification_id).delete(synchronize_session="fetch")
 
 
+@statsd(namespace="dao")
+@transactional
+def dao_delete_scheduled_notification_by_id(notification_id):
+    # Only deletes notifications that are still pending, atomically, so callers can rely on the
+    # returned count to detect a race where the notification was sent in the meantime, and so
+    # this method can't be misused to delete non-scheduled/already-sent notifications.
+    deleted_count = (
+        db.session.query(ScheduledNotification)
+        .filter(ScheduledNotification.notification_id == notification_id, ScheduledNotification.pending.is_(True))
+        .delete(synchronize_session="fetch")
+    )
+
+    if deleted_count:
+        db.session.query(Notification).filter(Notification.id == notification_id).delete(synchronize_session="fetch")
+
+    return deleted_count
+
+
 def _timeout_notifications(current_statuses, new_status, timeout_start, updated_at):
     notifications = Notification.query.filter(
         Notification.created_at < timeout_start,
@@ -604,12 +634,10 @@ def is_delivery_slow_for_provider(
     count = (
         db.session.query(
             case(
-                [
-                    (
-                        Notification.status == NOTIFICATION_DELIVERED,
-                        (Notification.updated_at - Notification.sent_at) >= delivery_time,
-                    )
-                ],
+                (
+                    Notification.status == NOTIFICATION_DELIVERED,
+                    (Notification.updated_at - Notification.sent_at) >= delivery_time,
+                ),
                 else_=(datetime.utcnow() - Notification.sent_at) >= delivery_time,
             ).label("slow"),
             func.count(),
@@ -694,7 +722,13 @@ def dao_get_notifications_by_to_field(service_id, search_term, notification_type
     if notification_type:
         filters.append(Notification.notification_type == notification_type)
 
-    results = db.session.query(Notification).filter(*filters).order_by(desc(Notification.created_at)).all()
+    results = (
+        db.session.query(Notification)
+        .filter(*filters)
+        .options(joinedload(Notification.scheduled_notification))
+        .order_by(desc(Notification.created_at))
+        .all()
+    )
     return results
 
 
@@ -729,10 +763,72 @@ def dao_created_scheduled_notification(scheduled_notification):
 
 
 @statsd(namespace="dao")
+def dao_create_scheduled_one_off_notification(scheduled_notification: ScheduledNotification):
+    db.session.add(scheduled_notification)
+    db.session.commit()
+
+
+def _scheduled_one_off_notifications_query():
+    # Legacy rows (service_id is null) are linked to a notification in the notifications table instead
+    return ScheduledNotification.query.filter(ScheduledNotification.service_id.isnot(None))
+
+
+@statsd(namespace="dao")
+def dao_get_scheduled_one_off_notification(service_id, notification_id):
+    return (
+        _scheduled_one_off_notifications_query().filter_by(service_id=service_id, notification_id=notification_id).one_or_none()
+    )
+
+
+@statsd(namespace="dao")
+def dao_get_scheduled_one_off_notifications_for_service(service_id, page=1, page_size=None):
+    if page_size is None:
+        page_size = current_app.config["PAGE_SIZE"]
+
+    return (
+        _scheduled_one_off_notifications_query()
+        .filter(ScheduledNotification.service_id == service_id)
+        .options(
+            joinedload(ScheduledNotification.template),
+            joinedload(ScheduledNotification.service),
+            joinedload(ScheduledNotification.api_key),
+        )
+        .order_by(asc(ScheduledNotification.scheduled_for), asc(ScheduledNotification.created_at))
+        .paginate(page=page, per_page=page_size)
+    )
+
+
+@statsd(namespace="dao")
+@transactional
+def dao_delete_scheduled_one_off_notification(service_id, notification_id) -> int:
+    # Returns 0 if the notification doesn't exist or has already been released for sending
+    return (
+        db.session.query(ScheduledNotification)
+        .filter(ScheduledNotification.service_id == service_id, ScheduledNotification.notification_id == notification_id)
+        .delete(synchronize_session=False)
+    )
+
+
+def dao_get_due_scheduled_one_off_notifications(limit):
+    """Locks and returns scheduled one-off notifications that are due to be sent. Rows locked by another worker are
+    skipped. The caller must delete the rows once they're sent and commit, which releases the locks."""
+    return (
+        _scheduled_one_off_notifications_query()
+        .filter(ScheduledNotification.scheduled_for <= datetime.utcnow())
+        .order_by(asc(ScheduledNotification.scheduled_for))
+        .limit(limit)
+        .with_for_update(skip_locked=True)
+        .all()
+    )
+
+
+@statsd(namespace="dao")
 def dao_get_scheduled_notifications():
+    """Legacy rows, whose notification is already in the notifications table, that are due to be sent."""
     notifications = (
-        Notification.query.join(ScheduledNotification)
+        Notification.query.join(Notification.scheduled_notification)
         .filter(
+            ScheduledNotification.service_id.is_(None),
             ScheduledNotification.scheduled_for < datetime.utcnow(),
             ScheduledNotification.pending,
         )
@@ -742,9 +838,9 @@ def dao_get_scheduled_notifications():
     return notifications
 
 
-def set_scheduled_notification_to_processed(notification_id):
-    db.session.query(ScheduledNotification).filter(ScheduledNotification.notification_id == notification_id).update(
-        {"pending": False}
+def dao_delete_scheduled_notification_by_notification_id(notification_id):
+    db.session.query(ScheduledNotification).filter(ScheduledNotification.notification_id == notification_id).delete(
+        synchronize_session=False
     )
     db.session.commit()
 
@@ -763,7 +859,7 @@ def dao_get_total_notifications_sent_per_day_for_performance_platform(start_date
     notification_type != 'letter';
     """
     under_10_secs = Notification.sent_at - Notification.created_at <= timedelta(seconds=10)
-    sum_column = functions.coalesce(functions.sum(case([(under_10_secs, 1)], else_=0)), 0)
+    sum_column = functions.coalesce(functions.sum(case((under_10_secs, 1), else_=0)), 0)
 
     return (
         db.session.query(
@@ -783,7 +879,13 @@ def dao_get_total_notifications_sent_per_day_for_performance_platform(start_date
 
 @statsd(namespace="dao")
 def get_latest_sent_notification_for_job(job_id):
-    return Notification.query.filter(Notification.job_id == job_id).order_by(Notification.updated_at.desc()).limit(1).first()
+    # Postgres sorts NULLs first in DESC order, which would wipe the job's updated_at
+    return (
+        Notification.query.filter(Notification.job_id == job_id, Notification.updated_at.isnot(None))
+        .order_by(Notification.updated_at.desc())
+        .limit(1)
+        .first()
+    )
 
 
 @statsd(namespace="dao")
@@ -866,7 +968,7 @@ def send_method_stats_by_service(start_time, end_time):
             Service.name.label("service_name"),
             Organisation.name.label("organisation_name"),
             NotificationHistory.notification_type,
-            case([(NotificationHistory.api_key_id.isnot(None), "api")], else_="admin").label("send_method"),
+            case((NotificationHistory.api_key_id.isnot(None), "api"), else_="admin").label("send_method"),
             func.count().label("total_notifications"),
         )
         .join(Service, Service.id == NotificationHistory.service_id)
@@ -882,7 +984,7 @@ def send_method_stats_by_service(start_time, end_time):
             Service.name,
             Organisation.name,
             NotificationHistory.notification_type,
-            case([(NotificationHistory.api_key_id.isnot(None), "api")], else_="admin"),
+            case((NotificationHistory.api_key_id.isnot(None), "api"), else_="admin"),
         )
         .all()
     )
@@ -890,7 +992,7 @@ def send_method_stats_by_service(start_time, end_time):
 
 @statsd(namespace="dao")
 @transactional
-def overall_bounce_rate_for_day(min_emails_sent=1000, default_time=datetime.utcnow()):
+def overall_bounce_rate_for_day(min_emails_sent=1000, default_time=None):
     """
     This function returns the bounce rate for all services for the last 24 hours.
     The bounce rate is calculated by dividing the number of hard bounces by the total number of emails sent.
@@ -900,6 +1002,8 @@ def overall_bounce_rate_for_day(min_emails_sent=1000, default_time=datetime.utcn
     :param default_time: the time to calculate the bounce rate for
     :return: a list of tuple of the service_id, total number of email, # of hard bounces and the bounce rate
     """
+    if default_time is None:
+        default_time = datetime.utcnow()
     twenty_four_hours_ago = default_time - timedelta(hours=24)
     query = (
         db.session.query(
@@ -920,7 +1024,7 @@ def overall_bounce_rate_for_day(min_emails_sent=1000, default_time=datetime.utcn
 
 @statsd(namespace="dao")
 @transactional
-def service_bounce_rate_for_day(service_id, min_emails_sent=1000, default_time=datetime.utcnow()):
+def service_bounce_rate_for_day(service_id, min_emails_sent=1000, default_time=None):
     """
     This function returns the bounce rate for a single services for the last 24 hours.
     The bounce rate is calculated by dividing the number of hard bounces by the total number of emails sent.
@@ -931,6 +1035,8 @@ def service_bounce_rate_for_day(service_id, min_emails_sent=1000, default_time=d
     :param default_time: the time to calculate the bounce rate for
     :return: a tuple of the total number of emails sent, # of bounced emails and the bounce rate or None if not enough emails
     """
+    if default_time is None:
+        default_time = datetime.utcnow()
     twenty_four_hours_ago = default_time - timedelta(hours=24)
     query = (
         db.session.query(
@@ -950,7 +1056,9 @@ def service_bounce_rate_for_day(service_id, min_emails_sent=1000, default_time=d
 
 @statsd(namespace="dao")
 @transactional
-def total_notifications_grouped_by_hour(service_id, default_time=datetime.utcnow(), interval: int = 24):
+def total_notifications_grouped_by_hour(service_id, default_time=None, interval: int = 24):
+    if default_time is None:
+        default_time = datetime.utcnow()
     twenty_four_hours_ago = default_time - timedelta(hours=interval)
     query = (
         db.session.query(
@@ -968,7 +1076,9 @@ def total_notifications_grouped_by_hour(service_id, default_time=datetime.utcnow
 
 @statsd(namespace="dao")
 @transactional
-def total_hard_bounces_grouped_by_hour(service_id, default_time=datetime.utcnow(), interval: int = 24):
+def total_hard_bounces_grouped_by_hour(service_id, default_time=None, interval: int = 24):
+    if default_time is None:
+        default_time = datetime.utcnow()
     twenty_four_hours_ago = default_time - timedelta(hours=interval)
     query = (
         db.session.query(

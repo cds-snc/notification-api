@@ -1,6 +1,7 @@
 import uuid
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+from unittest.mock import call
 
 import pytest
 from freezegun import freeze_time
@@ -15,10 +16,10 @@ from tests.app.db import (
     create_user,
     save_notification,
 )
-from tests.conftest import set_config
 
 from app import annual_limit_client
 from app.celery.reporting_tasks import (
+    _create_quarterly_email_markdown_list,
     create_monthly_notification_stats_summary,
     create_nightly_billing,
     create_nightly_billing_for_day,
@@ -408,58 +409,56 @@ def test_create_nightly_billing_for_day_update_when_record_exists(sample_service
 
 
 @freeze_time("2019-01-05")
-@pytest.mark.parametrize("ff_use_billable_units", [True, False])
-def test_create_nightly_notification_status_for_day(notify_db_session, notify_api, ff_use_billable_units):
-    with set_config(notify_api, "FF_USE_BILLABLE_UNITS", ff_use_billable_units):
-        first_service = create_service(service_name="First Service")
-        first_template = create_template(service=first_service)
-        second_service = create_service(service_name="second Service")
-        second_template = create_template(service=second_service, template_type="email")
-        third_service = create_service(service_name="third Service")
-        third_template = create_template(service=third_service, template_type="letter")
+def test_create_nightly_notification_status_for_day(notify_db_session, notify_api):
+    first_service = create_service(service_name="First Service")
+    first_template = create_template(service=first_service)
+    second_service = create_service(service_name="second Service")
+    second_template = create_template(service=second_service, template_type="email")
+    third_service = create_service(service_name="third Service")
+    third_template = create_template(service=third_service, template_type="letter")
 
-        save_notification(create_notification(template=first_template, status="delivered"))
-        save_notification(
-            create_notification(
-                template=first_template,
-                status="delivered",
-                created_at=datetime(2019, 1, 1, 12, 0),
-            )
+    save_notification(create_notification(template=first_template, status="delivered"))
+    save_notification(
+        create_notification(
+            template=first_template,
+            status="delivered",
+            created_at=datetime(2019, 1, 1, 12, 0),
         )
+    )
 
-        save_notification(create_notification(template=second_template, status="temporary-failure"))
-        save_notification(
-            create_notification(
-                template=second_template,
-                status="temporary-failure",
-                created_at=datetime(2019, 1, 1, 12, 0),
-            )
+    save_notification(create_notification(template=second_template, status="temporary-failure"))
+    save_notification(
+        create_notification(
+            template=second_template,
+            status="temporary-failure",
+            created_at=datetime(2019, 1, 1, 12, 0),
         )
+    )
 
-        save_notification(create_notification(template=third_template, status="created", billable_units=100))
-        save_notification(
-            create_notification(
-                template=third_template,
-                status="created",
-                created_at=datetime(2019, 1, 1, 12, 0),
-                billable_units=100,
-            )
+    save_notification(create_notification(template=third_template, status="created", billable_units=100))
+    save_notification(
+        create_notification(
+            template=third_template,
+            status="created",
+            created_at=datetime(2019, 1, 1, 12, 0),
+            billable_units=100,
         )
+    )
 
-        assert len(FactNotificationStatus.query.all()) == 0
+    assert len(FactNotificationStatus.query.all()) == 0
 
-        create_nightly_notification_status_for_day("2019-01-01")
+    create_nightly_notification_status_for_day("2019-01-01")
 
-        new_data = FactNotificationStatus.query.order_by(FactNotificationStatus.notification_type).all()
+    new_data = FactNotificationStatus.query.order_by(FactNotificationStatus.notification_type).all()
 
-        assert len(new_data) == 3
-        assert all(d.bst_date == date(2019, 1, 1) for d in new_data)
+    assert len(new_data) == 3
+    assert all(d.bst_date == date(2019, 1, 1) for d in new_data)
 
-        # Ordered by notification_type: email, letter, sms
-        assert new_data[0].notification_type == EMAIL_TYPE
-        assert new_data[1].notification_type == LETTER_TYPE
-        assert new_data[2].notification_type == SMS_TYPE
-        assert new_data[1].billable_units == 100
+    # Ordered by notification_type: email, letter, sms
+    assert new_data[0].notification_type == EMAIL_TYPE
+    assert new_data[1].notification_type == LETTER_TYPE
+    assert new_data[2].notification_type == SMS_TYPE
+    assert new_data[1].billable_units == 100
 
 
 @freeze_time("2019-01-05")
@@ -512,7 +511,8 @@ def test_ensure_create_nightly_notification_status_for_day_copies_billable_units
 
     create_nightly_notification_status_for_day("2019-01-05")
 
-    new_data = FactNotificationStatus.query.all()
+    # order_by is required since the underlying service/status query has no guaranteed row order
+    new_data = FactNotificationStatus.query.order_by(FactNotificationStatus.billable_units).all()
 
     assert len(new_data) == 2
     assert new_data[0].billable_units == 5
@@ -592,6 +592,19 @@ class TestInsertQuarterData:
 
 
 class TestSendQuarterEmail:
+    def test_quarterly_email_rounds_percentages(self):
+        service_id = uuid.uuid4()
+
+        markdown_list_en, _markdown_list_fr = _create_quarterly_email_markdown_list(
+            {service_id: ("service", 20_000_000, 400_000)},
+            [service_id],
+            {str(service_id): {"email": 56_428, "sms": 66_518}},
+        )
+
+        assert "(0.28%)" in markdown_list_en
+        assert "(16.63%)" in markdown_list_en
+        assert "0.27999999999999997" not in markdown_list_en
+
     def test_send_quarter_email(self, sample_user, mocker, notify_db_session):
         service_1 = create_service(service_name="service_1")
         service_2 = create_service(service_name="service_2")
@@ -608,13 +621,27 @@ class TestSendQuarterEmail:
         service_2.users = [sample_user]
         send_mock = mocker.patch("app.celery.reporting_tasks.send_annual_usage_data")
 
-        markdown_list_en = "## service_1 \nText messages: you've sent 4 out of 25,000 (0.0%)\n\n## service_2 \nText messages: you've sent 1 100 out of 25 000 (4.0%)\n\n"
-        markdown_list_fr = "## service_1 \n\n## service_2 \n\n"
+        markdown_list_en = (
+            "## service_1 \n"
+            "Emails: you've sent 0 out of 10,000,000 (0.00%)\n"
+            "Text messages: you've sent 4 out of 25,000 (0.02%)\n\n"
+            "## service_2 \n"
+            "Emails: you've sent 0 out of 10,000,000 (0.00%)\n"
+            "Text messages: you've sent 1,100 out of 25,000 (4.40%)\n\n"
+        )
+        markdown_list_fr = (
+            "## service_1 \n"
+            "Courriels: 0 envoyés sur 10 000 000 (0.00%)\n"
+            "Messages texte : 4 envoyés sur 25 000 (0.02%)\n\n"
+            "## service_2 \n"
+            "Courriels: 0 envoyés sur 10 000 000 (0.00%)\n"
+            "Messages texte : 1 100 envoyés sur 25 000 (4.40%)\n\n"
+        )
         send_quarter_email(datetime(2018, 4, 1))
-        assert send_mock.call_args(
+        assert send_mock.call_args == call(
             sample_user.id,
+            2017,
             2018,
-            2019,
             markdown_list_en,
             markdown_list_fr,
         )

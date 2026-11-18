@@ -60,7 +60,6 @@ from tests.app.db import (
     create_template,
     save_notification,
 )
-from tests.conftest import set_config
 
 
 @freeze_time("2019-06-18T12:00:00")
@@ -893,7 +892,7 @@ class TestFetchDeliveredNotificationStatsbyMonth:
 
         assert len(results) == 5
 
-        assert results[0].keys() == ["month", "notification_type", "count"]
+        assert list(results[0]._mapping.keys()) == ["month", "notification_type", "count"]
 
         assert results[0].month.startswith("2020-04-01")
         assert results[0].notification_type == "email"
@@ -910,58 +909,25 @@ class TestFetchDeliveredNotificationStatsbyMonth:
         assert results[3].month.startswith("2019-12-01")
         assert results[3].notification_type == "email"
         assert results[3].count == 3
-
         assert results[4].month.startswith("2019-12-01")
         assert results[4].notification_type == "sms"
         assert results[4].count == 6
 
-    @freeze_time("2020-11-02 14:00")
-    def test_fetch_delivered_notification_stats_by_month_filter_heartbeats(self, notify_api, sample_service):
-        # Not counted: before GC Notify started (2019-10)
-        create_monthly_notification_stats_summary(
-            month="2019-10-01",
-            service=sample_service,
-            notification_type="email",
-            count=3,
-        )
+    def test_fetch_delivered_notification_stats_by_month_excludes_trial_and_not_count_as_live_services(self, sample_service):
+        trial_service = create_service(service_name="trial", restricted=True)
+        not_live_service = create_service(service_name="not live", count_as_live=False)
+        for service in [sample_service, trial_service, not_live_service]:
+            create_monthly_notification_stats_summary(
+                month="2020-04-01",
+                service=service,
+                notification_type="email",
+                count=5,
+            )
 
-        # December 2019 - email
-        create_monthly_notification_stats_summary(
-            month="2019-12-01",
-            service=sample_service,
-            notification_type="email",
-            count=3,
-        )
+        results = fetch_delivered_notification_stats_by_month()
 
-        # December 2019 - sms
-        create_monthly_notification_stats_summary(
-            month="2019-12-01",
-            service=sample_service,
-            notification_type="sms",
-            count=6,
-        )
-
-        # January 2020 - sms
-        create_monthly_notification_stats_summary(
-            month="2020-01-01",
-            service=sample_service,
-            notification_type="sms",
-            count=4,
-        )
-
-        # March 2020 - email
-        create_monthly_notification_stats_summary(
-            month="2020-03-01",
-            service=sample_service,
-            notification_type="email",
-            count=5,
-        )
-
-        # When filtering heartbeats and sample_service is configured as NOTIFY_SERVICE_ID,
-        # all its records should be filtered out
-        with set_config(notify_api, "NOTIFY_SERVICE_ID", sample_service.id):
-            results = fetch_delivered_notification_stats_by_month(filter_heartbeats=True)
-            assert len(results) == 0
+        assert len(results) == 1
+        assert results[0].count == 5
 
     def test_fetch_delivered_notification_stats_by_month_empty(self):
         assert fetch_delivered_notification_stats_by_month() == []
@@ -1606,7 +1572,6 @@ class TestFetchQuarterData:
         )
 
 
-# TODO: Remove feature flag checks after FF_USE_BILLABLE_UNITS go live
 class TestBillableUnitsInFactNotificationStatusDao:
     """Tests for billable_units functionality in fact_notification_status_dao"""
 

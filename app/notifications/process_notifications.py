@@ -1,8 +1,9 @@
 import uuid
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, cast
 
 from flask import current_app
+from iso8601 import parse_date
 from notifications_utils.clients import redis
 from notifications_utils.decorators import parallel_process_iterable
 from notifications_utils.recipients import (
@@ -10,9 +11,16 @@ from notifications_utils.recipients import (
     get_international_phone_info,
     validate_and_format_phone_number,
 )
-from notifications_utils.timezones import convert_local_timezone_to_utc
 
-from app import redis_store
+from app import (
+    email_bulk_publish,
+    email_normal_publish,
+    email_priority_publish,
+    redis_store,
+    sms_bulk_publish,
+    sms_normal_publish,
+    sms_priority_publish,
+)
 from app.celery import provider_tasks
 from app.celery.letters_pdf_tasks import create_letters_pdf
 from app.config import QueueNames
@@ -20,22 +28,27 @@ from app.dao.api_key_dao import update_last_used_api_key
 from app.dao.notifications_dao import (
     bulk_insert_notifications,
     dao_create_notification,
-    dao_created_scheduled_notification,
+    dao_create_scheduled_one_off_notification,
     dao_delete_notifications_by_id,
 )
 from app.dao.services_dao import dao_fetch_service_by_id
 from app.dao.templates_dao import dao_get_template_by_id
+from app.encryption import NotificationDictToSign
 from app.models import (
+    BULK,
     EMAIL_TYPE,
     KEY_TYPE_TEST,
     LETTER_TYPE,
+    NORMAL,
     NOTIFICATION_CREATED,
+    PRIORITY,
     SMS_TYPE,
     ApiKeyType,
     Notification,
     NotificationType,
     ScheduledNotification,
     Service,
+    TemplateBase,
 )
 from app.types import VerifiedNotification
 from app.utils import get_delivery_queue_for_template, get_template_instance
@@ -116,8 +129,8 @@ def persist_notification(
         notification=notification, research_mode=service.research_mode, priority_queue=get_delivery_queue_for_template(template)
     )
 
-    # Calculate billable_units if feature flag is enabled and not explicitly provided
-    if current_app.config.get("FF_USE_BILLABLE_UNITS") and billable_units is None and notification_type == SMS_TYPE:
+    # Calculate billable_units if not explicitly provided
+    if billable_units is None and notification_type == SMS_TYPE:
         notification.billable_units = number_of_sms_fragments(template, personalisation)
 
     if notification_type == SMS_TYPE:
@@ -229,10 +242,7 @@ def db_save_and_send_notification(notification: Notification):
         and notification.queue_name != QueueNames.RESEARCH_MODE
         and current_app.config.get("FF_SMS_RATELIMIT")
     ):
-        queue = QueueNames.SEND_SMS_FAIR
-        # Prioritize sending per the queue names derived from the template category.
-        message_group_id = get_delivery_queue_for_template(notification.template)
-        if current_app.config.get("FF_USE_BILLABLE_UNITS") and notification.billable_units:
+        if notification.billable_units:
             celery_params.append(notification.billable_units)
         else:
             billable_units = number_of_sms_fragments(notification.template, notification.personalisation)
@@ -272,10 +282,7 @@ def choose_queue(notification: Notification, research_mode: bool, priority_queue
 
     override_queue: Optional[str] = priority_queue
     if notification.notification_type == SMS_TYPE:
-        # Enable the SMS rate limit feature but without overriding throttled dedicated or research lanes.
-        if not priority_queue and current_app.config.get("FF_SMS_RATELIMIT"):
-            override_queue = QueueNames.SEND_SMS_FAIR
-        elif not priority_queue:
+        if not priority_queue:
             override_queue = QueueNames.SEND_SMS_MEDIUM
     elif notification.notification_type == EMAIL_TYPE:
         if not priority_queue:
@@ -323,15 +330,13 @@ def send_notification_to_queue(notification, research_mode, queue=None):
             template = notification.template or dao_get_template_by_id(
                 notification.template_id, notification.template_version, use_cache=True
             )
-            # The previous queue parameter becomes the fair queue priority and
-            # the queue is overridden to be a fair queue.
-            message_group_id = queue or get_delivery_queue_for_template(template)
-            queue = QueueNames.SEND_SMS_FAIR
-            if current_app.config.get("FF_USE_BILLABLE_UNITS") and notification.billable_units:
+            if notification.billable_units:
                 celery_params.append(notification.billable_units)
             else:
                 billable_units = number_of_sms_fragments(template, notification.personalisation)
                 celery_params.append(billable_units)
+            if not queue or queue == QueueNames.NORMAL:
+                queue = QueueNames.SEND_SMS_MEDIUM
         elif not queue or queue == QueueNames.NORMAL:
             queue = QueueNames.SEND_SMS_MEDIUM
     elif notification.notification_type == EMAIL_TYPE:
@@ -348,7 +353,10 @@ def send_notification_to_queue(notification, research_mode, queue=None):
     try:
         deliver_task.apply_async(celery_params, queue=queue, MessageGroupId=message_group_id)
     except Exception:
-        dao_delete_notifications_by_id(notification.id)
+        # Keep legacy scheduled notifications so send-scheduled-notifications retries them on its next run.
+        scheduled_notification = notification.scheduled_notification
+        if not (scheduled_notification and scheduled_notification.pending):
+            dao_delete_notifications_by_id(notification.id)
         raise
 
     current_app.logger.info(
@@ -399,16 +407,14 @@ def persist_notifications(notifications: List[VerifiedNotification]) -> List[Not
         )
         template = dao_get_template_by_id(notification_obj.template_id, notification_obj.template_version, use_cache=True)
         notification_obj.template = template  # Store the template in the object for downstream consumers
-        if (
-            current_app.config.get("FF_USE_BILLABLE_UNITS")
-            and not notification_obj.billable_units
-            and notification.get("notification_type") == SMS_TYPE
-        ):
+        if not notification_obj.billable_units and notification.get("notification_type") == SMS_TYPE:
             notification_obj.billable_units = number_of_sms_fragments(template, notification.get("personalisation"))
-        service = dao_fetch_service_by_id(service_id, use_cache=True)
+
+        service_data = dao_fetch_service_by_id(service_id, use_dogpile=True)
+
         notification_obj.queue_name = choose_queue(
             notification=notification_obj,
-            research_mode=service.research_mode,
+            research_mode=service_data["research_mode"],
             priority_queue=get_delivery_queue_for_template(template),
         )
 
@@ -443,7 +449,7 @@ def persist_notifications(notifications: List[VerifiedNotification]) -> List[Not
 
 
 def csv_has_simulated_and_non_simulated_recipients(
-    to_addresses: set, notification_type: NotificationType, chunk_size=5000
+    to_addresses: list, notification_type: NotificationType, chunk_size=5000
 ) -> tuple[bool, bool]:
     """Kicks off a parallelized process to check if a RecipientCSV contains simulated, non-simulated, or both types of recipients.
 
@@ -500,7 +506,94 @@ def simulated_recipient(to_address: str, notification_type: NotificationType) ->
         return to_address in current_app.config["SIMULATED_EMAIL_ADDRESSES"]
 
 
-def persist_scheduled_notification(notification_id, scheduled_for):
-    scheduled_datetime = convert_local_timezone_to_utc(datetime.strptime(scheduled_for, "%Y-%m-%d %H:%M"))
-    scheduled_notification = ScheduledNotification(notification_id=notification_id, scheduled_for=scheduled_datetime)
-    dao_created_scheduled_notification(scheduled_notification)
+def build_notification_to_sign(
+    *,
+    notification_id: str,
+    template_id: str,
+    service_id: str,
+    template_version: int,
+    to: str,
+    personalisation: Optional[dict],
+    simulated: bool,
+    api_key_id: Optional[str],
+    key_type: str,
+    client_reference: Optional[str],
+    reply_to_text: Optional[str],
+) -> NotificationDictToSign:
+    """Builds the notification dict that is signed and put on the save_smss / save_emails queues for one-off
+    notifications, whether sent straight away or scheduled."""
+    notification_to_sign = {
+        "id": notification_id,
+        "template": template_id,
+        "service_id": service_id,
+        "template_version": template_version,
+        "to": to,
+        "personalisation": personalisation,
+        "simulated": simulated,
+        "api_key": api_key_id,
+        "key_type": key_type,
+        "client_reference": client_reference,
+        "reply_to_text": reply_to_text,
+    }
+    return cast(NotificationDictToSign, notification_to_sign)
+
+
+def triage_notification_to_queues(notification_type: NotificationType, signed_notification_data, template: TemplateBase):
+    """Determine which queue to use based on notification_type and process_type
+
+    Args:
+        notification_type: Type of notification being sent; either SMS_TYPE or EMAIL_TYPE
+        signed_notification_data: Encrypted notification data
+        template: Template used to send notification
+    Returns:
+        None
+
+    """
+    if notification_type == SMS_TYPE:
+        if template.process_type == PRIORITY:
+            sms_priority_publish.publish(signed_notification_data)
+        elif template.process_type == NORMAL:
+            sms_normal_publish.publish(signed_notification_data)
+        elif template.process_type == BULK:
+            sms_bulk_publish.publish(signed_notification_data)
+    elif notification_type == EMAIL_TYPE:
+        if template.process_type == PRIORITY:
+            email_priority_publish.publish(signed_notification_data)
+        elif template.process_type == NORMAL:
+            email_normal_publish.publish(signed_notification_data)
+        elif template.process_type == BULK:
+            email_bulk_publish.publish(signed_notification_data)
+
+
+def parse_scheduled_datetime(scheduled_for: str) -> datetime:
+    # scheduled_for is UTC already, same as the bulk/job scheduling endpoint - accepts full ISO 8601
+    return parse_date(scheduled_for).replace(tzinfo=None)
+
+
+def is_scheduled_for_a_later_day(scheduled_for: Optional[str]) -> bool:
+    """True if a notification is scheduled to be sent after today (UTC, same as the daily limit counts)."""
+    if not scheduled_for:
+        return False
+    return parse_scheduled_datetime(scheduled_for).date() > datetime.utcnow().date()
+
+
+def persist_scheduled_one_off_notification(notification: Notification, scheduled_for: str) -> ScheduledNotification:
+    """Store a one-off notification to be sent later. Nothing is added to the notifications table until it is sent."""
+    scheduled_notification = ScheduledNotification(
+        notification_id=notification.id,
+        service_id=notification.service_id,
+        template_id=notification.template_id,
+        template_version=notification.template_version,
+        notification_type=notification.notification_type,
+        to=notification.to,
+        api_key_id=notification.api_key_id,
+        key_type=notification.key_type,
+        client_reference=notification.client_reference,
+        reply_to_text=notification.reply_to_text,
+        billable_units=notification.billable_units or 0,
+        scheduled_for=parse_scheduled_datetime(scheduled_for),
+        created_at=notification.created_at,
+    )
+    scheduled_notification._personalisation = notification._personalisation
+    dao_create_scheduled_one_off_notification(scheduled_notification)
+    return scheduled_notification

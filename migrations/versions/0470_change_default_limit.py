@@ -13,13 +13,13 @@ from alembic import op
 
 def upgrade():
     conn = op.get_bind()
-    conn.execute("ALTER TABLE services ALTER COLUMN email_annual_limit SET DEFAULT 20000000")
-    conn.execute("ALTER TABLE services ALTER COLUMN sms_annual_limit SET DEFAULT 100000")
-    conn.execute("UPDATE services SET email_annual_limit = 20000000 WHERE email_annual_limit = 10000000")
-    conn.execute("UPDATE services SET sms_annual_limit = 100000 WHERE sms_annual_limit = 25000")
+    conn.exec_driver_sql("ALTER TABLE services ALTER COLUMN email_annual_limit SET DEFAULT 20000000")
+    conn.exec_driver_sql("ALTER TABLE services ALTER COLUMN sms_annual_limit SET DEFAULT 100000")
+    conn.exec_driver_sql("UPDATE services SET email_annual_limit = 20000000 WHERE email_annual_limit = 10000000")
+    conn.exec_driver_sql("UPDATE services SET sms_annual_limit = 100000 WHERE sms_annual_limit = 25000")
 
 
 def downgrade():
     conn = op.get_bind()
-    conn.execute("ALTER TABLE services ALTER COLUMN email_annual_limit SET DEFAULT 10000000")
-    conn.execute("ALTER TABLE services ALTER COLUMN sms_annual_limit SET DEFAULT 25000")
+    conn.exec_driver_sql("ALTER TABLE services ALTER COLUMN email_annual_limit SET DEFAULT 10000000")
+    conn.exec_driver_sql("ALTER TABLE services ALTER COLUMN sms_annual_limit SET DEFAULT 25000")

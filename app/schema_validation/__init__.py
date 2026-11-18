@@ -46,23 +46,6 @@ def validate_schema_postage(instance):
     return True
 
 
-@format_checker.checks("datetime_within_next_day", raises=ValidationError)
-def validate_schema_date_with_hour(instance):
-    if isinstance(instance, str):
-        try:
-            dt = iso8601.parse_date(instance).replace(tzinfo=None)
-            if dt < datetime.utcnow():
-                raise ValidationError("datetime cannot be in the past")
-            if dt > datetime.utcnow() + timedelta(hours=24):
-                raise ValidationError("datetime can only be 24 hours in the future")
-        except ParseError:
-            raise ValidationError(
-                "datetime format is invalid. It must be a valid ISO8601 date time format, "
-                "https://en.wikipedia.org/wiki/ISO_8601"
-            )
-    return True
-
-
 @format_checker.checks("datetime_schedule_job", raises=ValidationError)
 def validate_schema_date_for_job(instance):
     max_hours = current_app.config["JOBS_MAX_SCHEDULE_HOURS_AHEAD"]

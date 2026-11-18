@@ -1,9 +1,10 @@
 import base64
+import json
 import os
 import re
 from datetime import datetime
-from typing import Any, Dict, Optional
-from urllib.parse import urlparse
+from typing import Any, Dict, List, Optional
+from urllib.parse import parse_qs, urlencode, urlparse
 from uuid import UUID
 
 import phonenumbers
@@ -26,11 +27,15 @@ from app import (
     clients,
     create_uuid,
     document_download_client,
+    metrics_logger,
+    redis_store,
     statsd_client,
 )
+from app.aws.metrics import put_international_sms_metric
 from app.celery.research_mode_tasks import send_email_response, send_sms_response
 from app.clients.sms import SmsSendingVehicles
 from app.config import Config
+from app.dao.files_dao import dao_get_ready_files_by_template_id
 from app.dao.notifications_dao import dao_update_notification
 from app.dao.provider_details_dao import (
     dao_toggle_sms_provider,
@@ -38,6 +43,7 @@ from app.dao.provider_details_dao import (
 )
 from app.dao.template_categories_dao import dao_get_template_category_by_id
 from app.dao.templates_dao import dao_get_template_by_id
+from app.delivery.bounce_rate import check_service_over_bounce_rate
 from app.exceptions import (
     DocumentDownloadException,
     InvalidUrlException,
@@ -61,11 +67,154 @@ from app.models import (
     PINPOINT_PROVIDER,
     SMS_TYPE,
     SNS_PROVIDER,
+    UPLOAD_DOCUMENT,
     BounceRateStatus,
     Notification,
     Service,
 )
 from app.utils import get_logo_url, is_blank
+
+
+def _get_template_files_from_cache_or_db(job_id: Optional[UUID], template_id: UUID) -> List[Dict[str, Any]]:
+    """
+    Fetch template file attachments from cache (for bulk sends) or from DB.
+
+    For bulk sends (job_id is set): Retrieves from Redis cache (pre-cached by process_job).
+    For one-off sends (no job_id): Fetches from DB directly.
+
+    Returns a list of attachment dicts: [{"name": str, "document_id": UUID, "mime_type": str, "service_id": UUID}, ...]
+    """
+    # Try to get from cache if this is a bulk send
+    if job_id:
+        cache_key = f"template_files:{job_id}"
+        try:
+            cached = redis_store.get(cache_key)
+            if cached:
+                current_app.logger.info(f"Retrieved template files from Redis cache for job {job_id}")
+                return json.loads(cached)
+        except Exception as e:
+            current_app.logger.warning(f"Failed to retrieve template files from cache for job {job_id}: {e}")
+
+    # Fetch from database (for one-off sends or cache miss)
+    ready_files = dao_get_ready_files_by_template_id(template_id)
+    file_metadata = []
+
+    for file in ready_files:
+        file_metadata.append(
+            {
+                "name": file.name,
+                "document_id": str(file.document_id),
+                "mime_type": file.mime_type,
+                "service_id": str(file.service_id),
+                "file_id": str(file.id),
+            }
+        )
+
+    # Cache on miss for bulk sends (safety measure if job_id cache expires or fails)
+    # Even cache empty list to prevent repeated DB queries for templates with no attachments
+    if job_id:
+        cache_key = f"template_files:{job_id}"
+        try:
+            redis_store.set(cache_key, json.dumps(file_metadata), ex=86400)
+            current_app.logger.info(f"Cached {len(file_metadata)} template files for job {job_id} on retrieval miss")
+        except Exception as e:
+            current_app.logger.warning(f"Failed to cache template files for job {job_id}: {e}")
+
+    return file_metadata
+
+
+def _download_template_file(
+    service_id: UUID, document_id: str, filename: str, mime_type: Optional[str]
+) -> Optional[Dict[str, Any]]:
+    """
+    Download a template file from document-download-api.
+
+    Files are only included if they have status='uploaded', meaning they have already
+    passed the malware scan, so no additional scan check is needed.
+
+    Returns: {"name": str, "data": bytes, "mime_type": str} or None if download fails
+    """
+    try:
+        current_app.logger.info(f"Downloading template file: document_id={document_id}, service_id={service_id}")
+        # Construct download URL with query parameter
+        url = f"{current_app.config.get('DOCUMENT_DOWNLOAD_API_HOST')}/services/{service_id}/documents/{document_id}?sending_method=template_attach"
+        auth_header = f"Bearer {current_app.config.get('DOCUMENT_DOWNLOAD_API_KEY')}"
+        retries = Retry(total=5)
+        http = PoolManager(retries=retries)
+        response = http.request(
+            "GET",
+            url=url,
+            headers={"Authorization": auth_header},
+        )
+
+        if response.status != 200:
+            current_app.logger.error(f"Failed to download template file {document_id}: HTTP {response.status}")
+            return None
+
+        return {
+            "name": filename,
+            "data": response.data,
+            "mime_type": mime_type or "application/octet-stream",
+        }
+
+    except Exception as e:
+        current_app.logger.error(f"Could not download template file {document_id}: {e}")
+        return None
+
+
+def _get_template_attachments(notification: Notification) -> List[Dict[str, Any]]:
+    """
+    Fetch and download template file attachments for a notification.
+
+    Returns list of attachment dicts: [{"name": str, "data": bytes, "mime_type": str}, ...]
+    """
+    if not notification.service.has_permission(UPLOAD_DOCUMENT):
+        current_app.logger.info(
+            f"Skipping template file attachments for notification {notification.id}; service {notification.service_id} does not have upload_document permission"
+        )
+        return []
+
+    template_attachments = []
+
+    # Get file metadata from cache or DB
+    file_metadata = _get_template_files_from_cache_or_db(notification.job_id, notification.template_id)
+
+    if not file_metadata:
+        return []
+
+    service_id = notification.service.id
+
+    for file_info in file_metadata:
+        attachment = _download_template_file(
+            service_id,
+            file_info["document_id"],
+            file_info["name"],
+            file_info["mime_type"],
+        )
+        if attachment:
+            template_attachments.append(attachment)
+        else:
+            current_app.logger.warning(f"Skipping template file {file_info['file_id']} for notification {notification.id}")
+
+    return template_attachments
+
+
+def check_service_over_bounce_rate_old(service_id: str):
+    bounce_rate = bounce_rate_client.get_bounce_rate(service_id)
+    bounce_rate_status = bounce_rate_client.check_bounce_rate_status(service_id)
+    debug_data = bounce_rate_client.get_debug_data(service_id)
+    current_app.logger.debug(
+        f"Service id: {service_id} Bounce Rate: {bounce_rate} Bounce Status: {bounce_rate_status}, Debug Data: {debug_data}"
+    )
+    if bounce_rate_status == BounceRateStatus.CRITICAL.value:
+        # TODO: Bounce Rate V2, raise a BadRequestError when bounce rate meets or exceeds critical threshold
+        current_app.logger.warning(
+            f"Service: {service_id} has met or exceeded a critical bounce rate threshold of 10%. Bounce rate: {bounce_rate}"
+        )
+    elif bounce_rate_status == BounceRateStatus.WARNING.value:
+        current_app.logger.warning(
+            f"Service: {service_id} has met or exceeded a warning bounce rate threshold of 5%. Bounce rate: {bounce_rate}"
+        )
 
 
 def send_sms_to_provider(notification):
@@ -109,6 +258,8 @@ def send_sms_to_provider(notification):
         empty_message_failure(notification=notification)
         return
 
+    sent_to_provider_successfully = False
+
     if service.research_mode or notification.key_type == KEY_TYPE_TEST or sending_to_internal_test_number:
         current_app.logger.info(f"notification {notification.id} is sending to INTERNAL_TEST_NUMBER, no boto call to AWS.")
         notification.reference = str(create_uuid())
@@ -146,6 +297,14 @@ def send_sms_to_provider(notification):
                 if sending_to_dryrun_number:
                     send_sms_response(provider.get_name(), notification.to, reference)
                 update_notification_to_sending(notification, provider)
+                sent_to_provider_successfully = True
+
+    if notification.international and sent_to_provider_successfully:
+        current_app.logger.info(
+            "International text sent, service_id=%(service_id)s notification_id=%(notification_id)s",
+            {"service_id": notification.service_id, "notification_id": notification.id},
+        )
+        put_international_sms_metric(metrics_logger, notification.service_id)
 
     # Record StatsD stats to compute SLOs
     statsd_client.timing_with_dates("sms.total-time", notification.sent_at, notification.created_at)
@@ -172,6 +331,31 @@ def check_file_url(file_info: Dict[str, str], notification_id: UUID):
     if not file_info[url_key].lower().startswith("http"):
         current_app.logger.error(f"Notification {notification_id} contains an invalid {url_key} {file_info[url_key]}")
         raise InvalidUrlException
+
+
+def get_attachment_download_url(file_info: Dict[str, Any], service_id: UUID, notification_id: UUID) -> str:
+    """
+    Build the document-download-api URL to fetch an attached file from.
+
+    The stored direct_file_url comes from notification personalisation and must not be used as a
+    fetch target (SSRF). Only the decryption key is taken from it; the host, service id and
+    document id are fixed so the bytes fetched belong to the same document whose scan verdict
+    was checked.
+    """
+    try:
+        document_id = UUID(str(file_info["id"]))
+        key = parse_qs(urlparse(file_info["direct_file_url"]).query)["key"][0]
+    except (KeyError, IndexError, TypeError, ValueError, AttributeError):
+        current_app.logger.error(f"Notification {notification_id} contains an invalid attachment document reference")
+        raise InvalidUrlException
+
+    if not re.fullmatch(r"[A-Za-z0-9_\-]+={0,2}", key):
+        current_app.logger.error(f"Notification {notification_id} contains an invalid attachment decryption key")
+        raise InvalidUrlException
+
+    host = current_app.config["DOCUMENT_DOWNLOAD_API_HOST"].rstrip("/")
+    query = urlencode({"key": key, "sending_method": "attach"})
+    return f"{host}/services/{service_id}/documents/{document_id}?{query}"
 
 
 def check_for_malware_errors(document_download_response_code, notification):
@@ -206,24 +390,6 @@ def check_for_malware_errors(document_download_response_code, notification):
     # unexpected response code
     else:
         document_download_internal_error(notification=notification)
-
-
-def check_service_over_bounce_rate(service_id: str):
-    bounce_rate = bounce_rate_client.get_bounce_rate(service_id)
-    bounce_rate_status = bounce_rate_client.check_bounce_rate_status(service_id)
-    debug_data = bounce_rate_client.get_debug_data(service_id)
-    current_app.logger.debug(
-        f"Service id: {service_id} Bounce Rate: {bounce_rate} Bounce Status: {bounce_rate_status}, Debug Data: {debug_data}"
-    )
-    if bounce_rate_status == BounceRateStatus.CRITICAL.value:
-        # TODO: Bounce Rate V2, raise a BadRequestError when bounce rate meets or exceeds critical threshold
-        current_app.logger.warning(
-            f"Service: {service_id} has met or exceeded a critical bounce rate threshold of 10%. Bounce rate: {bounce_rate}"
-        )
-    elif bounce_rate_status == BounceRateStatus.WARNING.value:
-        current_app.logger.warning(
-            f"Service: {service_id} has met or exceeded a warning bounce rate threshold of 5%. Bounce rate: {bounce_rate}"
-        )
 
 
 def mime_encoded_word_syntax(encoded_text="", charset="utf-8", encoding="B") -> str:
@@ -287,6 +453,30 @@ def _validate_unsubscribe_url(url, notification_id):
     return url
 
 
+def _normalise_file_personalisation(personalisation_data: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """Convert nested document objects in personalisation to safe values for template rendering."""
+    if not personalisation_data:
+        return {}
+
+    normalised_personalisation = personalisation_data.copy()
+
+    for key, value in normalised_personalisation.items():
+        if not isinstance(value, dict):
+            continue
+
+        document = value.get("document")
+        if not isinstance(document, dict):
+            continue
+
+        if document.get("sending_method") == "template_attach":
+            normalised_personalisation[key] = ""
+            continue
+
+        normalised_personalisation[key] = document.get("url") or document.get("direct_file_url") or ""
+
+    return normalised_personalisation
+
+
 def send_email_to_provider(notification: Notification):
     current_app.logger.info(f"Sending email to provider for notification id {notification.id}")
     service = notification.service
@@ -302,44 +492,59 @@ def send_email_to_provider(notification: Notification):
 
     provider = provider_to_use(EMAIL_TYPE, notification.id)
 
-    # Extract any file objects from the personalization
-    file_keys = [k for k, v in (notification.personalisation or {}).items() if isinstance(v, dict) and "document" in v]
     attachments = []
+    personalisation_data = (notification.personalisation or {}).copy()
 
-    personalisation_data = notification.personalisation.copy()
-
-    for key in file_keys:
-        check_file_url(personalisation_data[key]["document"], notification.id)
-        sending_method = personalisation_data[key]["document"].get("sending_method")
-        direct_file_url = personalisation_data[key]["document"]["direct_file_url"]
-        filename = personalisation_data[key]["document"].get("filename")
-        mime_type = personalisation_data[key]["document"].get("mime_type")
-        document_id = personalisation_data[key]["document"]["id"]
+    if not service.has_permission(UPLOAD_DOCUMENT):
         current_app.logger.info(
-            f"Calling document_download_client.check_scan_verdict() for document_id: {document_id} and notification_id: {notification.id}"
+            f"Skipping file attachments for notification {notification.id}; service {service.id} does not have upload_document permission"
         )
-        scan_verdict_response = document_download_client.check_scan_verdict(service.id, document_id, sending_method)
-        check_for_malware_errors(scan_verdict_response.status_code, notification)
-        current_app.logger.info(f"scan_verdict for document_id {document_id} is {scan_verdict_response.json()}")
-        if sending_method == "attach":
-            try:
-                retries = Retry(total=5)
-                http = PoolManager(retries=retries)
+    else:
+        # Extract any file objects from the personalization (but exclude template attachments)
+        file_keys = [
+            k
+            for k, v in (notification.personalisation or {}).items()
+            if isinstance(v, dict) and "document" in v and v["document"].get("sending_method") != "template_attach"
+        ]
 
-                response = http.request("GET", url=direct_file_url)
-                attachments.append(
-                    {
-                        "name": filename,
-                        "data": response.data,
-                        "mime_type": mime_type,
-                    }
-                )
-            except Exception as e:
-                current_app.logger.error(f"Could not download and attach {direct_file_url}\nException: {e}")
-                del personalisation_data[key]
+        for key in file_keys:
+            check_file_url(personalisation_data[key]["document"], notification.id)
+            sending_method = personalisation_data[key]["document"].get("sending_method")
+            if sending_method == "attach":
+                download_url = get_attachment_download_url(personalisation_data[key]["document"], service.id, notification.id)
+            filename = personalisation_data[key]["document"].get("filename")
+            mime_type = personalisation_data[key]["document"].get("mime_type")
+            document_id = personalisation_data[key]["document"]["id"]
+            current_app.logger.info(
+                f"Calling document_download_client.check_scan_verdict() for document_id: {document_id} and notification_id: {notification.id}"
+            )
+            scan_verdict_response = document_download_client.check_scan_verdict(service.id, document_id, sending_method)
+            check_for_malware_errors(scan_verdict_response.status_code, notification)
+            current_app.logger.info(f"scan_verdict for document_id {document_id} is {scan_verdict_response.json()}")
+            if sending_method == "attach":
+                try:
+                    retries = Retry(total=5)
+                    http = PoolManager(retries=retries)
 
-        else:
-            personalisation_data[key] = personalisation_data[key]["document"]["url"]
+                    response = http.request("GET", url=download_url)
+                    attachments.append(
+                        {
+                            "name": filename,
+                            "data": response.data,
+                            "mime_type": mime_type,
+                        }
+                    )
+                except Exception as e:
+                    current_app.logger.error(f"Could not download and attach document {document_id}\nException: {e}")
+                    del personalisation_data[key]
+
+            else:
+                personalisation_data[key] = personalisation_data[key]["document"]["url"]
+
+    # Fetch and merge template file attachments
+    template_attachments = _get_template_attachments(notification)
+    attachments = attachments + template_attachments
+    personalisation_data = _normalise_file_personalisation(personalisation_data)
 
     template_obj = dao_get_template_by_id(notification.template_id, notification.template_version)
     template_dict = template_obj.__dict__
@@ -358,6 +563,7 @@ def send_email_to_provider(notification: Notification):
         values=personalisation_data,
         jinja_path=debug_template_path,
         allow_html=is_service_allowed_html(service),
+        asset_domain=current_app.config["ASSET_DOMAIN"],
         **get_html_email_options(service),
     )
 
@@ -407,7 +613,9 @@ def send_email_to_provider(notification: Notification):
             attachments=attachments,
             extra_headers=_get_unsubscribe_headers(unsubscribe_link_for_header),
         )
-        check_service_over_bounce_rate(service.id)
+        check_service_over_bounce_rate_old(service.id) if current_app.config[
+            "TEST_OLD_BOUNCE_RATE"
+        ] else check_service_over_bounce_rate(service.id)
         bounce_rate_client.set_sliding_notifications(service.id, str(notification.id))
         current_app.logger.info(f"Setting total notifications for service {service.id} in REDIS")
         current_app.logger.info(f"Notification id {notification.id} HAS BEEN SENT")

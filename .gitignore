@@ -1,4 +1,5 @@
 queues.csv
+core
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -81,6 +82,9 @@ celerybeat.pid
 
 # VSCode
 .vscode
+!.vscode/launch.json
+!.vscode/tasks.json
+.vscode/settings.json
 .pythonenv
 .devcontainer/devcontainer.local.json
 
@@ -92,4 +96,4 @@ cypress.env.json
 node_modules/
 tests_cypress/cypress/videos/
 .github/instructions/*
-.ruff_cache/
+.ruff_cache/``

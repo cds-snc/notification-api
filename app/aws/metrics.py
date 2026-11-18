@@ -156,3 +156,16 @@ def put_batch_saving_bulk_processed(
         message = "Error sending CloudWatch Metric: {}".format(e)
         current_app.logger.warning(message)
     return
+
+
+def put_international_sms_metric(metrics_logger: MetricsLogger, service_id: str, count: int = 1):
+    if metrics_logger.metrics_config.disable_metric_extraction:
+        return
+    try:
+        metrics_logger.set_namespace("NotificationCanadaCa")
+        metrics_logger.put_metric("international_sms_sent", count, "Count")
+        metrics_logger.set_dimensions({"service_id": str(service_id)})
+        metrics_logger.flush()
+    except ClientError as e:
+        current_app.logger.warning(f"Error sending CloudWatch Metric: {e}")
+    return

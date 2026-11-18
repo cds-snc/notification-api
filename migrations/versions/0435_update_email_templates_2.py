@@ -92,7 +92,7 @@ def upgrade():
     conn = op.get_bind()
 
     for template in templates:
-        current_version = conn.execute("select version from templates where id='{}'".format(template["id"])).fetchone()
+        current_version = conn.exec_driver_sql("select version from templates where id='{}'".format(template["id"])).fetchone()
         template["version"] = current_version[0] + 1
 
     template_update = """

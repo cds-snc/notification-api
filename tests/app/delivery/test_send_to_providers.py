@@ -7,7 +7,6 @@ from unittest.mock import ANY, MagicMock, call
 import pytest
 from flask import current_app
 from notifications_utils.recipients import validate_and_format_phone_number
-from pytest_mock import MockFixture
 
 import app
 from app import aws_sns_client
@@ -33,7 +32,6 @@ from app.models import (
     KEY_TYPE_NORMAL,
     KEY_TYPE_TEAM,
     KEY_TYPE_TEST,
-    BounceRateStatus,
     EmailBranding,
     Notification,
     Service,
@@ -49,6 +47,15 @@ from tests.app.db import (
     save_notification,
 )
 from tests.conftest import set_config_values
+
+ATTACHMENT_DOCUMENT_ID = "11111111-2222-3333-4444-555555555555"
+DOCUMENT_DOWNLOAD_API_HOST = "http://document-download.invalid"
+
+
+@pytest.fixture
+def document_download_api_host(notify_api):
+    with set_config_values(notify_api, {"DOCUMENT_DOWNLOAD_API_HOST": DOCUMENT_DOWNLOAD_API_HOST}):
+        yield DOCUMENT_DOWNLOAD_API_HOST
 
 
 class TestProviderToUse:
@@ -213,6 +220,74 @@ def test_should_handle_opted_out_phone_numbers_if_using_pinpoint(notify_api, sam
         notification = Notification.query.filter_by(id=db_notification.id).one()
         assert notification.status == "technical-failure"
         assert notification.provider_response == "Phone number is opted out"
+
+
+def test_should_not_emit_international_signal_for_key_type_test_sms(sample_template, mocker):
+    notification = save_notification(
+        create_notification(
+            template=sample_template,
+            to_field="+447512501324",
+            international=True,
+            key_type=KEY_TYPE_TEST,
+            status="created",
+            reply_to_text=sample_template.service.get_default_sms_sender(),
+        )
+    )
+
+    info_log_mock = mocker.patch("app.delivery.send_to_providers.current_app.logger.info")
+    metric_mock = mocker.patch("app.delivery.send_to_providers.put_international_sms_metric")
+    send_mock = mocker.patch("app.aws_sns_client.send_sms")
+    mocker.patch("app.delivery.send_to_providers.send_sms_response", return_value="not-used")
+
+    send_to_providers.send_sms_to_provider(notification)
+
+    send_mock.assert_not_called()
+    assert not any(call.args and call.args[0].startswith("International text sent") for call in info_log_mock.call_args_list)
+    metric_mock.assert_not_called()
+
+
+def test_should_not_emit_international_signal_for_opted_out_sms(sample_template, mocker):
+    notification = save_notification(
+        create_notification(
+            template=sample_template,
+            to_field="+447512501324",
+            international=True,
+            status="created",
+            reply_to_text=sample_template.service.get_default_sms_sender(),
+        )
+    )
+
+    info_log_mock = mocker.patch("app.delivery.send_to_providers.current_app.logger.info")
+    metric_mock = mocker.patch("app.delivery.send_to_providers.put_international_sms_metric")
+    mocker.patch("app.aws_sns_client.send_sms", return_value="opted_out")
+
+    send_to_providers.send_sms_to_provider(notification)
+
+    persisted_notification = Notification.query.filter_by(id=notification.id).one()
+    assert persisted_notification.status == "technical-failure"
+    assert not any(call.args and call.args[0].startswith("International text sent") for call in info_log_mock.call_args_list)
+    metric_mock.assert_not_called()
+
+
+def test_should_emit_international_signal_for_successfully_sent_sms(sample_template, mocker):
+    notification = save_notification(
+        create_notification(
+            template=sample_template,
+            to_field="+447512501324",
+            international=True,
+            status="created",
+            reply_to_text=sample_template.service.get_default_sms_sender(),
+        )
+    )
+
+    info_log_mock = mocker.patch("app.delivery.send_to_providers.current_app.logger.info")
+    metric_mock = mocker.patch("app.delivery.send_to_providers.put_international_sms_metric")
+    mocker.patch("app.aws_sns_client.send_sms", return_value="message_id_from_sns")
+
+    send_to_providers.send_sms_to_provider(notification)
+
+    assert any(call.args and call.args[0].startswith("International text sent") for call in info_log_mock.call_args_list)
+    metric_mock.assert_called_once_with(send_to_providers.metrics_logger, notification.service_id)
 
 
 def test_should_send_personalised_template_to_correct_sms_provider_and_persist(sample_sms_template_with_html, mocker):
@@ -451,6 +526,19 @@ def test_should_send_personalised_template_with_html_enabled(sample_email_templa
         "<div style='color: pink' dir='rtl'>Jo <em>some HTML</em> that should be right aligned</div>"
         in app.aws_ses_client.send_email.call_args[1]["html_body"]
     )
+
+
+def test_send_email_uses_the_environments_asset_domain_for_default_branding(sample_email_template, mocker, notify_api):
+    db_notification = save_notification(create_notification(template=sample_email_template))
+    mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+
+    with set_config_values(notify_api, {"ASSET_DOMAIN": "assets.staging.example.com"}):
+        send_to_providers.send_email_to_provider(db_notification)
+
+    html_body = app.aws_ses_client.send_email.call_args[1]["html_body"]
+    assert "https://assets.staging.example.com/email-assets/gc-logo-en-" in html_body
+    assert "https://assets.staging.example.com/email-assets/canada-logo-" in html_body
+    assert "assets.notification.canada.ca" not in html_body
 
 
 def test_should_not_send_email_message_when_service_is_inactive_notifcation_is_in_tech_failure(
@@ -1141,7 +1229,7 @@ def test_send_email_to_provider_should_format_email_address(sample_email_notific
     )
 
 
-def test_file_attachment_retry(mocker, notify_db, notify_db_session):
+def test_file_attachment_retry(mocker, notify_db, notify_db_session, document_download_api_host):
     template = create_sample_email_template(notify_db, notify_db_session, content="Here is your ((file))")
 
     class mock_response:
@@ -1155,7 +1243,8 @@ def test_file_attachment_retry(mocker, notify_db, notify_db_session):
     personalisation = {
         "file": document_download_response(
             {
-                "direct_file_url": "http://foo.bar/direct_file_url",
+                "id": ATTACHMENT_DOCUMENT_ID,
+                "direct_file_url": "http://foo.bar/direct_file_url?key=abc-123_XYZ&sending_method=attach",
                 "url": "http://foo.bar/url",
                 "mime_type": "application/pdf",
             }
@@ -1163,7 +1252,6 @@ def test_file_attachment_retry(mocker, notify_db, notify_db_session):
     }
     personalisation["file"]["document"]["sending_method"] = "attach"
     personalisation["file"]["document"]["filename"] = "file.txt"
-    personalisation["file"]["document"]["id"] = "1234"
 
     db_notification = save_notification(create_notification(template=template, personalisation=personalisation))
 
@@ -1200,7 +1288,7 @@ def test_file_attachment_retry(mocker, notify_db, notify_db_session):
     assert "Max retries exceeded" in exception
 
 
-def test_file_attachment_max_retries(mocker, notify_db, notify_db_session):
+def test_file_attachment_max_retries(mocker, notify_db, notify_db_session, document_download_api_host):
     template = create_sample_email_template(notify_db, notify_db_session, content="Here is your ((file))")
 
     class mock_response:
@@ -1214,7 +1302,8 @@ def test_file_attachment_max_retries(mocker, notify_db, notify_db_session):
     personalisation = {
         "file": document_download_response(
             {
-                "direct_file_url": "http://foo.bar/direct_file_url",
+                "id": ATTACHMENT_DOCUMENT_ID,
+                "direct_file_url": "http://foo.bar/direct_file_url?key=abc-123_XYZ&sending_method=attach",
                 "url": "http://foo.bar/url",
                 "mime_type": "application/pdf",
             }
@@ -1246,6 +1335,7 @@ def test_notification_document_with_pdf_attachment(
     mocker,
     notify_db,
     notify_db_session,
+    document_download_api_host,
     filename_attribute_present,
     filename,
     expected_filename,
@@ -1264,7 +1354,8 @@ def test_notification_document_with_pdf_attachment(
     personalisation = {
         "file": document_download_response(
             {
-                "direct_file_url": "http://foo.bar/direct_file_url",
+                "id": ATTACHMENT_DOCUMENT_ID,
+                "direct_file_url": "http://foo.bar/direct_file_url?key=abc-123_XYZ&sending_method=attach",
                 "url": "http://foo.bar/url",
                 "mime_type": "application/pdf",
             }
@@ -1295,7 +1386,13 @@ def test_notification_document_with_pdf_attachment(
 
     attachments = []
     if filename_attribute_present:
-        response_mock.assert_called_with("GET", url="http://foo.bar/direct_file_url")
+        response_mock.assert_called_with(
+            "GET",
+            url=(
+                f"{DOCUMENT_DOWNLOAD_API_HOST}/services/{db_notification.service_id}"
+                f"/documents/{ATTACHMENT_DOCUMENT_ID}?key=abc-123_XYZ&sending_method=attach"
+            ),
+        )
         attachments = [
             {
                 "name": expected_filename,
@@ -1354,6 +1451,76 @@ def test_notification_with_bad_file_attachment_url(mocker, notify_db, notify_db_
 
     with pytest.raises(InvalidUrlException):
         send_to_providers.send_email_to_provider(db_notification)
+
+
+def test_attachment_is_never_fetched_from_personalisation_direct_file_url(
+    mocker, notify_db, notify_db_session, document_download_api_host
+):
+    # SSRF regression: a crafted direct_file_url must not be used as the fetch target
+    template = create_sample_email_template(notify_db, notify_db_session, content="Here is your ((file))")
+    mocker.patch("app.delivery.send_to_providers.bounce_rate_client")
+    scan_verdict = MagicMock(status_code=200)
+    scan_verdict.json.return_value = {}
+    check_scan_mock = mocker.patch(
+        "app.delivery.send_to_providers.document_download_client.check_scan_verdict", return_value=scan_verdict
+    )
+    personalisation = {
+        "file": document_download_response(
+            {
+                "id": ATTACHMENT_DOCUMENT_ID,
+                "direct_file_url": "http://169.254.169.254/latest/meta-data/iam/security-credentials/role?key=abc",
+                "sending_method": "attach",
+                "filename": "x.txt",
+                "mime_type": "text/plain",
+            }
+        )
+    }
+    db_notification = save_notification(create_notification(template=template, personalisation=personalisation))
+    mocker.patch("app.delivery.send_to_providers.statsd_client")
+    mocker.patch("app.aws_ses_client.send_email", return_value="reference")
+    request_mock = mocker.patch(
+        "app.delivery.send_to_providers.PoolManager.request", return_value=MagicMock(status=200, data=b"doc")
+    )
+
+    send_to_providers.send_email_to_provider(db_notification)
+
+    check_scan_mock.assert_called_once_with(db_notification.service_id, ATTACHMENT_DOCUMENT_ID, "attach")
+    fetched_url = request_mock.call_args[1]["url"]
+    assert fetched_url == (
+        f"{DOCUMENT_DOWNLOAD_API_HOST}/services/{db_notification.service_id}"
+        f"/documents/{ATTACHMENT_DOCUMENT_ID}?key=abc&sending_method=attach"
+    )
+    assert "169.254.169.254" not in fetched_url
+
+
+@pytest.mark.parametrize(
+    "document_id, direct_file_url",
+    [
+        ("../../internal", "http://foo.bar/x?key=abc"),
+        ("not-a-uuid", "http://foo.bar/x?key=abc"),
+        (ATTACHMENT_DOCUMENT_ID, "http://foo.bar/x"),
+        (ATTACHMENT_DOCUMENT_ID, "http://foo.bar/x?key=abc%26host%3Devil"),
+        (ATTACHMENT_DOCUMENT_ID, "http://foo.bar/x?key=abc/../../"),
+    ],
+)
+def test_attachment_with_invalid_document_reference_is_rejected(
+    mocker, notify_db, notify_db_session, document_id, direct_file_url
+):
+    template = create_sample_email_template(notify_db, notify_db_session, content="Here is your ((file))")
+    personalisation = {
+        "file": document_download_response(
+            {"id": document_id, "direct_file_url": direct_file_url, "sending_method": "attach", "filename": "x.txt"}
+        )
+    }
+    db_notification = save_notification(create_notification(template=template, personalisation=personalisation))
+    check_scan_mock = mocker.patch("app.delivery.send_to_providers.document_download_client.check_scan_verdict")
+    request_mock = mocker.patch("app.delivery.send_to_providers.PoolManager.request")
+
+    with pytest.raises(InvalidUrlException):
+        send_to_providers.send_email_to_provider(db_notification)
+
+    check_scan_mock.assert_not_called()
+    request_mock.assert_not_called()
 
 
 def test_notification_raises_error_if_message_contains_sin_pii_that_passes_luhn(
@@ -1471,7 +1638,7 @@ class TestMalware:
 
         with pytest.raises(MalwareScanInProgressException) as e:
             send_to_providers.send_email_to_provider(db_notification)
-            assert db_notification.id in e.value
+        assert isinstance(e.value, MalwareScanInProgressException)
         send_mock.assert_not_called()
 
         assert Notification.query.get(db_notification.id).status == "created"
@@ -1540,34 +1707,6 @@ class TestBounceRate:
             db_notification,
         )
         app.bounce_rate_client.set_sliding_notifications.assert_called_once_with(sample_service.id, str(db_notification.id))
-
-    def test_check_service_over_bounce_rate_critical(self, mocker: MockFixture, notify_api, fake_uuid):
-        with notify_api.app_context():
-            mocker.patch("app.bounce_rate_client.check_bounce_rate_status", return_value=BounceRateStatus.CRITICAL.value)
-            mocker.patch("app.bounce_rate_client.get_bounce_rate", return_value=current_app.config["BR_CRITICAL_PERCENTAGE"])
-            mock_logger = mocker.patch("app.delivery.send_to_providers.current_app.logger.warning")
-            send_to_providers.check_service_over_bounce_rate(fake_uuid)
-            mock_logger.assert_called_once_with(
-                f"Service: {fake_uuid} has met or exceeded a critical bounce rate threshold of 10%. Bounce rate: {current_app.config['BR_CRITICAL_PERCENTAGE']}"
-            )
-
-    def test_check_service_over_bounce_rate_warning(self, mocker: MockFixture, notify_api, fake_uuid):
-        with notify_api.app_context():
-            mocker.patch("app.bounce_rate_client.check_bounce_rate_status", return_value=BounceRateStatus.WARNING.value)
-            mocker.patch("app.bounce_rate_client.get_bounce_rate", return_value=current_app.config["BR_WARNING_PERCENTAGE"])
-            mock_logger = mocker.patch("app.notifications.validators.current_app.logger.warning")
-            send_to_providers.check_service_over_bounce_rate(fake_uuid)
-            mock_logger.assert_called_once_with(
-                f"Service: {fake_uuid} has met or exceeded a warning bounce rate threshold of 5%. Bounce rate: {current_app.config['BR_WARNING_PERCENTAGE']}"
-            )
-
-    def test_check_service_over_bounce_rate_normal(self, mocker: MockFixture, notify_api, fake_uuid):
-        with notify_api.app_context():
-            mocker.patch("app.bounce_rate_client.check_bounce_rate_status", return_value=BounceRateStatus.NORMAL.value)
-            mocker.patch("app.bounce_rate_client.get_bounce_rate", return_value=0.0)
-            mock_logger = mocker.patch("app.notifications.validators.current_app.logger.warning")
-            assert send_to_providers.check_service_over_bounce_rate(fake_uuid) is None
-            mock_logger.assert_not_called()
 
 
 @pytest.mark.parametrize(

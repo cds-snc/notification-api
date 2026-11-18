@@ -2,8 +2,37 @@ import pytest
 from itsdangerous.exc import BadSignature
 
 from app import signer_notification
-from app.annotations import sign_return, unsign_params
+from app.annotations import log_execution_time, sign_return, unsign_params
 from app.encryption import CryptoSigner, SignedNotification, SignedNotifications
+
+
+class TestLogExecutionTimeAnnotation:
+    def test_records_execution_time_and_preserves_return_value(self, mocker):
+        mocker.patch("app.annotations.perf_counter", side_effect=[10, 10.01234])
+        statsd = mocker.patch("app.annotations.statsd_client")
+
+        @log_execution_time
+        def timed_function():
+            return "result"
+
+        assert timed_function() == "result"
+        assert timed_function.__name__ == "timed_function"
+        statsd.timing.assert_called_once_with(
+            "dao.execution_time.tests.app.test_annotations.timed_function", pytest.approx(12.34)
+        )
+
+    def test_records_execution_time_when_function_raises(self, mocker):
+        mocker.patch("app.annotations.perf_counter", side_effect=[20, 20.001])
+        statsd = mocker.patch("app.annotations.statsd_client")
+
+        @log_execution_time
+        def timed_function():
+            raise ValueError("failed")
+
+        with pytest.raises(ValueError, match="failed"):
+            timed_function()
+
+        statsd.timing.assert_called_once_with("dao.execution_time.tests.app.test_annotations.timed_function", pytest.approx(1.00))
 
 
 class TestUnsignParamsAnnotation:

@@ -2,6 +2,7 @@ import random
 import string
 from abc import ABC, abstractmethod
 from enum import Enum
+from threading import Lock
 from typing import Any, Dict, Optional
 from uuid import UUID, uuid4
 
@@ -117,8 +118,17 @@ class RedisQueue(Queue):
 
     LUA_MOVE_TO_INFLIGHT = "move-in-inflight"
     LUA_EXPIRE_INFLIGHTS = "expire-inflights"
+    MAX_POLL_COUNT = 10
 
-    scripts: Dict[str, Any] = {}
+    # A batch polled here ends up as the args of a `save_emails`/`save_smss` celery task sent
+    # over our SQS-backed broker. Celery base64-encodes the task body, and kombu's SQS
+    # transport then base64-encodes that *entire* envelope (headers + already-encoded body)
+    # a second time before it becomes the SQS MessageBody. Two base64 passes inflate the raw
+    # bytes below by ~16/9 (1.78x), plus a few KB of envelope overhead (task name, ids,
+    # argsrepr, etc). SQS hard-caps a message at 256 KiB, so we keep the raw budget well
+    # under that once inflated, e.g. 100 KiB raw -> ~180 KiB once encoded, leaving headroom
+    # for the envelope overhead and any variance in it.
+    MAX_POLL_BYTES = 100 * 1024
 
     def __init__(self, suffix=None, expire_inflight_after_seconds=300, process_type=None) -> None:
         """
@@ -141,6 +151,8 @@ class RedisQueue(Queue):
         self._suffix = suffix
         self._process_type = process_type
         self._expire_inflight_after_seconds = expire_inflight_after_seconds
+        self._scripts: Dict[str, Any] = {}
+        self._scripts_lock = Lock()
 
     def init_app(self, redis: Redis, metrics_logger: MetricsLogger):
         self._redis_client = redis
@@ -169,7 +181,8 @@ class RedisQueue(Queue):
                 self._inbox,
                 self._expire_inflight_after_seconds,
             ]
-        expired = self.scripts[self.LUA_EXPIRE_INFLIGHTS](args=args)
+        expire_script = self.__get_script(self.LUA_EXPIRE_INFLIGHTS)
+        expired = expire_script(args=args)
         if expired:
             put_batch_saving_expiry_metric(self.__metrics_logger, self, len(expired))
             current_app.logger.warning(f"Moved inflights {expired} back to inbox {self._inbox}")
@@ -198,40 +211,55 @@ class RedisQueue(Queue):
         put_batch_saving_metric(self.__metrics_logger, self, 1)
 
     def __move_to_inflight(self, in_flight_key: str, count: int) -> list[str]:
-        results = self.scripts[self.LUA_MOVE_TO_INFLIGHT](args=[self._inbox, in_flight_key, count])
+        move_script = self.__get_script(self.LUA_MOVE_TO_INFLIGHT)
+        results = move_script(args=[self._inbox, in_flight_key, max(0, min(count, self.MAX_POLL_COUNT)), self.MAX_POLL_BYTES])
         decoded = [result.decode("utf-8") for result in results]
         return decoded
 
-    def __register_scripts(self):
-        self.scripts[self.LUA_MOVE_TO_INFLIGHT] = self._redis_client.register_script(
-            """
-            local DEFAULT_CHUNK = 99
+    def __get_script(self, script_name: str):
+        with self._scripts_lock:
+            return self._scripts[script_name]
 
+    def __register_scripts(self):
+        with self._scripts_lock:
+            self._scripts[self.LUA_MOVE_TO_INFLIGHT] = self._redis_client.register_script(
+                """
             local source        = ARGV[1]
             local destination   = ARGV[2]
-            local source_size   = tonumber(redis.call("LLEN", source))
-            local count         = math.min(source_size, tonumber(ARGV[3]))
-
-            local chunk_size    = math.min(math.max(0, count-1), DEFAULT_CHUNK)
-            local current       = 0
+            local count         = tonumber(ARGV[3])
+            local max_bytes     = tonumber(ARGV[4])
+            local total_bytes   = 0
             local all           = {}
+            local elements      = {}
+            local accepted_count = 0
 
-            while current < count do
-                local elements = redis.call("LRANGE", source, 0, chunk_size)
-                redis.call("LPUSH", destination, unpack(elements))
-                redis.call("LTRIM", source, chunk_size+1, -1)
-                for i=1,#elements do all[#all+1] = elements[i] end
+            if count > 0 then
+                elements = redis.call("LRANGE", source, 0, count - 1)
+            end
 
-                current    = current + chunk_size+1
-                chunk_size = math.min((count-1) - current, DEFAULT_CHUNK)
+            for i=1,#elements do
+                local element = elements[i]
+                local element_bytes = string.len(element)
+                if accepted_count > 0 and total_bytes + element_bytes > max_bytes then
+                    break
+                end
+
+                all[#all+1] = element
+                total_bytes = total_bytes + element_bytes
+                accepted_count = i
+            end
+
+            if accepted_count > 0 then
+                redis.call("LPUSH", destination, unpack(elements, 1, accepted_count))
+                redis.call("LTRIM", source, accepted_count, -1)
             end
 
             return all
-            """
-        )
+                """
+            )
 
-        self.scripts[self.LUA_EXPIRE_INFLIGHTS] = self._redis_client.register_script(
-            """
+            self._scripts[self.LUA_EXPIRE_INFLIGHTS] = self._redis_client.register_script(
+                """
             local DEFAULT_CHUNK   = 99
             local inflight_prefix = ARGV[1]
             local destination     = ARGV[2]
@@ -263,8 +291,8 @@ class RedisQueue(Queue):
                 end
             until cursor == "0";
             return expired_inflights
-            """
-        )
+                """
+            )
 
 
 class MockQueue(Queue):

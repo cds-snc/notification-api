@@ -8,13 +8,27 @@ is what caused the nightly test to run indefinitely when blast_api.py was rework
 For the open-ended, step-up / burst scenarios see blast_api.py.
 """
 
+import logging
 from datetime import datetime
 
 from common import Config, generate_job_rows, rows_to_csv
 from dotenv import load_dotenv
-from locust import HttpUser, constant_pacing, task
+from locust import HttpUser, constant_pacing, events, task
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
+
+
+@events.test_start.add_listener
+def log_waf_secret_status(environment, **kwargs):
+    if Config.WAF_SECRET:
+        logger.info("WAF secret detected in config.")
+        print("[INFO] WAF secret detected in config.")
+    else:
+        logger.warning("ALERT: WAF secret NOT detected in config! WAF rate limiting will not be bypassed.")
+        print("ALERT: WAF secret NOT detected in config! WAF rate limiting will not be bypassed.")
+
 
 # Note that task weights add up to 100
 # If you add / remove tasks please keep the sum 100

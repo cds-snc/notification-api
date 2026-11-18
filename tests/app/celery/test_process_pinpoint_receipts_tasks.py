@@ -208,6 +208,12 @@ def test_process_pinpoint_results_missing_sms_data(notify_api, sample_template, 
             False,
             True,
         ),
+        (
+            "Message delivery TTL has expired",
+            NOTIFICATION_PERMANENT_FAILURE,
+            False,
+            True,
+        ),
         ("This is not a real response", NOTIFICATION_PERMANENT_FAILURE, True, True),
     ],
 )
@@ -524,16 +530,15 @@ class TestAnnualLimits:
                 callback(provider_response, reference="ref") if provider_response else callback(reference="ref")
             )
 
-            # When FF_USE_BILLABLE_UNITS is enabled, the seed call includes billable unit fields
+            # The seed call includes billable unit fields
             expected_data = data.copy()
-            if notify_api.config.get("FF_USE_BILLABLE_UNITS"):
-                expected_data.update(
-                    {
-                        "total_sms_billable_units_fiscal_year_to_yesterday": 0,
-                        "sms_billable_units_failed_today": data["sms_failed_today"],
-                        "sms_billable_units_delivered_today": data["sms_delivered_today"],
-                    }
-                )
+            expected_data.update(
+                {
+                    "total_sms_billable_units_fiscal_year_to_yesterday": 0,
+                    "sms_billable_units_failed_today": data["sms_failed_today"],
+                    "sms_billable_units_delivered_today": data["sms_delivered_today"],
+                }
+            )
 
             mock_seed_annual_limit.assert_called_once_with(notification.service_id, expected_data)
             annual_limit_client.increment_sms_delivered.assert_not_called()

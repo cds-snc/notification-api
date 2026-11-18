@@ -195,7 +195,7 @@ def upgrade():
 
     conn = op.get_bind()
     for template in confirm_templates:
-        current_version = conn.execute("select version from templates where id='{}'".format(template["id"])).fetchone()
+        current_version = conn.exec_driver_sql("select version from templates where id='{}'".format(template["id"])).fetchone()
         template["version"] = current_version[0] + 1
         
         op.execute(
@@ -271,7 +271,7 @@ def downgrade():
     
     conn = op.get_bind()
     for template in restore_templates:
-        current_version = conn.execute(f"select version from templates where id='{template['id']}'").fetchone()
+        current_version = conn.exec_driver_sql(f"select version from templates where id='{template['id']}'").fetchone()
         template["version"] = current_version[0] + 1
         
         # Update template back to original content and remove category

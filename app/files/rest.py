@@ -1,5 +1,6 @@
 import base64
 import binascii
+import uuid
 
 from flask import Blueprint, current_app, jsonify, request
 from sqlalchemy.exc import NoResultFound
@@ -7,10 +8,10 @@ from sqlalchemy.exc import NoResultFound
 from app import document_download_client
 from app.clients.document_download import DocumentDownloadError
 from app.dao.files_dao import (
+    dao_archive_file,
     dao_create_file,
-    dao_delete_file,
-    dao_get_file_by_document_id,
-    dao_get_file_by_id,
+    dao_get_file_by_document_id_including_archived,
+    dao_get_file_by_id_template_id_and_service_id,
     dao_get_file_status_by_id_and_template_id,
     dao_get_files_by_template_id,
     dao_update_file,
@@ -51,17 +52,20 @@ GUARD_DUTY_STATUS_MAP = {
     "SKIPPED": FILE_STATUS_VIRUS_SCAN_FAILED,
 }
 
+MAX_TOTAL_FILE_SIZE = 6 * 1024 * 1024  # 6MB
+
+
+def _get_service_id_arg():
+    try:
+        return uuid.UUID(request.args["service_id"])
+    except (KeyError, ValueError):
+        raise InvalidRequest("A valid service_id query parameter is required", status_code=400)
+
 
 @files_blueprint.route("", methods=["POST"])
 def create_file(template_id):
     data = request.get_json()
     validate(data, post_create_file_schema)
-
-    user_id = data["created_by"]
-    permissions = {p.permission for p in permission_dao.get_permissions_by_user_id(data["created_by"])}
-
-    if MANAGE_TEMPLATES not in permissions:
-        raise InvalidRequest(f"User {user_id} does not have {MANAGE_TEMPLATES} permissions.", 403)
 
     try:
         template = dao_get_template_by_id(template_id)
@@ -69,16 +73,39 @@ def create_file(template_id):
         raise InvalidRequest("Template not found", status_code=404)
 
     service = template.service
+    user_id = data["created_by"]
+    permissions = {p.permission for p in permission_dao.get_permissions_by_user_id_and_service_id(user_id, service.id)}
+
+    if MANAGE_TEMPLATES not in permissions:
+        raise InvalidRequest(f"User {user_id} does not have {MANAGE_TEMPLATES} permissions.", 403)
+
     check_service_has_permission(UPLOAD_DOCUMENT, service.permissions)
-    validate_template_exists(template_id, service)
+    validate_template_exists(template.id, service)
+
+    existing_files = dao_get_files_by_template_id(template.id, service.id)
+    existing_size = sum(f.file_size or 0 for f in existing_files)
 
     filename = data["name"]
     mime_type = data["mime_type"]
     try:
         file_data = base64.b64decode(data["file_data"])
-        uploaded_file = document_download_client.upload_template_attachment(service.id, file_data, filename, mime_type)
     except (binascii.Error, ValueError):
         raise InvalidRequest("file_data is not valid base64", status_code=400)
+
+    actual_file_size = len(file_data)
+    total_size = existing_size + actual_file_size
+    if total_size > MAX_TOTAL_FILE_SIZE:
+        return jsonify(
+            {
+                "error": "over_file_limit",
+                "current_usage": existing_size,
+                "requested": actual_file_size,
+                "limit": MAX_TOTAL_FILE_SIZE,
+            }
+        ), 400
+
+    try:
+        uploaded_file = document_download_client.upload_template_attachment(service.id, file_data, filename, mime_type)
     except DocumentDownloadError as e:
         raise InvalidRequest(e.message, status_code=e.status_code)
 
@@ -86,7 +113,7 @@ def create_file(template_id):
     current_app.logger.info(f"Uploaded file to S3 for template {template_id} document_id: {document_id}")
 
     file = Files(
-        template_id=data["template_id"],
+        template_id=template.id,
         service_id=service.id,
         document_id=document_id,
         type=data["type"],
@@ -103,26 +130,20 @@ def create_file(template_id):
 
 @files_blueprint.route("")
 def get_files_by_template_id(template_id):
-    files = dao_get_files_by_template_id(template_id)
+    files = dao_get_files_by_template_id(template_id, _get_service_id_arg())
     data = files_schema.dump(files, many=True)
     return jsonify(data)
 
 
 @files_blueprint.route("/<uuid:file_id>/status", methods=["GET"])
 def get_file_status(template_id, file_id):
-    file_status = dao_get_file_status_by_id_and_template_id(file_id, template_id)
+    file_status = dao_get_file_status_by_id_and_template_id(file_id, template_id, _get_service_id_arg())
     return jsonify({"status": file_status}), 200
 
 
 @files_blueprint.route("/<uuid:file_id>", methods=["DELETE"])
 def delete_file(template_id, file_id):
-    fetched_file = dao_get_file_by_id(file_id)
-
-    if fetched_file.template_id != template_id:
-        raise InvalidRequest(
-            f"Requested file_id {file_id} is not associated with template {template_id}",
-            404,
-        )
+    fetched_file = dao_get_file_by_id_template_id_and_service_id(file_id, template_id, _get_service_id_arg())
 
     # Delete from S3 via document-download-api first
     try:
@@ -137,10 +158,10 @@ def delete_file(template_id, file_id):
         current_app.logger.error(f"Unexpected error deleting file from S3 (document_id {fetched_file.document_id}): {str(e)}")
         raise InvalidRequest("Failed to delete file from storage", 500)
 
-    # Only delete from database if S3 deletion succeeded
-    dao_delete_file(fetched_file)
+    # Only archive in database if S3 deletion succeeded
+    dao_archive_file(fetched_file)
 
-    current_app.logger.info(f"Deleted file: {file_id} template_id {template_id}")
+    current_app.logger.info(f"Archived file: {file_id} template_id {template_id}")
     return "", 204
 
 
@@ -163,7 +184,7 @@ def update_file_status():
     service_id = parsed["service_id"]
     new_status = parsed["new_status"]
 
-    fetched_file = dao_get_file_by_document_id(document_id)
+    fetched_file = dao_get_file_by_document_id_including_archived(document_id)
     if str(fetched_file.service_id) != service_id:
         raise InvalidRequest(
             f"Requested document_id {fetched_file.document_id} is not associated with service {service_id}",
@@ -173,17 +194,37 @@ def update_file_status():
     fetched_file.status = new_status
     dao_update_file(fetched_file)
 
-    try:
-        document_download_client.delete_document(service_id, document_id, "template_attach")
-        current_app.logger.info(f"Deleted scanned file S3 for document_id: {document_id}")
-    except DocumentDownloadError as e:
-        current_app.logger.warning(f"Failed to delete scanned file from S3 for document_id: {document_id}, error: {e.message}")
-
     current_app.logger.info(
         f"Updated file status to {new_status} for file_id: {fetched_file.id} "
         f"template_id: {fetched_file.template_id} document_id: {fetched_file.document_id} "
     )
     return jsonify(files_schema.dump(fetched_file)), 200
+
+
+@files_blueprint.route("/<uuid:file_id>/download", methods=["GET"])
+def get_file_contents(template_id, file_id):
+    fetched_file = dao_get_file_by_id_template_id_and_service_id(file_id, template_id, _get_service_id_arg())
+
+    if fetched_file.status != FILE_STATUS_UPLOADED:
+        raise InvalidRequest(
+            f"Requested file_id {file_id} is not available for download (status {fetched_file.status})",
+            409,
+        )
+
+    try:
+        response = document_download_client.download_document(fetched_file.service_id, fetched_file.document_id)
+        file_data = base64.b64encode(response.content).decode("utf-8")
+    except DocumentDownloadError as e:
+        raise InvalidRequest(f"Failed to retrieve file from storage: {e.message}", status_code=e.status_code)
+
+    return jsonify(
+        {
+            "file_data": file_data,
+            "name": fetched_file.name,
+            "mime_type": fetched_file.mime_type,
+            "file_size": fetched_file.file_size,
+        }
+    )
 
 
 def _parse_scan_verdict_payload(event):

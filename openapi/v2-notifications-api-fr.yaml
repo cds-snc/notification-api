@@ -90,30 +90,17 @@ paths:
                     errors:
                       - error: "AuthError"
                         message: "Non autorisé, le jeton d'authentification doit être fourni"
-        '404':
-          description: Notification non trouvée
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-              example:
-                notification_not_found:
-                  summary: Notification non trouvée
-                  value:
-                    result: "error"
-                    message: "Notification non trouvée dans la base de données"
         '500':
           description: Erreur interne du serveur
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
               example:
-                internal_server_error:
-                  summary: Erreur interne du serveur
-                  value:
-                    result: "error"
-                    message: "Erreur interne du serveur"
+                status_code: 500
+                errors:
+                  - error: "Exception"
+                    message: "Internal server error"
       security:
         - apiKey: []
 
@@ -203,12 +190,121 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 500
+                errors:
+                  - error: "Exception"
+                    message: "Internal server error"
+      security:
+        - apiKey: []
+
+    delete:
+      summary: Supprimer une notification planifiée
+      description: Supprimer une notification planifiée unique qui n’a pas encore été envoyée
+      operationId: deleteNotificationById
+      tags:
+        - Notifications
+      parameters:
+        - name: notification-id
+          in: path
+          description: Identifiant unique de la notification
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Notification supprimée avec succès
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: string
+              example:
+                result: "success"
+        '400':
+          description: Mauvaise requête - la notification n’est pas planifiée ou a déjà été envoyée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
               examples:
-                internal_server_error:
-                  summary: Internal server error
+                not_scheduled:
+                  summary: Notification is not scheduled
                   value:
-                    result: "error"
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "Notification is not scheduled and cannot be deleted"
+                already_sent:
+                  summary: Notification has already been sent
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "Notification has already been sent and cannot be deleted"
+        '403':
+          description: Interdit - erreurs d’authentification ou d’autorisation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                system_clock_error:
+                  summary: System clock not accurate
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "AuthError"
+                        message: "Error: Your system clock must be accurate to within 30 seconds"
+                invalid_api_key:
+                  summary: Invalid API key
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "AuthError"
+                        message: "Invalid token: Enter your full API key"
+        '401':
+          description: Non autorisé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                auth_error:
+                  summary: Unauthorized access
+                  value:
+                    status_code: 401
+                    errors:
+                      - error: "AuthError"
+                        message: "Unauthorized, authentication token must be provided"
+        '404':
+          description: Notification non trouvée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                notification_not_found:
+                  summary: Notification not found
+                  value:
+                    status_code: 404
+                    errors:
+                      - error: "NotificationNotFoundError"
+                        message: "Notification not found in database"
+        '500':
+          description: Erreur interne du serveur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 500
+                errors:
+                  - error: "Exception"
                     message: "Internal server error"
       security:
         - apiKey: []
@@ -359,10 +455,12 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
               example:
-                result: "error"
-                message: "Unauthorized"
+                status_code: 401
+                errors:
+                  - error: "AuthError"
+                    message: "Unauthorized, authentication token must be provided"
         '403':
           description: Interdit - erreurs d’authentification ou d’autorisation
           content:
@@ -410,12 +508,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
-              examples:
-                internal_server_error:
-                  summary: Internal server error
-                  value:
-                    result: "error"
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 500
+                errors:
+                  - error: "Exception"
                     message: "Internal server error"
       security:
         - apiKey: []
@@ -531,12 +628,11 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
               example:
-                internal_server_error:
-                  summary: Internal server error
-                  value:
-                    result: "error"
+                status_code: 500
+                errors:
+                  - error: "Exception"
                     message: "Internal server error"
       security:
         - apiKey: []
@@ -574,26 +670,34 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
               example:
-                bad_request:
-                  value:
-                    status_code: 400
-                    errors:
-                      - error: "ValidationError"
-                        message: "Unauthorized, authentication token must be provided"
+                status_code: 400
+                errors:
+                  - error: "ValidationError"
+                    message: "type bad is not one of [sms, email, letter]"
         '401':
           description: Non autorisé
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 401
+                errors:
+                  - error: "AuthError"
+                    message: "Unauthorized, authentication token must be provided"
         '500':
           description: Erreur interne du serveur
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 500
+                errors:
+                  - error: "Exception"
+                    message: "Internal server error"
       security:
         - apiKey: []
 
@@ -650,7 +754,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
               examples:
                 system_clock_error:
                   summary: System clock not accurate
@@ -671,19 +775,23 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
               example:
-                template_not_found:
-                  summary: Template not found
-                  value:
-                    result: "error"
-                    message: "Template not found in database"
+                status_code: 404
+                errors:
+                  - error: "NoResultFound"
+                    message: "No result found"
         '500':
           description: Erreur interne du serveur
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 500
+                errors:
+                  - error: "Exception"
+                    message: "Internal server error"
       security:
         - apiKey: []
 
@@ -694,7 +802,7 @@ paths:
       description: |
         Récupérer toutes les catégories de modèles disponibles pour les opérations de gestion des modèles.
 
-        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_permissions (manage_templates).
+        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_templates.
       operationId: getManageTemplateCategories
       tags:
         - Manage Templates
@@ -720,7 +828,7 @@ paths:
                       - error: "AuthError"
                         message: "Unauthorized, authentication token must be provided"
         '403':
-          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_permissions requise (manage_templates)
+          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_templates requise
           content:
             application/json:
               schema:
@@ -749,7 +857,7 @@ paths:
       description: |
         Récupérer un modèle spécifique par ID avec les permissions de gestion des modèles.
 
-        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_permissions (manage_templates).
+        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_templates.
       operationId: getManageTemplateById
       tags:
         - Manage Templates
@@ -785,7 +893,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
         '403':
-          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_permissions requise (manage_templates)
+          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_templates requise
           content:
             application/json:
               schema:
@@ -826,7 +934,7 @@ paths:
       description: |
         Mettre à jour les champs modifiables d’un modèle, y compris la catégorie et l’affectation du dossier parent.
 
-        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_permissions (manage_templates).
+        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_templates.
       operationId: patchManageTemplate
       tags:
         - Manage Templates
@@ -914,7 +1022,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
         '403':
-          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_permissions requise (manage_templates)
+          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_templates requise
           content:
             application/json:
               schema:
@@ -947,7 +1055,7 @@ paths:
       description: |
         Archiver un modèle et le retirer de tout dossier.
 
-        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_permissions (manage_templates).
+        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_templates.
       operationId: deleteManageTemplate
       tags:
         - Manage Templates
@@ -993,7 +1101,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
         '403':
-          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_permissions requise (manage_templates)
+          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_templates requise
           content:
             application/json:
               schema:
@@ -1028,7 +1136,7 @@ paths:
       description: |
         Créer un nouveau modèle avec une catégorie de modèle obligatoire.
 
-        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_permissions (manage_templates).
+        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_templates.
       operationId: postManageTemplate
       tags:
         - Manage Templates
@@ -1116,7 +1224,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ValidationErrorResponse'
         '403':
-          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_permissions requise (manage_templates) ou le type de modèle n’est pas autorisé pour le service
+          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_templates requise ou le type de modèle n’est pas autorisé pour le service
           content:
             application/json:
               schema:
@@ -1146,7 +1254,491 @@ paths:
         - apiKey: []
 
 
+  /v2/manage-template-folder:
+    get:
+      summary: Obtenir tous les dossiers de gabarits
+      description: |
+        Récupérer tous les dossiers de gabarits du service.
+
+        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_templates.
+      operationId: getManageTemplateFolders
+      tags:
+        - Manage Template Folders
+      responses:
+        '200':
+          description: Dossiers de gabarits récupérés avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManageTemplateFoldersResponse'
+        '401':
+          description: Non autorisé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '403':
+          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_templates requise
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                missing_permission:
+                  summary: Permission de gestion des modèles manquante
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "ForbiddenError"
+                        message: "This API key does not have permission to manage templates."
+        '500':
+          description: Erreur interne du serveur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+      security:
+        - apiKey: []
+
+    post:
+      summary: Créer un dossier de gabarits
+      description: |
+        Créer un nouveau dossier de gabarits, à la racine du service ou dans un dossier parent.
+
+        Les dossiers racines sont partagés avec tous les membres de l'équipe du service. Les sous-dossiers héritent de l’accès de leur dossier parent.
+
+        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_templates.
+      operationId: postManageTemplateFolder
+      tags:
+        - Manage Template Folders
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ManageTemplateFolderPostRequest'
+            examples:
+              create_root_folder:
+                summary: Créer un dossier à la racine du service
+                value:
+                  name: "Rappels de rendez-vous"
+              create_subfolder:
+                summary: Créer un dossier dans un autre dossier
+                value:
+                  name: "Rappels de janvier"
+                  parent_folder_id: "87654321-4321-4321-4321-210987654321"
+      responses:
+        '201':
+          description: Dossier de gabarits créé avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManageTemplateFolder'
+        '400':
+          description: Requête non valide - erreurs de validation ou dossier parent introuvable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                missing_name:
+                  summary: Champ obligatoire manquant
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "name is a required property"
+                empty_name:
+                  summary: Le nom du dossier ne peut pas être vide
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "name cannot be empty"
+                invalid_parent_folder_id:
+                  summary: Format d’ID de dossier parent invalide
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "parent_folder_id is not a valid UUID"
+                parent_folder_not_found:
+                  summary: Dossier parent introuvable
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "parent_folder_id not found"
+        '401':
+          description: Non autorisé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '403':
+          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_templates requise
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                missing_permission:
+                  summary: Permission de gestion des modèles manquante
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "ForbiddenError"
+                        message: "This API key does not have permission to manage templates."
+        '500':
+          description: Erreur interne du serveur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+      security:
+        - apiKey: []
+
+
+  /v2/manage-template-folder/{template-folder-id}:
+    get:
+      summary: Obtenir un dossier de gabarits par ID
+      description: |
+        Récupérer un dossier de gabarits spécifique par son ID.
+
+        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_templates.
+      operationId: getManageTemplateFolderById
+      tags:
+        - Manage Template Folders
+      parameters:
+        - name: template-folder-id
+          in: path
+          description: Identifiant unique du dossier de gabarits
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '200':
+          description: Dossier de gabarits récupéré avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManageTemplateFolder'
+        '400':
+          description: Requête non valide - format d’ID de dossier de gabarits non valide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 400
+                errors:
+                  - error: "ValidationError"
+                    message: "id is not a valid UUID"
+        '401':
+          description: Non autorisé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '403':
+          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_templates requise
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                missing_permission:
+                  summary: Permission de gestion des modèles manquante
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "ForbiddenError"
+                        message: "This API key does not have permission to manage templates."
+        '404':
+          description: Dossier de gabarits introuvable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 404
+                errors:
+                  - error: "NoResultFound"
+                    message: "No result found"
+        '500':
+          description: Erreur interne du serveur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+      security:
+        - apiKey: []
+
+    patch:
+      summary: Mettre à jour un dossier de gabarits
+      description: |
+        Renommer un dossier de gabarits et/ou le déplacer vers un autre dossier parent. Attribuez la valeur null à parent_folder_id pour déplacer le dossier à la racine du service.
+
+        Lorsqu’un dossier est déplacé dans un dossier parent, ce dossier ainsi que ses sous-dossiers ne sont visibles que par les membres de l'équipe ayant aussi accès au nouveau dossier parent.
+
+        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_templates.
+      operationId: patchManageTemplateFolder
+      tags:
+        - Manage Template Folders
+      parameters:
+        - name: template-folder-id
+          in: path
+          description: Identifiant unique du dossier de gabarits
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ManageTemplateFolderPatchRequest'
+            examples:
+              rename_folder:
+                summary: Renommer un dossier
+                value:
+                  name: "Rappels de rendez-vous"
+              move_folder:
+                summary: Déplacer un dossier dans un autre dossier
+                value:
+                  parent_folder_id: "87654321-4321-4321-4321-210987654321"
+              move_folder_to_root:
+                summary: Déplacer un dossier à la racine du service
+                value:
+                  parent_folder_id: null
+      responses:
+        '200':
+          description: Dossier de gabarits mis à jour avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManageTemplateFolder'
+        '400':
+          description: Requête non valide - erreurs de validation ou dossier parent non valide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                invalid_template_folder_id:
+                  summary: Format d’ID de dossier de gabarits non valide
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "id is not a valid UUID"
+                empty_name:
+                  summary: Le nom du dossier ne peut pas être vide
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "name cannot be empty"
+                invalid_parent_folder_id:
+                  summary: Format d’ID de dossier parent invalide
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "parent_folder_id is not a valid UUID"
+                parent_folder_not_found:
+                  summary: Dossier parent introuvable
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "parent_folder_id not found"
+                move_to_itself:
+                  summary: Un dossier ne peut pas être déplacé dans lui-même
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "You cannot move a folder to itself"
+                move_to_subfolder:
+                  summary: Un dossier ne peut pas être déplacé dans l’un de ses sous-dossiers
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "You cannot move a folder to one of its subfolders"
+        '401':
+          description: Non autorisé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '403':
+          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_templates requise
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                missing_permission:
+                  summary: Permission de gestion des modèles manquante
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "ForbiddenError"
+                        message: "This API key does not have permission to manage templates."
+        '404':
+          description: Dossier de gabarits introuvable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 404
+                errors:
+                  - error: "NoResultFound"
+                    message: "No result found"
+        '500':
+          description: Erreur interne du serveur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+      security:
+        - apiKey: []
+
+    delete:
+      summary: Supprimer un dossier de gabarits
+      description: |
+        Supprimer un dossier de gabarits vide. Le dossier ne doit contenir aucun gabarit ni sous-dossier.
+
+        Ce point de terminaison requiert une NOUVELLE clé API avec la permission manage_templates.
+      operationId: deleteManageTemplateFolder
+      tags:
+        - Manage Template Folders
+      parameters:
+        - name: template-folder-id
+          in: path
+          description: Identifiant unique du dossier de gabarits
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '200':
+          description: Dossier de gabarits supprimé avec succès. La réponse contient le dossier supprimé.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ManageTemplateFolder'
+        '400':
+          description: Requête non valide - ID non valide ou dossier non vide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                invalid_template_folder_id:
+                  summary: Format d’ID de dossier de gabarits non valide
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "id is not a valid UUID"
+                folder_not_empty:
+                  summary: Le dossier contient des gabarits ou des sous-dossiers
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "BadRequestError"
+                        message: "Folder is not empty"
+        '401':
+          description: Non autorisé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '403':
+          description: Interdit - la NOUVELLE clé API n’a pas la permission manage_templates requise
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                missing_permission:
+                  summary: Permission de gestion des modèles manquante
+                  value:
+                    status_code: 403
+                    errors:
+                      - error: "ForbiddenError"
+                        message: "This API key does not have permission to manage templates."
+        '404':
+          description: Dossier de gabarits introuvable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 404
+                errors:
+                  - error: "NoResultFound"
+                    message: "No result found"
+        '500':
+          description: Erreur interne du serveur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+      security:
+        - apiKey: []
+
+
   /v2/notifications/bulk:
+    get:
+      summary: Obtenir la liste des tâches de lot
+      description: Récupérer une liste paginée de tâches de lot et leurs statuts
+      operationId: getBulkNotificationJobs
+      tags:
+        - Notifications
+      parameters:
+        - name: older_than
+          in: query
+          description: Filter bulk jobs older than this job ID (UUID)
+          required: false
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '200':
+          description: Successfully retrieved bulk jobs
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkJobsResponse'
+        '400':
+          description: Bad request - invalid cursor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: Non autorisé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '500':
+          description: Erreur interne du serveur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+      security:
+        - apiKey: []
     post:
       summary: Envoyer un lot de notifications
       description: |
@@ -1336,12 +1928,477 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Error'
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 500
+                errors:
+                  - error: "Exception"
+                    message: "Internal server error"
+      security:
+        - apiKey: []
+
+  /v2/reports:
+    post:
+      summary: Demander un rapport
+      description: Demander la génération d’un rapport. Les rapports sont générés de façon asynchrone; interrogez le rapport par ID pour vérifier son statut avant d’en télécharger le contenu.
+      operationId: postReport
+      tags:
+        - Reports
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostReportRequest'
+            examples:
+              sms_report:
+                summary: Demander un rapport de SMS
+                value:
+                  report_type: "sms"
+                  language: "en"
+              email_report:
+                summary: Demander un rapport de courriels
+                value:
+                  report_type: "email"
+                  language: "fr"
+              job_report:
+                summary: Demander un rapport pour une tâche en masse
+                value:
+                  report_type: "job"
+                  language: "en"
+                  job_id: "12345678-1234-1234-1234-123456789012"
+      responses:
+        '202':
+          description: Demande de rapport acceptée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostReportResponse'
+        '400':
+          description: Mauvaise requête - paramètres invalides
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
               examples:
-                internal_server_error:
-                  summary: Internal server error
+                invalid_report_type:
+                  summary: Type de rapport invalide
                   value:
-                    result: "error"
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "report_type invalid is not one of [sms, email, job]"
+                missing_job_id:
+                  summary: Le paramètre \job_id\" est absent pour le rapport de tâche"
+                  value:
+                    status_code: 400
+                    errors:
+                      - error: "ValidationError"
+                        message: "job_id is a required property"
+        '403':
+          description: Interdit - la clé API n’a pas la permission \manage_reports\""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 403
+                errors:
+                  - error: "ForbiddenError"
+                    message: "This API key does not have permission to manage reports."
+        '401':
+          description: Non autorisé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 401
+                errors:
+                  - error: "AuthError"
+                    message: "Unauthorized, authentication token must be provided"
+        '429':
+          description: Trop de requêtes - limitation du débit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 429
+                errors:
+                  - error: "RateLimitExceeded"
+                    message: "Maximum 10 report requests per hour"
+        '500':
+          description: Erreur interne du serveur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 500
+                errors:
+                  - error: "Exception"
+                    message: "Internal server error"
+      security:
+        - apiKey: []
+
+    get:
+      summary: Obtenir la liste des rapports
+      description: Récupérer une liste paginée de rapports pour le service authentifié
+      operationId: getReports
+      tags:
+        - Reports
+      parameters:
+        - name: older_than
+          in: query
+          description: Filtrer les rapports plus anciens que cet ID de rapport (UUID)
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Rapports récupérés avec succès
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reports:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Report'
+                  links:
+                    $ref: '#/components/schemas/Links'
+        '403':
+          description: Interdit - la clé API n’a pas la permission \manage_reports\""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 403
+                errors:
+                  - error: "ForbiddenError"
+                    message: "This API key does not have permission to manage reports."
+        '401':
+          description: Non autorisé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 401
+                errors:
+                  - error: "AuthError"
+                    message: "Unauthorized, authentication token must be provided"
+        '500':
+          description: Erreur interne du serveur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 500
+                errors:
+                  - error: "Exception"
+                    message: "Internal server error"
+      security:
+        - apiKey: []
+
+  /v2/reports/{report-id}:
+    get:
+      summary: Obtenir un rapport par ID
+      description: Récupérer un rapport spécifique par son ID
+      operationId: getReportById
+      tags:
+        - Reports
+      parameters:
+        - name: report-id
+          in: path
+          description: Identifiant unique du rapport
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Rapport récupéré avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Report'
+        '403':
+          description: Interdit - la clé API n’a pas la permission \manage_reports\""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 403
+                errors:
+                  - error: "ForbiddenError"
+                    message: "This API key does not have permission to manage reports."
+        '401':
+          description: Non autorisé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 401
+                errors:
+                  - error: "AuthError"
+                    message: "Unauthorized, authentication token must be provided"
+        '404':
+          description: Rapport non trouvé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 404
+                errors:
+                  - error: "NoResultFound"
+                    message: "No result found"
+        '500':
+          description: Erreur interne du serveur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 500
+                errors:
+                  - error: "Exception"
+                    message: "Internal server error"
+      security:
+        - apiKey: []
+
+  /v2/reports/{report-id}/content:
+    get:
+      summary: Télécharger le contenu du rapport
+      description: Télécharger le contenu du rapport généré sous forme de fichier CSV. Le rapport doit avoir le statut « ready ».
+      operationId: getReportContent
+      tags:
+        - Reports
+      parameters:
+        - name: report-id
+          in: path
+          description: Identifiant unique du rapport
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Contenu du rapport retourné avec succès
+          content:
+            text/csv:
+              schema:
+                type: string
+                format: binary
+        '403':
+          description: Interdit - la clé API n’a pas la permission \manage_reports\""
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 403
+                errors:
+                  - error: "ForbiddenError"
+                    message: "This API key does not have permission to manage reports."
+        '401':
+          description: Non autorisé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 401
+                errors:
+                  - error: "AuthError"
+                    message: "Unauthorized, authentication token must be provided"
+        '404':
+          description: Rapport non trouvé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 404
+                errors:
+                  - error: "NoResultFound"
+                    message: "No result found"
+        '409':
+          description: Le rapport n’est pas prêt à être téléchargé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 409
+                errors:
+                  - error: "BadRequestError"
+                    message: "Report is not ready for download (status: generating)"
+        '502':
+          description: Échec de la récupération du contenu du rapport
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 502
+                errors:
+                  - error: "S3ReportDownloadError"
+                    message: "Failed to retrieve report content"
+      security:
+        - apiKey: []
+
+
+  /v2/notifications/bulk/{job_id}:
+    get:
+      summary: Obtenir une tâche de lot par identifiant
+      description: Récupérer une tâche de lot et son statut actuel
+      operationId: getBulkNotificationJobById
+      tags:
+        - Notifications
+      parameters:
+        - name: job_id
+          in: path
+          description: Identifiant unique de la tâche de notification en masse
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '200':
+          description: Bulk job retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostBulkResponse'
+        '400':
+          description: Mauvaise requête - format d’ID de tâche invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: Non autorisé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '403':
+          description: Forbidden
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '404':
+          description: Tâche de notification en masse non trouvée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 404
+                errors:
+                  - error: "JobNotFoundError"
+                    message: "Job not found in database"
+        '500':
+          description: Erreur interne du serveur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 500
+                errors:
+                  - error: "Exception"
+                    message: "Internal server error"
+      security:
+        - apiKey: []
+    delete:
+      summary: Annuler une tâche de notification en masse planifiée
+      description: Annuler une tâche de notification en masse qui est planifiée mais dont l'envoi n'a pas encore commencé
+      operationId: cancelBulkNotificationJob
+      tags:
+        - Notifications
+      parameters:
+        - name: job_id
+          in: path
+          description: Identifiant unique de la tâche de notification en masse
+          required: true
+          schema:
+            $ref: '#/components/schemas/UUID'
+      responses:
+        '200':
+          description: Tâche de notification en masse annulée avec succès
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PostBulkResponse'
+        '400':
+          description: Mauvaise requête - format d’ID de tâche invalide
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+        '401':
+          description: Non autorisé
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 401
+                errors:
+                  - error: "AuthError"
+                    message: "Non autorisé, le jeton d'authentification doit être fourni"
+        '404':
+          description: Tâche de notification en masse non trouvée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 404
+                errors:
+                  - error: "JobNotFoundError"
+                    message: "Job not found in database"
+        '409':
+          description: La tâche ne peut pas être annulée, car elle a déjà été annulée, est déjà en cours d'envoi, a déjà été envoyée ou son heure planifiée est dépassée
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              examples:
+                job_already_cancelled:
+                  summary: Job already cancelled
+                  value:
+                    status_code: 409
+                    errors:
+                      - error: "JobAlreadyCancelledError"
+                        message: "Job has already been cancelled"
+                job_cancellation_not_allowed:
+                  summary: Job cannot be cancelled
+                  value:
+                    status_code: 409
+                    errors:
+                      - error: "JobCancellationNotAllowedError"
+                        message: "Job cannot be cancelled because it is already being sent or has already been sent"
+        '500':
+          description: Erreur interne du serveur
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationErrorResponse'
+              example:
+                status_code: 500
+                errors:
+                  - error: "Exception"
                     message: "Internal server error"
       security:
         - apiKey: []
@@ -1472,7 +2529,7 @@ components:
           type: string
           format: date-time
           nullable: true
-          description: Planifier la notification pour un envoi ultérieur
+          description: Si vous souhaitez envoyer des notifications dans le futur, vous pouvez spécifier une date et une heure jusqu’à 4 jours à l’avance, au format ISO 8601, heure UTC.
         email_reply_to_id:
           $ref: '#/components/schemas/UUID'
           description: ID de l'adresse de réponse à utiliser
@@ -1503,7 +2560,7 @@ components:
           type: string
           format: date-time
           nullable: true
-          description: Planifier la notification pour un envoi ultérieur
+          description: Si vous souhaitez envoyer des notifications dans le futur, vous pouvez spécifier une date et une heure jusqu’à 4 jours à l’avance, au format ISO 8601, heure UTC.
         sms_sender_id:
           $ref: '#/components/schemas/UUID'
           description: ID de l'expéditeur SMS à utiliser
@@ -1794,6 +2851,69 @@ components:
         - errors
         - template_categories
 
+    ManageTemplateFolder:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        service_id:
+          $ref: '#/components/schemas/UUID'
+        name:
+          type: string
+        parent_folder_id:
+          allOf:
+            - $ref: '#/components/schemas/UUID'
+          nullable: true
+        users_with_permission:
+          type: array
+          description: ID des membres de l'équipe du service qui peuvent accéder à ce dossier
+          items:
+            $ref: '#/components/schemas/UUID'
+      required:
+        - id
+        - service_id
+        - name
+        - parent_folder_id
+        - users_with_permission
+
+    ManageTemplateFoldersResponse:
+      type: object
+      properties:
+        template_folders:
+          type: array
+          items:
+            $ref: '#/components/schemas/ManageTemplateFolder'
+      required:
+        - template_folders
+
+    ManageTemplateFolderPostRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          pattern: '\S'
+        parent_folder_id:
+          allOf:
+            - $ref: '#/components/schemas/UUID'
+          nullable: true
+      required:
+        - name
+      additionalProperties: false
+
+    ManageTemplateFolderPatchRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          pattern: '\S'
+        parent_folder_id:
+          allOf:
+            - $ref: '#/components/schemas/UUID'
+          nullable: true
+      additionalProperties: false
+
 
     Links:
       type: object
@@ -1980,12 +3100,12 @@ components:
               type: string
               format: date-time
               nullable: true
-              description: Date de début du traitement de la tâche
+              description: When the processing of the job started
             processing_finished:
               type: string
               format: date-time
               nullable: true
-              description: Date de fin du traitement de la tâche
+              description: When the processing of the job finished
             service_name:
               type: object
               properties:
@@ -2002,7 +3122,7 @@ components:
               properties:
                 id:
                   $ref: '#/components/schemas/UUID'
-                  description: ID de la clé API utilisée pour créer la tâche
+                  description: The ID of the API key used to create the job
                 name:
                   type: string
                   description: Nom de la clé API
@@ -2017,6 +3137,201 @@ components:
               $ref: '#/components/schemas/UUID'
               nullable: true
               description: ID de l’expéditeur utilisé pour cette tâche, si applicable
+            statistics:
+              type: array
+              items:
+                type: object
+                required: [status, count]
+                properties:
+                  status:
+                    type: string
+                  count:
+                    type: integer
+
+    BulkJob:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+        original_file_name:
+          type: string
+        notification_count:
+          type: integer
+        template:
+          $ref: '#/components/schemas/UUID'
+        template_version:
+          type: integer
+        service:
+          $ref: '#/components/schemas/UUID'
+        created_by:
+          type: object
+          properties:
+            id:
+              $ref: '#/components/schemas/UUID'
+            name:
+              type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+        job_status:
+          type: string
+          enum: ['pending', 'in progress', 'finished', 'sending limits exceeded', 'scheduled', 'cancelled', 'ready to send', 'sent to dvla', 'error']
+        scheduled_for:
+          type: string
+          format: date-time
+          nullable: true
+        processing_started:
+          type: string
+          format: date-time
+          nullable: true
+        processing_finished:
+          type: string
+          format: date-time
+          nullable: true
+        service_name:
+          type: object
+          properties:
+            name:
+              type: string
+        template_type:
+          type: string
+          enum: [email, sms]
+        api_key:
+          type: object
+          nullable: true
+          properties:
+            id:
+              $ref: '#/components/schemas/UUID'
+            name:
+              type: string
+            key_type:
+              type: string
+              enum: [normal, team, test]
+        archived:
+          type: boolean
+        sender_id:
+          $ref: '#/components/schemas/UUID'
+          nullable: true
+        statistics:
+          type: array
+          items:
+            type: object
+            required: [status, count]
+            properties:
+              status:
+                type: string
+              count:
+                type: integer
+      required:
+        - id
+        - job_status
+        - notification_count
+
+    BulkJobsResponse:
+      type: object
+      properties:
+        bulk_jobs:
+          type: array
+          items:
+            $ref: '#/components/schemas/BulkJob'
+        links:
+          $ref: '#/components/schemas/Links'
+      required:
+        - bulk_jobs
+        - links
+
+    Report:
+      type: object
+      properties:
+        id:
+          $ref: '#/components/schemas/UUID'
+          description: ID du rapport
+        report_type:
+          type: string
+          enum: [sms, email, job]
+          description: Le type de rapport
+        service_id:
+          $ref: '#/components/schemas/UUID'
+          description: ID du service auquel appartient le rapport
+        status:
+          type: string
+          enum: [requested, generating, ready, error]
+          description: Le statut du rapport
+        requested_at:
+          type: string
+          format: date-time
+          description: Date de la demande du rapport
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Date d’achèvement de la génération du rapport
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Date d’expiration du rapport, après laquelle il ne peut plus être téléchargé
+      required:
+        - id
+        - report_type
+        - service_id
+        - status
+        - requested_at
+
+    PostReportRequest:
+      oneOf:
+        - type: object
+          required:
+            - report_type
+            - language
+          properties:
+            report_type:
+              type: string
+              enum: [sms, email]
+              description: Le type de rapport à générer
+            language:
+              type: string
+              enum: [en, fr]
+              description: La langue du rapport
+            job_id:
+              $ref: '#/components/schemas/UUID'
+              nullable: true
+              description: ID de la tâche pour laquelle générer un rapport (requis lorsque report_type vaut job)
+        - type: object
+          required:
+            - report_type
+            - language
+            - job_id
+          properties:
+            report_type:
+              type: string
+              enum: [job]
+              description: Le type de rapport à générer
+            language:
+              type: string
+              enum: [en, fr]
+              description: La langue du rapport
+            job_id:
+              $ref: '#/components/schemas/UUID'
+              description: ID de la tâche pour laquelle générer un rapport (requis lorsque report_type vaut job)
+    PostReportResponse:
+      type: object
+      properties:
+        report_id:
+          $ref: '#/components/schemas/UUID'
+          description: ID du rapport demandé
+        status:
+          type: string
+          enum: [requested, generating, ready, error]
+          description: Le statut du rapport
+      required:
+        - report_id
+        - status
+
   securitySchemes:
     apiKey:
       type: apiKey
@@ -2030,4 +3345,8 @@ tags:
   - name: Templates
     description: Opérations liées aux modèles de notification
   - name: Manage Templates
-    description: Opérations pour créer, mettre à jour, récupérer et archiver des modèles avec la permission manage_permissions (manage_templates)
+    description: Opérations pour créer, mettre à jour, récupérer et archiver des modèles avec la permission manage_templates
+  - name: Manage Template Folders
+    description: Opérations pour créer, mettre à jour, récupérer et supprimer des dossiers de gabarits à l’aide d’une NOUVELLE clé API avec la permission manage_templates
+  - name: Reports
+    description: Opérations pour demander et télécharger des rapports avec une clé API ayant la permission \manage_reports\""

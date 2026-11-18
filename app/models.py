@@ -5,7 +5,6 @@ from enum import Enum, StrEnum
 from typing import Any, Iterable, Literal
 
 from flask import current_app, url_for
-from flask_sqlalchemy.model import DefaultMeta
 from notifications_utils.columns import Columns
 from notifications_utils.letter_timings import get_letter_timings
 from notifications_utils.recipients import (
@@ -29,7 +28,7 @@ from sqlalchemy.dialects.postgresql import ARRAY, JSON, JSONB, UUID
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.ext.hybrid import hybrid_property
-from sqlalchemy.orm import validates
+from sqlalchemy.orm import Mapped, validates
 
 from app import (
     DATETIME_FORMAT,
@@ -140,7 +139,8 @@ class HistoryModel:
                 current_app.logger.debug("{} has no column {} to copy from".format(original, c.name))
 
 
-BaseModel: DefaultMeta = db.Model
+class BaseModel(db.Model):  # type: ignore[misc, name-defined]
+    __abstract__ = True
 
 
 class User(BaseModel):
@@ -186,15 +186,17 @@ class User(BaseModel):
         default=EMAIL_AUTH_TYPE,
     )
     blocked = db.Column(db.Boolean, nullable=False, default=False)
-    additional_information = db.Column(JSONB(none_as_null=True), nullable=True, default={})
+    additional_information = db.Column(JSONB(none_as_null=True), nullable=True, default=dict)
     password_expired = db.Column(db.Boolean, nullable=False, default=False)
     verified_phonenumber = db.Column(db.Boolean, nullable=True, default=False)
 
     # either email auth or a mobile number must be provided
     CheckConstraint("auth_type = 'email_auth' or mobile_number is not null")
 
-    services = db.relationship("Service", secondary="user_to_service", backref="users")
-    organisations = db.relationship("Organisation", secondary="user_to_organisation", backref="users")
+    services: Mapped[list["Service"]] = db.relationship("Service", secondary="user_to_service", backref="users")  # type: ignore[assignment]
+    organisations: Mapped[list["Organisation"]] = db.relationship(
+        "Organisation", secondary="user_to_organisation", backref="users"
+    )  # type: ignore[assignment]
 
     @property
     def password(self):
@@ -1010,7 +1012,7 @@ class ApiKey(BaseModel, Versioned):
     )
     created_by = db.relationship("User")
     created_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), index=True, nullable=False)
-    compromised_key_info = db.Column(JSONB(none_as_null=True), nullable=True, default={})
+    compromised_key_info = db.Column(JSONB(none_as_null=True), nullable=True, default=dict)
     last_used_timestamp = db.Column(db.DateTime, index=False, unique=False, nullable=True, default=None)
     permissions = db.Column(
         ARRAY(db.String(255)),
@@ -1081,6 +1083,7 @@ class ApiKeyPermission(StrEnum):
     """
 
     MANAGE_TEMPLATES = "manage_templates"
+    MANAGE_REPORTS = "manage_reports"
 
 
 API_KEY_PERMISSION_TYPES: frozenset[str] = frozenset(p.value for p in ApiKeyPermission)
@@ -1216,7 +1219,7 @@ class TemplateBase(BaseModel):
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = db.Column(db.String(255), nullable=False)
-    template_type: TemplateType = db.Column(template_types, nullable=False)
+    template_type: Mapped[TemplateType] = db.Column(template_types, nullable=False)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
     updated_at = db.Column(db.DateTime, onupdate=datetime.datetime.utcnow)
     content = db.Column(db.Text, nullable=False)
@@ -1288,10 +1291,8 @@ class TemplateBase(BaseModel):
     @process_type.expression
     def _process_type(self):
         return db.case(
-            [
-                (self.template_type == "sms", db.coalesce(self.process_type_column, self.template_category.sms_process_type)),
-                (self.template_type == "email", db.coalesce(self.process_type_column, self.template_category.email_process_type)),
-            ],
+            (self.template_type == "sms", db.coalesce(self.process_type_column, self.template_category.sms_process_type)),
+            (self.template_type == "email", db.coalesce(self.process_type_column, self.template_category.email_process_type)),
             else_=self.process_type_column,
         )
 
@@ -1456,6 +1457,7 @@ class Files(BaseModel):
     mime_type = db.Column(db.Text, nullable=True)
     file_size = db.Column(db.Integer, nullable=True)
     status = db.Column(db.Enum(*FILE_STATUSES, name="notify_file_status_enum"), nullable=False)
+    archived = db.Column(db.Boolean, nullable=False, default=False)
     created_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), index=True, nullable=True)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
@@ -1631,6 +1633,9 @@ class Job(BaseModel):
     notifications_sent = db.Column(db.Integer, nullable=False, default=0)
     notifications_delivered = db.Column(db.Integer, nullable=False, default=0)
     notifications_failed = db.Column(db.Integer, nullable=False, default=0)
+    # SMS fragments the job counts towards the daily limit: 0 if it isn't counted (test key or simulated
+    # recipients), null for email jobs and SMS jobs created before this column was added.
+    billable_units = db.Column(db.Integer, nullable=True)
 
     processing_started = db.Column(db.DateTime, index=True, unique=False, nullable=True)
     processing_finished = db.Column(db.DateTime, index=False, unique=False, nullable=True)
@@ -1832,7 +1837,7 @@ class Notification(BaseModel):
     job = db.relationship("Job", backref=db.backref("notifications", lazy="dynamic"))
     job_row_number = db.Column(db.Integer, nullable=True)
     service_id = db.Column(UUID(as_uuid=True), db.ForeignKey("services.id"), index=True, unique=False)
-    service = db.relationship("Service")
+    service: Mapped["Service"] = db.relationship("Service")  # type: ignore[assignment]
     template_id = db.Column(UUID(as_uuid=True), index=True, unique=False)
     template_version = db.Column(db.Integer, nullable=False)
     template = db.relationship("TemplateHistory")
@@ -1870,7 +1875,12 @@ class Notification(BaseModel):
     client_reference = db.Column(db.String, index=True, nullable=True)
     _personalisation = db.Column(db.SensitiveString, nullable=True)
 
-    scheduled_notification = db.relationship("ScheduledNotification", uselist=False, back_populates="notification")
+    scheduled_notification = db.relationship(
+        "ScheduledNotification",
+        uselist=False,
+        back_populates="notification",
+        primaryjoin="Notification.id == foreign(ScheduledNotification.notification_id)",
+    )
 
     client_reference = db.Column(db.String, index=True, nullable=True)
 
@@ -2246,18 +2256,95 @@ class NotificationHistory(BaseModel, HistoryModel):
 
 
 class ScheduledNotification(BaseModel):
+    """A one-off (API) notification that is scheduled to be sent in the future.
+
+    Like scheduled bulk jobs, nothing is written to the notifications table until the scheduled time. The
+    send-scheduled-notifications task then puts it on the normal sending queues, where a notification with id
+    notification_id is created, so it is counted (stats, billing, limits) on the day it is actually sent.
+
+    Legacy rows only have notification_id, scheduled_for and pending set (service_id is null): their data is in the
+    notifications table.
+    TODO: once no legacy rows are left, make the notification columns non-nullable and remove pending.
+    """
+
     __tablename__ = "scheduled_notifications"
 
     id = db.Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    notification_id = db.Column(
-        UUID(as_uuid=True),
-        db.ForeignKey("notifications.id"),
-        index=True,
-        nullable=False,
+    # Becomes the id of the notification once it is sent. No foreign key: the notification doesn't exist until then.
+    notification_id = db.Column(UUID(as_uuid=True), index=True, nullable=False, default=uuid.uuid4)
+    notification = db.relationship(
+        "Notification",
+        uselist=False,
+        back_populates="scheduled_notification",
+        primaryjoin="Notification.id == foreign(ScheduledNotification.notification_id)",
     )
-    notification = db.relationship("Notification", uselist=False, back_populates="scheduled_notification")
-    scheduled_for = db.Column(db.DateTime, index=False, nullable=False)
+    scheduled_for = db.Column(db.DateTime, index=True, nullable=False)
     pending = db.Column(db.Boolean, nullable=False, default=True)
+
+    service_id = db.Column(UUID(as_uuid=True), db.ForeignKey("services.id"), nullable=True)
+    service = db.relationship("Service")
+    template_id = db.Column(UUID(as_uuid=True), nullable=True)
+    template_version = db.Column(db.Integer, nullable=True)
+    template = db.relationship("TemplateHistory")
+    notification_type = db.Column(notification_types, nullable=True)
+    to = db.Column(db.SensitiveString, nullable=True)
+    _personalisation = db.Column(db.SensitiveString, nullable=True)
+    api_key_id = db.Column(UUID(as_uuid=True), db.ForeignKey("api_keys.id"), nullable=True)
+    api_key = db.relationship("ApiKey")
+    key_type = db.Column(db.String, db.ForeignKey("key_types.name"), nullable=True)
+    client_reference = db.Column(db.String, nullable=True)
+    reply_to_text = db.Column(db.String, nullable=True)
+    billable_units = db.Column(db.Integer, nullable=False, default=0, server_default="0")
+    created_at = db.Column(db.DateTime, nullable=True, default=datetime.datetime.utcnow)
+
+    __table_args__: Iterable[Any] = (
+        db.ForeignKeyConstraint(
+            ["template_id", "template_version"],
+            ["templates_history.id", "templates_history.version"],
+        ),
+        Index("ix_scheduled_notifications_service_id_scheduled_for", "service_id", "scheduled_for"),
+        {},
+    )
+
+    @property
+    def personalisation(self):
+        if self._personalisation:
+            return signer_personalisation.verify(self._personalisation)
+        return {}
+
+    @personalisation.setter
+    def personalisation(self, personalisation):
+        self._personalisation = signer_personalisation.sign(personalisation or {})
+
+    def as_notification(self) -> "Notification":
+        """A transient (never persisted) Notification with this message's data, used to serialize it in the same
+        format as a notification that has been sent."""
+        notification = Notification(
+            id=self.notification_id,
+            service_id=self.service_id,
+            template_id=self.template_id,
+            template_version=self.template_version,
+            notification_type=self.notification_type,
+            to=self.to,
+            api_key_id=self.api_key_id,
+            key_type=self.key_type,
+            client_reference=self.client_reference,
+            reply_to_text=self.reply_to_text,
+            billable_units=self.billable_units,
+            created_at=self.created_at,
+            status=NOTIFICATION_CREATED,
+        )
+        notification._personalisation = self._personalisation
+        # These relationships have no backrefs, so setting them won't cascade the transient notification into the session
+        notification.service = self.service
+        notification.template = self.template
+        notification.api_key = self.api_key
+        return notification
+
+    def serialize(self) -> dict:
+        serialized = self.as_notification().serialize()
+        serialized["scheduled_for"] = self.scheduled_for.strftime(DATETIME_FORMAT)
+        return serialized
 
 
 INVITE_PENDING = "pending"
@@ -2301,7 +2388,7 @@ class InvitedUser(BaseModel):
         nullable=False,
         default=EMAIL_AUTH_TYPE,
     )
-    folder_permissions = db.Column(JSONB(none_as_null=True), nullable=False, default=[])
+    folder_permissions = db.Column(JSONB(none_as_null=True), nullable=False, default=list)
 
     # would like to have used properties for this but haven't found a way to make them
     # play nice with marshmallow yet
@@ -2771,7 +2858,7 @@ class LoginEvent(BaseModel):
         nullable=False,
     )
     user = db.relationship(User, backref=db.backref("login_events"))
-    data = db.Column(JSONB(none_as_null=True), nullable=False, default={})
+    data = db.Column(JSONB(none_as_null=True), nullable=False, default=dict)
     created_at = db.Column(db.DateTime, nullable=False, default=datetime.datetime.utcnow)
     updated_at = db.Column(db.DateTime, nullable=True, onupdate=datetime.datetime.utcnow)
 
@@ -2853,6 +2940,10 @@ class Report(BaseModel):
         UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=True
     )  # only set if report is requested by a user
     requesting_user = db.relationship("User")
+    api_key_id = db.Column(
+        UUID(as_uuid=True), db.ForeignKey("api_keys.id"), index=True, nullable=True
+    )  # only set if report is requested via the API
+    api_key = db.relationship("ApiKey")
     service_id = db.Column(
         UUID(as_uuid=True),
         db.ForeignKey("services.id"),
@@ -2875,4 +2966,5 @@ class Report(BaseModel):
             "completed_at": self.completed_at.strftime(DATETIME_FORMAT) if self.completed_at else None,
             "expires_at": self.expires_at.strftime(DATETIME_FORMAT) if self.expires_at else None,
             "url": self.url,
+            "api_key_id": str(self.api_key_id) if self.api_key_id else None,
         }

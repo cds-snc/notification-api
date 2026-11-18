@@ -1,3 +1,6 @@
+import ipaddress
+from urllib.parse import urlparse
+
 from flask import Blueprint, jsonify, request
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -36,6 +39,7 @@ register_errors(service_callback_blueprint)
 def create_service_inbound_api(service_id):
     data = request.get_json()
     validate(data, create_service_callback_api_schema)
+    _validate_not_localhost(data.get("url"))
     data["service_id"] = service_id
     inbound_api = ServiceInboundApi(**data)
     try:
@@ -50,6 +54,7 @@ def create_service_inbound_api(service_id):
 def update_service_inbound_api(service_id, inbound_api_id):
     data = request.get_json()
     validate(data, update_service_callback_api_schema)
+    _validate_not_localhost(data.get("url"))
 
     to_update = get_service_inbound_api(inbound_api_id, service_id)
 
@@ -85,6 +90,7 @@ def remove_service_inbound_api(service_id, inbound_api_id):
 def create_service_callback_api(service_id):
     data = request.get_json()
     validate(data, create_service_callback_api_schema)
+    _validate_not_localhost(data.get("url"))
     data["service_id"] = service_id
     data["callback_type"] = DELIVERY_STATUS_CALLBACK_TYPE
     callback_api = ServiceCallbackApi(**data)
@@ -100,6 +106,7 @@ def create_service_callback_api(service_id):
 def update_service_callback_api(service_id, callback_api_id):
     data = request.get_json()
     validate(data, update_service_callback_api_schema)
+    _validate_not_localhost(data.get("url"))
 
     to_update = get_service_callback_api(callback_api_id, service_id)
 
@@ -172,3 +179,25 @@ def handle_sql_error(e, table_name):
         return jsonify(result="error", message="No result found"), 404
     else:
         raise e
+
+
+def _validate_not_localhost(url):
+    """Reject callback URLs that reference localhost or loopback addresses."""
+    if url:
+        try:
+            parsed = urlparse(url)
+            hostname = (parsed.hostname or "").rstrip(".")
+            is_loopback = hostname == "localhost" or hostname.endswith(".localhost")
+            if not is_loopback:
+                try:
+                    is_loopback = ipaddress.ip_address(hostname).is_loopback
+                except ValueError:
+                    # Hostname is not an IP literal (for example, a normal DNS name);
+                    # keep `is_loopback` as determined by localhost-name checks above.
+                    pass
+            if is_loopback:
+                raise InvalidRequest("Callback URL must not point to localhost", status_code=400)
+        except InvalidRequest:
+            raise
+        except Exception as e:
+            raise InvalidRequest("Invalid callback URL", status_code=400) from e

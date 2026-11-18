@@ -6,10 +6,16 @@ APP_VERSION_FILE = app/version.py
 
 GIT_BRANCH ?= $(shell git symbolic-ref --short HEAD 2> /dev/null || echo "detached")
 GIT_COMMIT ?= $(shell git rev-parse HEAD)
+AWS_PROFILE ?= notify-staging
+AWS_CLI ?= /usr/local/bin/aws
 
 .PHONY: help
 help:
 	@cat $(MAKEFILE_LIST) | grep -E '^[a-zA-Z_-]+:.*?## .*$$' | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+
+.PHONY: generate-openapi
+generate-openapi: ## Generate EN and FR OpenAPI YAML files from the Jinja2 template and translations CSV
+	poetry run python scripts/generate_openapi.py
 
 .PHONY: generate-version-file
 generate-version-file: ## Generates the app version file
@@ -54,17 +60,47 @@ smoke-test-dev:
 smoke-test-local:
 	cd tests_smoke && poetry run python smoke_test.py --local --nofiles
 
+.PHONY: smoke-test-staging
+smoke-test-staging:
+	"$(AWS_CLI)" sso login --profile notify-staging
+	AWS_PROFILE=notify-staging make smoke-test
+
+.PHONY: smoke-test-prod
+smoke-test-prod:
+	"$(AWS_CLI)" sso login --profile notify-prod
+	AWS_PROFILE=notify-prod make smoke-test
+
+.PHONY: aws-login
+aws-login: ## Log in to AWS SSO for local staging development
+	@test -x "$(AWS_CLI)" || (echo "AWS CLI v2 is required; rebuild the dev container"; exit 1)
+	@"$(AWS_CLI)" --version 2>&1 | grep -q 'aws-cli/2\.' || (echo "AWS CLI v2 is required; rebuild the dev container"; exit 1)
+	@if identity_output=$$("$(AWS_CLI)" sts get-caller-identity --profile "$(AWS_PROFILE)" 2>&1); then \
+		echo "AWS SSO session already active for $(AWS_PROFILE)"; \
+	else \
+		printf '%s\n' "$$identity_output"; \
+		echo "AWS SSO session missing or expired; starting login"; \
+		"$(AWS_CLI)" sso login --profile "$(AWS_PROFILE)"; \
+	fi
+
 .PHONY: run
-run: ## Run the web app
-	poetry run flask run -p 6011 --host=0.0.0.0
+run: aws-login ## Run the web app with the staging AWS SSO profile
+	AWS_PROFILE="$(AWS_PROFILE)" poetry run flask run -p 6011 --host=0.0.0.0
+
+.PHONY: run-ci
+run-ci: ## Run the web app with AWS credentials from the environment (CI)
+	env -u AWS_PROFILE poetry run flask run -p 6011 --host=0.0.0.0
 
 .PHONY: run-celery-local
-run-celery-local: ## Run the celery workers with all the queues
-	poetry run ./scripts/run_celery_local.sh
+run-celery-local: aws-login ## Run the celery workers with all the queues
+	AWS_PROFILE="$(AWS_PROFILE)" poetry run ./scripts/run_celery_local.sh
 
 .PHONY: run-celery-local-filtered
-run-celery-local-filtered: ## Run the celery workers with all queues but filter out common scheduled tasks
-	poetry run ./scripts/run_celery_local.sh 2>&1 >/dev/null | grep -iEv 'beat|in-flight-to-inbox|run-scheduled-jobs|check-job-status'
+run-celery-local-filtered: aws-login ## Run the celery workers with all queues but filter out common scheduled tasks
+	AWS_PROFILE="$(AWS_PROFILE)" poetry run ./scripts/run_celery_local.sh 2>&1 >/dev/null | grep -iEv 'beat|in-flight-to-inbox|run-scheduled-jobs|check-job-status'
+
+.PHONY: run-celery-local-filtered-ci
+run-celery-local-filtered-ci: ## Run filtered celery workers using AWS credentials from the environment (CI)
+	env -u AWS_PROFILE poetry run ./scripts/run_celery_local.sh 2>&1 >/dev/null | grep -iEv 'beat|in-flight-to-inbox|run-scheduled-jobs|check-job-status'
 
 .PHONY: run-celery-purge
 run-celery-purge: ## Purge the celery queues

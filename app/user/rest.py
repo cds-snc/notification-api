@@ -7,9 +7,8 @@ from flask import Blueprint, abort, current_app, jsonify, request
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import NoResultFound
 
-from app import db, salesforce_client
+from app import db
 from app.clients.freshdesk import Freshdesk
-from app.clients.salesforce.salesforce_engagement import ENGAGEMENT_STAGE_ACTIVATION
 from app.config import Config, QueueNames
 from app.dao.fido2_key_dao import (
     create_fido2_session,
@@ -177,13 +176,6 @@ def update_user_attribute(user_id):
 
         send_notification_to_queue(saved_notification, False, queue=QueueNames.NOTIFY)
 
-    if current_app.config["FF_SALESFORCE_CONTACT"]:
-        try:
-            updated_user = get_user_by_id(user_id=user_id)
-            salesforce_client.contact_update(updated_user)
-        except Exception as e:
-            current_app.logger.exception(e)
-
     return jsonify(data=user_to_update.serialize()), 200
 
 
@@ -203,9 +195,6 @@ def activate_user(user_id):
 
     user.state = "active"
     save_model_user(user)
-
-    if current_app.config["FF_SALESFORCE_CONTACT"]:
-        salesforce_client.contact_create(user)
 
     return jsonify(data=user.serialize()), 200
 
@@ -518,13 +507,10 @@ def send_contact_request(user_id):
         # This is perfectly normal if get_user_by_email raises
         pass
 
-    # Update the engagement stage in Salesforce for go live requests
-    if contact and contact.is_go_live_request() and current_app.config["FF_SALESFORCE_CONTACT"]:
+    # Add the contact service's department name and update the service if required
+    if contact and contact.is_go_live_request():
         try:
-            engagement_updates = {"StageName": ENGAGEMENT_STAGE_ACTIVATION, "Description": contact.main_use_case}
             service = dao_fetch_service_by_id(contact.service_id)
-            salesforce_client.engagement_update(service, user, engagement_updates)
-
             if not service.organisation_notes:
                 # the service was created before we started requesting the organisation name at creation time
                 if not contact.department_org_name:
@@ -618,6 +604,9 @@ def send_new_template_category_request(user_id):
 @user_blueprint.route("/<uuid:user_id>", methods=["GET"])
 @user_blueprint.route("", methods=["GET"])
 def get_user(user_id=None):
+    if user_id:
+        return jsonify(data=get_user_by_id(user_id, use_dogpile=True))
+
     users = get_user_by_id(user_id=user_id)
     result = [x.serialize() for x in users] if isinstance(users, list) else users.serialize()
     return jsonify(data=result)
@@ -1019,17 +1008,17 @@ def send_annual_usage_data(user_id, start_year, end_year, markdown_en, markdown_
     per service.
 
     """
-    user = get_user_by_id(user_id=user_id)
+    user_data = get_user_by_id(user_id, use_dogpile=True)
     template = dao_get_template_by_id(current_app.config["ANNUAL_LIMIT_QUARTERLY_USAGE_TEMPLATE_ID"])
     service = Service.query.get(current_app.config["NOTIFY_SERVICE_ID"])
 
     saved_notification = persist_notification(
         template_id=template.id,
         template_version=template.version,
-        recipient=user.email_address,
+        recipient=user_data["email_address"],
         service=service,
         personalisation={
-            "name": user.name,
+            "name": user_data["name"],
             "start_year": start_year,
             "end_year": end_year,
             "data_for_each_service_en": markdown_en,
@@ -1082,7 +1071,7 @@ def deactivate_user(user_id):
 
                 # Deactivate if no active members would remain
                 if len(remaining_active_members) == 0:
-                    dao_archive_service_no_transaction(service.id)
+                    dao_archive_service_no_transaction(service.id, user.id)
                     services_deactivated.append(service.id)
                 # Suspend if it's a live service and only 1 active member would remain
                 elif service_is_live and len(remaining_active_members) == 1:

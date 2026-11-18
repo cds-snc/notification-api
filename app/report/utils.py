@@ -55,7 +55,7 @@ class Translate:
         return x
 
 
-def build_notifications_query(service_id, notification_type, language, notification_statuses=[], job_id=None, days_limit=7):
+def build_notifications_query(service_id, notification_type, language, notification_statuses=None, job_id=None, days_limit=7):
     """
     Builds and returns an SQLAlchemy query for notifications with the specified parameters.
 
@@ -114,16 +114,14 @@ def build_notifications_query(service_id, notification_type, language, notificat
     translate = Translate(language).translate
     # Provider-failure logic for email
     provider_failure_email = case(
-        [(inner_query.c.feedback_subtype.in_(["suppressed", "on-account-suppression-list"]), "Blocked")], else_="No such address"
+        (inner_query.c.feedback_subtype.in_(["suppressed", "on-account-suppression-list"]), "Blocked"), else_="No such address"
     )
     # Provider-failure logic for sms
     provider_failure_sms = case(
-        [
-            (
-                inner_query.c.feedback_reason.in_(["NO_ORIGINATION_IDENTITIES_FOUND", "DESTINATION_COUNTRY_BLOCKED"]),
-                "Can't send to this international number",
-            )
-        ],
+        (
+            inner_query.c.feedback_reason.in_(["NO_ORIGINATION_IDENTITIES_FOUND", "DESTINATION_COUNTRY_BLOCKED"]),
+            "Can't send to this international number",
+        ),
         else_="No such number",
     )
 
@@ -132,10 +130,10 @@ def build_notifications_query(service_id, notification_type, language, notificat
     # Add provider-failure logic
     if notification_type == "email":
         email_status_cases.append((inner_query.c.status == "provider-failure", translate(provider_failure_email)))
-        status_expr = case(email_status_cases, else_=inner_query.c.status)
+        status_expr = case(*email_status_cases, else_=inner_query.c.status)
     elif notification_type == "sms":
         sms_status_cases.append((inner_query.c.status == "provider-failure", translate(provider_failure_sms)))
-        status_expr = case(sms_status_cases, else_=inner_query.c.status)
+        status_expr = case(*sms_status_cases, else_=inner_query.c.status)
     else:
         status_expr = inner_query.c.status
     if language == "fr":
@@ -145,10 +143,8 @@ def build_notifications_query(service_id, notification_type, language, notificat
 
     # Outer query: translate notification_type for display
     notification_type_translated = case(
-        [
-            (inner_query.c.notification_type == "email", translate("email")),
-            (inner_query.c.notification_type == "sms", translate("sms")),
-        ],
+        (inner_query.c.notification_type == "email", translate("email")),
+        (inner_query.c.notification_type == "sms", translate("sms")),
         else_=inner_query.c.notification_type,
     ).label(translate("Type"))
 
@@ -225,7 +221,7 @@ def stream_query_to_s3(copy_command, s3_bucket, s3_key):
 
 
 def generate_csv_from_notifications(
-    service_id, notification_type, language, notification_statuses=[], job_id=None, days_limit=7, s3_bucket=None, s3_key=None
+    service_id, notification_type, language, notification_statuses=None, job_id=None, days_limit=7, s3_bucket=None, s3_key=None
 ):
     """
     Generate CSV using SQLAlchemy for improved compatibility and type safety, and stream it directly to S3.
@@ -242,7 +238,7 @@ def generate_csv_from_notifications(
         service_id=service_id,
         notification_type=notification_type,
         language=language,
-        notification_statuses=notification_statuses,
+        notification_statuses=list(notification_statuses) if notification_statuses is not None else None,
         job_id=job_id,
         days_limit=days_limit,
     )
