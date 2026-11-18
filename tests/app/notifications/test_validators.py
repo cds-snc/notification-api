@@ -1,3 +1,4 @@
+from datetime import datetime
 from unittest.mock import call
 
 import pytest
@@ -38,6 +39,8 @@ from app.v2.errors import (
     BadRequestError,
     LiveServiceRequestExceedsEmailAnnualLimitError,
     LiveServiceRequestExceedsSMSAnnualLimitError,
+    LiveServiceTooManyEmailRequestsError,
+    LiveServiceTooManySMSRequestsError,
     RateLimitError,
     TrialServiceRequestExceedsEmailAnnualLimitError,
     TrialServiceRequestExceedsSMSAnnualLimitError,
@@ -51,9 +54,13 @@ from tests.app.conftest import (
 )
 from tests.app.db import (
     create_ft_notification_status,
+    create_job,
     create_letter_contact,
     create_reply_to_email,
+    create_scheduled_one_off_notification,
+    create_service,
     create_service_sms_sender,
+    create_template,
 )
 from tests.conftest import set_config
 
@@ -189,6 +196,48 @@ class TestCheckDailySMSEmailLimits:
 
         # Then
         app_statsd.statsd_client.incr.assert_not_called()
+
+
+@freeze_time("2018-07-16 15:00")
+class TestCheckDailyLimitsForLaterDay:
+    """Messages scheduled for a later day are checked against that day's limit, not today's"""
+
+    @pytest.fixture(params=[EMAIL_TYPE, SMS_TYPE])
+    def setup(self, request, notify_db_session, mocker):
+        # today's count, which shouldn't be used for a later day
+        mocker.patch("app.redis_store.get", return_value=1000)
+        service = create_service(message_limit=10, sms_daily_limit=10)
+        template = create_template(service, template_type=request.param)
+        if request.param == EMAIL_TYPE:
+            return service, template, check_email_daily_limit, LiveServiceTooManyEmailRequestsError
+        return service, template, check_sms_daily_limit, LiveServiceTooManySMSRequestsError
+
+    def test_counts_jobs_and_one_offs_scheduled_for_that_day(self, setup):
+        service, template, check_daily_limit, error = setup
+        create_job(
+            template, job_status="scheduled", scheduled_for=datetime(2018, 7, 17, 0, 0), notification_count=5, billable_units=5
+        )
+        create_scheduled_one_off_notification(template, scheduled_for="2018-07-17 23:59", billable_units=1)
+
+        check_daily_limit(service, 4, "2018-07-17T12:00:00")
+        with pytest.raises(error):
+            check_daily_limit(service, 5, "2018-07-17T12:00:00")
+
+    def test_doesnt_count_messages_scheduled_for_other_days(self, setup):
+        service, template, check_daily_limit, _ = setup
+        create_job(
+            template, job_status="scheduled", scheduled_for=datetime(2018, 7, 17, 12, 0), notification_count=10, billable_units=10
+        )
+        create_job(
+            template, job_status="scheduled", scheduled_for=datetime(2018, 7, 19, 12, 0), notification_count=10, billable_units=10
+        )
+
+        check_daily_limit(service, 10, "2018-07-18T12:00:00")
+
+    def test_today_still_uses_todays_count(self, setup):
+        service, _, check_daily_limit, error = setup
+        with pytest.raises(error):
+            check_daily_limit(service, 1, "2018-07-16T20:00:00")
 
 
 @pytest.mark.parametrize("template_type, notification_type", [(EMAIL_TYPE, EMAIL_TYPE), (SMS_TYPE, SMS_TYPE)])

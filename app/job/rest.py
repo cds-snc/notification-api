@@ -219,7 +219,7 @@ def create_job(service_id):
         if has_real_recipients and not has_simulated:
             sms_billable_units = recipient_csv.sms_fragment_count
             check_sms_annual_limit(service, sms_billable_units)
-            check_sms_daily_limit(service, sms_billable_units)
+            check_sms_daily_limit(service, sms_billable_units, data.get("scheduled_for"))
             if count_towards_todays_limit:
                 increment_sms_daily_count_send_warnings_if_needed(service, sms_billable_units)
 
@@ -234,7 +234,7 @@ def create_job(service_id):
 
         check_email_annual_limit(service, notification_count)
 
-        check_email_daily_limit(service, notification_count)
+        check_email_daily_limit(service, notification_count, data.get("scheduled_for"))
 
         if count_towards_todays_limit:
             increment_email_daily_count_send_warnings_if_needed(service, notification_count)

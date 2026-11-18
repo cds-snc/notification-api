@@ -228,7 +228,7 @@ def post_bulk():
 
     if template.template_type == EMAIL_TYPE and api_user.key_type != KEY_TYPE_TEST:
         check_email_annual_limit(authenticated_service, notification_count_requested)
-        check_email_daily_limit(authenticated_service, notification_count_requested)
+        check_email_daily_limit(authenticated_service, notification_count_requested, form.get("scheduled_for"))
 
         if count_towards_todays_limit:
             increment_email_daily_count_send_warnings_if_needed(authenticated_service, notification_count_requested)
@@ -256,7 +256,7 @@ def post_bulk():
         if not is_test_notification:
             sms_billable_units = recipient_csv.sms_fragment_count
             check_sms_annual_limit(authenticated_service, sms_billable_units)
-            check_sms_daily_limit(authenticated_service, sms_billable_units)
+            check_sms_daily_limit(authenticated_service, sms_billable_units, form.get("scheduled_for"))
             if count_towards_todays_limit:
                 increment_sms_daily_count_send_warnings_if_needed(authenticated_service, sms_billable_units)
 
@@ -313,7 +313,7 @@ def post_notification(notification_type: NotificationType):
 
     if template.template_type == EMAIL_TYPE and api_user.key_type != KEY_TYPE_TEST:
         check_email_annual_limit(authenticated_service, 1)
-        check_email_daily_limit(authenticated_service, 1)  # 1 email
+        check_email_daily_limit(authenticated_service, 1, scheduled_for)  # 1 email
 
     # Like scheduled bulk jobs, a notification scheduled for a later day is counted towards that day's limit when that
     # day's count is loaded from the database (it includes notifications scheduled for the day), not today's.
@@ -324,7 +324,7 @@ def post_notification(notification_type: NotificationType):
         if not is_test_notification:
             billable_unit = number_of_sms_fragments(template, personalisation)
             check_sms_annual_limit(authenticated_service, billable_unit)
-            check_sms_daily_limit(authenticated_service, billable_unit)
+            check_sms_daily_limit(authenticated_service, billable_unit, scheduled_for)
 
     current_app.logger.info(f"Trying to send notification for Template ID: {template.id}")
 
