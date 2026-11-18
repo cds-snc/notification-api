@@ -1258,7 +1258,7 @@ class TestBillableUnitsInJobCreation:
 
         # sms_fragment_count returns 2, so limit checks should use 2
         mock_check_annual.assert_called_once_with(sample_template.service, 2)
-        mock_check_daily.assert_called_once_with(sample_template.service, 2)
+        mock_check_daily.assert_called_once_with(sample_template.service, 2, None)
         mock_increment.assert_called_once_with(sample_template.service, 2)
 
     def test_create_sms_job_multiple_recipients_uses_total_billable_units(self, client, sample_template, mocker, fake_uuid):
@@ -1300,7 +1300,7 @@ class TestBillableUnitsInJobCreation:
 
         # sms_fragment_count returns 6, so limit checks should use 6
         mock_check_annual.assert_called_once_with(sample_template.service, 6)
-        mock_check_daily.assert_called_once_with(sample_template.service, 6)
+        mock_check_daily.assert_called_once_with(sample_template.service, 6, None)
         mock_increment.assert_called_once_with(sample_template.service, 6)
 
     def test_create_sms_job_simulated_recipients_skips_limit_checks(self, client, sample_template, mocker, fake_uuid):
@@ -1391,7 +1391,7 @@ class TestBillableUnitsInJobCreation:
         assert response.status_code == 201
 
         mock_check_annual.assert_called_once_with(sample_template.service, 6)
-        mock_check_daily.assert_called_once_with(sample_template.service, 6)
+        mock_check_daily.assert_called_once_with(sample_template.service, 6, scheduled_for)
         if expect_increment:
             mock_increment.assert_called_once_with(sample_template.service, 6)
         else:

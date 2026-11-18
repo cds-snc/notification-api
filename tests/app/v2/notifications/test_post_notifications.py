@@ -3495,7 +3495,7 @@ class TestPostBulkScheduledSmsDailyLimit:
         )
 
         assert response.status_code == 201
-        mock_check_daily.assert_called_once_with(service, 4)
+        mock_check_daily.assert_called_once_with(service, 4, scheduled_for)
         if expect_increment:
             mock_increment.assert_called_once_with(service, 4)
         else:
