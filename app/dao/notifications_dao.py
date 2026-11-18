@@ -792,6 +792,7 @@ def dao_get_scheduled_one_off_notifications_for_service(service_id, page=1, page
             joinedload(ScheduledNotification.template),
             joinedload(ScheduledNotification.service),
             joinedload(ScheduledNotification.api_key),
+            joinedload(ScheduledNotification.created_by),
         )
         .order_by(asc(ScheduledNotification.scheduled_for), asc(ScheduledNotification.created_at))
         .paginate(page=page, per_page=page_size)

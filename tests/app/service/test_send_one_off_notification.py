@@ -716,6 +716,10 @@ class TestScheduledOneOffNotification:
             ("2017-05-01 13:00", "scheduled_for datetime cannot be in the past"),
             ("2017-05-30 13:00", "scheduled_for datetime can only be up to 96 hours in the future"),
             ("not a date", "scheduled_for datetime format is invalid"),
+            ("", "scheduled_for must be a non-empty string"),
+            (123, "scheduled_for must be a non-empty string"),
+            (0, "scheduled_for must be a non-empty string"),
+            (False, "scheduled_for must be a non-empty string"),
         ],
     )
     def test_raises_if_scheduled_for_is_invalid(self, notify_db_session, persist_mock, celery_mock, scheduled_for, message):

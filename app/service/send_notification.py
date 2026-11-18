@@ -59,6 +59,9 @@ def create_one_off_reference(template_type):
 def validate_scheduled_for(scheduled_for, template_type):
     if template_type == LETTER_TYPE:
         raise BadRequestError(message="Letters cannot be scheduled")
+    # This endpoint has no request schema, so check the type before the format checker (which ignores non-strings)
+    if not isinstance(scheduled_for, str) or not scheduled_for:
+        raise BadRequestError(message="scheduled_for must be a non-empty string")
     try:
         validate_schema_date_for_job(scheduled_for)
     except ValidationError as e:
@@ -71,8 +74,8 @@ def send_one_off_notification(service_id, post_data):
 
     personalisation = post_data.get("personalisation", None)
 
-    scheduled_for = post_data.get("scheduled_for") or None
-    if scheduled_for:
+    scheduled_for = post_data.get("scheduled_for")
+    if scheduled_for is not None:
         validate_scheduled_for(scheduled_for, template.template_type)
         # Like the API, simulated recipients are never scheduled: they're sent (and shown) straight away
         if simulated_recipient(post_data["to"], template.template_type):
