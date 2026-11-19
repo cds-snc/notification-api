@@ -710,6 +710,79 @@ class TestScheduledOneOffNotification:
         assert increment_mock.called is counted_today
 
     @freeze_time("2017-05-01 14:00:00")
+    @pytest.mark.parametrize("template_type, to", [(SMS_TYPE, "6502532222"), (EMAIL_TYPE, "ok@ok.com")])
+    def test_can_schedule_for_a_later_day_when_todays_daily_limit_is_used_up(
+        self, notify_db_session, celery_mock, mock_annual_limits, mocker, template_type, to
+    ):
+        service = create_service(message_limit=10, sms_daily_limit=10)
+        template = create_template(service=service, template_type=template_type)
+        mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=10)
+        mocker.patch("app.notifications.validators.fetch_todays_requested_sms_billable_units_count", return_value=10)
+
+        send_one_off_notification(
+            service.id,
+            {
+                "template_id": str(template.id),
+                "to": to,
+                "created_by": str(service.created_by_id),
+                "scheduled_for": "2017-05-02 10:00",
+            },
+        )
+
+        assert ScheduledNotification.query.count() == 1
+
+    @freeze_time("2017-05-01 14:00:00")
+    @pytest.mark.parametrize(
+        "template_type, to, expected_error",
+        [
+            (SMS_TYPE, "6502532222", LiveServiceTooManySMSRequestsError),
+            (EMAIL_TYPE, "ok@ok.com", LiveServiceTooManyEmailRequestsError),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "scheduled_for, todays_count, scheduled_days_count",
+        [
+            # later today, and today's limit is used up
+            ("2017-05-01 20:00", 10, 0),
+            # a later day, and that day's limit is used up
+            ("2017-05-02 10:00", 0, 10),
+        ],
+        ids=["later_today", "later_day"],
+    )
+    def test_raises_if_daily_limit_of_scheduled_day_is_used_up(
+        self,
+        notify_db_session,
+        celery_mock,
+        mock_annual_limits,
+        mocker,
+        template_type,
+        to,
+        expected_error,
+        scheduled_for,
+        todays_count,
+        scheduled_days_count,
+    ):
+        service = create_service(message_limit=10, sms_daily_limit=10)
+        template = create_template(service=service, template_type=template_type)
+        mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=todays_count)
+        mocker.patch("app.notifications.validators.fetch_todays_requested_sms_billable_units_count", return_value=todays_count)
+        mocker.patch("app.notifications.validators.fetch_scheduled_email_count_for_day", return_value=scheduled_days_count)
+        mocker.patch("app.notifications.validators.fetch_scheduled_sms_billable_units_for_day", return_value=scheduled_days_count)
+
+        with pytest.raises(expected_error):
+            send_one_off_notification(
+                service.id,
+                {
+                    "template_id": str(template.id),
+                    "to": to,
+                    "created_by": str(service.created_by_id),
+                    "scheduled_for": scheduled_for,
+                },
+            )
+
+        assert ScheduledNotification.query.count() == 0
+
+    @freeze_time("2017-05-01 14:00:00")
     @pytest.mark.parametrize(
         "scheduled_for, message",
         [
