@@ -492,9 +492,9 @@ def dao_fetch_todays_stats_for_service(service_id):
     return _stats_for_service_query(service_id).filter(func.date(Notification.created_at) == date.today()).all()
 
 
-def _scheduled_one_off_notifications_for_today(service_id, midnight, notification_type=None):
-    """Filters for one-off notifications scheduled to be sent today that haven't been sent yet. Like scheduled jobs,
-    they count towards the daily limit of the day they're scheduled for."""
+def _scheduled_one_off_notifications_for_day(service_id, midnight, notification_type=None):
+    """Filters for one-off notifications scheduled to be sent on the day starting at `midnight` that haven't been sent
+    yet. Like scheduled jobs, they count towards the daily limit of the day they're scheduled for."""
     filters = [
         ScheduledNotification.service_id == service_id,
         ScheduledNotification.key_type != KEY_TYPE_TEST,
@@ -506,9 +506,9 @@ def _scheduled_one_off_notifications_for_today(service_id, midnight, notificatio
     return filters
 
 
-def _sum_for_jobs_scheduled_for_today(service_id, midnight, notification_type, column) -> int:
-    """Sums `column` over jobs scheduled to be sent today that haven't started yet. Scheduled jobs count towards the
-    daily limit of the day they're scheduled for, see create_job and post_bulk."""
+def _sum_for_jobs_scheduled_for_day(service_id, midnight, notification_type, column) -> int:
+    """Sums `column` over jobs scheduled to be sent on the day starting at `midnight` that haven't started yet. Scheduled
+    jobs count towards the daily limit of the day they're scheduled for, see create_job and post_bulk."""
     query = (
         db.session.query(func.coalesce(func.sum(column), 0))
         .select_from(Job)
@@ -551,7 +551,7 @@ def fetch_todays_total_message_count(service_id):
 
     scheduled_one_off_count = (
         db.session.query(func.count(ScheduledNotification.notification_id))
-        .filter(*_scheduled_one_off_notifications_for_today(service_id, midnight))
+        .filter(*_scheduled_one_off_notifications_for_day(service_id, midnight))
         .scalar()
     )
 
@@ -572,11 +572,11 @@ def fetch_todays_total_sms_count(service_id):
     )
     scheduled_one_off_count = (
         db.session.query(func.count(ScheduledNotification.notification_id))
-        .filter(*_scheduled_one_off_notifications_for_today(service_id, midnight, SMS_TYPE))
+        .filter(*_scheduled_one_off_notifications_for_day(service_id, midnight, SMS_TYPE))
         .scalar()
     )
     sent_count = 0 if result is None or result.total_sms_notifications is None else result.total_sms_notifications
-    scheduled_jobs_count = _sum_for_jobs_scheduled_for_today(service_id, midnight, SMS_TYPE, Job.notification_count)
+    scheduled_jobs_count = _sum_for_jobs_scheduled_for_day(service_id, midnight, SMS_TYPE, Job.notification_count)
     return sent_count + scheduled_one_off_count + scheduled_jobs_count
 
 
@@ -595,11 +595,11 @@ def fetch_todays_total_sms_billable_units(service_id):
     )
     scheduled_one_off_billable_units = (
         db.session.query(func.coalesce(func.sum(ScheduledNotification.billable_units), 0))
-        .filter(*_scheduled_one_off_notifications_for_today(service_id, midnight, SMS_TYPE))
+        .filter(*_scheduled_one_off_notifications_for_day(service_id, midnight, SMS_TYPE))
         .scalar()
     )
     sent_billable_units = 0 if result is None or result.total_sms_billable_units is None else result.total_sms_billable_units
-    scheduled_jobs_billable_units = _sum_for_jobs_scheduled_for_today(service_id, midnight, SMS_TYPE, Job.billable_units)
+    scheduled_jobs_billable_units = _sum_for_jobs_scheduled_for_day(service_id, midnight, SMS_TYPE, Job.billable_units)
     return sent_billable_units + scheduled_one_off_billable_units + scheduled_jobs_billable_units
 
 
@@ -609,7 +609,7 @@ def fetch_service_email_limit(service_id: uuid.UUID) -> int:
 
 def fetch_todays_total_email_count(service_id: uuid.UUID) -> int:
     midnight = get_midnight(datetime.now(tz=pytz.utc))
-    scheduled_jobs_count = _sum_for_jobs_scheduled_for_today(service_id, midnight, EMAIL_TYPE, Job.notification_count)
+    scheduled_jobs_count = _sum_for_jobs_scheduled_for_day(service_id, midnight, EMAIL_TYPE, Job.notification_count)
 
     result = (
         db.session.query(func.coalesce(func.count(Notification.id), 0).label("total_email_notifications")).filter(
@@ -622,11 +622,37 @@ def fetch_todays_total_email_count(service_id: uuid.UUID) -> int:
 
     scheduled_one_off_count = (
         db.session.query(func.count(ScheduledNotification.notification_id))
-        .filter(*_scheduled_one_off_notifications_for_today(service_id, midnight, EMAIL_TYPE))
+        .filter(*_scheduled_one_off_notifications_for_day(service_id, midnight, EMAIL_TYPE))
         .scalar()
     )
 
     return result.total_email_notifications + scheduled_jobs_count + scheduled_one_off_count
+
+
+def fetch_scheduled_email_count_for_day(service_id: uuid.UUID, day: datetime) -> int:
+    """Emails scheduled to be sent on `day` (UTC). For a later day nothing has been sent yet, so this is that day's
+    total towards the daily limit."""
+    midnight = get_midnight(day)
+    scheduled_jobs_count = _sum_for_jobs_scheduled_for_day(service_id, midnight, EMAIL_TYPE, Job.notification_count)
+    scheduled_one_off_count = (
+        db.session.query(func.count(ScheduledNotification.notification_id))
+        .filter(*_scheduled_one_off_notifications_for_day(service_id, midnight, EMAIL_TYPE))
+        .scalar()
+    )
+    return scheduled_jobs_count + scheduled_one_off_count
+
+
+def fetch_scheduled_sms_billable_units_for_day(service_id: uuid.UUID, day: datetime) -> int:
+    """SMS billable units scheduled to be sent on `day` (UTC). For a later day nothing has been sent yet, so this is
+    that day's total towards the daily limit."""
+    midnight = get_midnight(day)
+    scheduled_jobs_billable_units = _sum_for_jobs_scheduled_for_day(service_id, midnight, SMS_TYPE, Job.billable_units)
+    scheduled_one_off_billable_units = (
+        db.session.query(func.coalesce(func.sum(ScheduledNotification.billable_units), 0))
+        .filter(*_scheduled_one_off_notifications_for_day(service_id, midnight, SMS_TYPE))
+        .scalar()
+    )
+    return scheduled_jobs_billable_units + scheduled_one_off_billable_units
 
 
 def _stats_for_service_query(service_id):

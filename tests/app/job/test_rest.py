@@ -14,6 +14,7 @@ from notifications_utils.clients.redis.annual_limit import (
 import app.celery.tasks
 from app.dao.templates_dao import dao_update_template
 from app.models import (
+    EMAIL_TYPE,
     JOB_STATUS_FINISHED,
     JOB_STATUS_PENDING,
     JOB_STATUS_TYPES,
@@ -238,6 +239,41 @@ def test_create_future_not_same_day_scheduled_email_job_does_not_increment_daily
     assert response.status_code == 201
 
     app.job.rest.increment_email_daily_count_send_warnings_if_needed.assert_not_called()
+
+
+@freeze_time("2018-07-16 15:00")
+def test_create_email_job_scheduled_for_later_day_fails_if_over_that_days_limit(client, mocker, notify_db_session, fake_uuid):
+    service = create_service(message_limit=10)
+    template = create_template(service=service, template_type=EMAIL_TYPE)
+    create_job(template, job_status="scheduled", scheduled_for=datetime(2018, 7, 17, 9, 0), notification_count=8)
+    mocker.patch("app.celery.tasks.process_job.apply_async")
+    mocker.patch(
+        "app.job.rest.get_job_metadata_from_s3",
+        return_value={
+            "template_id": str(template.id),
+            "original_file_name": "tomorrow.csv",
+            "notification_count": "3",
+            "valid": "True",
+        },
+    )
+    mocker.patch(
+        "app.job.rest.get_job_from_s3",
+        return_value="email address\r\na@example.com\r\nb@example.com\r\nc@example.com",
+    )
+    mocker.patch(
+        "app.notifications.validators.get_annual_limit_notifications_v2",
+        return_value={"total_email_fiscal_year_to_yesterday": 0, "total_sms_fiscal_year_to_yesterday": 0},
+    )
+
+    data = {"id": fake_uuid, "created_by": str(template.created_by.id), "scheduled_for": "2018-07-17T18:00:00"}
+    response = client.post(
+        f"/service/{service.id}/job",
+        data=json.dumps(data),
+        headers=[("Content-Type", "application/json"), create_authorization_header()],
+    )
+
+    assert response.status_code == 429
+    assert Job.query.get(fake_uuid) is None
 
 
 def test_create_unscheduled_job(client, sample_template, mocker, fake_uuid):
@@ -1222,7 +1258,7 @@ class TestBillableUnitsInJobCreation:
 
         # sms_fragment_count returns 2, so limit checks should use 2
         mock_check_annual.assert_called_once_with(sample_template.service, 2)
-        mock_check_daily.assert_called_once_with(sample_template.service, 2)
+        mock_check_daily.assert_called_once_with(sample_template.service, 2, None)
         mock_increment.assert_called_once_with(sample_template.service, 2)
 
     def test_create_sms_job_multiple_recipients_uses_total_billable_units(self, client, sample_template, mocker, fake_uuid):
@@ -1264,7 +1300,7 @@ class TestBillableUnitsInJobCreation:
 
         # sms_fragment_count returns 6, so limit checks should use 6
         mock_check_annual.assert_called_once_with(sample_template.service, 6)
-        mock_check_daily.assert_called_once_with(sample_template.service, 6)
+        mock_check_daily.assert_called_once_with(sample_template.service, 6, None)
         mock_increment.assert_called_once_with(sample_template.service, 6)
 
     def test_create_sms_job_simulated_recipients_skips_limit_checks(self, client, sample_template, mocker, fake_uuid):
@@ -1355,7 +1391,7 @@ class TestBillableUnitsInJobCreation:
         assert response.status_code == 201
 
         mock_check_annual.assert_called_once_with(sample_template.service, 6)
-        mock_check_daily.assert_called_once_with(sample_template.service, 6)
+        mock_check_daily.assert_called_once_with(sample_template.service, 6, scheduled_for)
         if expect_increment:
             mock_increment.assert_called_once_with(sample_template.service, 6)
         else:
