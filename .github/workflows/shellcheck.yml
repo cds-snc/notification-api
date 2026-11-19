@@ -15,7 +15,7 @@ jobs:
     steps:
     - name: Prepare Ubuntu CA trust
       uses: route06/actions/prepare-ubuntu-ca@aa6b218e4bc5445f54d3649a04297af5e1ce7458 # temporary CA mitigation
-    - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2.7.0
+    - uses: actions/checkout@0717577d45739eb3c851188b29f50ed6c0b2194e # v2.8.0
     - name: Shellcheck
       run: |
         .github/workflows/scripts/run-shellcheck.sh
