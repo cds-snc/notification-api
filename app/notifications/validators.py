@@ -114,6 +114,12 @@ def check_service_over_api_rate_limit_and_update_rate(service: Service, api_key:
 )
 def check_sms_daily_limit(service: Service, requested_sms=0, scheduled_for: Optional[str] = None):
     """Checks the daily limit of the day the messages will be sent: today, or the day they're scheduled for."""
+    # Known race condition (applies to check_email_daily_limit too): this check is not atomic with
+    # recording the send. For a later day, the total is a plain DB read and the job/notification is
+    # only committed after this check. For today, the count is a Redis get that is only incremented
+    # later with a separate incrby. Two concurrent requests can both pass and exceed the daily limit.
+    # A fix would need a per-service, per-day atomic counter (e.g. in Redis) or a DB lock around the
+    # check and the insert, for both today and scheduled sends. Left as-is unless it causes problems.
     if scheduled_for and is_scheduled_for_a_later_day(scheduled_for):
         messages_sent = fetch_scheduled_sms_billable_units_for_day(service.id, parse_scheduled_datetime(scheduled_for))
     else:
@@ -145,6 +151,7 @@ def check_sms_daily_limit(service: Service, requested_sms=0, scheduled_for: Opti
 )
 def check_email_daily_limit(service: Service, requested_email=0, scheduled_for: Optional[str] = None):
     """Checks the daily limit of the day the emails will be sent: today, or the day they're scheduled for."""
+    # Known race condition: concurrent requests can both pass this check. See check_sms_daily_limit.
     if scheduled_for and is_scheduled_for_a_later_day(scheduled_for):
         emails_sent_today = fetch_scheduled_email_count_for_day(service.id, parse_scheduled_datetime(scheduled_for))
     else:
