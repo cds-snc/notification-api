@@ -519,6 +519,7 @@ def build_notification_to_sign(
     key_type: str,
     client_reference: Optional[str],
     reply_to_text: Optional[str],
+    created_by_id: Optional[str] = None,
 ) -> NotificationDictToSign:
     """Builds the notification dict that is signed and put on the save_smss / save_emails queues for one-off
     notifications, whether sent straight away or scheduled."""
@@ -535,6 +536,8 @@ def build_notification_to_sign(
         "client_reference": client_reference,
         "reply_to_text": reply_to_text,
     }
+    if created_by_id:
+        notification_to_sign["created_by_id"] = created_by_id
     return cast(NotificationDictToSign, notification_to_sign)
 
 
@@ -593,6 +596,7 @@ def persist_scheduled_one_off_notification(notification: Notification, scheduled
         billable_units=notification.billable_units or 0,
         scheduled_for=parse_scheduled_datetime(scheduled_for),
         created_at=notification.created_at,
+        created_by_id=notification.created_by_id,
     )
     scheduled_notification._personalisation = notification._personalisation
     dao_create_scheduled_one_off_notification(scheduled_notification)

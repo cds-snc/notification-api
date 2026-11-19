@@ -173,6 +173,7 @@ def _scheduled_one_off_notification_to_sign(scheduled_notification: ScheduledNot
         key_type=scheduled_notification.key_type,
         client_reference=scheduled_notification.client_reference,
         reply_to_text=scheduled_notification.reply_to_text,
+        created_by_id=str(scheduled_notification.created_by_id) if scheduled_notification.created_by_id else None,
     )
 
 

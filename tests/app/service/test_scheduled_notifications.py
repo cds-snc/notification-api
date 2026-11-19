@@ -1,5 +1,8 @@
 import pytest
+from sqlalchemy import event
 
+from app import db
+from app.dao.notifications_dao import dao_get_scheduled_one_off_notifications_for_service
 from app.models import Notification, ScheduledNotification
 from tests.app.db import (
     create_notification,
@@ -46,6 +49,40 @@ class TestGetScheduledNotificationsForService:
         assert response["page_size"] == 2
         assert len(response["notifications"]) == 2
 
+    def test_includes_created_by(self, admin_request, sample_template):
+        user = sample_template.service.created_by
+        create_scheduled_one_off_notification(sample_template, created_by=user)
+
+        response = admin_request.get(
+            "service.get_scheduled_notifications_for_service",
+            service_id=sample_template.service_id,
+        )
+
+        assert response["notifications"][0]["created_by"] == {
+            "id": str(user.id),
+            "name": user.name,
+            "email_address": user.email_address,
+        }
+
+    def test_dao_eager_loads_created_by(self, notify_db_session, sample_template):
+        user = sample_template.service.created_by
+        user_name = user.name
+        create_scheduled_one_off_notification(sample_template, created_by=user)
+        db.session.expire_all()
+        pagination = dao_get_scheduled_one_off_notifications_for_service(sample_template.service_id)
+
+        queries = []
+        engine = db.session.get_bind()
+        listener = lambda *args: queries.append(args[2])  # noqa: E731
+        event.listen(engine, "before_cursor_execute", listener)
+        try:
+            created_by_name = pagination.items[0].created_by.name
+        finally:
+            event.remove(engine, "before_cursor_execute", listener)
+
+        assert created_by_name == user_name
+        assert queries == []
+
     @pytest.mark.parametrize("params", [{"page_size": 0}, {"page": 0}, {"page_size": "abc"}, {"page": "abc"}])
     def test_rejects_invalid_pagination_params(self, admin_request, sample_template, params):
         admin_request.get(
@@ -84,6 +121,18 @@ class TestGetScheduledNotification:
         assert response["job"] is None
         assert response["created_by"] is None
         assert Notification.query.count() == 0
+
+    def test_get_notification_includes_created_by_for_notification_scheduled_from_the_admin(self, admin_request, sample_template):
+        user = sample_template.service.created_by
+        scheduled_notification = create_scheduled_one_off_notification(sample_template, created_by=user)
+
+        response = admin_request.get(
+            "service.get_notification_for_service",
+            service_id=scheduled_notification.service_id,
+            notification_id=scheduled_notification.notification_id,
+        )
+
+        assert response["created_by"] == {"id": str(user.id), "name": user.name, "email_address": user.email_address}
 
     def test_get_notification_doesnt_return_another_services_scheduled_notification(self, admin_request, sample_template):
         scheduled_notification = create_scheduled_one_off_notification(sample_template)

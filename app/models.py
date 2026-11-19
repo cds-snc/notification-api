@@ -2296,6 +2296,9 @@ class ScheduledNotification(BaseModel):
     reply_to_text = db.Column(db.String, nullable=True)
     billable_units = db.Column(db.Integer, nullable=False, default=0, server_default="0")
     created_at = db.Column(db.DateTime, nullable=True, default=datetime.datetime.utcnow)
+    # Set for one-off notifications scheduled from the admin, so they're shown as sent by that user, not by the API
+    created_by_id = db.Column(UUID(as_uuid=True), db.ForeignKey("users.id"), nullable=True)
+    created_by = db.relationship("User")
 
     __table_args__: Iterable[Any] = (
         db.ForeignKeyConstraint(
@@ -2332,6 +2335,7 @@ class ScheduledNotification(BaseModel):
             reply_to_text=self.reply_to_text,
             billable_units=self.billable_units,
             created_at=self.created_at,
+            created_by_id=self.created_by_id,
             status=NOTIFICATION_CREATED,
         )
         notification._personalisation = self._personalisation
@@ -2339,6 +2343,7 @@ class ScheduledNotification(BaseModel):
         notification.service = self.service
         notification.template = self.template
         notification.api_key = self.api_key
+        notification.created_by = self.created_by
         return notification
 
     def serialize(self) -> dict:
