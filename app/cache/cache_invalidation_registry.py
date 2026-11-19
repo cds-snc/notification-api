@@ -21,7 +21,7 @@ class CacheInvalidationRule:
     entity_id_attribute: str
 
 
-CACHE_INVALIDATION_REGISTRY = {
+CACHE_INVALIDATION_REGISTRY: dict[type[object], list[CacheInvalidationRule]] = {
     Service: [
         CacheInvalidationRule(namespace="service", entity_id_attribute="id"),
     ],

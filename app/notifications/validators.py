@@ -1,6 +1,7 @@
 import base64
 import functools
 from datetime import datetime, time, timedelta
+from typing import Optional
 
 from flask import current_app
 from notifications_utils import EMAIL_CHAR_COUNT_LIMIT, SMS_CHAR_COUNT_LIMIT
@@ -31,6 +32,10 @@ from app.dao import templates_dao
 from app.dao.service_email_reply_to_dao import dao_get_reply_to_by_id
 from app.dao.service_letter_contact_dao import dao_get_letter_contact_by_id
 from app.dao.service_sms_sender_dao import dao_get_service_sms_senders_by_id
+from app.dao.services_dao import (
+    fetch_scheduled_email_count_for_day,
+    fetch_scheduled_sms_billable_units_for_day,
+)
 from app.email_limit_utils import fetch_todays_email_count, increment_todays_email_count
 from app.models import (
     EMAIL_TYPE,
@@ -46,7 +51,11 @@ from app.models import (
     Template,
     TemplateType,
 )
-from app.notifications.process_notifications import create_content_for_notification
+from app.notifications.process_notifications import (
+    create_content_for_notification,
+    is_scheduled_for_a_later_day,
+    parse_scheduled_datetime,
+)
 from app.service.sender import send_notification_to_service_users
 from app.service.utils import service_allowed_to_send_to
 from app.sms_fragment_utils import (
@@ -103,8 +112,18 @@ def check_service_over_api_rate_limit_and_update_rate(service: Service, api_key:
     counter_name="rate_limit.live_service_daily_sms",
     exception=LiveServiceTooManySMSRequestsError,
 )
-def check_sms_daily_limit(service: Service, requested_sms=0):
-    messages_sent = fetch_todays_requested_sms_billable_units_count(service.id)
+def check_sms_daily_limit(service: Service, requested_sms=0, scheduled_for: Optional[str] = None):
+    """Checks the daily limit of the day the messages will be sent: today, or the day they're scheduled for."""
+    # Known race condition (applies to check_email_daily_limit too): this check is not atomic with
+    # recording the send. For a later day, the total is a plain DB read and the job/notification is
+    # only committed after this check. For today, the count is a Redis get that is only incremented
+    # later with a separate incrby. Two concurrent requests can both pass and exceed the daily limit.
+    # A fix would need a per-service, per-day atomic counter (e.g. in Redis) or a DB lock around the
+    # check and the insert, for both today and scheduled sends. Left as-is unless it causes problems.
+    if scheduled_for and is_scheduled_for_a_later_day(scheduled_for):
+        messages_sent = fetch_scheduled_sms_billable_units_for_day(service.id, parse_scheduled_datetime(scheduled_for))
+    else:
+        messages_sent = fetch_todays_requested_sms_billable_units_count(service.id)
     over_sms_daily_limit = (messages_sent + requested_sms) > service.sms_daily_limit
 
     # Send a warning when reaching the daily message limit
@@ -130,8 +149,13 @@ def check_sms_daily_limit(service: Service, requested_sms=0):
     counter_name="rate_limit.live_service_daily_email",
     exception=LiveServiceTooManyEmailRequestsError,
 )
-def check_email_daily_limit(service: Service, requested_email=0):
-    emails_sent_today = fetch_todays_email_count(service.id)
+def check_email_daily_limit(service: Service, requested_email=0, scheduled_for: Optional[str] = None):
+    """Checks the daily limit of the day the emails will be sent: today, or the day they're scheduled for."""
+    # Known race condition: concurrent requests can both pass this check. See check_sms_daily_limit.
+    if scheduled_for and is_scheduled_for_a_later_day(scheduled_for):
+        emails_sent_today = fetch_scheduled_email_count_for_day(service.id, parse_scheduled_datetime(scheduled_for))
+    else:
+        emails_sent_today = fetch_todays_email_count(service.id)
     bool_over_email_daily_limit = (emails_sent_today + requested_email) > service.message_limit
 
     # Send a warning when reaching the daily email limit

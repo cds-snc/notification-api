@@ -38,6 +38,8 @@ from app.dao.services_dao import (
     dao_suspend_service,
     dao_update_service,
     delete_service_and_all_associated_db_objects,
+    fetch_scheduled_email_count_for_day,
+    fetch_scheduled_sms_billable_units_for_day,
     fetch_service_email_limit,
     fetch_todays_total_email_count,
     fetch_todays_total_message_count,
@@ -1217,6 +1219,20 @@ class TestTodaysTotalCountsIncludeScheduledJobs:
         )
 
         assert fetch_todays_total_email_count(service.id) == 1 + 10 + 10
+
+    def test_fetch_scheduled_counts_for_day(self):
+        service = create_service()
+        email_template = create_template(service=service, template_type=EMAIL_TYPE)
+        sms_template = create_template(service=service, template_type=SMS_TYPE)
+        self._create_scheduled_jobs(email_template, notification_count=10)
+        self._create_scheduled_jobs(sms_template, notification_count=3, billable_units=6)
+        create_scheduled_one_off_notification(email_template, scheduled_for="2018-07-17 23:59")
+        create_scheduled_one_off_notification(sms_template, scheduled_for="2018-07-17 23:59", billable_units=2)
+        create_scheduled_one_off_notification(email_template, scheduled_for="2018-07-18 00:00")
+
+        tomorrow = datetime(2018, 7, 17, 15, 0)
+        assert fetch_scheduled_email_count_for_day(service.id, tomorrow) == 10 + 1
+        assert fetch_scheduled_sms_billable_units_for_day(service.id, tomorrow) == 6 + 2
 
     def test_doesnt_count_test_key_or_other_services_jobs(self):
         service = create_service()
