@@ -23,6 +23,10 @@ class InvalidUrlException(Exception):
     pass
 
 
+class EmailFromHeaderTooLongException(Exception):
+    pass
+
+
 class DocumentDownloadException(Exception):
     pass
 
