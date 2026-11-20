@@ -87,6 +87,7 @@ from app.notifications.process_notifications import (
     persist_notifications,
     send_notification_to_queue,
 )
+from app.queue import verify_notification
 from app.report.utils import generate_csv_from_notifications, send_requested_report_ready
 from app.sms_fragment_utils import fetch_todays_requested_sms_count
 from app.types import VerifiedNotification
@@ -310,7 +311,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
     saved_notifications: List[Notification] = []
     for signed_notification in signed_notifications:
         try:
-            _notification = signer_notification.verify(signed_notification)
+            _notification, _ = verify_notification(signer_notification, signed_notification)
         except BadSignature:
             current_app.logger.exception(f"Invalid signature for signed_notification {signed_notification}")
             raise
@@ -349,7 +350,7 @@ def save_smss(self, service_id: Optional[str], signed_notifications: List[Signed
                 "key_type": _notification.get("key_type", KEY_TYPE_NORMAL),
                 "template_id": template.id,
                 "template_version": template.version,
-                "recipient": _notification.get("to"),
+                "recipient": _notification["to"],
                 "personalisation": _notification.get("personalisation"),
                 "notification_type": SMS_TYPE,  # type: ignore
                 "simulated": _notification.get("simulated", None),
@@ -418,7 +419,7 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
 
     for signed_notification in signed_notifications:
         try:
-            _notification = signer_notification.verify(signed_notification)
+            _notification, _ = verify_notification(signer_notification, signed_notification)
         except BadSignature:
             current_app.logger.exception(f"Invalid signature for signed_notification {signed_notification}")
             raise
@@ -461,7 +462,7 @@ def save_emails(self, _service_id: Optional[str], signed_notifications: List[Sig
                 "key_type": _notification.get("key_type", KEY_TYPE_NORMAL),
                 "template_id": template.id,
                 "template_version": template.version,
-                "recipient": _notification.get("to"),
+                "recipient": _notification["to"],
                 "personalisation": _notification.get("personalisation"),
                 "notification_type": EMAIL_TYPE,  # type: ignore
                 "simulated": _notification.get("simulated", None),
