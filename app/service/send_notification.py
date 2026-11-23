@@ -91,10 +91,10 @@ def send_one_off_notification(service_id, post_data):
         if not is_test_notification:
             billable_unit = number_of_sms_fragments(template_with_content, personalisation)
             check_sms_annual_limit(service, billable_unit)
-            check_sms_daily_limit(service, billable_unit)
+            check_sms_daily_limit(service, billable_unit, scheduled_for)
     elif template.template_type == EMAIL_TYPE:
         check_email_annual_limit(service, 1)
-        check_email_daily_limit(service, 1)  # 1 email
+        check_email_daily_limit(service, 1, scheduled_for)  # 1 email
 
     validate_and_format_recipient(
         send_to=post_data["to"],
