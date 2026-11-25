@@ -222,12 +222,16 @@ def post_bulk():
     # Pre-seed annual limit data in Redis to avoid slow database queries during limit checks
     get_annual_limit_notifications_v2(authenticated_service.id)
 
+    # A job scheduled for a later day is counted towards that day's limit when that day's count is loaded from the
+    # database (it includes jobs scheduled for the day), not today's.
+    count_towards_todays_limit = not is_scheduled_for_a_later_day(form.get("scheduled_for"))
+    sms_billable_units = None
+
     if template.template_type == EMAIL_TYPE and api_user.key_type != KEY_TYPE_TEST:
         check_email_annual_limit(authenticated_service, notification_count_requested)
-        check_email_daily_limit(authenticated_service, notification_count_requested)
-        scheduled_for = datetime.fromisoformat(form.get("scheduled_for")) if form.get("scheduled_for") else None
+        check_email_daily_limit(authenticated_service, notification_count_requested, form.get("scheduled_for"))
 
-        if scheduled_for is None or not scheduled_for.date() > datetime.today().date():
+        if count_towards_todays_limit:
             increment_email_daily_count_send_warnings_if_needed(authenticated_service, notification_count_requested)
 
     if template.template_type == SMS_TYPE:
@@ -249,19 +253,15 @@ def post_bulk():
 
         is_test_notification = api_user.key_type == KEY_TYPE_TEST or (has_simulated and not has_real_recipients)
 
+        sms_billable_units = 0
         if not is_test_notification:
-            # TODO FF_USE_BILLABLE_UNITS removal - Use billable units when feature flag is enabled
-            if current_app.config.get("FF_USE_BILLABLE_UNITS"):
-                total_billable_units = recipient_csv.sms_fragment_count
-                check_sms_annual_limit(authenticated_service, total_billable_units)
-                check_sms_daily_limit(authenticated_service, total_billable_units)
-                increment_sms_daily_count_send_warnings_if_needed(authenticated_service, total_billable_units)
-            else:
-                check_sms_annual_limit(authenticated_service, len(recipient_csv))
-                check_sms_daily_limit(authenticated_service, len(recipient_csv))
-                increment_sms_daily_count_send_warnings_if_needed(authenticated_service, len(recipient_csv))
+            sms_billable_units = recipient_csv.sms_fragment_count
+            check_sms_annual_limit(authenticated_service, sms_billable_units)
+            check_sms_daily_limit(authenticated_service, sms_billable_units, form.get("scheduled_for"))
+            if count_towards_todays_limit:
+                increment_sms_daily_count_send_warnings_if_needed(authenticated_service, sms_billable_units)
 
-    job = create_bulk_job(authenticated_service, api_user, template, form, recipient_csv)
+    job = create_bulk_job(authenticated_service, api_user, template, form, recipient_csv, sms_billable_units)
 
     return jsonify(data=job_schema.dump(job)), 201
 
@@ -316,7 +316,7 @@ def post_notification(notification_type: NotificationType):
 
     if template.template_type == EMAIL_TYPE and api_user.key_type != KEY_TYPE_TEST:
         check_email_annual_limit(authenticated_service, 1)
-        check_email_daily_limit(authenticated_service, 1)  # 1 email
+        check_email_daily_limit(authenticated_service, 1, scheduled_for)  # 1 email
 
     # Like scheduled bulk jobs, a notification scheduled for a later day is counted towards that day's limit when that
     # day's count is loaded from the database (it includes notifications scheduled for the day), not today's.
@@ -325,14 +325,9 @@ def post_notification(notification_type: NotificationType):
     if template.template_type == SMS_TYPE:
         is_test_notification = api_user.key_type == KEY_TYPE_TEST or simulated_recipient(form["phone_number"], notification_type)
         if not is_test_notification:
-            # TODO FF_USE_BILLABLE_UNITS removal - Use billable units when feature flag is enabled
-            if current_app.config.get("FF_USE_BILLABLE_UNITS"):
-                billable_unit = number_of_sms_fragments(template, personalisation)
-                check_sms_annual_limit(authenticated_service, billable_unit)
-                check_sms_daily_limit(authenticated_service, billable_unit)
-            else:
-                check_sms_annual_limit(authenticated_service, 1)
-                check_sms_daily_limit(authenticated_service, 1)
+            billable_unit = number_of_sms_fragments(template, personalisation)
+            check_sms_annual_limit(authenticated_service, billable_unit)
+            check_sms_daily_limit(authenticated_service, billable_unit, scheduled_for)
 
     current_app.logger.info(f"Trying to send notification for Template ID: {template.id}")
 
@@ -363,8 +358,7 @@ def post_notification(notification_type: NotificationType):
     if template.template_type == SMS_TYPE and count_towards_todays_limit:
         is_test_notification = api_user.key_type == KEY_TYPE_TEST or simulated_recipient(form["phone_number"], notification_type)
         if not is_test_notification:
-            # TODO FF_USE_BILLABLE_UNITS removal - Use billable_units when feature flag is enabled
-            increment_by = notification.billable_units if current_app.config.get("FF_USE_BILLABLE_UNITS") else 1
+            increment_by = notification.billable_units
             if increment_by is None:
                 current_app.logger.info(
                     f"Billable units is None for notification {getattr(notification, 'id', None)}, template {template.id}"
@@ -496,8 +490,7 @@ def process_sms_or_email_notification(
         notification["service"] = service
         notification["service_id"] = service.id
         notification["reply_to_text"] = reply_to_text
-        # Calculate billable_units for SMS if feature flag is enabled
-        if current_app.config.get("FF_USE_BILLABLE_UNITS") and notification_type == SMS_TYPE:
+        if notification_type == SMS_TYPE:
             notification["billable_units"] = number_of_sms_fragments(template, personalisation)
         del notification["template"]
         del notification["api_key"]
@@ -778,7 +771,7 @@ def check_for_csv_errors(recipient_csv, max_rows, remaining_daily_messages, rema
             raise NotImplementedError("Got errors but code did not handle")
 
 
-def create_bulk_job(service, api_key, template, form, recipient_csv):
+def create_bulk_job(service, api_key, template, form, recipient_csv, sms_billable_units=None):
     upload_id = upload_job_to_s3(service.id, recipient_csv.file_data)
     sender_id = form["validated_sender_id"]
 
@@ -799,6 +792,7 @@ def create_bulk_job(service, api_key, template, form, recipient_csv):
         data["scheduled_for"] = form.get("scheduled_for")
 
     job = job_schema.load(data)
+    job.billable_units = sms_billable_units
     dao_create_job(job)
 
     if job.job_status == JOB_STATUS_PENDING:

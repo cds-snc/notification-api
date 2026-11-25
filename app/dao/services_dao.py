@@ -9,7 +9,7 @@ from notifications_utils.statsd_decorators import statsd
 from notifications_utils.timezones import convert_utc_to_local_timezone
 from redis.exceptions import RedisError
 from sqlalchemy.orm import joinedload
-from sqlalchemy.sql.expression import and_, asc, case, func
+from sqlalchemy.sql.expression import and_, asc, case, func, or_
 
 from app import db, redis_store
 from app.annotations import log_execution_time
@@ -47,6 +47,7 @@ from app.models import (
     Service,
     ServicePermission,
     ServiceSmsSender,
+    ServiceUser,
     Template,
     TemplateCategory,
     TemplateHistory,
@@ -72,7 +73,7 @@ DEFAULT_SERVICE_PERMISSIONS = [
 
 
 def dao_fetch_all_services(only_active=False):
-    query = Service.query.order_by(asc(Service.created_at)).options(joinedload("users"))
+    query = Service.query.order_by(asc(Service.created_at)).options(joinedload(Service.users))
 
     if only_active:
         query = query.filter(Service.active)
@@ -122,30 +123,24 @@ def dao_fetch_live_services_data():
             Service.volume_email.label("email_volume_intent"),
             Service.volume_letter.label("letter_volume_intent"),
             case(
-                [
-                    (
-                        this_year_ft_billing.c.notification_type == "email",
-                        func.sum(this_year_ft_billing.c.notifications_sent),
-                    )
-                ],
+                (
+                    this_year_ft_billing.c.notification_type == "email",
+                    func.sum(this_year_ft_billing.c.notifications_sent),
+                ),
                 else_=0,
             ).label("email_totals"),
             case(
-                [
-                    (
-                        this_year_ft_billing.c.notification_type == "sms",
-                        func.sum(this_year_ft_billing.c.notifications_sent),
-                    )
-                ],
+                (
+                    this_year_ft_billing.c.notification_type == "sms",
+                    func.sum(this_year_ft_billing.c.notifications_sent),
+                ),
                 else_=0,
             ).label("sms_totals"),
             case(
-                [
-                    (
-                        this_year_ft_billing.c.notification_type == "letter",
-                        func.sum(this_year_ft_billing.c.notifications_sent),
-                    )
-                ],
+                (
+                    this_year_ft_billing.c.notification_type == "letter",
+                    func.sum(this_year_ft_billing.c.notifications_sent),
+                ),
                 else_=0,
             ).label("letter_totals"),
             AnnualBilling.free_sms_fragment_limit,
@@ -204,7 +199,7 @@ def dao_fetch_live_services_data():
 @cache_on_arguments(namespace="service", group_by="service_id")
 def dao_fetch_service_by_id_cached(service_id: str, only_active=False) -> dict:
     """Dogpile cached version of fetching a service by id"""
-    query = Service.query.filter_by(id=service_id).options(joinedload("users"))
+    query = Service.query.filter_by(id=service_id).options(joinedload(Service.users))
     if only_active:
         query = query.filter(Service.active)
 
@@ -231,7 +226,7 @@ def dao_fetch_service_by_id(service_id, only_active=False, use_cache=False, *, u
             service_cache_decoded = json.loads(service_cache.decode("utf-8"))["data"]
             return Service.from_json(service_cache_decoded)
 
-    query = Service.query.filter_by(id=service_id).options(joinedload("users"))
+    query = Service.query.filter_by(id=service_id).options(joinedload(Service.users))
     if only_active:
         query = query.filter(Service.active)
     service = query.one()
@@ -248,7 +243,7 @@ def dao_fetch_service_by_inbound_number(number):
 
 
 def dao_fetch_service_by_id_with_api_keys(service_id, only_active=False):
-    query = db.on_reader().query(Service).filter_by(id=service_id).options(joinedload("api_keys"))
+    query = db.on_reader().query(Service).filter_by(id=service_id).options(joinedload(Service.api_keys))
 
     if only_active:
         query = query.filter(Service.active)
@@ -257,7 +252,9 @@ def dao_fetch_service_by_id_with_api_keys(service_id, only_active=False):
 
 
 def dao_fetch_all_services_by_user(user_id, only_active=False):
-    query = Service.query.filter(Service.users.any(id=user_id)).order_by(asc(Service.created_at)).options(joinedload("users"))
+    query = (
+        Service.query.filter(Service.users.any(id=user_id)).order_by(asc(Service.created_at)).options(joinedload(Service.users))
+    )
 
     if only_active:
         query = query.filter(Service.active)
@@ -305,9 +302,9 @@ def dao_archive_service_no_transaction(service_id, user_id=None):
     # to ensure that db.session still contains the models when it comes to creating history objects
     service = (
         Service.query.options(
-            joinedload("templates"),
-            joinedload("templates.template_redacted"),
-            joinedload("api_keys"),
+            joinedload(Service.templates),
+            joinedload(Service.templates).joinedload(Template.template_redacted),
+            joinedload(Service.api_keys),
         )
         .filter(Service.id == service_id)
         .one()
@@ -334,7 +331,7 @@ def dao_archive_service_no_transaction(service_id, user_id=None):
 
 
 def dao_fetch_service_by_id_and_user(service_id, user_id):
-    return Service.query.filter(Service.users.any(id=user_id), Service.id == service_id).options(joinedload("users")).one()
+    return Service.query.filter(Service.users.any(id=user_id), Service.id == service_id).options(joinedload(Service.users)).one()
 
 
 @transactional
@@ -409,11 +406,14 @@ def dao_add_user_to_service(service, user, permissions=None, folder_permissions=
     folder_permissions = folder_permissions or []
 
     try:
-        service.users.append(user)
+        service_user = ServiceUser.query.filter_by(user_id=user.id, service_id=service.id).one_or_none()
+        if service_user is None:
+            service.users.append(user)
         permission_dao.set_user_service_permission(user, service, permissions, _commit=False)
         db.session.add(service)
 
-        service_user = dao_get_service_user(user.id, service.id)
+        if service_user is None:
+            service_user = dao_get_service_user(user.id, service.id)
         valid_template_folders = dao_get_valid_template_folders_by_id(folder_permissions)
         service_user.folders = valid_template_folders
         db.session.add(service_user)
@@ -492,9 +492,9 @@ def dao_fetch_todays_stats_for_service(service_id):
     return _stats_for_service_query(service_id).filter(func.date(Notification.created_at) == date.today()).all()
 
 
-def _scheduled_one_off_notifications_for_today(service_id, midnight, notification_type=None):
-    """Filters for one-off notifications scheduled to be sent today that haven't been sent yet. Like scheduled jobs,
-    they count towards the daily limit of the day they're scheduled for."""
+def _scheduled_one_off_notifications_for_day(service_id, midnight, notification_type=None):
+    """Filters for one-off notifications scheduled to be sent on the day starting at `midnight` that haven't been sent
+    yet. Like scheduled jobs, they count towards the daily limit of the day they're scheduled for."""
     filters = [
         ScheduledNotification.service_id == service_id,
         ScheduledNotification.key_type != KEY_TYPE_TEST,
@@ -506,6 +506,30 @@ def _scheduled_one_off_notifications_for_today(service_id, midnight, notificatio
     return filters
 
 
+def _sum_for_jobs_scheduled_for_day(service_id, midnight, notification_type, column) -> int:
+    """Sums `column` over jobs scheduled to be sent on the day starting at `midnight` that haven't started yet. Scheduled
+    jobs count towards the daily limit of the day they're scheduled for, see create_job and post_bulk."""
+    query = (
+        db.session.query(func.coalesce(func.sum(column), 0))
+        .select_from(Job)
+        .join(Template, Job.template_id == Template.id)
+        .outerjoin(ApiKey, Job.api_key_id == ApiKey.id)
+        .filter(
+            Job.service_id == service_id,
+            Job.job_status == JOB_STATUS_SCHEDULED,
+            Job.scheduled_for >= midnight,
+            Job.scheduled_for < midnight + timedelta(days=1),
+            Template.template_type == notification_type,
+            or_(ApiKey.id.is_(None), ApiKey.key_type != KEY_TYPE_TEST),
+        )
+    )
+    if notification_type == SMS_TYPE:
+        # SMS jobs with test keys or simulated recipients aren't counted (billable_units is 0). SMS jobs created before
+        # billable_units was added (null) were counted on the day they were created.
+        query = query.filter(Job.billable_units > 0)
+    return query.scalar()
+
+
 def fetch_todays_total_message_count(service_id):
     midnight = get_midnight(datetime.now(tz=pytz.utc))
     scheduled = (
@@ -515,7 +539,7 @@ def fetch_todays_total_message_count(service_id):
             Job.scheduled_for >= midnight,
             Job.scheduled_for < midnight + timedelta(days=1),
         )
-    ).first()
+    ).one()
 
     result = (
         db.session.query(func.coalesce(func.count(Notification.id), 0).label("count")).filter(
@@ -523,11 +547,11 @@ def fetch_todays_total_message_count(service_id):
             Notification.key_type != KEY_TYPE_TEST,
             Notification.created_at >= midnight,
         )
-    ).first()
+    ).one()
 
     scheduled_one_off_count = (
         db.session.query(func.count(ScheduledNotification.notification_id))
-        .filter(*_scheduled_one_off_notifications_for_today(service_id, midnight))
+        .filter(*_scheduled_one_off_notifications_for_day(service_id, midnight))
         .scalar()
     )
 
@@ -548,11 +572,12 @@ def fetch_todays_total_sms_count(service_id):
     )
     scheduled_one_off_count = (
         db.session.query(func.count(ScheduledNotification.notification_id))
-        .filter(*_scheduled_one_off_notifications_for_today(service_id, midnight, SMS_TYPE))
+        .filter(*_scheduled_one_off_notifications_for_day(service_id, midnight, SMS_TYPE))
         .scalar()
     )
     sent_count = 0 if result is None or result.total_sms_notifications is None else result.total_sms_notifications
-    return sent_count + scheduled_one_off_count
+    scheduled_jobs_count = _sum_for_jobs_scheduled_for_day(service_id, midnight, SMS_TYPE, Job.notification_count)
+    return sent_count + scheduled_one_off_count + scheduled_jobs_count
 
 
 def fetch_todays_total_sms_billable_units(service_id):
@@ -570,11 +595,12 @@ def fetch_todays_total_sms_billable_units(service_id):
     )
     scheduled_one_off_billable_units = (
         db.session.query(func.coalesce(func.sum(ScheduledNotification.billable_units), 0))
-        .filter(*_scheduled_one_off_notifications_for_today(service_id, midnight, SMS_TYPE))
+        .filter(*_scheduled_one_off_notifications_for_day(service_id, midnight, SMS_TYPE))
         .scalar()
     )
     sent_billable_units = 0 if result is None or result.total_sms_billable_units is None else result.total_sms_billable_units
-    return sent_billable_units + scheduled_one_off_billable_units
+    scheduled_jobs_billable_units = _sum_for_jobs_scheduled_for_day(service_id, midnight, SMS_TYPE, Job.billable_units)
+    return sent_billable_units + scheduled_one_off_billable_units + scheduled_jobs_billable_units
 
 
 def fetch_service_email_limit(service_id: uuid.UUID) -> int:
@@ -583,14 +609,7 @@ def fetch_service_email_limit(service_id: uuid.UUID) -> int:
 
 def fetch_todays_total_email_count(service_id: uuid.UUID) -> int:
     midnight = get_midnight(datetime.now(tz=pytz.utc))
-    scheduled = (
-        db.session.query(func.coalesce(func.sum(Job.notification_count), 0).label("total_scheduled_notifications")).filter(
-            Job.service_id == service_id,
-            Job.job_status == JOB_STATUS_SCHEDULED,
-            Job.scheduled_for > midnight,
-            Job.scheduled_for < midnight + timedelta(hours=23, minutes=59, seconds=59),
-        )
-    ).first()
+    scheduled_jobs_count = _sum_for_jobs_scheduled_for_day(service_id, midnight, EMAIL_TYPE, Job.notification_count)
 
     result = (
         db.session.query(func.coalesce(func.count(Notification.id), 0).label("total_email_notifications")).filter(
@@ -599,15 +618,41 @@ def fetch_todays_total_email_count(service_id: uuid.UUID) -> int:
             Notification.created_at > midnight,
             Notification.notification_type == "email",
         )
-    ).first()
+    ).one()
 
     scheduled_one_off_count = (
         db.session.query(func.count(ScheduledNotification.notification_id))
-        .filter(*_scheduled_one_off_notifications_for_today(service_id, midnight, EMAIL_TYPE))
+        .filter(*_scheduled_one_off_notifications_for_day(service_id, midnight, EMAIL_TYPE))
         .scalar()
     )
 
-    return result.total_email_notifications + scheduled.total_scheduled_notifications + scheduled_one_off_count
+    return result.total_email_notifications + scheduled_jobs_count + scheduled_one_off_count
+
+
+def fetch_scheduled_email_count_for_day(service_id: uuid.UUID, day: datetime) -> int:
+    """Emails scheduled to be sent on `day` (UTC). For a later day nothing has been sent yet, so this is that day's
+    total towards the daily limit."""
+    midnight = get_midnight(day)
+    scheduled_jobs_count = _sum_for_jobs_scheduled_for_day(service_id, midnight, EMAIL_TYPE, Job.notification_count)
+    scheduled_one_off_count = (
+        db.session.query(func.count(ScheduledNotification.notification_id))
+        .filter(*_scheduled_one_off_notifications_for_day(service_id, midnight, EMAIL_TYPE))
+        .scalar()
+    )
+    return scheduled_jobs_count + scheduled_one_off_count
+
+
+def fetch_scheduled_sms_billable_units_for_day(service_id: uuid.UUID, day: datetime) -> int:
+    """SMS billable units scheduled to be sent on `day` (UTC). For a later day nothing has been sent yet, so this is
+    that day's total towards the daily limit."""
+    midnight = get_midnight(day)
+    scheduled_jobs_billable_units = _sum_for_jobs_scheduled_for_day(service_id, midnight, SMS_TYPE, Job.billable_units)
+    scheduled_one_off_billable_units = (
+        db.session.query(func.coalesce(func.sum(ScheduledNotification.billable_units), 0))
+        .filter(*_scheduled_one_off_notifications_for_day(service_id, midnight, SMS_TYPE))
+        .scalar()
+    )
+    return scheduled_jobs_billable_units + scheduled_one_off_billable_units
 
 
 def _stats_for_service_query(service_id):
@@ -711,7 +756,7 @@ def dao_suspend_service_no_transaction(service_id, user_id=None):
     # to ensure that db.session still contains the models when it comes to creating history objects
     service = (
         Service.query.options(
-            joinedload("api_keys"),
+            joinedload(Service.api_keys),
         )
         .filter(Service.id == service_id)
         .one()

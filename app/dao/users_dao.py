@@ -15,7 +15,7 @@ from app.dao.dao_utils import transactional
 from app.dao.permissions_dao import permission_dao
 from app.dao.service_user_dao import dao_get_service_users_by_user_id
 from app.errors import InvalidRequest
-from app.models import EMAIL_AUTH_TYPE, Service, ServiceUser, User, VerifyCode
+from app.models import EMAIL_AUTH_TYPE, Organisation, Service, ServiceUser, User, VerifyCode
 from app.utils import escape_special_characters
 
 
@@ -181,10 +181,10 @@ def get_user_and_accounts(user_id):
         .options(
             # eagerly load the user's services and organisations, and also the service's org and vice versa
             # (so we can see if the user knows about it)
-            joinedload("services"),
-            joinedload("organisations"),
-            joinedload("organisations.services"),
-            joinedload("services.organisation"),
+            joinedload(User.services),
+            joinedload(User.organisations),
+            joinedload(User.organisations).joinedload(Organisation.services),
+            joinedload(User.services).joinedload(Service.organisation),
         )
         .one()
     )

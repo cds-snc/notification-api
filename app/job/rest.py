@@ -1,6 +1,5 @@
 import time
 import uuid
-from datetime import datetime
 
 from flask import Blueprint, current_app, jsonify, request
 from notifications_utils.recipients import RecipientCSV
@@ -25,8 +24,8 @@ from app.dao.jobs_dao import (
 from app.dao.notifications_dao import get_notifications_for_job
 from app.dao.services_dao import dao_fetch_service_by_id
 from app.dao.templates_dao import dao_get_template_by_id
-from app.email_limit_utils import decrement_todays_email_count
 from app.errors import InvalidRequest, register_errors
+from app.job.daily_limits import release_daily_limit_for_cancelled_job
 from app.models import (
     EMAIL_TYPE,
     JOB_STATUS_CANCELLED,
@@ -36,6 +35,7 @@ from app.models import (
 )
 from app.notifications.process_notifications import (
     csv_has_simulated_and_non_simulated_recipients,
+    is_scheduled_for_a_later_day,
 )
 from app.notifications.validators import (
     check_email_annual_limit,
@@ -78,7 +78,7 @@ def cancel_job(service_id, job_id):
     job = dao_get_future_scheduled_job_by_id_and_service_id(job_id, service_id)
     job.job_status = JOB_STATUS_CANCELLED
     dao_update_job(job)
-    decrement_todays_email_count(service_id, job.notification_count)
+    release_daily_limit_for_cancelled_job(job)
     return get_job_by_service_and_job_id(service_id, job_id)
 
 
@@ -193,6 +193,11 @@ def create_job(service_id):
 
     check_email_csv_rows_size(recipient_csv, template)
 
+    # A job scheduled for a later day is counted towards that day's limit when that day's count is loaded from the
+    # database (it includes jobs scheduled for the day), not today's.
+    count_towards_todays_limit = not is_scheduled_for_a_later_day(data.get("scheduled_for"))
+    sms_billable_units = None
+
     if template.template_type == SMS_TYPE:
         # set sender_id if missing
         default_senders = [x for x in service.service_sms_senders if x.is_default]
@@ -209,18 +214,14 @@ def create_job(service_id):
         if has_simulated and has_real_recipients:
             raise InvalidRequest(message="Bulk sending to testing and non-testing numbers is not supported", status_code=400)
 
+        sms_billable_units = 0
         # Check and track limits if we're not sending test notifications
         if has_real_recipients and not has_simulated:
-            csv_length = len(recipient_csv)
-            if current_app.config.get("FF_USE_BILLABLE_UNITS"):
-                total_billable_units = recipient_csv.sms_fragment_count
-                check_sms_annual_limit(service, total_billable_units)
-                check_sms_daily_limit(service, total_billable_units)
-                increment_sms_daily_count_send_warnings_if_needed(service, total_billable_units)
-            else:
-                check_sms_annual_limit(service, csv_length)
-                check_sms_daily_limit(service, csv_length)
-                increment_sms_daily_count_send_warnings_if_needed(service, csv_length)
+            sms_billable_units = recipient_csv.sms_fragment_count
+            check_sms_annual_limit(service, sms_billable_units)
+            check_sms_daily_limit(service, sms_billable_units, data.get("scheduled_for"))
+            if count_towards_todays_limit:
+                increment_sms_daily_count_send_warnings_if_needed(service, sms_billable_units)
 
     elif template.template_type == EMAIL_TYPE:
         if "notification_count" in data:
@@ -233,16 +234,15 @@ def create_job(service_id):
 
         check_email_annual_limit(service, notification_count)
 
-        check_email_daily_limit(service, notification_count)
+        check_email_daily_limit(service, notification_count, data.get("scheduled_for"))
 
-        scheduled_for = datetime.fromisoformat(data.get("scheduled_for")) if data.get("scheduled_for") else None
-
-        if scheduled_for is None or not scheduled_for.date() > datetime.today().date():
+        if count_towards_todays_limit:
             increment_email_daily_count_send_warnings_if_needed(service, notification_count)
 
     data.update({"template_version": template.version})
 
     job = job_schema.load(data)
+    job.billable_units = sms_billable_units
 
     if job.scheduled_for:
         job.job_status = JOB_STATUS_SCHEDULED

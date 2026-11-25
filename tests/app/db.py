@@ -369,6 +369,7 @@ def create_scheduled_one_off_notification(
     reply_to_text=None,
     billable_units=0,
     created_at=None,
+    created_by=None,
 ):
     scheduled_notification = ScheduledNotification(
         id=uuid.uuid4(),
@@ -385,6 +386,7 @@ def create_scheduled_one_off_notification(
         billable_units=billable_units,
         scheduled_for=datetime.strptime(scheduled_for, "%Y-%m-%d %H:%M"),
         created_at=created_at or datetime.utcnow(),
+        created_by_id=created_by.id if created_by else None,
     )
     scheduled_notification.personalisation = personalisation
     db.session.add(scheduled_notification)
@@ -471,6 +473,8 @@ def create_job(
     original_file_name="some.csv",
     archived=False,
     sender_id=None,
+    billable_units=None,
+    api_key=None,
 ):
     data = {
         "id": uuid.uuid4(),
@@ -488,6 +492,8 @@ def create_job(
         "processing_started": processing_started,
         "archived": archived,
         "sender_id": sender_id,
+        "billable_units": billable_units,
+        "api_key": api_key,
     }
     job = Job(**data)
     dao_create_job(job)

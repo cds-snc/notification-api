@@ -3,7 +3,7 @@ FROM mcr.microsoft.com/vscode/devcontainers/python:3.12@sha256:79a80515d78783e76
 RUN rm -f /etc/apt/sources.list.d/yarn.list
 
 ARG KUBENS_VERSION="0.9.4"
-ARG AWS_CLI_VERSION="2.27.41"
+ARG AWS_CLI_VERSION="2.41.1"
 ENV POETRY_VERSION="1.7.1"
 ENV POETRY_VENV_PATH="/home/vscode/.venv/workspace"
 
@@ -55,8 +55,8 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 RUN case "$(dpkg --print-architecture)" in \
-            amd64) AWS_CLI_ARCH="x86_64"; AWS_CLI_SHA256="15daae6cc803984064e3d4be9cfd07c4ae8ea703633c0a0b67acc6e321f706a3" ;; \
-            arm64) AWS_CLI_ARCH="aarch64"; AWS_CLI_SHA256="2c6ed21cf7cff0a7d77118c69bee867128bf4c588db7b5c044ffba5faeb6ccde" ;; \
+            amd64) AWS_CLI_ARCH="x86_64"; AWS_CLI_SHA256="f1b67518c009e9deb94152aaba5cc015e80af6b0630a7931d3662df42b5f568e" ;; \
+            arm64) AWS_CLI_ARCH="aarch64"; AWS_CLI_SHA256="83f3bb8440cf6a05e6289f8024126b8c8e15e9513adfe0d6c059747350cdb1e2" ;; \
             *) echo "Unsupported architecture for AWS CLI v2"; exit 1 ;; \
         esac && \
         curl --fail --location --silent --show-error \

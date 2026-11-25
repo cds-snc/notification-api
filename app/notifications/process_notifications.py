@@ -129,8 +129,8 @@ def persist_notification(
         notification=notification, research_mode=service.research_mode, priority_queue=get_delivery_queue_for_template(template)
     )
 
-    # Calculate billable_units if feature flag is enabled and not explicitly provided
-    if current_app.config.get("FF_USE_BILLABLE_UNITS") and billable_units is None and notification_type == SMS_TYPE:
+    # Calculate billable_units if not explicitly provided
+    if billable_units is None and notification_type == SMS_TYPE:
         notification.billable_units = number_of_sms_fragments(template, personalisation)
 
     if notification_type == SMS_TYPE:
@@ -242,7 +242,7 @@ def db_save_and_send_notification(notification: Notification):
         and notification.queue_name != QueueNames.RESEARCH_MODE
         and current_app.config.get("FF_SMS_RATELIMIT")
     ):
-        if current_app.config.get("FF_USE_BILLABLE_UNITS") and notification.billable_units:
+        if notification.billable_units:
             celery_params.append(notification.billable_units)
         else:
             billable_units = number_of_sms_fragments(notification.template, notification.personalisation)
@@ -330,7 +330,7 @@ def send_notification_to_queue(notification, research_mode, queue=None):
             template = notification.template or dao_get_template_by_id(
                 notification.template_id, notification.template_version, use_cache=True
             )
-            if current_app.config.get("FF_USE_BILLABLE_UNITS") and notification.billable_units:
+            if notification.billable_units:
                 celery_params.append(notification.billable_units)
             else:
                 billable_units = number_of_sms_fragments(template, notification.personalisation)
@@ -407,11 +407,7 @@ def persist_notifications(notifications: List[VerifiedNotification]) -> List[Not
         )
         template = dao_get_template_by_id(notification_obj.template_id, notification_obj.template_version, use_cache=True)
         notification_obj.template = template  # Store the template in the object for downstream consumers
-        if (
-            current_app.config.get("FF_USE_BILLABLE_UNITS")
-            and not notification_obj.billable_units
-            and notification.get("notification_type") == SMS_TYPE
-        ):
+        if not notification_obj.billable_units and notification.get("notification_type") == SMS_TYPE:
             notification_obj.billable_units = number_of_sms_fragments(template, notification.get("personalisation"))
 
         service_data = dao_fetch_service_by_id(service_id, use_dogpile=True)
@@ -453,7 +449,7 @@ def persist_notifications(notifications: List[VerifiedNotification]) -> List[Not
 
 
 def csv_has_simulated_and_non_simulated_recipients(
-    to_addresses: set, notification_type: NotificationType, chunk_size=5000
+    to_addresses: list, notification_type: NotificationType, chunk_size=5000
 ) -> tuple[bool, bool]:
     """Kicks off a parallelized process to check if a RecipientCSV contains simulated, non-simulated, or both types of recipients.
 
@@ -523,6 +519,7 @@ def build_notification_to_sign(
     key_type: str,
     client_reference: Optional[str],
     reply_to_text: Optional[str],
+    created_by_id: Optional[str] = None,
 ) -> NotificationDictToSign:
     """Builds the notification dict that is signed and put on the save_smss / save_emails queues for one-off
     notifications, whether sent straight away or scheduled."""
@@ -539,6 +536,8 @@ def build_notification_to_sign(
         "client_reference": client_reference,
         "reply_to_text": reply_to_text,
     }
+    if created_by_id:
+        notification_to_sign["created_by_id"] = created_by_id
     return cast(NotificationDictToSign, notification_to_sign)
 
 
@@ -597,6 +596,7 @@ def persist_scheduled_one_off_notification(notification: Notification, scheduled
         billable_units=notification.billable_units or 0,
         scheduled_for=parse_scheduled_datetime(scheduled_for),
         created_at=notification.created_at,
+        created_by_id=notification.created_by_id,
     )
     scheduled_notification._personalisation = notification._personalisation
     dao_create_scheduled_one_off_notification(scheduled_notification)

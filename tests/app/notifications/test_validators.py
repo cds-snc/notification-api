@@ -1,3 +1,4 @@
+from datetime import datetime
 from unittest.mock import call
 
 import pytest
@@ -38,6 +39,8 @@ from app.v2.errors import (
     BadRequestError,
     LiveServiceRequestExceedsEmailAnnualLimitError,
     LiveServiceRequestExceedsSMSAnnualLimitError,
+    LiveServiceTooManyEmailRequestsError,
+    LiveServiceTooManySMSRequestsError,
     RateLimitError,
     TrialServiceRequestExceedsEmailAnnualLimitError,
     TrialServiceRequestExceedsSMSAnnualLimitError,
@@ -51,9 +54,13 @@ from tests.app.conftest import (
 )
 from tests.app.db import (
     create_ft_notification_status,
+    create_job,
     create_letter_contact,
     create_reply_to_email,
+    create_scheduled_one_off_notification,
+    create_service,
     create_service_sms_sender,
+    create_template,
 )
 from tests.conftest import set_config
 
@@ -66,13 +73,8 @@ def enable_redis(notify_api):
 
 
 def count_key(limit_type, service_id):
-    # Use billable-units keys when feature flag is enabled (default in Test config)
-    use_billable_units = current_app.config.get("FF_USE_BILLABLE_UNITS", False)
-
     if limit_type == "sms":
-        if use_billable_units:
-            return f"billable-units-sms-{service_id}-2016-01-01-count"
-        return f"sms-{service_id}-2016-01-01-count"
+        return f"billable-units-sms-{service_id}-2016-01-01-count"
     elif limit_type == "email":
         return f"email-{service_id}-2016-01-01-count"
     else:
@@ -80,13 +82,8 @@ def count_key(limit_type, service_id):
 
 
 def near_key(limit_type, service_id):
-    # Use billable-units keys when feature flag is enabled (default in Test config)
-    use_billable_units = current_app.config.get("FF_USE_BILLABLE_UNITS", False)
-
     if limit_type == "sms":
-        if use_billable_units:
-            return f"nearing-daily-limit-billable-units-sms-{service_id}-2016-01-01-count"
-        return f"nearing-daily-limit-sms-{service_id}-2016-01-01-count"
+        return f"nearing-daily-limit-billable-units-sms-{service_id}-2016-01-01-count"
     elif limit_type == "email":
         return f"nearing-daily-email-limit-email-{service_id}-2016-01-01-count"
     else:
@@ -94,13 +91,8 @@ def near_key(limit_type, service_id):
 
 
 def over_key(limit_type, service_id):
-    # Use billable-units keys when feature flag is enabled (default in Test config)
-    use_billable_units = current_app.config.get("FF_USE_BILLABLE_UNITS", False)
-
     if limit_type == "sms":
-        if use_billable_units:
-            return f"over-daily-limit-billable-units-sms-{service_id}-2016-01-01-count"
-        return f"over-daily-limit-sms-{service_id}-2016-01-01-count"
+        return f"over-daily-limit-billable-units-sms-{service_id}-2016-01-01-count"
     elif limit_type == "email":
         return f"over-daily-email-limit-email-{service_id}-2016-01-01-count"
     else:
@@ -167,10 +159,8 @@ class TestCheckDailySMSEmailLimits:
             kwargs = {"limit_reset_time_et_12hr": "7PM", "limit_reset_time_et_24hr": "19"}
             sms_kwargs = (
                 {
-                    "message_type_en": "text message parts" if current_app.config["FF_USE_BILLABLE_UNITS"] else "text messages",
-                    "message_type_fr": "parties de messages texte"
-                    if current_app.config["FF_USE_BILLABLE_UNITS"]
-                    else "messages texte",
+                    "message_type_en": "text message parts",
+                    "message_type_fr": "parties de messages texte",
                 }
                 if limit_type == "sms"
                 else {}
@@ -206,6 +196,48 @@ class TestCheckDailySMSEmailLimits:
 
         # Then
         app_statsd.statsd_client.incr.assert_not_called()
+
+
+@freeze_time("2018-07-16 15:00")
+class TestCheckDailyLimitsForLaterDay:
+    """Messages scheduled for a later day are checked against that day's limit, not today's"""
+
+    @pytest.fixture(params=[EMAIL_TYPE, SMS_TYPE])
+    def setup(self, request, notify_db_session, mocker):
+        # today's count, which shouldn't be used for a later day
+        mocker.patch("app.redis_store.get", return_value=1000)
+        service = create_service(message_limit=10, sms_daily_limit=10)
+        template = create_template(service, template_type=request.param)
+        if request.param == EMAIL_TYPE:
+            return service, template, check_email_daily_limit, LiveServiceTooManyEmailRequestsError
+        return service, template, check_sms_daily_limit, LiveServiceTooManySMSRequestsError
+
+    def test_counts_jobs_and_one_offs_scheduled_for_that_day(self, setup):
+        service, template, check_daily_limit, error = setup
+        create_job(
+            template, job_status="scheduled", scheduled_for=datetime(2018, 7, 17, 0, 0), notification_count=5, billable_units=5
+        )
+        create_scheduled_one_off_notification(template, scheduled_for="2018-07-17 23:59", billable_units=1)
+
+        check_daily_limit(service, 4, "2018-07-17T12:00:00")
+        with pytest.raises(error):
+            check_daily_limit(service, 5, "2018-07-17T12:00:00")
+
+    def test_doesnt_count_messages_scheduled_for_other_days(self, setup):
+        service, template, check_daily_limit, _ = setup
+        create_job(
+            template, job_status="scheduled", scheduled_for=datetime(2018, 7, 17, 12, 0), notification_count=10, billable_units=10
+        )
+        create_job(
+            template, job_status="scheduled", scheduled_for=datetime(2018, 7, 19, 12, 0), notification_count=10, billable_units=10
+        )
+
+        check_daily_limit(service, 10, "2018-07-18T12:00:00")
+
+    def test_today_still_uses_todays_count(self, setup):
+        service, _, check_daily_limit, error = setup
+        with pytest.raises(error):
+            check_daily_limit(service, 1, "2018-07-16T20:00:00")
 
 
 @pytest.mark.parametrize("template_type, notification_type", [(EMAIL_TYPE, EMAIL_TYPE), (SMS_TYPE, SMS_TYPE)])
@@ -696,15 +728,12 @@ class TestAnnualLimitValidators:
         mock_redis_set = mocker.patch("app.redis_store.set_hash_value")  # Set over / near limit keys
         mocker.patch("app.redis_store.get", return_value=counts_from_redis)  # notifications fetched from Redis
 
-        # Mock with BOTH keys to handle FF_USE_BILLABLE_UNITS being either enabled or disabled
         mocker.patch(
             "app.notifications.validators.get_annual_limit_notifications_v2",
             return_value={
-                "total_sms_fiscal_year_to_yesterday": counts_from_redis + ft_count,
                 "total_sms_billable_units_fiscal_year_to_yesterday": counts_from_redis + ft_count,
             },
         )
-        mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
         mocker.patch("app.notifications.validators.fetch_todays_requested_sms_billable_units_count", return_value=0)
 
         mocker.patch("app.annual_limit_client.check_has_warning_been_sent", return_value=has_sent_near_limit_email)
@@ -764,9 +793,9 @@ class TestAnnualLimitValidators:
         mocker.patch("app.redis_store.get", return_value=45)
         mocker.patch(
             "app.notifications.validators.get_annual_limit_notifications_v2",
-            return_value={"total_sms_fiscal_year_to_yesterday": 45},
+            return_value={"total_sms_billable_units_fiscal_year_to_yesterday": 45},
         )
-        mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
+        mocker.patch("app.notifications.validators.fetch_todays_requested_sms_billable_units_count", return_value=0)
         mocker.patch("app.annual_limit_client.check_has_warning_been_sent", return_value=True)
         mock_send_email = mocker.patch("app.notifications.validators.send_notification_to_service_users")
 
@@ -786,9 +815,9 @@ class TestAnnualLimitValidators:
         mocker.patch("app.redis_store.get", return_value=45)
         mocker.patch(
             "app.notifications.validators.get_annual_limit_notifications_v2",
-            return_value={"total_sms_fiscal_year_to_yesterday": 45},
+            return_value={"total_sms_billable_units_fiscal_year_to_yesterday": 45},
         )
-        mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
+        mocker.patch("app.notifications.validators.fetch_todays_requested_sms_billable_units_count", return_value=0)
         mocker.patch("app.annual_limit_client.check_has_over_limit_been_sent", return_value=True)
         mocker.patch("app.annual_limit_client.check_has_warning_been_sent", return_value=True)
         mock_send_email = mocker.patch("app.notifications.validators.send_notification_to_service_users")
@@ -813,12 +842,8 @@ class TestAnnualLimitValidators:
         mocker.patch("app.redis_store.get", return_value=0)
         mocker.patch(
             "app.notifications.validators.get_annual_limit_notifications_v2",
-            return_value={
-                "total_sms_fiscal_year_to_yesterday": 0,
-                "total_sms_billable_units_fiscal_year_to_yesterday": 0,
-            },
+            return_value={"total_sms_billable_units_fiscal_year_to_yesterday": 0},
         )
-        mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=0)
         mocker.patch("app.notifications.validators.fetch_todays_requested_sms_billable_units_count", return_value=0)
         mocker.patch("app.annual_limit_client.check_has_over_limit_been_sent", return_value=False)
         mocker.patch("app.annual_limit_client.check_has_warning_been_sent", return_value=False)
@@ -878,125 +903,69 @@ class TestAnnualLimitValidators:
         mock_send_near.assert_not_called()
 
 
-# TODO: Remove feature flag checks after FF_USE_BILLABLE_UNITS go live
 class TestBillableUnitsInValidators:
     """Tests for billable_units usage in validator functions"""
 
-    def test_check_sms_daily_limit_uses_billable_units_when_flag_enabled(self, notify_api, notify_db, notify_db_session, mocker):
-        """Test that check_sms_daily_limit uses billable_units count when FF_USE_BILLABLE_UNITS is enabled"""
-        with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
-            service = create_sample_service(notify_db, notify_db_session, sms_limit=100)
+    def test_check_sms_daily_limit_uses_billable_units(self, notify_api, notify_db, notify_db_session, mocker):
+        """Test that check_sms_daily_limit uses billable_units count"""
+        service = create_sample_service(notify_db, notify_db_session, sms_limit=100)
 
-            # Mock billable units fetch to return a count
-            mocker.patch("app.notifications.validators.fetch_todays_requested_sms_billable_units_count", return_value=50)
+        # Mock billable units fetch to return a count
+        mocker.patch("app.notifications.validators.fetch_todays_requested_sms_billable_units_count", return_value=50)
 
-            # Should not raise an exception when under limit
-            check_sms_daily_limit(service, 30)  # 50 + 30 = 80 < 100
+        # Should not raise an exception when under limit
+        check_sms_daily_limit(service, 30)  # 50 + 30 = 80 < 100
 
-    def test_check_sms_daily_limit_uses_message_count_when_flag_disabled(self, notify_api, notify_db, notify_db_session, mocker):
-        """Test that check_sms_daily_limit uses message count when FF_USE_BILLABLE_UNITS is disabled"""
-        with set_config(notify_api, "FF_USE_BILLABLE_UNITS", False):
-            service = create_sample_service(notify_db, notify_db_session, sms_limit=100)
+    def test_check_sms_annual_limit_uses_billable_units(self, notify_api, notify_db, notify_db_session, mocker):
+        """Test that check_sms_annual_limit uses billable_units"""
+        service = create_sample_service(notify_db, notify_db_session, sms_annual_limit=1000)
 
-            # Mock regular count fetch
-            mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=50)
+        # Mock billable units fetches
+        mocker.patch("app.notifications.validators.fetch_todays_requested_sms_billable_units_count", return_value=100)
+        mocker.patch(
+            "app.notifications.validators.get_annual_limit_notifications_v2",
+            return_value={"total_sms_billable_units_fiscal_year_to_yesterday": 500},
+        )
+        # Mock to prevent warning email from being sent (800 >= 80% of 1000)
+        mocker.patch("app.annual_limit_client.check_has_warning_been_sent", return_value=True)
 
-            # Should not raise an exception when under limit
-            check_sms_daily_limit(service, 30)  # 50 + 30 = 80 < 100
+        # Should not raise when under limit (100 + 500 + 200 = 800 < 1000)
+        check_sms_annual_limit(service, 200)
 
-    def test_check_sms_annual_limit_uses_billable_units_when_flag_enabled(self, notify_api, notify_db, notify_db_session, mocker):
-        """Test that check_sms_annual_limit uses billable_units when FF_USE_BILLABLE_UNITS is enabled"""
-        with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
-            service = create_sample_service(notify_db, notify_db_session, sms_annual_limit=1000)
+    def test_increment_sms_daily_count_increments_billable_units(self, notify_api, notify_db, notify_db_session, mocker):
+        """Test that increment_sms_daily_count_send_warnings_if_needed increments billable_units"""
+        service = create_sample_service(notify_db, notify_db_session, sms_limit=100)
 
-            # Mock billable units fetches
-            mocker.patch("app.notifications.validators.fetch_todays_requested_sms_billable_units_count", return_value=100)
-            mocker.patch(
-                "app.notifications.validators.get_annual_limit_notifications_v2",
-                return_value={"total_sms_billable_units_fiscal_year_to_yesterday": 500},
-            )
-            # Mock to prevent warning email from being sent (800 >= 80% of 1000)
-            mocker.patch("app.annual_limit_client.check_has_warning_been_sent", return_value=True)
+        mock_increment_billable = mocker.patch("app.notifications.validators.increment_todays_requested_sms_billable_units_count")
+        mock_fetch_billable = mocker.patch(
+            "app.notifications.validators.fetch_todays_requested_sms_billable_units_count", return_value=50
+        )
+        mocker.patch("app.annual_limit_client.check_has_warning_been_sent", return_value=True)
 
-            # Should not raise when under limit (100 + 500 + 200 = 800 < 1000)
-            check_sms_annual_limit(service, 200)
+        increment_sms_daily_count_send_warnings_if_needed(service, 10)
 
-    def test_check_sms_annual_limit_uses_message_count_when_flag_disabled(self, notify_api, notify_db, notify_db_session, mocker):
-        """Test that check_sms_annual_limit uses message count when FF_USE_BILLABLE_UNITS is disabled"""
-        with set_config(notify_api, "FF_USE_BILLABLE_UNITS", False):
-            service = create_sample_service(notify_db, notify_db_session, sms_annual_limit=1000)
-
-            # Mock regular count fetches
-            mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=100)
-            mocker.patch(
-                "app.notifications.validators.get_annual_limit_notifications_v2",
-                return_value={"total_sms_fiscal_year_to_yesterday": 500},
-            )
-            # Mock to prevent warning email from being sent (800 >= 80% of 1000)
-            mocker.patch("app.annual_limit_client.check_has_warning_been_sent", return_value=True)
-
-            # Should not raise when under limit (100 + 500 + 200 = 800 < 1000)
-            check_sms_annual_limit(service, 200)
-
-    def test_increment_sms_daily_count_increments_billable_units_when_flag_enabled(
-        self, notify_api, notify_db, notify_db_session, mocker
-    ):
-        """Test that increment_sms_daily_count_send_warnings_if_needed increments billable_units when flag enabled"""
-        with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
-            service = create_sample_service(notify_db, notify_db_session, sms_limit=100)
-
-            mock_increment_billable = mocker.patch(
-                "app.notifications.validators.increment_todays_requested_sms_billable_units_count"
-            )
-            mock_fetch_billable = mocker.patch(
-                "app.notifications.validators.fetch_todays_requested_sms_billable_units_count", return_value=50
-            )
-            mocker.patch("app.annual_limit_client.check_has_warning_been_sent", return_value=True)
-
-            increment_sms_daily_count_send_warnings_if_needed(service, 10)
-
-            # Should increment billable units
-            mock_increment_billable.assert_called_once_with(service.id, 10)
-            mock_fetch_billable.assert_called()
+        # Should increment billable units
+        mock_increment_billable.assert_called_once_with(service.id, 10)
+        mock_fetch_billable.assert_called()
 
     def test_increment_sms_daily_count_defaults_missing_billable_units_to_one(
         self, notify_api, notify_db, notify_db_session, mocker
     ):
-        with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
-            service = create_sample_service(notify_db, notify_db_session, sms_limit=100)
+        service = create_sample_service(notify_db, notify_db_session, sms_limit=100)
 
-            mock_increment_billable = mocker.patch(
-                "app.notifications.validators.increment_todays_requested_sms_billable_units_count"
-            )
-            mocker.patch("app.notifications.validators.fetch_todays_requested_sms_billable_units_count", return_value=50)
-            mocker.patch("app.annual_limit_client.check_has_warning_been_sent", return_value=True)
+        mock_increment_billable = mocker.patch("app.notifications.validators.increment_todays_requested_sms_billable_units_count")
+        mocker.patch("app.notifications.validators.fetch_todays_requested_sms_billable_units_count", return_value=50)
+        mocker.patch("app.annual_limit_client.check_has_warning_been_sent", return_value=True)
 
-            increment_sms_daily_count_send_warnings_if_needed(service, None)
+        increment_sms_daily_count_send_warnings_if_needed(service, None)
 
-            mock_increment_billable.assert_called_once_with(service.id, 1)
-
-    def test_increment_sms_daily_count_increments_message_count_when_flag_disabled(
-        self, notify_api, notify_db, notify_db_session, mocker
-    ):
-        """Test that increment_sms_daily_count_send_warnings_if_needed increments message count when flag disabled"""
-        with set_config(notify_api, "FF_USE_BILLABLE_UNITS", False):
-            service = create_sample_service(notify_db, notify_db_session, sms_limit=100)
-
-            mock_increment_count = mocker.patch("app.notifications.validators.increment_todays_requested_sms_count")
-            mock_fetch_count = mocker.patch("app.notifications.validators.fetch_todays_requested_sms_count", return_value=50)
-            mocker.patch("app.annual_limit_client.check_has_warning_been_sent", return_value=True)
-
-            increment_sms_daily_count_send_warnings_if_needed(service, 10)
-
-            # Should increment message count
-            mock_increment_count.assert_called_once_with(service.id, 10)
-            mock_fetch_count.assert_called()
+        mock_increment_billable.assert_called_once_with(service.id, 1)
 
     def test_check_sms_daily_limit_sends_warning_at_threshold_with_billableunits(
         self, notify_api, notify_db, notify_db_session, mocker
     ):
         """Test that near-limit warning is sent when using billable_units"""
-        with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True), set_config(notify_api, "REDIS_ENABLED", True):
+        with set_config(notify_api, "REDIS_ENABLED", True):
             service = create_sample_service(notify_db, notify_db_session, sms_limit=100)
 
             # Mock the increment to actually work

@@ -19,7 +19,7 @@ import datetime
 
 from sqlalchemy import Column, ForeignKeyConstraint, Integer, Table, util
 from sqlalchemy.ext.declarative import declared_attr
-from sqlalchemy.orm import attributes, mapper, object_mapper
+from sqlalchemy.orm import Mapper, attributes, object_mapper
 from sqlalchemy.orm.properties import ColumnProperty, RelationshipProperty
 
 
@@ -41,7 +41,7 @@ def _history_mapper(local_mapper):  # noqa (C901 too complex)
     # on on column-mapped attributes so that the old version
     # of the info is always loaded (currently sets it on all attributes)
     for prop in local_mapper.iterate_properties:
-        getattr(local_mapper.class_, prop.key).impl.active_history = True
+        prop.active_history = True
 
     super_mapper = local_mapper.inherits
     super_history_mapper = getattr(cls, "__history_mapper__", None)
@@ -128,7 +128,7 @@ def _history_mapper(local_mapper):  # noqa (C901 too complex)
         bases = local_mapper.base_mapper.class_.__bases__
     versioned_cls = type.__new__(type, "%sHistory" % cls.__name__, bases, {})
 
-    m = mapper(
+    m = local_mapper.registry.map_imperatively(
         versioned_cls,
         table,
         inherits=super_history_mapper,
@@ -147,7 +147,7 @@ class Versioned(object):
     @declared_attr
     def __mapper_cls__(cls):
         def map(cls, *arg, **kw):
-            mp = mapper(cls, *arg, **kw)
+            mp = Mapper(cls, *arg, **kw)
             _history_mapper(mp)
             return mp
 

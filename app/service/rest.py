@@ -310,17 +310,17 @@ def update_service(service_id):
     if sms_limit_changed:
         redis_store.delete(near_sms_daily_limit_cache_key(service_id))
         redis_store.delete(over_sms_daily_limit_cache_key(service_id))
-        if current_app.config["FF_USE_BILLABLE_UNITS"]:
-            redis_store.delete(near_billable_units_sms_daily_limit_cache_key(service_id))
-            redis_store.delete(over_billable_units_sms_daily_limit_cache_key(service_id))
+        redis_store.delete(near_billable_units_sms_daily_limit_cache_key(service_id))
+        redis_store.delete(over_billable_units_sms_daily_limit_cache_key(service_id))
         if not fetched_service.restricted:
             _warn_service_users_about_sms_limit_changed(service_id, current_data)
     if sms_annual_limit_changed:
         _warn_service_users_about_annual_limit_change(service, SMS_TYPE)
         # TODO: abstract this in the annual_limits_client
-        fields_to_clear = list(ANNUAL_LIMIT_SMS_OVER_NEAR_STATUS_FIELDS)
-        if current_app.config.get("FF_USE_BILLABLE_UNITS"):
-            fields_to_clear += ["near_sms_billable_units_limit", "over_sms_billable_units_limit"]
+        fields_to_clear = list(ANNUAL_LIMIT_SMS_OVER_NEAR_STATUS_FIELDS) + [
+            "near_sms_billable_units_limit",
+            "over_sms_billable_units_limit",
+        ]
         redis_store.delete_hash_fields(f"annual-limit:{service_id}:status", fields_to_clear)
     if email_annual_limit_changed:
         _warn_service_users_about_annual_limit_change(service, EMAIL_TYPE)
@@ -347,7 +347,6 @@ def _warn_service_users_about_message_limit_changed(service_id, data):
 
 
 def _warn_service_users_about_sms_limit_changed(service_id, data):
-    use_parts = current_app.config.get("FF_USE_BILLABLE_UNITS", False)
     send_notification_to_service_users(
         service_id=service_id,
         template_id=current_app.config["DAILY_SMS_LIMIT_UPDATED_TEMPLATE_ID"],
@@ -355,8 +354,8 @@ def _warn_service_users_about_sms_limit_changed(service_id, data):
             "service_name": data["name"],
             "message_limit_en": "{:,}".format(data["sms_daily_limit"]),
             "message_limit_fr": "{:,}".format(data["sms_daily_limit"]).replace(",", " "),
-            "message_type_en": "text message parts" if use_parts else "text messages",
-            "message_type_fr": "parties de messages texte" if use_parts else "messages texte",
+            "message_type_en": "text message parts",
+            "message_type_fr": "parties de messages texte",
         },
         include_user_fields=["name"],
     )
@@ -366,12 +365,9 @@ def _warn_service_users_about_annual_limit_change(service: Service, notification
     if notification_type == EMAIL_TYPE:
         message_type_en = "emails"
         message_type_fr = "courriels"
-    elif current_app.config["FF_USE_BILLABLE_UNITS"]:
+    else:
         message_type_en = "text message parts"
         message_type_fr = "parties de messages texte"
-    else:
-        message_type_en = "text messages"
-        message_type_fr = "messages texte"
 
     send_notification_to_service_users(
         service_id=service.id,

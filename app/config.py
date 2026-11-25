@@ -187,7 +187,9 @@ class Config(object):
     # Enables the /v2/reports API endpoints. Off by default so the feature stays hidden in production until launch.
     FF_REPORT_API = env.bool("FF_REPORT_API", False)
     FF_SMS_RATELIMIT = env.bool("FF_SMS_RATELIMIT", False)
-    FF_USE_BILLABLE_UNITS = env.bool("FF_USE_BILLABLE_UNITS", False)
+    # Always on. No longer read by this app, but notifications-utils (annual_limit client) still checks this key
+    # (default False), so it must stay True until that library drops the check.
+    FF_USE_BILLABLE_UNITS = True
     FF_USE_DOGPILE_CACHING = env.bool("FF_USE_DOGPILE_CACHING", False)
 
     # URL of admin app
@@ -209,12 +211,25 @@ class Config(object):
     # DB conection string
     SQLALCHEMY_DATABASE_URI = os.getenv("SQLALCHEMY_DATABASE_URI")
     SQLALCHEMY_DATABASE_READER_URI = os.getenv("SQLALCHEMY_DATABASE_READER_URI")
+    SQLALCHEMY_DISABLE_POOL = env.bool("SQLALCHEMY_DISABLE_POOL", False)
+    # Flask-SQLAlchemy 3.x ignores SQLALCHEMY_POOL_* keys. Pool options must be passed via
+    # engine options.
+    SQLALCHEMY_ENGINE_OPTIONS: dict[str, Any] = (
+        {"poolclass": NullPool}
+        if SQLALCHEMY_DISABLE_POOL
+        else {
+            "pool_size": env.int("SQLALCHEMY_POOL_SIZE", 5),
+            "pool_timeout": 30,
+            "pool_recycle": 300,
+        }
+    )
     # By making the database reader optional, we can revert to a single writer
-    # instance configuration easily.
+    # instance configuration easily. Binds use the dict form so that each engine
+    # receives SQLALCHEMY_ENGINE_OPTIONS; string binds do not.
     if SQLALCHEMY_DATABASE_READER_URI:
         SQLALCHEMY_BINDS = {
-            "writer": SQLALCHEMY_DATABASE_URI,
-            "reader": SQLALCHEMY_DATABASE_READER_URI,
+            "writer": {"url": SQLALCHEMY_DATABASE_URI, **SQLALCHEMY_ENGINE_OPTIONS},
+            "reader": {"url": SQLALCHEMY_DATABASE_READER_URI, **SQLALCHEMY_ENGINE_OPTIONS},
         }
 
     # Hosted graphite statsd prefix
@@ -304,11 +319,6 @@ class Config(object):
     NOTIFY_APP_NAME = "api"
     SQLALCHEMY_RECORD_QUERIES = False
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SQLALCHEMY_DISABLE_POOL = env.bool("SQLALCHEMY_DISABLE_POOL", False)
-    SQLALCHEMY_ENGINE_OPTIONS = {"poolclass": NullPool} if SQLALCHEMY_DISABLE_POOL else {}
-    SQLALCHEMY_POOL_SIZE = None if SQLALCHEMY_DISABLE_POOL else env.int("SQLALCHEMY_POOL_SIZE", 5)
-    SQLALCHEMY_POOL_TIMEOUT = None if SQLALCHEMY_DISABLE_POOL else 30
-    SQLALCHEMY_POOL_RECYCLE = 300
     SQLALCHEMY_DEBUG_POOL_LOGGING = env.bool("SQLALCHEMY_DEBUG_POOL_LOGGING", False)
     SQLALCHEMY_DEBUG_QUERY_MS = env.int("SQLALCHEMY_DEBUG_QUERY_MS", 250)
     SQLALCHEMY_ECHO = env.bool("SQLALCHEMY_ECHO", False)
@@ -528,22 +538,22 @@ class Config(object):
         "delete-sms-notifications": {
             "task": "delete-sms-notifications",
             "schedule": crontab(hour=9, minute=15),  # 4:15 EST in UTC,  after 'create-nightly-notification-status'
-            "options": {"queue": QueueNames.NIGHTLY if FF_IMPROVE_CELERY_WORKER_ISOLATION else QueueNames.PERIODIC},
+            "options": {"queue": QueueNames.NIGHTLY},
         },
         "delete-email-notifications": {
             "task": "delete-email-notifications",
             "schedule": crontab(hour=9, minute=30),  # 4:30 EST in UTC, after 'create-nightly-notification-status'
-            "options": {"queue": QueueNames.NIGHTLY if FF_IMPROVE_CELERY_WORKER_ISOLATION else QueueNames.PERIODIC},
+            "options": {"queue": QueueNames.NIGHTLY},
         },
         "delete-letter-notifications": {
             "task": "delete-letter-notifications",
             "schedule": crontab(hour=9, minute=45),  # 4:45 EST in UTC, after 'create-nightly-notification-status'
-            "options": {"queue": QueueNames.NIGHTLY if FF_IMPROVE_CELERY_WORKER_ISOLATION else QueueNames.PERIODIC},
+            "options": {"queue": QueueNames.NIGHTLY},
         },
         "delete-inbound-sms": {
             "task": "delete-inbound-sms",
             "schedule": crontab(hour=6, minute=40),  # 1:40 EST in UTC
-            "options": {"queue": QueueNames.NIGHTLY if FF_IMPROVE_CELERY_WORKER_ISOLATION else QueueNames.PERIODIC},
+            "options": {"queue": QueueNames.NIGHTLY},
         },
         "send-daily-performance-platform-stats": {
             "task": "send-daily-performance-platform-stats",
@@ -824,7 +834,6 @@ class Test(Development):
     TEMPLATE_PREVIEW_API_HOST = "http://localhost:9999"
     FAILED_LOGIN_LIMIT = 0
     GC_ORGANISATIONS_BUCKET_NAME = "test-gc-organisations"
-    FF_USE_BILLABLE_UNITS = True
     FF_REPORT_API = True
 
 
@@ -855,7 +864,6 @@ class ProductionFF(Test):
     """Test configuration with feature flags turned off for production parity testing"""
 
     NOTIFY_ENVIRONMENT = "production_ff"
-    FF_USE_BILLABLE_UNITS = False
 
 
 class Staging(Production):

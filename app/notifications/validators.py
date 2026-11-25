@@ -1,22 +1,20 @@
 import base64
 import functools
 from datetime import datetime, time, timedelta
+from typing import Optional
 
 from flask import current_app
 from notifications_utils import EMAIL_CHAR_COUNT_LIMIT, SMS_CHAR_COUNT_LIMIT
 from notifications_utils.clients.redis import (
     near_billable_units_sms_daily_limit_cache_key,
     near_email_daily_limit_cache_key,
-    near_sms_daily_limit_cache_key,
     over_billable_units_sms_daily_limit_cache_key,
     over_email_daily_limit_cache_key,
-    over_sms_daily_limit_cache_key,
     rate_limit_cache_key,
 )
 from notifications_utils.clients.redis.annual_limit import (
     TOTAL_EMAIL_FISCAL_YEAR_TO_YESTERDAY,
     TOTAL_SMS_BILLABLE_UNITS_FISCAL_YEAR_TO_YESTERDAY,
-    TOTAL_SMS_FISCAL_YEAR_TO_YESTERDAY,
 )
 from notifications_utils.columns import Columns
 from notifications_utils.field import Field
@@ -35,6 +33,10 @@ from app.dao import templates_dao
 from app.dao.service_email_reply_to_dao import dao_get_reply_to_by_id
 from app.dao.service_letter_contact_dao import dao_get_letter_contact_by_id
 from app.dao.service_sms_sender_dao import dao_get_service_sms_senders_by_id
+from app.dao.services_dao import (
+    fetch_scheduled_email_count_for_day,
+    fetch_scheduled_sms_billable_units_for_day,
+)
 from app.email_limit_utils import fetch_todays_email_count, increment_todays_email_count
 from app.inline_images import get_inline_image_mime_type
 from app.models import (
@@ -51,14 +53,16 @@ from app.models import (
     Template,
     TemplateType,
 )
-from app.notifications.process_notifications import create_content_for_notification
+from app.notifications.process_notifications import (
+    create_content_for_notification,
+    is_scheduled_for_a_later_day,
+    parse_scheduled_datetime,
+)
 from app.service.sender import send_notification_to_service_users
 from app.service.utils import service_allowed_to_send_to
 from app.sms_fragment_utils import (
     fetch_todays_requested_sms_billable_units_count,
-    fetch_todays_requested_sms_count,
     increment_todays_requested_sms_billable_units_count,
-    increment_todays_requested_sms_count,
 )
 from app.utils import (
     get_document_url,
@@ -110,14 +114,19 @@ def check_service_over_api_rate_limit_and_update_rate(service: Service, api_key:
     counter_name="rate_limit.live_service_daily_sms",
     exception=LiveServiceTooManySMSRequestsError,
 )
-def check_sms_daily_limit(service: Service, requested_sms=0):
-    # TODO FF_USE_BILLABLE_UNITS removal - Use billable units when feature flag is enabled
-    if current_app.config.get("FF_USE_BILLABLE_UNITS"):
-        messages_sent = fetch_todays_requested_sms_billable_units_count(service.id)
-        over_sms_daily_limit = (messages_sent + requested_sms) > service.sms_daily_limit
+def check_sms_daily_limit(service: Service, requested_sms=0, scheduled_for: Optional[str] = None):
+    """Checks the daily limit of the day the messages will be sent: today, or the day they're scheduled for."""
+    # Known race condition (applies to check_email_daily_limit too): this check is not atomic with
+    # recording the send. For a later day, the total is a plain DB read and the job/notification is
+    # only committed after this check. For today, the count is a Redis get that is only incremented
+    # later with a separate incrby. Two concurrent requests can both pass and exceed the daily limit.
+    # A fix would need a per-service, per-day atomic counter (e.g. in Redis) or a DB lock around the
+    # check and the insert, for both today and scheduled sends. Left as-is unless it causes problems.
+    if scheduled_for and is_scheduled_for_a_later_day(scheduled_for):
+        messages_sent = fetch_scheduled_sms_billable_units_for_day(service.id, parse_scheduled_datetime(scheduled_for))
     else:
-        messages_sent = fetch_todays_requested_sms_count(service.id)
-        over_sms_daily_limit = (messages_sent + requested_sms) > service.sms_daily_limit
+        messages_sent = fetch_todays_requested_sms_billable_units_count(service.id)
+    over_sms_daily_limit = (messages_sent + requested_sms) > service.sms_daily_limit
 
     # Send a warning when reaching the daily message limit
     if not over_sms_daily_limit:
@@ -142,8 +151,13 @@ def check_sms_daily_limit(service: Service, requested_sms=0):
     counter_name="rate_limit.live_service_daily_email",
     exception=LiveServiceTooManyEmailRequestsError,
 )
-def check_email_daily_limit(service: Service, requested_email=0):
-    emails_sent_today = fetch_todays_email_count(service.id)
+def check_email_daily_limit(service: Service, requested_email=0, scheduled_for: Optional[str] = None):
+    """Checks the daily limit of the day the emails will be sent: today, or the day they're scheduled for."""
+    # Known race condition: concurrent requests can both pass this check. See check_sms_daily_limit.
+    if scheduled_for and is_scheduled_for_a_later_day(scheduled_for):
+        emails_sent_today = fetch_scheduled_email_count_for_day(service.id, parse_scheduled_datetime(scheduled_for))
+    else:
+        emails_sent_today = fetch_todays_email_count(service.id)
     bool_over_email_daily_limit = (emails_sent_today + requested_email) > service.message_limit
 
     # Send a warning when reaching the daily email limit
@@ -227,14 +241,9 @@ def check_email_annual_limit(service: Service, requested_emails=0):
 def check_sms_annual_limit(service: Service, requested_sms=0):
     current_fiscal_year = get_fiscal_year(datetime.utcnow())
 
-    # TODO FF_USE_BILLABLE_UNITS removal - Use billable units when feature flag is enabled
-    if current_app.config.get("FF_USE_BILLABLE_UNITS"):
-        sms_sent_today = fetch_todays_requested_sms_billable_units_count(service.id)
-        annual_data = get_annual_limit_notifications_v2(service.id)
-        sms_sent_this_fiscal = annual_data.get(TOTAL_SMS_BILLABLE_UNITS_FISCAL_YEAR_TO_YESTERDAY, 0)
-    else:
-        sms_sent_today = fetch_todays_requested_sms_count(service.id)
-        sms_sent_this_fiscal = get_annual_limit_notifications_v2(service.id)[TOTAL_SMS_FISCAL_YEAR_TO_YESTERDAY]
+    sms_sent_today = fetch_todays_requested_sms_billable_units_count(service.id)
+    annual_data = get_annual_limit_notifications_v2(service.id)
+    sms_sent_this_fiscal = annual_data.get(TOTAL_SMS_BILLABLE_UNITS_FISCAL_YEAR_TO_YESTERDAY, 0)
 
     send_exceeds_annual_limit = (sms_sent_today + sms_sent_this_fiscal + requested_sms) > service.sms_annual_limit
     send_reaches_annual_limit = (sms_sent_today + sms_sent_this_fiscal + requested_sms) == service.sms_annual_limit
@@ -305,15 +314,9 @@ def send_warning_email_limit_emails_if_needed(service: Service) -> None:
 
 
 def send_warning_sms_limit_emails_if_needed(service: Service):
-    # TODO FF_USE_BILLABLE_UNITS removal - Fetch billable units when feature flag is enabled
-    if current_app.config.get("FF_USE_BILLABLE_UNITS"):
-        todays_requested_sms = fetch_todays_requested_sms_billable_units_count(service.id)
-        near_cache_key = near_billable_units_sms_daily_limit_cache_key(service.id)
-        over_cache_key = over_billable_units_sms_daily_limit_cache_key(service.id)
-    else:
-        todays_requested_sms = fetch_todays_requested_sms_count(service.id)
-        near_cache_key = near_sms_daily_limit_cache_key(service.id)
-        over_cache_key = over_sms_daily_limit_cache_key(service.id)
+    todays_requested_sms = fetch_todays_requested_sms_billable_units_count(service.id)
+    near_cache_key = near_billable_units_sms_daily_limit_cache_key(service.id)
+    over_cache_key = over_billable_units_sms_daily_limit_cache_key(service.id)
 
     nearing_sms_daily_limit = todays_requested_sms >= NEAR_DAILY_LIMIT_PERCENTAGE * service.sms_daily_limit
     at_or_over_sms_daily_limit = todays_requested_sms >= service.sms_daily_limit
@@ -351,11 +354,7 @@ def increment_sms_daily_count_send_warnings_if_needed(service: Service, requeste
         current_app.logger.info(f"SMS billable_units was None; defaulting requested_count to 1 for service: {service.id}")
         requested_sms = 1
 
-    # TODO FF_USE_BILLABLE_UNITS removal - Increment billable units when feature flag is enabled
-    if current_app.config.get("FF_USE_BILLABLE_UNITS"):
-        increment_todays_requested_sms_billable_units_count(service.id, requested_sms)
-    else:
-        increment_todays_requested_sms_count(service.id, requested_sms)
+    increment_todays_requested_sms_billable_units_count(service.id, requested_sms)
 
     send_warning_sms_limit_emails_if_needed(service)
 
@@ -372,7 +371,6 @@ def check_rate_limiting(service: Service, api_key: ApiKey):
 def send_near_sms_limit_email(service: Service, sms_sent):
     limit_reset_time_et = get_limit_reset_time_et()
     sms_remaining = service.sms_daily_limit - sms_sent
-    use_parts = current_app.config.get("FF_USE_BILLABLE_UNITS", False)
     send_notification_to_service_users(
         service_id=service.id,
         template_id=current_app.config["NEAR_DAILY_SMS_LIMIT_TEMPLATE_ID"],
@@ -385,8 +383,8 @@ def send_near_sms_limit_email(service: Service, sms_sent):
             "remaining_fr": "{:,}".format(sms_remaining).replace(",", " "),
             "message_limit_en": "{:,}".format(service.sms_daily_limit),
             "message_limit_fr": "{:,}".format(service.sms_daily_limit).replace(",", " "),
-            "message_type_en": "text message parts" if use_parts else "text messages",
-            "message_type_fr": "parties de messages texte" if use_parts else "messages texte",
+            "message_type_en": "text message parts",
+            "message_type_fr": "parties de messages texte",
             "limit_reset_time_et_12hr": limit_reset_time_et["12hr"],
             "limit_reset_time_et_24hr": limit_reset_time_et["24hr"],
         },
@@ -424,7 +422,6 @@ def send_near_email_limit_email(service: Service, emails_sent) -> None:
 
 def send_sms_limit_reached_email(service: Service):
     limit_reset_time_et = get_limit_reset_time_et()
-    use_parts = current_app.config.get("FF_USE_BILLABLE_UNITS", False)
     send_notification_to_service_users(
         service_id=service.id,
         template_id=current_app.config["REACHED_DAILY_SMS_LIMIT_TEMPLATE_ID"],
@@ -433,8 +430,8 @@ def send_sms_limit_reached_email(service: Service):
             "contact_url": f"{current_app.config['ADMIN_BASE_URL']}/contact",
             "message_limit_en": "{:,}".format(service.sms_daily_limit),
             "message_limit_fr": "{:,}".format(service.sms_daily_limit).replace(",", " "),
-            "message_type_en": "text message parts" if use_parts else "text messages",
-            "message_type_fr": "parties de messages texte" if use_parts else "messages texte",
+            "message_type_en": "text message parts",
+            "message_type_fr": "parties de messages texte",
             "limit_reset_time_et_12hr": limit_reset_time_et["12hr"],
             "limit_reset_time_et_24hr": limit_reset_time_et["24hr"],
         },
@@ -463,12 +460,9 @@ def send_annual_limit_reached_email(service: Service, notification_type: Notific
     if notification_type == EMAIL_TYPE:
         message_type_en = "emails"
         message_type_fr = "courriels"
-    elif current_app.config["FF_USE_BILLABLE_UNITS"]:
+    else:
         message_type_en = "text message parts"
         message_type_fr = "parties de messages texte"
-    else:
-        message_type_en = "text messages"
-        message_type_fr = "messages texte"
 
     send_notification_to_service_users(
         service_id=service.id,
@@ -497,12 +491,8 @@ def send_near_annual_limit_warning_email(service: Service, notification_type: No
     else:
         message_limit_fr = "{:,}".format(service.sms_annual_limit).replace(",", " ")
         message_limit_en = service.sms_annual_limit
-        if current_app.config["FF_USE_BILLABLE_UNITS"]:
-            message_type_en = "text message parts"
-            message_type_fr = "parties de messages texte"
-        else:
-            message_type_en = "text messages"
-            message_type_fr = "messages texte"
+        message_type_en = "text message parts"
+        message_type_fr = "parties de messages texte"
         remaining_en = "{:,}".format(service.sms_annual_limit - count_en)
         remaining_fr = "{:,}".format(service.sms_annual_limit - count_en).replace(",", " ")
 

@@ -2,6 +2,7 @@ import uuid
 from unittest.mock import Mock
 
 import pytest
+from freezegun import freeze_time
 from notifications_utils import SMS_CHAR_COUNT_LIMIT
 from notifications_utils.recipients import InvalidPhoneError
 
@@ -13,6 +14,7 @@ from app.models import (
     MOBILE_TYPE,
     SMS_TYPE,
     Notification,
+    ScheduledNotification,
     ServiceSafelist,
 )
 from app.service.send_notification import send_one_off_notification
@@ -28,7 +30,6 @@ from tests.app.db import (
     create_template,
     create_user,
 )
-from tests.conftest import set_config
 
 
 @pytest.fixture
@@ -539,144 +540,295 @@ def test_send_one_off_notification_should_throw_exception_if_sms_sender_id_doesn
     assert e.value.message == "SMS sender not found"
 
 
-# TODO: Remove feature flag checks after FF_USE_BILLABLE_UNITS go live
 class TestBillableUnitsInSendOneOffNotification:
     """Tests for billable_units in send_one_off_notification"""
 
-    def test_send_one_off_sms_uses_billable_units_when_flag_enabled(self, notify_db_session, mocker, notify_api):
-        """Test that send_one_off_notification uses billable_units from persist_notification when flag enabled"""
-        with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
-            service = create_service()
-            # Create template with long content to ensure multiple fragments
-            template = create_template(
-                service=service,
-                template_type=SMS_TYPE,
-                content="a" * 200,  # Long message -> 2 fragments
-            )
+    def test_send_one_off_sms_uses_billable_units(self, notify_db_session, mocker):
+        """Test that send_one_off_notification uses billable_units from persist_notification"""
+        service = create_service()
+        # Create template with long content to ensure multiple fragments
+        template = create_template(
+            service=service,
+            template_type=SMS_TYPE,
+            content="a" * 200,  # Long message -> 2 fragments
+        )
 
-            # Mock persist_notification to return a notification with billable_units set
-            mock_notification = Mock(id=uuid.uuid4(), billable_units=2)
-            mocker.patch("app.service.send_notification.persist_notification", return_value=mock_notification)
-            mocker.patch("app.service.send_notification.send_notification_to_queue")
-            mock_increment = mocker.patch("app.service.send_notification.increment_sms_daily_count_send_warnings_if_needed")
-            mocker.patch(
-                "app.notifications.validators.get_annual_limit_notifications_v2",
-                return_value={
-                    "total_email_fiscal_year_to_yesterday": 0,
-                    "total_sms_fiscal_year_to_yesterday": 0,
-                },
-            )
+        # Mock persist_notification to return a notification with billable_units set
+        mock_notification = Mock(id=uuid.uuid4(), billable_units=2)
+        mocker.patch("app.service.send_notification.persist_notification", return_value=mock_notification)
+        mocker.patch("app.service.send_notification.send_notification_to_queue")
+        mock_increment = mocker.patch("app.service.send_notification.increment_sms_daily_count_send_warnings_if_needed")
+        mocker.patch(
+            "app.notifications.validators.get_annual_limit_notifications_v2",
+            return_value={
+                "total_email_fiscal_year_to_yesterday": 0,
+                "total_sms_fiscal_year_to_yesterday": 0,
+            },
+        )
 
-            post_data = {
-                "template_id": str(template.id),
-                "to": "6502532222",
-                "created_by": str(service.created_by_id),
-            }
+        post_data = {
+            "template_id": str(template.id),
+            "to": "6502532222",
+            "created_by": str(service.created_by_id),
+        }
 
-            send_one_off_notification(service.id, post_data)
+        send_one_off_notification(service.id, post_data)
 
-            # Verify increment was called with billable_units=2
-            mock_increment.assert_called_once_with(service, 2)
+        # Verify increment was called with billable_units=2
+        mock_increment.assert_called_once_with(service, 2)
 
-    def test_send_one_off_sms_uses_count_of_1_when_flag_disabled(self, notify_db_session, mocker, notify_api):
-        """Test that send_one_off_notification uses count=1 when flag is disabled"""
-        with set_config(notify_api, "FF_USE_BILLABLE_UNITS", False):
-            service = create_service()
-            # Create template with long content to ensure multiple fragments
-            template = create_template(
-                service=service,
-                template_type=SMS_TYPE,
-                content="a" * 200,  # Long message -> 2 fragments
-            )
-
-            # Mock persist_notification to return a notification with billable_units set
-            mock_notification = Mock(id=uuid.uuid4(), billable_units=2)
-            mocker.patch("app.service.send_notification.persist_notification", return_value=mock_notification)
-            mocker.patch("app.service.send_notification.send_notification_to_queue")
-            mock_increment = mocker.patch("app.service.send_notification.increment_sms_daily_count_send_warnings_if_needed")
-            mocker.patch(
-                "app.notifications.validators.get_annual_limit_notifications_v2",
-                return_value={
-                    "total_email_fiscal_year_to_yesterday": 0,
-                    "total_sms_fiscal_year_to_yesterday": 0,
-                },
-            )
-
-            post_data = {
-                "template_id": str(template.id),
-                "to": "6502532222",
-                "created_by": str(service.created_by_id),
-            }
-
-            send_one_off_notification(service.id, post_data)
-
-            # Verify increment was called with count=1 despite notification.billable_units=2
-            mock_increment.assert_called_once_with(service, 1)
-
-    def test_send_one_off_sms_test_notification_does_not_increment(self, notify_db_session, mocker, notify_api):
+    def test_send_one_off_sms_test_notification_does_not_increment(self, notify_db_session, mocker):
         """Test that test notifications don't increment daily count even with billable_units"""
-        with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
-            service = create_service()
-            template = create_template(
-                service=service,
-                template_type=SMS_TYPE,
-                content="a" * 200,
-            )
+        service = create_service()
+        template = create_template(
+            service=service,
+            template_type=SMS_TYPE,
+            content="a" * 200,
+        )
 
-            mock_notification = Mock(id=uuid.uuid4(), billable_units=2)
-            mocker.patch("app.service.send_notification.persist_notification", return_value=mock_notification)
-            mocker.patch("app.service.send_notification.send_notification_to_queue")
-            mock_increment = mocker.patch("app.service.send_notification.increment_sms_daily_count_send_warnings_if_needed")
-            mocker.patch("app.service.send_notification.simulated_recipient", return_value=True)
-            mocker.patch(
-                "app.notifications.validators.get_annual_limit_notifications_v2",
-                return_value={
-                    "total_email_fiscal_year_to_yesterday": 0,
-                    "total_sms_fiscal_year_to_yesterday": 0,
-                },
-            )
+        mock_notification = Mock(id=uuid.uuid4(), billable_units=2)
+        mocker.patch("app.service.send_notification.persist_notification", return_value=mock_notification)
+        mocker.patch("app.service.send_notification.send_notification_to_queue")
+        mock_increment = mocker.patch("app.service.send_notification.increment_sms_daily_count_send_warnings_if_needed")
+        mocker.patch("app.service.send_notification.simulated_recipient", return_value=True)
+        mocker.patch(
+            "app.notifications.validators.get_annual_limit_notifications_v2",
+            return_value={
+                "total_email_fiscal_year_to_yesterday": 0,
+                "total_sms_fiscal_year_to_yesterday": 0,
+            },
+        )
 
-            post_data = {
-                "template_id": str(template.id),
-                "to": "6132532222",  # Simulated/test number
-                "created_by": str(service.created_by_id),
-            }
+        post_data = {
+            "template_id": str(template.id),
+            "to": "6132532222",  # Simulated/test number
+            "created_by": str(service.created_by_id),
+        }
 
-            send_one_off_notification(service.id, post_data)
+        send_one_off_notification(service.id, post_data)
 
-            # Test notifications should not increment daily count
-            mock_increment.assert_not_called()
+        # Test notifications should not increment daily count
+        mock_increment.assert_not_called()
 
-    def test_send_one_off_email_does_not_use_billable_units(self, notify_db_session, mocker, notify_api):
+    def test_send_one_off_email_does_not_use_billable_units(self, notify_db_session, mocker):
         """Test that email notifications don't use billable_units"""
-        with set_config(notify_api, "FF_USE_BILLABLE_UNITS", True):
-            service = create_service()
-            template = create_template(
-                service=service,
-                template_type=EMAIL_TYPE,
-                subject="Test",
-                content="Email content",
-            )
+        service = create_service()
+        template = create_template(
+            service=service,
+            template_type=EMAIL_TYPE,
+            subject="Test",
+            content="Email content",
+        )
 
-            mock_notification = Mock(id=uuid.uuid4(), billable_units=None)
-            mocker.patch("app.service.send_notification.persist_notification", return_value=mock_notification)
-            mocker.patch("app.service.send_notification.send_notification_to_queue")
-            mock_increment = mocker.patch("app.service.send_notification.increment_email_daily_count_send_warnings_if_needed")
-            mocker.patch(
-                "app.notifications.validators.get_annual_limit_notifications_v2",
-                return_value={
-                    "total_email_fiscal_year_to_yesterday": 0,
-                    "total_sms_fiscal_year_to_yesterday": 0,
+        mock_notification = Mock(id=uuid.uuid4(), billable_units=None)
+        mocker.patch("app.service.send_notification.persist_notification", return_value=mock_notification)
+        mocker.patch("app.service.send_notification.send_notification_to_queue")
+        mock_increment = mocker.patch("app.service.send_notification.increment_email_daily_count_send_warnings_if_needed")
+        mocker.patch(
+            "app.notifications.validators.get_annual_limit_notifications_v2",
+            return_value={
+                "total_email_fiscal_year_to_yesterday": 0,
+                "total_sms_fiscal_year_to_yesterday": 0,
+            },
+        )
+
+        post_data = {
+            "template_id": str(template.id),
+            "to": "test@example.com",
+            "created_by": str(service.created_by_id),
+        }
+
+        send_one_off_notification(service.id, post_data)
+
+        # Email increment always uses 1, never billable_units
+        mock_increment.assert_called_once_with(service, 1)
+
+
+@pytest.fixture
+def mock_annual_limits(mocker):
+    mocker.patch(
+        "app.notifications.validators.get_annual_limit_notifications_v2",
+        return_value={
+            "total_email_fiscal_year_to_yesterday": 0,
+            "total_sms_fiscal_year_to_yesterday": 0,
+        },
+    )
+
+
+class TestScheduledOneOffNotification:
+    @freeze_time("2017-05-01 14:00:00")
+    @pytest.mark.parametrize("template_type, to", [(SMS_TYPE, "6502532222"), (EMAIL_TYPE, "ok@ok.com")])
+    def test_stores_scheduled_notification_and_does_not_send_it(
+        self, notify_db_session, celery_mock, mock_annual_limits, template_type, to
+    ):
+        service = create_service()
+        template = create_template(service=service, template_type=template_type, content="Hello ((name))")
+
+        resp = send_one_off_notification(
+            service.id,
+            {
+                "template_id": str(template.id),
+                "to": to,
+                "personalisation": {"name": "Jo"},
+                "created_by": str(service.created_by_id),
+                "scheduled_for": "2017-05-02 10:00",
+            },
+        )
+
+        assert not celery_mock.called
+        assert Notification.query.count() == 0
+        scheduled = ScheduledNotification.query.one()
+        assert resp == {"id": str(scheduled.notification_id)}
+        assert scheduled.service_id == service.id
+        assert scheduled.template_id == template.id
+        assert scheduled.to == to
+        assert scheduled.personalisation == {"name": "Jo"}
+        assert scheduled.api_key_id is None
+        assert scheduled.key_type == KEY_TYPE_NORMAL
+        assert scheduled.created_by_id == service.created_by_id
+        assert scheduled.scheduled_for.isoformat() == "2017-05-02T10:00:00"
+
+    @freeze_time("2017-05-01 14:00:00")
+    @pytest.mark.parametrize("scheduled_for, counted_today", [("2017-05-01 20:00", True), ("2017-05-02 10:00", False)])
+    def test_only_counts_towards_todays_limit_if_scheduled_for_today(
+        self, notify_db_session, celery_mock, mock_annual_limits, mocker, scheduled_for, counted_today
+    ):
+        increment_mock = mocker.patch("app.service.send_notification.increment_sms_daily_count_send_warnings_if_needed")
+        service = create_service()
+        template = create_template(service=service)
+
+        send_one_off_notification(
+            service.id,
+            {
+                "template_id": str(template.id),
+                "to": "6502532222",
+                "created_by": str(service.created_by_id),
+                "scheduled_for": scheduled_for,
+            },
+        )
+
+        assert increment_mock.called is counted_today
+
+    @freeze_time("2017-05-01 14:00:00")
+    @pytest.mark.parametrize("template_type, to", [(SMS_TYPE, "6502532222"), (EMAIL_TYPE, "ok@ok.com")])
+    def test_can_schedule_for_a_later_day_when_todays_daily_limit_is_used_up(
+        self, notify_db_session, celery_mock, mock_annual_limits, mocker, template_type, to
+    ):
+        service = create_service(message_limit=10, sms_daily_limit=10)
+        template = create_template(service=service, template_type=template_type)
+        mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=10)
+        mocker.patch("app.notifications.validators.fetch_todays_requested_sms_billable_units_count", return_value=10)
+
+        send_one_off_notification(
+            service.id,
+            {
+                "template_id": str(template.id),
+                "to": to,
+                "created_by": str(service.created_by_id),
+                "scheduled_for": "2017-05-02 10:00",
+            },
+        )
+
+        assert ScheduledNotification.query.count() == 1
+
+    @freeze_time("2017-05-01 14:00:00")
+    @pytest.mark.parametrize(
+        "template_type, to, expected_error",
+        [
+            (SMS_TYPE, "6502532222", LiveServiceTooManySMSRequestsError),
+            (EMAIL_TYPE, "ok@ok.com", LiveServiceTooManyEmailRequestsError),
+        ],
+    )
+    @pytest.mark.parametrize(
+        "scheduled_for, todays_count, scheduled_days_count",
+        [
+            # later today, and today's limit is used up
+            ("2017-05-01 20:00", 10, 0),
+            # a later day, and that day's limit is used up
+            ("2017-05-02 10:00", 0, 10),
+        ],
+        ids=["later_today", "later_day"],
+    )
+    def test_raises_if_daily_limit_of_scheduled_day_is_used_up(
+        self,
+        notify_db_session,
+        celery_mock,
+        mock_annual_limits,
+        mocker,
+        template_type,
+        to,
+        expected_error,
+        scheduled_for,
+        todays_count,
+        scheduled_days_count,
+    ):
+        service = create_service(message_limit=10, sms_daily_limit=10)
+        template = create_template(service=service, template_type=template_type)
+        mocker.patch("app.notifications.validators.fetch_todays_email_count", return_value=todays_count)
+        mocker.patch("app.notifications.validators.fetch_todays_requested_sms_billable_units_count", return_value=todays_count)
+        mocker.patch("app.notifications.validators.fetch_scheduled_email_count_for_day", return_value=scheduled_days_count)
+        mocker.patch("app.notifications.validators.fetch_scheduled_sms_billable_units_for_day", return_value=scheduled_days_count)
+
+        with pytest.raises(expected_error):
+            send_one_off_notification(
+                service.id,
+                {
+                    "template_id": str(template.id),
+                    "to": to,
+                    "created_by": str(service.created_by_id),
+                    "scheduled_for": scheduled_for,
                 },
             )
 
-            post_data = {
+        assert ScheduledNotification.query.count() == 0
+
+    @freeze_time("2017-05-01 14:00:00")
+    @pytest.mark.parametrize(
+        "scheduled_for, message",
+        [
+            ("2017-05-01 13:00", "scheduled_for datetime cannot be in the past"),
+            ("2017-05-30 13:00", "scheduled_for datetime can only be up to 96 hours in the future"),
+            ("not a date", "scheduled_for datetime format is invalid"),
+            ("", "scheduled_for must be a non-empty string"),
+            (123, "scheduled_for must be a non-empty string"),
+            (0, "scheduled_for must be a non-empty string"),
+            (False, "scheduled_for must be a non-empty string"),
+        ],
+    )
+    def test_raises_if_scheduled_for_is_invalid(self, notify_db_session, persist_mock, celery_mock, scheduled_for, message):
+        service = create_service()
+        template = create_template(service=service)
+
+        with pytest.raises(BadRequestError) as e:
+            send_one_off_notification(
+                service.id,
+                {
+                    "template_id": str(template.id),
+                    "to": "6502532222",
+                    "created_by": str(service.created_by_id),
+                    "scheduled_for": scheduled_for,
+                },
+            )
+
+        assert e.value.message.startswith(message)
+        assert ScheduledNotification.query.count() == 0
+        assert not persist_mock.called
+
+    @freeze_time("2017-05-01 14:00:00")
+    def test_sends_simulated_recipients_straight_away(self, notify_db_session, persist_mock, celery_mock, mock_annual_limits):
+        service = create_service()
+        template = create_template(service=service, template_type=EMAIL_TYPE)
+
+        send_one_off_notification(
+            service.id,
+            {
                 "template_id": str(template.id),
-                "to": "test@example.com",
+                "to": "simulate-delivered@notification.canada.ca",
                 "created_by": str(service.created_by_id),
-            }
+                "scheduled_for": "2017-05-02 10:00",
+            },
+        )
 
-            send_one_off_notification(service.id, post_data)
-
-            # Email increment always uses 1, never billable_units
-            mock_increment.assert_called_once_with(service, 1)
+        assert persist_mock.called
+        assert celery_mock.called
+        assert ScheduledNotification.query.count() == 0
