@@ -11,6 +11,85 @@ Contains:
 - We currently do not support sending of letters
 - We currently do not receive a response if text messages were delivered or not
 
+### Inline email images (API only)
+
+`FF_ENABLE_INLINE_IMAGES` defaults to `False`. When enabled on the API and email
+workers, and the service ID is in `INLINE_IMAGE_SERVICE_IDS`,
+`/v2/notifications/email` accepts PNG and JPEG images in
+personalisation:
+
+```json
+{
+  "email_address": "recipient@example.ca",
+  "template_id": "your-template-uuid",
+  "personalisation": {
+    "usage_chart": {
+      "file": "<base64-encoded image bytes>",
+      "filename": "chart.png",
+      "sending_method": "inline",
+      "alt_text": "Your usage increased from 10 to 15 units."
+    }
+  }
+}
+```
+
+Put `((usage_chart))` on its own line in the email body. Image placeholders cannot
+be used in the subject, links, or conditionals. Alt text is required (1 to 1000
+characters) and is used in the plain-text email and API content responses.
+Arbitrary HTML remains disabled.
+
+Set `INLINE_IMAGE_SERVICE_IDS` on both API and email workers to a comma-separated
+list of permitted service IDs, for example `uuid-one,uuid-two`. Spaces around
+entries are trimmed; an unset or empty list permits no services. Both the flag
+and list membership are required, in addition to `upload_document` permission.
+Unlisted services receive HTTP 403 before uploads. Eligibility is rechecked at
+delivery, so removing a service also blocks its queued inline-image sends.
+Environment values are read at process startup; restart/roll out pods after
+changing them. Ordinary attachments are unaffected.
+
+Images fit the email content width by default. Add `"display_size": "original"`
+beside `"alt_text"` to request native pixel dimensions without the responsive
+width constraint. `"responsive"` explicitly selects the default. Original-size
+images may overflow, be clipped, or be scaled by the recipient's email client;
+horizontal scrolling is not guaranteed.
+
+Alternatively, set `"max_width": 1200` to limit the image width to 1200 pixels
+while preserving its aspect ratio and without enlarging smaller images.
+`max_width` must be a positive integer in pixels. Do not combine it with
+`display_size`; requests specifying both are rejected.
+
+The service needs the existing `upload_document` permission. Images share the
+existing attachment count and size limits and use the document service's `attach`
+storage and malware scanning. No public image hosting or new document-service
+sending method is needed. A failed scan or download prevents image delivery;
+pending scans use the existing retry flow. Normal attachments can coexist with
+inline images. Some email clients may still show embedded images as attachments.
+
+This local proof of concept uses a `notification-utils` wheel backported onto
+53.3.0, retaining Flask 2 compatibility. The API dependency points to the generated
+wheel in `local_dependencies/` (gitignored); Docker copies it before installing
+dependencies. Nothing needs to be pushed to GitHub. From the API repository,
+rebuild it after changing the local renderer:
+
+```sh
+(cd ../notification-utils && poetry build --format wheel)
+mkdir -p local_dependencies
+cp ../notification-utils/dist/notifications_utils-53.3.0+inline.3-py3-none-any.whl local_dependencies/
+poetry lock --no-update
+poetry install
+docker build -f ci/Dockerfile -t notification-api:inline-images-local .
+```
+
+Bump the local renderer version and update the wheel path before rebuilding
+changed source, then re-lock so its recorded hash matches. Deploy the same
+image to the API and email workers, and set `FF_ENABLE_INLINE_IMAGES=true` in
+both, and configure `INLINE_IMAGE_SERVICE_IDS` in both environments. This local wheel must be replaced with a released dependency before merging
+or using the normal CI build, since it is not committed.
+
+Disabling the flag also blocks queued inline-image sends
+(they follow the normal delivery retry/failure flow). Admin image editing and
+browser previews are not part of this API-first implementation.
+
 
 ## Setting Up
 

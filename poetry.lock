@@ -2782,9 +2782,10 @@ name = "notifications-utils"
 version = "54.1.0"
 description = "Shared python code for Notification - Provides logging utils etc."
 optional = false
-python-versions = "~3.12.7"
-files = []
-develop = false
+python-versions = ">=3.12.7,<3.13.0"
+files = [
+    {file = "notifications_utils-53.3.0+inline.3-py3-none-any.whl", hash = "sha256:45ebfbff4a7162c7bceb4fa32aee647784fe368612310c353afa013f6315835a"},
+]
 
 [package.dependencies]
 awscli = "1.45.59"
@@ -2796,12 +2797,12 @@ cryptography = "^46.0.5"
 Flask = "3.1.3"
 Flask-Redis = "0.4.0"
 itsdangerous = "2.2.0"
-Jinja2 = "^3.0.0"
+Jinja2 = ">=3.0.0,<4.0.0"
 markupsafe = "2.1.5"
 mistune = "0.8.4"
 ordered-set = "4.1.0"
 phonenumbers = "8.13.55"
-pre-commit = "^3.8.0"
+pre-commit = ">=3.8.0,<4.0.0"
 py_w3c = "0.3.1"
 pypdf2 = "1.28.6"
 python-json-logger = "2.0.7"

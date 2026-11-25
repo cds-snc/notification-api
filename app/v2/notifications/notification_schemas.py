@@ -5,6 +5,7 @@ from app.models import (
     TEMPLATE_TYPES,
 )
 from app.schema_validation.definitions import (
+    email_personalisation,
     letter_personalisation,
     nullable_uuid,
     personalisation,
@@ -201,7 +202,7 @@ post_email_request = {
         "reference": {"type": "string"},
         "email_address": {"type": "string", "format": "email_address"},
         "template_id": uuid,
-        "personalisation": personalisation,
+        "personalisation": email_personalisation,
         "scheduled_for": {
             "type": ["string", "null"],
             "format": "datetime_schedule_job",

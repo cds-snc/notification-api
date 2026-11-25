@@ -12,6 +12,7 @@ venv-freeze/
 *.so
 
 # Distribution / packaging
+local_dependencies/
 .Python
 env/
 build/

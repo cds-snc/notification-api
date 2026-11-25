@@ -360,6 +360,17 @@ paths:
                       file: "file as base64 encoded string"
                       filename: "your_custom_filename.pdf"
                       sending_method: "link"
+              with_inline_image:
+                summary: Email with an inline image (feature flag required)
+                value:
+                  email_address: "user@example.com"
+                  template_id: "12345678-1234-1234-1234-123456789012"
+                  personalisation:
+                    usage_chart:
+                      file: "image as base64 encoded string"
+                      filename: "chart.png"
+                      sending_method: "inline"
+                      alt_text: Your usage chart
               scheduled_email:
                 summary: Scheduled email notification
                 value:
@@ -428,7 +439,7 @@ paths:
                     status_code: 400
                     errors:
                       - error: "ValidationError"
-                        message: "personalisation application_file sending_method is not one of [attach, link]"
+                        message: "personalisation application_file sending_method is not one of [attach, link, inline]"
                 base64_decode_error:
                   summary: Base64 decoding error
                   value:
@@ -2525,6 +2536,7 @@ components:
               - type: string
                 description: Template variable value
               - $ref: '#/components/schemas/FileAttachment'
+              - $ref: '#/components/schemas/InlineImage'
         scheduled_for:
           type: string
           format: date-time
@@ -2652,6 +2664,46 @@ components:
         file: "base64encodedfilecontenthere"
         filename: "document.pdf"
         sending_method: "attach"
+
+    InlineImage:
+      type: object
+      description: >-
+        Both FF_ENABLE_INLINE_IMAGES and membership in INLINE_IMAGE_SERVICE_IDS are required. Unlisted services receive HTTP 403.
+        Requires FF_ENABLE_INLINE_IMAGES and upload_document permission. Use a placeholder on its own line in the email body. PNG and JPEG only; existing attachment limits apply. Not supported in subjects, links or conditionals.
+      properties:
+        file:
+          type: string
+          description: File content as base64 encoded string
+        filename:
+          type: string
+          minLength: 3
+          maxLength: 255
+        sending_method:
+          type: string
+          enum: [inline]
+        display_size:
+          type: string
+          enum: [responsive, original]
+          default: responsive
+          description: Original requests native image dimensions; email clients may still scale or clip the image. Responsive fits the email content width.
+        max_width:
+          type: integer
+          minimum: 1
+          description: Maximum image width in pixels, preserving aspect ratio without enlarging smaller images. Cannot be combined with display_size.
+        alt_text:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          pattern: '\S'
+          description: Required image description, also used in plain-text email
+      required:
+        - file
+        - filename
+        - sending_method
+        - alt_text
+
+      not:
+        required: [display_size, max_width]
 
     Template:
       type: object
